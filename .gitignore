@@ -110,3 +110,11 @@ app.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+
+# PoC Project
+maeil1dok-poc/.env.local
+maeil1dok-poc/node_modules/
+maeil1dok-poc/.next/
+maeil1dok-poc/out/
+!maeil1dok-poc/src/lib/
