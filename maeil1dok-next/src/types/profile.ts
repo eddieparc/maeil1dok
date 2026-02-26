@@ -40,3 +40,29 @@ export interface UserReadingPosition {
   version: string
   updatedAt: string
 }
+
+export interface UserFollow {
+  id: string
+  followerId: string
+  followingId: string
+  createdAt: string
+}
+
+export interface FollowCounts {
+  followerCount: number
+  followingCount: number
+  isFollowing: boolean
+}
+
+export interface PublicProfile extends UserProfile {
+  followCounts: FollowCounts
+}
+
+export interface DailyStatusData {
+  readingCompleted: boolean
+  hasenaCompleted: boolean
+  introCompleted: boolean
+  currentStreak: number
+  totalCompletedDays: number
+  longestStreak: number
+}
