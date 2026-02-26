@@ -7,6 +7,7 @@ import { SupabaseProgressRepository } from './implementations/SupabaseProgressRe
 import { SupabaseProfileRepository } from './implementations/SupabaseProfileRepository'
 import { SupabaseCatchupRepository } from './implementations/SupabaseCatchupRepository'
 import { SupabaseHasenaRepository } from './implementations/SupabaseHasenaRepository'
+import { SupabaseHighlightRepository } from './implementations/SupabaseHighlightRepository'
 import { SupabaseBibleRepository } from './implementations/SupabaseBibleRepository'
 import type { IAuthRepository } from './interfaces/IAuthRepository'
 import type { IScheduleRepository } from './interfaces/IScheduleRepository'
@@ -58,12 +59,7 @@ export function createServerRepositories(client: TypedSupabaseClient): ServerRep
     catchup: new SupabaseCatchupRepository(client),
     hasena: new SupabaseHasenaRepository(client),
     bible: new SupabaseBibleRepository(client),
-    highlight: new (class implements IHighlightRepository {
-      getHighlights(): Promise<any> { throw new Error('not implemented') }
-      createHighlight(): Promise<any> { throw new Error('not implemented') }
-      deleteHighlight(): Promise<void> { throw new Error('not implemented') }
-      updateHighlightColor(): Promise<any> { throw new Error('not implemented') }
-    })()
+    highlight: new SupabaseHighlightRepository(client),
   }
 }
 
@@ -81,11 +77,6 @@ export function createClientRepositories(client: TypedSupabaseClient): ClientRep
     catchup: new SupabaseCatchupRepository(client),
     hasena: new SupabaseHasenaRepository(client),
     bible: new SupabaseBibleRepository(client),
-    highlight: new (class implements IHighlightRepository {
-      getHighlights(): Promise<any> { throw new Error('not implemented') }
-      createHighlight(): Promise<any> { throw new Error('not implemented') }
-      deleteHighlight(): Promise<void> { throw new Error('not implemented') }
-      updateHighlightColor(): Promise<any> { throw new Error('not implemented') }
-    })()
+    highlight: new SupabaseHighlightRepository(client),
   }
 }

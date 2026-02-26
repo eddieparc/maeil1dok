@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/database.types'
 import type { IProfileRepository } from '@/repositories/interfaces/IProfileRepository'
 import type { UserProfile, UserReadingSettings, UserReadingPosition, UserFollow, FollowCounts } from '@/types'
-import { NotFoundError, NetworkError, AuthError } from '@/repositories/types/errors'
+import { NotFoundError, NetworkError, AuthError, ValidationError } from '@/repositories/types/errors'
 
 type DBProfile = Database['public']['Tables']['profiles']['Row']
 type DBReadingSettings = Database['public']['Tables']['user_reading_settings']['Row']
@@ -220,26 +220,92 @@ export class SupabaseProfileRepository implements IProfileRepository {
   }
 
   async followUser(targetUserId: string): Promise<void> {
-    throw new Error('not implemented')
+    const { data: { user }, error: authError } = await this.supabase.auth.getUser()
+    if (authError || !user) throw new AuthError('Not authenticated')
+    if (user.id === targetUserId) throw new ValidationError('Cannot follow yourself')
+
+    const { error } = await (this.supabase.from('user_follows') as any)
+      .insert({ follower_id: user.id, following_id: targetUserId })
+
+    if (error) {
+      if (error.code === '23505') throw new ValidationError('Already following')
+      throw new NetworkError(error.message, error)
+    }
   }
 
   async unfollowUser(targetUserId: string): Promise<void> {
-    throw new Error('not implemented')
+    const { data: { user }, error: authError } = await this.supabase.auth.getUser()
+    if (authError || !user) throw new AuthError('Not authenticated')
+
+    const { error, count } = await (this.supabase.from('user_follows') as any)
+      .delete({ count: 'exact' })
+      .eq('follower_id', user.id)
+      .eq('following_id', targetUserId)
+
+    if (error) throw new NetworkError(error.message, error)
+    if (count === 0) throw new NotFoundError('Not following this user')
   }
 
-  async getFollowers(userId: string, limit?: number, offset?: number): Promise<UserFollow[]> {
-    throw new Error('not implemented')
+  async getFollowers(userId: string, limit = 20, offset = 0): Promise<UserFollow[]> {
+    const { data, error } = await (this.supabase.from('user_follows') as any)
+      .select('id, follower_id, following_id, created_at')
+      .eq('following_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw new NetworkError(error.message, error)
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      followerId: row.follower_id,
+      followingId: row.following_id,
+      createdAt: row.created_at,
+    }))
   }
 
-  async getFollowing(userId: string, limit?: number, offset?: number): Promise<UserFollow[]> {
-    throw new Error('not implemented')
+  async getFollowing(userId: string, limit = 20, offset = 0): Promise<UserFollow[]> {
+    const { data, error } = await (this.supabase.from('user_follows') as any)
+      .select('id, follower_id, following_id, created_at')
+      .eq('follower_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw new NetworkError(error.message, error)
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      followerId: row.follower_id,
+      followingId: row.following_id,
+      createdAt: row.created_at,
+    }))
   }
 
   async getFollowCounts(userId: string): Promise<FollowCounts> {
-    throw new Error('not implemented')
+    const { data: { user } } = await this.supabase.auth.getUser()
+
+    const [followersRes, followingRes, isFollowingRes] = await Promise.all([
+      (this.supabase.from('user_follows') as any).select('*', { count: 'exact', head: true }).eq('following_id', userId),
+      (this.supabase.from('user_follows') as any).select('*', { count: 'exact', head: true }).eq('follower_id', userId),
+      user
+        ? (this.supabase.from('user_follows') as any).select('id').eq('follower_id', user.id).eq('following_id', userId).single()
+        : Promise.resolve({ data: null }),
+    ])
+
+    return {
+      followerCount: followersRes.count || 0,
+      followingCount: followingRes.count || 0,
+      isFollowing: !!isFollowingRes.data,
+    }
   }
 
   async isFollowing(targetUserId: string): Promise<boolean> {
-    throw new Error('not implemented')
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (!user) return false
+
+    const { data } = await (this.supabase.from('user_follows') as any)
+      .select('id')
+      .eq('follower_id', user.id)
+      .eq('following_id', targetUserId)
+      .single()
+
+    return !!data
   }
 }

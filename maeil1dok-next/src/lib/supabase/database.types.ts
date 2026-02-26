@@ -479,12 +479,80 @@ export type Database = {
           updated_at?: string
         }
       }
+      user_follows: {
+        Row: {
+          id: string
+          follower_id: string
+          following_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          follower_id: string
+          following_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          follower_id?: string
+          following_id?: string
+          created_at?: string
+        }
+      }
+      user_highlights: {
+        Row: {
+          id: string
+          user_id: string
+          book: string
+          chapter: number
+          verse_start: number
+          verse_end: number
+          color: string
+          version: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          book: string
+          chapter: number
+          verse_start: number
+          verse_end: number
+          color?: string
+          version?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          book?: string
+          chapter?: number
+          verse_start?: number
+          verse_end?: number
+          color?: string
+          version?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_daily_status: {
+        Args: { p_user_id: string; p_date: string }
+        Returns: {
+          reading_completed: boolean
+          hasena_completed: boolean
+          intro_completed: boolean
+          current_streak: number
+          total_completed_days: number
+          longest_streak: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
