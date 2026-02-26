@@ -3,10 +3,12 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
 import HomeHero from '@/components/home/HomeHero'
+import { DailyStatus } from '@/components/home/DailyStatus'
 import ReadingCardStack from '@/components/home/ReadingCardStack'
 import QuickAccessGrid from '@/components/home/QuickAccessGrid'
 import type { PastIncompleteData } from '@/components/home/ReadingCardStack.utils'
 import type { DailySchedule } from '@/types/schedule'
+import type { DailyStatusData } from '@/types'
 
 export default async function HomePage() {
   try {
@@ -25,10 +27,13 @@ export default async function HomePage() {
       )
     }
 
-    const [todaySchedule, subscriptions] = await Promise.all([
+    const [todaySchedule, subscriptions, dailyStatus] = await Promise.all([
       repositories.schedule.getCurrentSchedule(),
       repositories.plan.getUserSubscriptions(),
+      supabase.rpc('get_daily_status', { p_user_id: user.id, p_date: new Date().toISOString().split('T')[0] }),
     ])
+
+    const dailyStatusData: DailyStatusData | null = dailyStatus.data?.[0] ?? null
 
     // Get display name from profile (throws NotFoundError if no profile row)
     let displayName: string
@@ -87,6 +92,7 @@ export default async function HomePage() {
     return (
       <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
         <HomeHero displayName={displayName} />
+        <DailyStatus data={dailyStatusData} />
         <ReadingCardStack
           todaySchedule={todaySchedule}
           todayProgress={todayProgress}
