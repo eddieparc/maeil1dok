@@ -16,6 +16,7 @@ import type { IProfileRepository } from './interfaces/IProfileRepository'
 import type { ICatchupRepository } from './interfaces/ICatchupRepository'
 import type { IHasenaRepository } from './interfaces/IHasenaRepository'
 import type { IBibleRepository } from './interfaces/IBibleRepository'
+import type { IHighlightRepository } from './interfaces/IHighlightRepository'
 
 export type TypedSupabaseClient = SupabaseClient<Database>
 
@@ -28,6 +29,7 @@ export interface ServerRepositories {
   catchup: ICatchupRepository
   hasena: IHasenaRepository
   bible: IBibleRepository
+  highlight: IHighlightRepository
 }
 
 export interface ClientRepositories {
@@ -39,6 +41,7 @@ export interface ClientRepositories {
   catchup: ICatchupRepository
   hasena: IHasenaRepository
   bible: IBibleRepository
+  highlight: IHighlightRepository
 }
 
 /**
@@ -55,6 +58,12 @@ export function createServerRepositories(client: TypedSupabaseClient): ServerRep
     catchup: new SupabaseCatchupRepository(client),
     hasena: new SupabaseHasenaRepository(client),
     bible: new SupabaseBibleRepository(client),
+    highlight: new (class implements IHighlightRepository {
+      getHighlights(): Promise<any> { throw new Error('not implemented') }
+      createHighlight(): Promise<any> { throw new Error('not implemented') }
+      deleteHighlight(): Promise<void> { throw new Error('not implemented') }
+      updateHighlightColor(): Promise<any> { throw new Error('not implemented') }
+    })()
   }
 }
 
@@ -72,5 +81,11 @@ export function createClientRepositories(client: TypedSupabaseClient): ClientRep
     catchup: new SupabaseCatchupRepository(client),
     hasena: new SupabaseHasenaRepository(client),
     bible: new SupabaseBibleRepository(client),
+    highlight: new (class implements IHighlightRepository {
+      getHighlights(): Promise<any> { throw new Error('not implemented') }
+      createHighlight(): Promise<any> { throw new Error('not implemented') }
+      deleteHighlight(): Promise<void> { throw new Error('not implemented') }
+      updateHighlightColor(): Promise<any> { throw new Error('not implemented') }
+    })()
   }
 }

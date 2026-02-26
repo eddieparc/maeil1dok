@@ -1,4 +1,4 @@
-import type { UserProfile, UserReadingSettings, UserReadingPosition } from '@/types'
+import type { UserProfile, UserReadingSettings, UserReadingPosition, UserFollow, FollowCounts } from '@/types'
 
 export interface IProfileRepository {
   getProfile(userId?: string): Promise<UserProfile>
@@ -9,4 +9,10 @@ export interface IProfileRepository {
   updateReadingSettings(data: Partial<Omit<UserReadingSettings, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>): Promise<UserReadingSettings>
   getReadingPosition(): Promise<UserReadingPosition | null>
   updateReadingPosition(data: Partial<Omit<UserReadingPosition, 'id' | 'userId' | 'updatedAt'>>): Promise<UserReadingPosition>
+  followUser(targetUserId: string): Promise<void>
+  unfollowUser(targetUserId: string): Promise<void>
+  getFollowers(userId: string, limit?: number, offset?: number): Promise<UserFollow[]>
+  getFollowing(userId: string, limit?: number, offset?: number): Promise<UserFollow[]>
+  getFollowCounts(userId: string): Promise<FollowCounts>
+  isFollowing(targetUserId: string): Promise<boolean>
 }

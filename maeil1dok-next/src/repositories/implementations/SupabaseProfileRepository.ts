@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/database.types'
 import type { IProfileRepository } from '@/repositories/interfaces/IProfileRepository'
-import type { UserProfile, UserReadingSettings, UserReadingPosition } from '@/types'
+import type { UserProfile, UserReadingSettings, UserReadingPosition, UserFollow, FollowCounts } from '@/types'
 import { NotFoundError, NetworkError, AuthError } from '@/repositories/types/errors'
 
 type DBProfile = Database['public']['Tables']['profiles']['Row']
@@ -217,5 +217,29 @@ export class SupabaseProfileRepository implements IProfileRepository {
     if (error) throw new NetworkError(error.message, error)
     if (!updated) throw new NetworkError('Failed to update reading position')
     return mapReadingPosition(updated)
+  }
+
+  async followUser(targetUserId: string): Promise<void> {
+    throw new Error('not implemented')
+  }
+
+  async unfollowUser(targetUserId: string): Promise<void> {
+    throw new Error('not implemented')
+  }
+
+  async getFollowers(userId: string, limit?: number, offset?: number): Promise<UserFollow[]> {
+    throw new Error('not implemented')
+  }
+
+  async getFollowing(userId: string, limit?: number, offset?: number): Promise<UserFollow[]> {
+    throw new Error('not implemented')
+  }
+
+  async getFollowCounts(userId: string): Promise<FollowCounts> {
+    throw new Error('not implemented')
+  }
+
+  async isFollowing(targetUserId: string): Promise<boolean> {
+    throw new Error('not implemented')
   }
 }
