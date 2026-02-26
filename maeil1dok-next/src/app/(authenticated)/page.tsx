@@ -107,7 +107,7 @@ export default async function HomePage() {
           pastIncomplete={pastIncomplete}
           hasenaCompleted={hasenaCompleted}
         />
-        <QuickAccessGrid />
+        <QuickAccessGrid userId={user.id} />
       </main>
     )
   } catch {
