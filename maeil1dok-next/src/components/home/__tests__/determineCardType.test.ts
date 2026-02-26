@@ -92,3 +92,51 @@ describe('determineCardType', () => {
     expect(result).toBe('pastIncomplete')
   })
 })
+
+  it('returns "hasena" when authenticated with no todaySchedule and hasenaCompleted is false', () => {
+    const result = determineCardType({
+      isAuthenticated: true,
+      todaySchedule: null,
+      todayProgress: null,
+      pastIncomplete: null,
+      hasenaCompleted: false,
+    })
+    expect(result).toBe('hasena')
+  })
+
+  it('returns "intro" when authenticated with no todaySchedule and introAvailable is true but introCompleted is false', () => {
+    const result = determineCardType({
+      isAuthenticated: true,
+      todaySchedule: null,
+      todayProgress: null,
+      pastIncomplete: null,
+      hasenaCompleted: true,
+      introAvailable: true,
+      introCompleted: false,
+    })
+    expect(result).toBe('intro')
+  })
+
+  it('returns "hasena" when authenticated with todaySchedule and hasenaCompleted is false', () => {
+    const result = determineCardType({
+      isAuthenticated: true,
+      todaySchedule: mockSchedule,
+      todayProgress: null,
+      pastIncomplete: null,
+      hasenaCompleted: false,
+    })
+    expect(result).toBe('hasena')
+  })
+
+  it('returns "intro" when authenticated with todaySchedule and introAvailable is true but introCompleted is false', () => {
+    const result = determineCardType({
+      isAuthenticated: true,
+      todaySchedule: mockSchedule,
+      todayProgress: null,
+      pastIncomplete: null,
+      hasenaCompleted: true,
+      introAvailable: true,
+      introCompleted: false,
+    })
+    expect(result).toBe('intro')
+  })

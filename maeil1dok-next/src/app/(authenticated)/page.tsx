@@ -27,13 +27,21 @@ export default async function HomePage() {
       )
     }
 
-    const [todaySchedule, subscriptions, dailyStatus] = await Promise.all([
+    const today = new Date().toISOString().split('T')[0]
+    const [todaySchedule, subscriptions, dailyStatus, hasenaStatus] = await Promise.all([
       repositories.schedule.getCurrentSchedule(),
       repositories.plan.getUserSubscriptions(),
-      supabase.rpc('get_daily_status', { p_user_id: user.id, p_date: new Date().toISOString().split('T')[0] }),
+      supabase.rpc('get_daily_status', { p_user_id: user.id, p_date: today }),
+      supabase
+        .from('hasena_records')
+        .select('is_completed')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single(),
     ])
 
     const dailyStatusData: DailyStatusData | null = dailyStatus.data?.[0] ?? null
+    const hasenaCompleted = hasenaStatus.data?.is_completed ?? false
 
     // Get display name from profile (throws NotFoundError if no profile row)
     let displayName: string
@@ -97,6 +105,7 @@ export default async function HomePage() {
           todaySchedule={todaySchedule}
           todayProgress={todayProgress}
           pastIncomplete={pastIncomplete}
+          hasenaCompleted={hasenaCompleted}
         />
         <QuickAccessGrid />
       </main>

@@ -5,11 +5,16 @@ import { useRouter } from 'next/navigation'
 import type { UserProgress } from '@/types/progress'
 import type { DailySchedule } from '@/types/schedule'
 import { determineCardType, type PastIncompleteData } from './ReadingCardStack.utils'
+import { HasenaCard } from './HasenaCard'
+import { IntroCard } from './IntroCard'
 
 interface ReadingCardStackProps {
   todaySchedule: DailySchedule | null
   todayProgress: UserProgress | null
   pastIncomplete: PastIncompleteData | null
+  hasenaCompleted?: boolean
+  introAvailable?: boolean
+  introCompleted?: boolean
 }
 
 interface CardProps {
@@ -148,6 +153,9 @@ export default function ReadingCardStack({
   todaySchedule,
   todayProgress,
   pastIncomplete,
+  hasenaCompleted,
+  introAvailable,
+  introCompleted,
 }: ReadingCardStackProps) {
   const router = useRouter()
   const cardType = determineCardType({
@@ -155,6 +163,9 @@ export default function ReadingCardStack({
     todaySchedule,
     todayProgress,
     pastIncomplete,
+    hasenaCompleted,
+    introAvailable,
+    introCompleted,
   })
 
   const handleNavigate = () => {
@@ -166,6 +177,8 @@ export default function ReadingCardStack({
       {cardType === 'login' && <LoginCard onNavigate={handleNavigate} />}
       {cardType === 'main' && todaySchedule && <MainReadingCard schedule={todaySchedule} onNavigate={handleNavigate} />}
       {cardType === 'pastIncomplete' && pastIncomplete && <PastIncompleteCard data={pastIncomplete} onNavigate={handleNavigate} />}
+      {cardType === 'hasena' && <HasenaCard />}
+      {cardType === 'intro' && <IntroCard />}
       {cardType === 'allDone' && <AllDoneCard />}
     </div>
   )
