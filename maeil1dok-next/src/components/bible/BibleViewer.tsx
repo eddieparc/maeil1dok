@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import BibleChapterView from './BibleChapterView'
 import ChapterNavigation from './ChapterNavigation'
+import { VerseActionMenu } from './VerseActionMenu'
+import { useVerseSelection } from './VerseSelector'
 import VersionSelector from './VersionSelector'
 import { BIBLE_BOOKS, type BibleVersion } from '@/lib/bible/books'
 
@@ -16,6 +18,20 @@ interface BibleViewerProps {
 
 function getProxyPrefix(version: BibleVersion): 'KNT' | 'bible' {
   return version === 'KNT' ? 'KNT' : 'bible'
+}
+
+function stripHtmlTags(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function inferVerseNumber(text: string) {
+  const match = text.match(/^\s*(\d{1,3})\b/)
+  return match ? Number(match[1]) : null
 }
 
 export default function BibleViewer({
@@ -33,10 +49,16 @@ export default function BibleViewer({
   const [currentVersion, setCurrentVersion] = useState<BibleVersion>(initialVersion)
   const [content, setContent] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | undefined>(undefined)
+  const [selectedText, setSelectedText] = useState('')
+  const { selectedVerseRange, onVerseClick, clearSelection } = useVerseSelection()
 
   const maxChapter = useMemo(() => {
     return BIBLE_BOOKS[currentBook]?.chapters ?? 1
   }, [currentBook])
+
+  const chapterText = useMemo(() => stripHtmlTags(content), [content])
 
   useEffect(() => {
     if (currentChapter > maxChapter) {
@@ -89,21 +111,62 @@ export default function BibleViewer({
     return () => controller.abort()
   }, [currentBook, currentChapter, currentVersion])
 
+  const resetSelectionAndMenu = () => {
+    clearSelection()
+    setSelectedText('')
+    setMenuPosition(undefined)
+    setIsMenuOpen(false)
+  }
+
   const handleBookChange = (nextBook: string) => {
+    resetSelectionAndMenu()
     setCurrentBook(nextBook)
     setCurrentChapter(1)
   }
 
   const handleChapterChange = (nextChapter: number) => {
+    resetSelectionAndMenu()
     setCurrentChapter(Math.min(Math.max(nextChapter, 1), maxChapter))
   }
 
   const handlePrevChapter = () => {
+    resetSelectionAndMenu()
     setCurrentChapter((prev) => Math.max(prev - 1, 1))
   }
 
   const handleNextChapter = () => {
+    resetSelectionAndMenu()
     setCurrentChapter((prev) => Math.min(prev + 1, maxChapter))
+  }
+
+  const handleVersionChange = (nextVersion: BibleVersion) => {
+    resetSelectionAndMenu()
+    setCurrentVersion(nextVersion)
+  }
+
+  const openMenuWithChapter = () => {
+    setSelectedText(chapterText)
+    setMenuPosition(undefined)
+    setIsMenuOpen(true)
+  }
+
+  const handleVerseTap = (payload: { text: string; position?: { x: number; y: number } }) => {
+    const verseNumber = inferVerseNumber(payload.text)
+
+    if (verseNumber !== null) {
+      onVerseClick(verseNumber)
+    } else {
+      clearSelection()
+    }
+
+    setSelectedText(payload.text || chapterText)
+    setMenuPosition(payload.position)
+    setIsMenuOpen(true)
+  }
+
+  const closeMenu = () => {
+    setIsMenuOpen(false)
+    setMenuPosition(undefined)
   }
 
   return (
@@ -117,7 +180,7 @@ export default function BibleViewer({
             {currentVersion}
           </span>
         </div>
-        <VersionSelector version={currentVersion} onVersionChange={setCurrentVersion} />
+        <VersionSelector version={currentVersion} onVersionChange={handleVersionChange} />
       </section>
 
       <ChapterNavigation
@@ -130,7 +193,41 @@ export default function BibleViewer({
         onNextChapter={handleNextChapter}
       />
 
-      <BibleChapterView content={content} isLoading={isLoading} />
+      <BibleChapterView content={content} isLoading={isLoading} onVerseTap={handleVerseTap} />
+
+      <button
+        type="button"
+        className="fixed bottom-24 right-4 z-30 rounded-full bg-blue-500 p-3 text-white shadow-lg transition hover:bg-blue-600"
+        onClick={openMenuWithChapter}
+        aria-label="본문 작업 메뉴 열기"
+      >
+        📋
+      </button>
+
+      {selectedVerseRange ? (
+        <div className="fixed bottom-24 left-4 z-20 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 shadow-sm">
+          선택 {selectedVerseRange.start}절
+        </div>
+      ) : null}
+
+      {isMenuOpen ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-30 bg-black/0"
+            aria-label="본문 작업 메뉴 닫기"
+            onClick={closeMenu}
+          />
+          <VerseActionMenu
+            book={currentBook}
+            chapter={currentChapter}
+            version={currentVersion}
+            verseText={selectedText || chapterText}
+            position={menuPosition}
+            onClose={closeMenu}
+          />
+        </>
+      ) : null}
     </div>
   )
 }
