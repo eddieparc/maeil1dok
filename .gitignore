@@ -118,3 +118,10 @@ maeil1dok-poc/node_modules/
 maeil1dok-poc/.next/
 maeil1dok-poc/out/
 !maeil1dok-poc/src/lib/
+
+# Next.js Project (Plan B)
+maeil1dok-next/.env.local
+maeil1dok-next/node_modules/
+maeil1dok-next/.next/
+maeil1dok-next/out/
+!maeil1dok-next/src/lib/
