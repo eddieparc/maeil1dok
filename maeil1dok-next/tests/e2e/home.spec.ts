@@ -36,10 +36,16 @@ test.describe('Home page', () => {
   })
 
   test('disabled cards show "준비 중" badge', async ({ page }) => {
-    // "개론 영상", "하세나하시조", "커뮤니티", "내 활동" are disabled
+    // "커뮤니티" and "내 활동" are still disabled
+    const communityCard = page.getByTestId('card-community')
+    await expect(communityCard).toBeVisible()
+    await expect(communityCard.getByText('준비 중')).toBeVisible()
+  })
+
+  test('"성경개론" card is enabled and links to /intro', async ({ page }) => {
     const introCard = page.getByTestId('card-intro')
     await expect(introCard).toBeVisible()
-    await expect(introCard.getByText('준비 중')).toBeVisible()
+    await expect(introCard).toHaveAttribute('href', '/intro')
   })
 
   test('reading card stack shows a card based on auth state', async ({ page }) => {
