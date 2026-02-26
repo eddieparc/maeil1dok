@@ -1,6 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { BIBLE_BOOKS } from '@/lib/bible/books'
+import type { HighlightColor } from '@/types'
+import HighlightColorPicker from './HighlightColorPicker'
 
 interface VerseActionMenuProps {
   book: string
@@ -9,7 +12,9 @@ interface VerseActionMenuProps {
   verseText?: string
   onClose: () => void
   position?: { x: number; y: number }
-  onHighlight?: () => void
+  isHighlighted?: boolean
+  onHighlightSelect?: (color: HighlightColor) => void
+  onRemoveHighlight?: () => void
 }
 
 function buildMenuPositionStyle(position?: { x: number; y: number }) {
@@ -38,8 +43,11 @@ export function VerseActionMenu({
   verseText,
   onClose,
   position,
-  onHighlight,
+  isHighlighted,
+  onHighlightSelect,
+  onRemoveHighlight,
 }: VerseActionMenuProps) {
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false)
   const bookInfo = BIBLE_BOOKS[book]
   const locationText = `${bookInfo?.ko ?? book} ${chapter}장`
 
@@ -95,14 +103,36 @@ export function VerseActionMenu({
       >
         🔗 공유
       </button>
-      {onHighlight ? (
+      {isHighlighted && onRemoveHighlight ? (
         <button
           type="button"
-          onClick={onHighlight}
+          onClick={() => {
+            onRemoveHighlight()
+            onClose()
+          }}
           className="block w-full rounded-xl px-4 py-2 text-left text-sm hover:bg-gray-50"
         >
-          🖍️ 하이라이트
+          🧽 하이라이트 삭제
         </button>
+      ) : null}
+      {!isHighlighted && onHighlightSelect ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setIsColorPickerOpen((prev) => !prev)}
+            className="block w-full rounded-xl px-4 py-2 text-left text-sm hover:bg-gray-50"
+          >
+            🖍️ 하이라이트
+          </button>
+          {isColorPickerOpen ? (
+            <HighlightColorPicker
+              onSelect={(color) => {
+                onHighlightSelect(color)
+                onClose()
+              }}
+            />
+          ) : null}
+        </>
       ) : null}
     </div>
   )

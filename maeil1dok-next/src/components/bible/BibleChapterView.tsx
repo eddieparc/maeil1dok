@@ -1,19 +1,85 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import type { VerseHighlight } from '@/types'
 
 interface BibleChapterViewProps {
+  book: string
+  chapter: number
+  version: string
   content: string
   isLoading: boolean
   onVerseTap?: (payload: { text: string; position?: { x: number; y: number } }) => void
+  highlights?: VerseHighlight[]
+  onHighlightsLoaded?: (highlights: VerseHighlight[]) => void
 }
 
 function buildInteractiveSrcDoc(content: string) {
   const interactionScript = `
 <script>
   (function () {
+    var COLOR_MAP = {
+      yellow: 'rgba(250, 204, 21, 0.45)',
+      green: 'rgba(74, 222, 128, 0.4)',
+      blue: 'rgba(96, 165, 250, 0.35)',
+      pink: 'rgba(244, 114, 182, 0.35)',
+      purple: 'rgba(192, 132, 252, 0.35)'
+    };
+
     function cleanText(value) {
       return (value || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function inferVerseNumber(text) {
+      var match = cleanText(text).match(/^(\d{1,3})\b/);
+      return match ? Number(match[1]) : null;
+    }
+
+    function resetHighlights() {
+      document.querySelectorAll('[data-highlight-color]').forEach(function (el) {
+        el.style.backgroundColor = '';
+        el.style.borderRadius = '';
+        el.style.padding = '';
+        el.removeAttribute('data-highlight-color');
+      });
+    }
+
+    function applyHighlights(highlights) {
+      resetHighlights();
+
+      if (!Array.isArray(highlights) || !document.body) {
+        return;
+      }
+
+      var candidates = Array.from(document.body.querySelectorAll('p, li, td, div, span'));
+
+      highlights.forEach(function (highlight) {
+        if (!highlight || typeof highlight !== 'object') {
+          return;
+        }
+
+        var start = Number(highlight.verseStart);
+        var end = Number(highlight.verseEnd);
+        var color = COLOR_MAP[highlight.color] || COLOR_MAP.yellow;
+
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+          return;
+        }
+
+        candidates.forEach(function (node) {
+          var verseNumber = inferVerseNumber(node.textContent || '');
+          if (verseNumber === null) {
+            return;
+          }
+
+          if (verseNumber >= start && verseNumber <= end) {
+            node.style.backgroundColor = color;
+            node.style.borderRadius = '6px';
+            node.style.padding = '1px 2px';
+            node.setAttribute('data-highlight-color', highlight.color);
+          }
+        });
+      });
     }
 
     document.addEventListener('click', function (event) {
@@ -32,6 +98,20 @@ function buildInteractiveSrcDoc(content: string) {
         '*'
       );
     });
+
+    window.addEventListener('message', function (event) {
+      if (!event || !event.data || typeof event.data !== 'object') {
+        return;
+      }
+
+      if (event.data.type !== 'bible-highlights-sync') {
+        return;
+      }
+
+      applyHighlights(event.data.highlights || []);
+    });
+
+    window.parent.postMessage({ type: 'bible-highlights-ready' }, '*');
   })();
 </script>
 `
@@ -43,9 +123,75 @@ function buildInteractiveSrcDoc(content: string) {
   return `${content}${interactionScript}`
 }
 
-export default function BibleChapterView({ content, isLoading, onVerseTap }: BibleChapterViewProps) {
+export default function BibleChapterView({
+  book,
+  chapter,
+  version,
+  content,
+  isLoading,
+  onVerseTap,
+  highlights = [],
+  onHighlightsLoaded,
+}: BibleChapterViewProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const interactiveContent = useMemo(() => buildInteractiveSrcDoc(content), [content])
+
+  const syncHighlightsToIframe = useCallback(() => {
+    const frame = iframeRef.current?.contentWindow
+    if (!frame) {
+      return
+    }
+
+    frame.postMessage(
+      {
+        type: 'bible-highlights-sync',
+        highlights: highlights.map((highlight) => ({
+          id: highlight.id,
+          verseStart: highlight.verseStart,
+          verseEnd: highlight.verseEnd,
+          color: highlight.color,
+        })),
+      },
+      '*'
+    )
+  }, [highlights])
+
+  useEffect(() => {
+    if (!onHighlightsLoaded) {
+      return
+    }
+
+    const controller = new AbortController()
+
+    async function fetchHighlights() {
+      try {
+        const params = new URLSearchParams({
+          book,
+          chapter: String(chapter),
+          version,
+        })
+
+        const response = await fetch(`/api/bible/highlights?${params.toString()}`, {
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          onHighlightsLoaded([])
+          return
+        }
+
+        const data = (await response.json()) as VerseHighlight[]
+        onHighlightsLoaded(data)
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          onHighlightsLoaded([])
+        }
+      }
+    }
+
+    fetchHighlights()
+    return () => controller.abort()
+  }, [book, chapter, version, onHighlightsLoaded])
 
   useEffect(() => {
     if (!onVerseTap) {
@@ -68,6 +214,11 @@ export default function BibleChapterView({ content, isLoading, onVerseTap }: Bib
         y?: number
       }
 
+      if (payload.type === 'bible-highlights-ready') {
+        syncHighlightsToIframe()
+        return
+      }
+
       if (payload.type !== 'bible-verse-tap') {
         return
       }
@@ -86,7 +237,11 @@ export default function BibleChapterView({ content, isLoading, onVerseTap }: Bib
     return () => {
       window.removeEventListener('message', handleMessage)
     }
-  }, [onVerseTap])
+  }, [onVerseTap, syncHighlightsToIframe])
+
+  useEffect(() => {
+    syncHighlightsToIframe()
+  }, [syncHighlightsToIframe])
 
   if (isLoading) {
     return (
@@ -105,6 +260,7 @@ export default function BibleChapterView({ content, isLoading, onVerseTap }: Bib
         srcDoc={interactiveContent}
         className="h-[65vh] w-full rounded-xl border border-gray-100 bg-white"
         sandbox="allow-same-origin allow-scripts"
+        onLoad={syncHighlightsToIframe}
       />
     </section>
   )

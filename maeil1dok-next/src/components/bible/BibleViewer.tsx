@@ -1,13 +1,17 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import BibleChapterView from './BibleChapterView'
 import ChapterNavigation from './ChapterNavigation'
 import { VerseActionMenu } from './VerseActionMenu'
 import { useVerseSelection } from './VerseSelector'
 import VersionSelector from './VersionSelector'
-import { BIBLE_BOOKS, type BibleVersion } from '@/lib/bible/books'
+import { useReadingPosition } from '@/hooks/useReadingPosition'
+import { useSwipeNavigation } from '@/hooks/useSwipeNavigation'
+import { BIBLE_BOOKS, isBibleVersion, type BibleVersion } from '@/lib/bible/books'
+import type { HighlightColor, VerseHighlight } from '@/types'
+import type { UserReadingPosition } from '@/types/profile'
 
 interface BibleViewerProps {
   initialBook: string
@@ -34,6 +38,10 @@ function inferVerseNumber(text: string) {
   return match ? Number(match[1]) : null
 }
 
+function rangesOverlap(startA: number, endA: number, startB: number, endB: number) {
+  return startA <= endB && startB <= endA
+}
+
 export default function BibleViewer({
   initialBook,
   initialChapter,
@@ -52,6 +60,7 @@ export default function BibleViewer({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | undefined>(undefined)
   const [selectedText, setSelectedText] = useState('')
+  const [highlights, setHighlights] = useState<VerseHighlight[]>([])
   const { selectedVerseRange, onVerseClick, clearSelection } = useVerseSelection()
 
   const maxChapter = useMemo(() => {
@@ -59,6 +68,40 @@ export default function BibleViewer({
   }, [currentBook])
 
   const chapterText = useMemo(() => stripHtmlTags(content), [content])
+
+  const resetSelectionAndMenu = useCallback(() => {
+    clearSelection()
+    setSelectedText('')
+    setMenuPosition(undefined)
+    setIsMenuOpen(false)
+  }, [clearSelection])
+
+  const handleRestorePosition = useCallback((position: UserReadingPosition) => {
+    const restoredBook = position.book in BIBLE_BOOKS ? position.book : initialBook
+    const restoredMaxChapter = BIBLE_BOOKS[restoredBook]?.chapters ?? 1
+    const restoredChapter = Math.min(Math.max(position.chapter, 1), restoredMaxChapter)
+    const restoredVersion = isBibleVersion(position.version) ? position.version : initialVersion
+
+    resetSelectionAndMenu()
+    setCurrentBook(restoredBook)
+    setCurrentChapter(restoredChapter)
+    setCurrentVersion(restoredVersion)
+
+    if (position.verse !== null) {
+      onVerseClick(position.verse)
+    }
+  }, [initialBook, initialVersion, onVerseClick, resetSelectionAndMenu])
+
+  useReadingPosition({
+    book: currentBook,
+    chapter: currentChapter,
+    verse: selectedVerseRange?.start ?? null,
+    version: currentVersion,
+    pathname,
+    searchParams,
+    router,
+    onRestore: handleRestorePosition,
+  })
 
   useEffect(() => {
     if (currentChapter > maxChapter) {
@@ -111,12 +154,34 @@ export default function BibleViewer({
     return () => controller.abort()
   }, [currentBook, currentChapter, currentVersion])
 
-  const resetSelectionAndMenu = () => {
-    clearSelection()
-    setSelectedText('')
-    setMenuPosition(undefined)
-    setIsMenuOpen(false)
-  }
+  const loadHighlights = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const params = new URLSearchParams({
+        book: currentBook,
+        chapter: String(currentChapter),
+        version: currentVersion,
+      })
+
+      const response = await fetch(`/api/bible/highlights?${params.toString()}`, { signal })
+      if (!response.ok) {
+        setHighlights([])
+        return
+      }
+
+      const data = (await response.json()) as VerseHighlight[]
+      setHighlights(data)
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        setHighlights([])
+      }
+    }
+  }, [currentBook, currentChapter, currentVersion])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    loadHighlights(controller.signal)
+    return () => controller.abort()
+  }, [loadHighlights])
 
   const handleBookChange = (nextBook: string) => {
     resetSelectionAndMenu()
@@ -169,8 +234,107 @@ export default function BibleViewer({
     setMenuPosition(undefined)
   }
 
+  const selectedHighlight = useMemo(() => {
+    if (!selectedVerseRange) {
+      return null
+    }
+
+    return highlights.find((highlight) =>
+      rangesOverlap(
+        selectedVerseRange.start,
+        selectedVerseRange.end,
+        highlight.verseStart,
+        highlight.verseEnd
+      )
+    ) ?? null
+  }, [highlights, selectedVerseRange])
+
+  const handleHighlightSelect = useCallback(async (color: HighlightColor) => {
+    if (!selectedVerseRange) {
+      return
+    }
+
+    const optimisticId = `optimistic-${Date.now()}`
+    const optimisticHighlight: VerseHighlight = {
+      id: optimisticId,
+      userId: '',
+      book: currentBook,
+      chapter: currentChapter,
+      verseStart: selectedVerseRange.start,
+      verseEnd: selectedVerseRange.end,
+      color,
+      version: currentVersion,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    setHighlights((prev) => [
+      ...prev.filter(
+        (highlight) => !rangesOverlap(
+          highlight.verseStart,
+          highlight.verseEnd,
+          selectedVerseRange.start,
+          selectedVerseRange.end
+        )
+      ),
+      optimisticHighlight,
+    ])
+
+    try {
+      const response = await fetch('/api/bible/highlights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          book: currentBook,
+          chapter: currentChapter,
+          verseStart: selectedVerseRange.start,
+          verseEnd: selectedVerseRange.end,
+          color,
+          version: currentVersion,
+        }),
+      })
+
+      if (!response.ok) {
+        await loadHighlights()
+        return
+      }
+
+      const saved = (await response.json()) as VerseHighlight
+      setHighlights((prev) => [
+        ...prev.filter((highlight) => highlight.id !== optimisticId && highlight.id !== saved.id),
+        saved,
+      ])
+    } catch (error) {
+      await loadHighlights()
+    }
+  }, [currentBook, currentChapter, currentVersion, loadHighlights, selectedVerseRange])
+
+  const handleRemoveHighlight = useCallback(async () => {
+    if (!selectedHighlight) {
+      return
+    }
+
+    const removedHighlight = selectedHighlight
+    setHighlights((prev) => prev.filter((highlight) => highlight.id !== removedHighlight.id))
+
+    try {
+      const params = new URLSearchParams({ id: removedHighlight.id })
+      const response = await fetch(`/api/bible/highlights?${params.toString()}`, { method: 'DELETE' })
+      if (!response.ok) {
+        setHighlights((prev) => [...prev, removedHighlight])
+      }
+    } catch (error) {
+      setHighlights((prev) => [...prev, removedHighlight])
+    }
+  }, [selectedHighlight])
+
+  const { onTouchStart, onTouchMove, onTouchEnd } = useSwipeNavigation({
+    onSwipeLeft: handleNextChapter,
+    onSwipeRight: handlePrevChapter,
+  })
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
       <section className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-semibold text-gray-900">
@@ -193,7 +357,12 @@ export default function BibleViewer({
         onNextChapter={handleNextChapter}
       />
 
-      <BibleChapterView content={content} isLoading={isLoading} onVerseTap={handleVerseTap} />
+      <BibleChapterView
+        content={content}
+        isLoading={isLoading}
+        onVerseTap={handleVerseTap}
+        highlights={highlights}
+      />
 
       <button
         type="button"
@@ -224,6 +393,9 @@ export default function BibleViewer({
             version={currentVersion}
             verseText={selectedText || chapterText}
             position={menuPosition}
+            isHighlighted={Boolean(selectedHighlight)}
+            onHighlightSelect={selectedVerseRange ? handleHighlightSelect : undefined}
+            onRemoveHighlight={selectedHighlight ? handleRemoveHighlight : undefined}
             onClose={closeMenu}
           />
         </>
