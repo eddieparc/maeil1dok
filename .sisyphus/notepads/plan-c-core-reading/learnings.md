@@ -147,3 +147,10 @@
 - Time greeting via getTimeGreeting() utility
 - Serif font: Georgia, "KoPub Batang", serif
 - data-testid="home-hero" for Playwright
+
+## [T8 Completed] ReadingCardStack
+- ReadingCardStack.utils.ts: determineCardType() pure function for Vitest
+- CardType: login | main | pastIncomplete | allDone
+- Logic: !auth -> login; !todaySchedule -> allDone (or pastIncomplete); completed -> allDone (or pastIncomplete); else -> main (or pastIncomplete)
+- Props: todaySchedule, todayProgress, pastIncomplete (all nullable)
+- Cards are gradient-colored Tailwind cards
