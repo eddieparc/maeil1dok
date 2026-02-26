@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createClientRepositories } from '@/repositories/factory'
 import { useRouter } from 'next/navigation'
 import type { User } from '@/types'
 
@@ -13,11 +14,12 @@ export default function Header({ user }: HeaderProps) {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const { auth } = createClientRepositories(supabase)
 
   async function handleSignOut() {
     setIsLoading(true)
     try {
-      await supabase.auth.signOut()
+      await auth.signOut()
       router.push('/login')
     } catch (error) {
       console.error('Sign out error:', error)

@@ -2,41 +2,46 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createClientRepositories } from '@/repositories/factory'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const supabase = createClient()
+  const { auth } = createClientRepositories(supabase)
 
   async function signInWithKakao() {
     setIsLoading('kakao')
     setError(null)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (error) { setError(error.message); setIsLoading(null) }
+    try {
+      await auth.signInWithOAuth('kakao', `${window.location.origin}/auth/callback`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다')
+      setIsLoading(null)
+    }
   }
 
   async function signInWithGoogle() {
     setIsLoading('google')
     setError(null)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (error) { setError(error.message); setIsLoading(null) }
+    try {
+      await auth.signInWithOAuth('google', `${window.location.origin}/auth/callback`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다')
+      setIsLoading(null)
+    }
   }
 
   async function signInWithApple() {
     setIsLoading('apple')
     setError(null)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (error) { setError(error.message); setIsLoading(null) }
+    try {
+      await auth.signInWithOAuth('apple', `${window.location.origin}/auth/callback`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다')
+      setIsLoading(null)
+    }
   }
 
   return (
