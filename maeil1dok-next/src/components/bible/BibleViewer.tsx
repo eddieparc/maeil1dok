@@ -177,11 +177,9 @@ export default function BibleViewer({
     }
   }, [currentBook, currentChapter, currentVersion])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    loadHighlights(controller.signal)
-    return () => controller.abort()
-  }, [loadHighlights])
+  const handleHighlightsLoaded = useCallback((nextHighlights: VerseHighlight[]) => {
+    setHighlights(nextHighlights)
+  }, [])
 
   const handleBookChange = (nextBook: string) => {
     resetSelectionAndMenu()
@@ -358,10 +356,14 @@ export default function BibleViewer({
       />
 
       <BibleChapterView
+        book={currentBook}
+        chapter={currentChapter}
+        version={currentVersion}
         content={content}
         isLoading={isLoading}
         onVerseTap={handleVerseTap}
         highlights={highlights}
+        onHighlightsLoaded={handleHighlightsLoaded}
       />
 
       <button

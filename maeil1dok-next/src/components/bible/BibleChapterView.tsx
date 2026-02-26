@@ -161,6 +161,8 @@ export default function BibleChapterView({
       return
     }
 
+    const handleHighlightsLoaded = onHighlightsLoaded
+
     const controller = new AbortController()
 
     async function fetchHighlights() {
@@ -176,15 +178,15 @@ export default function BibleChapterView({
         })
 
         if (!response.ok) {
-          onHighlightsLoaded([])
+          handleHighlightsLoaded([])
           return
         }
 
         const data = (await response.json()) as VerseHighlight[]
-        onHighlightsLoaded(data)
+        handleHighlightsLoaded(data)
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
-          onHighlightsLoaded([])
+          handleHighlightsLoaded([])
         }
       }
     }
