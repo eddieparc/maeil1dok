@@ -1,9 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { FollowCounts, UserProfile } from '@/types'
 import FollowersModal from './FollowersModal'
 import FollowingModal from './FollowingModal'
+import { ProfileEditModal } from './ProfileEditModal'
 
 interface ProfilePageProps {
   profile: UserProfile
@@ -29,6 +31,8 @@ export default function ProfilePage({
   isOwnProfile,
   currentUserId,
 }: ProfilePageProps) {
+  const router = useRouter()
+  const [localProfile, setLocalProfile] = useState(profile)
   const [isFollowingState, setIsFollowingState] = useState(isFollowing)
   const [localFollowCounts, setLocalFollowCounts] = useState({
     followerCount: followCounts.followerCount,
@@ -38,7 +42,7 @@ export default function ProfilePage({
   const [showFollowing, setShowFollowing] = useState(false)
   const [isEditModalOpen, setEditModalOpen] = useState(false)
 
-  const profileBio = useMemo(() => profile.bio?.trim() || '', [profile.bio])
+  const profileBio = useMemo(() => localProfile.bio?.trim() || '', [localProfile.bio])
 
   const handleFollowToggle = async () => {
     const wasFollowing = isFollowingState
@@ -54,7 +58,7 @@ export default function ProfilePage({
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: profile.userId }),
+        body: JSON.stringify({ targetUserId: localProfile.userId }),
       })
 
       if (!res.ok) {
@@ -69,13 +73,22 @@ export default function ProfilePage({
     }
   }
 
+  const handleSaveProfile = (nickname: string, bio: string) => {
+    setLocalProfile((prev) => ({
+      ...prev,
+      nickname,
+      bio,
+    }))
+    router.refresh()
+  }
+
   return (
     <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="pb-20 pt-6">
       <div data-testid="profile-header" className="mx-4 mb-4 rounded-2xl bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 data-testid="profile-nickname" className="text-xl font-bold text-gray-900">
-              {profile.nickname}
+              {localProfile.nickname}
             </h1>
             <p className="mt-1 text-sm text-gray-500">{profileBio}</p>
             <div className="mt-3 flex gap-4 text-sm text-gray-700">
@@ -112,22 +125,29 @@ export default function ProfilePage({
       </div>
 
       <div data-testid="profile-stats" className="mx-4 mb-4 grid grid-cols-3 gap-2">
-        <StatCard label="현재 연속" value={profile.currentStreak || 0} />
-        <StatCard label="총 완료일" value={profile.totalCompletedDays || 0} />
-        <StatCard label="최장 연속" value={profile.longestStreak || 0} />
+        <StatCard label="현재 연속" value={localProfile.currentStreak || 0} />
+        <StatCard label="총 완료일" value={localProfile.totalCompletedDays || 0} />
+        <StatCard label="최장 연속" value={localProfile.longestStreak || 0} />
       </div>
 
       <FollowersModal
         isOpen={showFollowers}
         onClose={() => setShowFollowers(false)}
-        userId={profile.userId}
+        userId={localProfile.userId}
         currentUserId={currentUserId}
       />
       <FollowingModal
         isOpen={showFollowing}
         onClose={() => setShowFollowing(false)}
-        userId={profile.userId}
+        userId={localProfile.userId}
         currentUserId={currentUserId}
+      />
+      <ProfileEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        initialNickname={localProfile.nickname}
+        initialBio={localProfile.bio || ''}
+        onSave={handleSaveProfile}
       />
     </main>
   )
