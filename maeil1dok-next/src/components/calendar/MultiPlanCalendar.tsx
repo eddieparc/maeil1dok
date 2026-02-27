@@ -27,9 +27,7 @@ interface MultiPlanCalendarProps {
 
 export default function MultiPlanCalendar({ year, month, plans }: MultiPlanCalendarProps) {
   const router = useRouter()
-  const [visiblePlanIds, setVisiblePlanIds] = useState<Set<string>>(
-    new Set(plans.map((p) => p.subscriptionId)),
-  )
+  const [visiblePlanIds, setVisiblePlanIds] = useState<Set<string>>(new Set(plans.map((p) => p.subscriptionId)))
 
   function handleToggle(subscriptionId: string) {
     setVisiblePlanIds((prev) => {
@@ -64,7 +62,6 @@ export default function MultiPlanCalendar({ year, month, plans }: MultiPlanCalen
 
   const calendarDates = generateCalendarDates(year, month)
 
-  // Build a map: dateStr -> dots[]
   const dotsMap = new Map<string, CalendarDot[]>()
   for (const plan of plans) {
     if (!visiblePlanIds.has(plan.subscriptionId)) continue
@@ -94,22 +91,10 @@ export default function MultiPlanCalendar({ year, month, plans }: MultiPlanCalen
   const weekDays = ['일', '월', '화', '수', '목', '금', '토']
 
   return (
-    <div data-testid="multi-plan-calendar" className="flex flex-col gap-4 px-4 py-4">
-      <CalendarHeader
-        year={year}
-        month={month}
-        onPrevMonth={handlePrevMonth}
-        onNextMonth={handleNextMonth}
-        onToday={handleToday}
-      />
+    <div data-testid="calendar-page" className="flex flex-col gap-4 px-4 py-4">
+      <CalendarHeader year={year} month={month} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} onToday={handleToday} />
 
-      {plans.length > 1 && (
-        <PlanTogglePanel
-          plans={toggleItems}
-          visiblePlanIds={visiblePlanIds}
-          onToggle={handleToggle}
-        />
-      )}
+      {plans.length > 1 && <PlanTogglePanel plans={toggleItems} visiblePlanIds={visiblePlanIds} onToggle={handleToggle} />}
 
       <div>
         <div className="mb-1 grid grid-cols-7 gap-1">
