@@ -8,9 +8,10 @@ const TARGET_URLS: Record<string, string> = {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
-  const [prefix, ...rest] = params.path
+  const { path } = await params
+  const [prefix, ...rest] = path
   const baseUrl = TARGET_URLS[prefix]
 
   if (!baseUrl) {

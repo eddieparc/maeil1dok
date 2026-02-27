@@ -7,11 +7,11 @@ import ProfilePage from '@/components/profile/ProfilePage'
 import type { UserProfile } from '@/types'
 
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function ProfileRoutePage({ params }: Props) {
-  const { id } = params
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
