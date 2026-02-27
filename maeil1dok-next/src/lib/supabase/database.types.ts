@@ -20,6 +20,7 @@ export type Database = {
           is_public: boolean
           created_at: string
           updated_at: string
+          avatar_url: string | null
         }
         Insert: {
           user_id: string
@@ -31,6 +32,7 @@ export type Database = {
           is_public?: boolean
           created_at?: string
           updated_at?: string
+          avatar_url?: string | null
         }
         Update: {
           user_id?: string
@@ -41,6 +43,7 @@ export type Database = {
           longest_streak?: number
           is_public?: boolean
           updated_at?: string
+          avatar_url?: string | null
         }
       }
       bible_reading_plans: {
@@ -534,6 +537,65 @@ export type Database = {
           color?: string
           version?: string
           created_at?: string
+          updated_at?: string
+        }
+      }
+      fcm_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          token: string
+          device_info: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          token: string
+          device_info?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          token?: string
+          device_info?: Json | null
+          updated_at?: string
+        }
+      }
+      notification_settings: {
+        Row: {
+          id: string
+          user_id: string
+          daily_reminder_enabled: boolean
+          daily_reminder_time: string
+          hasena_notification_enabled: boolean
+          friend_activity_enabled: boolean
+          push_enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          daily_reminder_enabled?: boolean
+          daily_reminder_time?: string
+          hasena_notification_enabled?: boolean
+          friend_activity_enabled?: boolean
+          push_enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          daily_reminder_enabled?: boolean
+          daily_reminder_time?: string
+          hasena_notification_enabled?: boolean
+          friend_activity_enabled?: boolean
+          push_enabled?: boolean
           updated_at?: string
         }
       }
