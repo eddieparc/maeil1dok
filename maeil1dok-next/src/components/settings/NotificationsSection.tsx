@@ -128,7 +128,14 @@ export default function NotificationsSection({ user: _user }: NotificationsSecti
           }),
         })
 
-        // Fetch settings (creates defaults if needed)
+        // Enable push notifications in settings
+        await fetch('/api/notifications/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ push_enabled: true }),
+        })
+
+        // Fetch updated settings
         const response = await fetch('/api/notifications/settings')
         if (response.ok) {
           const data = await response.json()
