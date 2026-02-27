@@ -60,11 +60,11 @@ const activeMenuItems: ActiveMenuItem[] = [
   { href: '/reading', label: '오늘일독', icon: <BookIcon /> },
   { href: '/plan', label: '성경통독표', icon: <ClipboardIcon /> },
   { href: '/plans', label: '플랜 관리', icon: <CalendarIcon /> },
+  { href: '/settings', label: '계정 설정', icon: <SettingsIcon /> },
 ]
 
 const disabledMenuItems: DisabledMenuItem[] = [
   { label: '내 프로필', icon: <UserIcon /> },
-  { label: '계정 설정', icon: <SettingsIcon /> },
 ]
 
 export default function Menu({ isOpen, onClose }: MenuProps) {
