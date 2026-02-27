@@ -45,6 +45,13 @@ export default function ReadingProgressButton({
       } else {
         await repositories.progress.markComplete(subscriptionId, scheduleId)
         setIsCompleted(true)
+
+        // Fire-and-forget friend activity notification
+        void fetch('/api/notifications/friend-activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ activityType: 'reading' }),
+        }).catch(() => { /* ignore notification errors */ })
       }
       setShowSuccess(true)
     } catch {

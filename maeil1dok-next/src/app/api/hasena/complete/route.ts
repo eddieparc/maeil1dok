@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
+import { notifyFollowersOfCompletion } from '@/lib/notifications/friendActivity'
 
 interface CompleteRequestBody {
   date?: string
@@ -28,6 +29,11 @@ export async function POST(request: Request) {
     const record = completed
       ? await repositories.hasena.markHasenaComplete(date)
       : await repositories.hasena.markHasenaIncomplete(date)
+
+    // Fire-and-forget friend activity notification (only when completing, not uncompleting)
+    if (completed) {
+      void notifyFollowersOfCompletion(user.id, 'hasena')
+    }
 
     return NextResponse.json({
       date: record.date,

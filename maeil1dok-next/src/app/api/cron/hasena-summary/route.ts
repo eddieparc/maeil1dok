@@ -118,6 +118,43 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Trigger hasena notifications (fire-and-forget)
+    void (async () => {
+      try {
+        const { data: settings } = await supabase
+          .from('notification_settings')
+          .select('user_id')
+          .eq('hasena_notification_enabled', true)
+          .eq('push_enabled', true)
+
+        if (settings && settings.length > 0) {
+          const userIds = settings.map((s) => s.user_id)
+          const { data: tokenRows } = await supabase
+            .from('fcm_tokens')
+            .select('token')
+            .in('user_id', userIds)
+
+          if (tokenRows && tokenRows.length > 0) {
+            const { sendMulticastNotification } = await import('@/lib/firebase/send')
+            const tokens = tokenRows.map((r) => r.token)
+            const result = await sendMulticastNotification(
+              tokens,
+              '하세나하시조',
+              '오늘의 하세나하시조 영상이 도착했습니다!',
+              { url: '/hasena' }
+            )
+
+            // Clean up stale tokens
+            if (result.staleTokens.length > 0) {
+              await supabase.from('fcm_tokens').delete().in('token', result.staleTokens)
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[hasena-summary] Failed to send notifications:', e)
+      }
+    })()
+
     return NextResponse.json({
       status: 'generated',
       videoId,
