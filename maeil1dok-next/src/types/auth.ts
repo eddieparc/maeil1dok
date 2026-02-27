@@ -18,3 +18,12 @@ export interface Session {
   refreshToken: string
   user: User
 }
+
+export interface UserIdentity {
+  id: string
+  identityId: string  // Supabase identity UUID
+  provider: string    // 'kakao' | 'google' | 'apple' | 'email'
+  email?: string
+  createdAt: string
+  lastSignInAt?: string
+}

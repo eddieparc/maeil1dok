@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/database.types'
 import type { IAuthRepository, OAuthProvider } from '@/repositories/interfaces/IAuthRepository'
-import type { User, Session } from '@/types'
+import type { User, Session, UserIdentity } from '@/types'
 import { AuthError } from '@/repositories/types/errors'
 
 export class SupabaseAuthRepository implements IAuthRepository {
@@ -90,5 +90,67 @@ export class SupabaseAuthRepository implements IAuthRepository {
       }
     )
     return () => subscription.unsubscribe()
+  }
+
+  async getUserIdentities(): Promise<UserIdentity[]> {
+    const { data, error } = await this.supabase.auth.getUserIdentities()
+    if (error) throw new AuthError(error.message, error)
+    return (data?.identities ?? []).map(identity => ({
+      id: identity.id,
+      identityId: identity.id,
+      provider: identity.provider,
+      email: identity.identity_data?.email as string | undefined,
+      createdAt: identity.created_at ?? '',
+      lastSignInAt: identity.last_sign_in_at ?? undefined,
+    }))
+  }
+
+  async linkIdentity(provider: OAuthProvider, redirectTo?: string): Promise<void> {
+    const { error } = await this.supabase.auth.linkIdentity({
+      provider,
+      options: redirectTo ? { redirectTo } : undefined,
+    })
+    if (error) throw new AuthError(error.message, error)
+  }
+
+  async unlinkIdentity(identityId: string): Promise<void> {
+    // Guard: count total auth methods (identities + password)
+    const identities = await this.getUserIdentities()
+    const { data: { user } } = await this.supabase.auth.getUser()
+    const hasPassword = !!(user?.user_metadata?.has_password)
+    const totalMethods = identities.length + (hasPassword ? 1 : 0)
+
+    if (totalMethods <= 1) {
+      throw new AuthError('마지막 로그인 방법은 해제할 수 없습니다')
+    }
+
+    const { error } = await this.supabase.auth.unlinkIdentity(
+      { id: identityId } as any
+    )
+    if (error) throw new AuthError(error.message, error)
+  }
+
+  async updatePassword(newPassword: string): Promise<void> {
+    const { error } = await this.supabase.auth.updateUser({ password: newPassword })
+    if (error) throw new AuthError(error.message, error)
+  }
+
+  async resetPasswordForEmail(email: string): Promise<void> {
+    const { error } = await this.supabase.auth.resetPasswordForEmail(email)
+    if (error) throw new AuthError(error.message, error)
+  }
+
+  async deleteAccount(): Promise<void> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (!user) throw new AuthError('User not found')
+
+    // Soft delete: update user metadata with deleted_at
+    const { error } = await this.supabase.auth.updateUser({
+      data: { deleted_at: new Date().toISOString() }
+    })
+    if (error) throw new AuthError(error.message, error)
+
+    // Sign out
+    await this.signOut()
   }
 }
