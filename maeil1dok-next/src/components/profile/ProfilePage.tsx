@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { FollowCounts, UserProfile } from '@/types'
+import Avatar from '@/components/ui/Avatar'
 import FollowersModal from './FollowersModal'
 import FollowingModal from './FollowingModal'
 import { ProfileEditModal } from './ProfileEditModal'
@@ -86,7 +87,9 @@ export default function ProfilePage({
     <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="pb-20 pt-6">
       <div data-testid="profile-header" className="mx-4 mb-4 rounded-2xl bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="flex items-start gap-3">
+            <Avatar url={localProfile.avatarUrl} name={localProfile.nickname} size="lg" />
+            <div>
             <h1 data-testid="profile-nickname" className="text-xl font-bold text-gray-900">
               {localProfile.nickname}
             </h1>
@@ -98,6 +101,7 @@ export default function ProfilePage({
               <button type="button" onClick={() => setShowFollowing(true)}>
                 <span className="font-bold">{localFollowCounts.followingCount}</span> 팔로잉
               </button>
+            </div>
             </div>
           </div>
 

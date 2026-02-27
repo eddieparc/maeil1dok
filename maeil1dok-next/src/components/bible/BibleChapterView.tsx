@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { VerseHighlight } from '@/types'
+import type { UserReadingSettings } from '@/types/profile'
 
 interface BibleChapterViewProps {
   book: string
@@ -12,6 +13,7 @@ interface BibleChapterViewProps {
   onVerseTap?: (payload: { text: string; position?: { x: number; y: number } }) => void
   highlights?: VerseHighlight[]
   onHighlightsLoaded?: (highlights: VerseHighlight[]) => void
+  readingSettings?: UserReadingSettings | null
 }
 
 function buildInteractiveSrcDoc(content: string) {
@@ -30,9 +32,60 @@ function buildInteractiveSrcDoc(content: string) {
       return (value || '').replace(/\s+/g, ' ').trim();
     }
 
-    function inferVerseNumber(text) {
+    function inferVerseNumber(text, node) {
+      if (node && node.getAttribute && node.getAttribute('data-verse-number')) {
+        return Number(node.getAttribute('data-verse-number'));
+      }
+
       var match = cleanText(text).match(/^(\d{1,3})\b/);
       return match ? Number(match[1]) : null;
+    }
+
+    function getCandidates() {
+      if (!document.body) {
+        return [];
+      }
+
+      return Array.from(document.body.querySelectorAll('p, li, td, div, span'));
+    }
+
+    function applyReadingSettings(settings) {
+      if (!settings || !document.body) {
+        return;
+      }
+
+      var body = document.body;
+      body.style.backgroundColor = settings.theme === 'dark' ? '#111827' : '#ffffff';
+      body.style.color = settings.theme === 'dark' ? '#f3f4f6' : '#111827';
+      body.style.fontFamily = settings.fontFamily && settings.fontFamily !== 'system' ? settings.fontFamily : '';
+      body.style.fontSize = settings.fontSize ? String(settings.fontSize) + 'px' : '';
+      body.style.lineHeight = settings.lineHeight ? String(settings.lineHeight) : '';
+      body.style.fontWeight = settings.fontWeight || '';
+      body.style.textAlign = settings.textAlign === 'justify' ? 'justify' : 'left';
+
+      var candidates = getCandidates();
+      candidates.forEach(function (node) {
+        node.style.display = settings.verseJoining ? 'inline' : '';
+        node.style.marginBottom = settings.verseJoining ? '0' : '';
+
+        if (!node.getAttribute('data-base-html')) {
+          node.setAttribute('data-base-html', node.innerHTML || '');
+        }
+
+        var baseHtml = node.getAttribute('data-base-html') || '';
+        var verseNumber = inferVerseNumber(node.textContent || '', node);
+        if (!verseNumber || /data-verse-flag/.test(baseHtml)) {
+          return;
+        }
+
+        var wrappedHtml = baseHtml.replace(
+          /^\s*(\d{1,3})(\s+)/,
+          '<span data-verse-flag="1" data-verse-number="' + String(verseNumber) + '" style="display:' + (settings.showVerseNumbers ? 'inline' : 'none') + ';margin-right:2px;opacity:0.8;">$1</span>$2'
+        );
+
+        node.innerHTML = wrappedHtml;
+        node.setAttribute('data-verse-number', String(verseNumber));
+      });
     }
 
     function resetHighlights() {
@@ -51,7 +104,7 @@ function buildInteractiveSrcDoc(content: string) {
         return;
       }
 
-      var candidates = Array.from(document.body.querySelectorAll('p, li, td, div, span'));
+      var candidates = getCandidates();
 
       highlights.forEach(function (highlight) {
         if (!highlight || typeof highlight !== 'object') {
@@ -67,7 +120,7 @@ function buildInteractiveSrcDoc(content: string) {
         }
 
         candidates.forEach(function (node) {
-          var verseNumber = inferVerseNumber(node.textContent || '');
+          var verseNumber = inferVerseNumber(node.textContent || '', node);
           if (verseNumber === null) {
             return;
           }
@@ -104,11 +157,15 @@ function buildInteractiveSrcDoc(content: string) {
         return;
       }
 
-      if (event.data.type !== 'bible-highlights-sync') {
+      if (event.data.type === 'bible-highlights-sync') {
+        applyHighlights(event.data.highlights || []);
         return;
       }
 
-      applyHighlights(event.data.highlights || []);
+      if (event.data.type === 'bible-reading-settings') {
+        applyReadingSettings(event.data.settings || {});
+        return;
+      }
     });
 
     window.parent.postMessage({ type: 'bible-highlights-ready' }, '*');
@@ -132,6 +189,7 @@ export default function BibleChapterView({
   onVerseTap,
   highlights = [],
   onHighlightsLoaded,
+  readingSettings,
 }: BibleChapterViewProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const interactiveContent = useMemo(() => buildInteractiveSrcDoc(content), [content])
@@ -155,6 +213,30 @@ export default function BibleChapterView({
       '*'
     )
   }, [highlights])
+
+  const syncReadingSettingsToIframe = useCallback(() => {
+    const frame = iframeRef.current?.contentWindow
+    if (!frame || !readingSettings) {
+      return
+    }
+
+    frame.postMessage(
+      {
+        type: 'bible-reading-settings',
+        settings: {
+          theme: readingSettings.theme,
+          fontFamily: readingSettings.fontFamily,
+          fontSize: readingSettings.fontSize,
+          lineHeight: readingSettings.lineHeight,
+          fontWeight: readingSettings.fontWeight,
+          textAlign: readingSettings.textAlign,
+          showVerseNumbers: readingSettings.showVerseNumbers,
+          verseJoining: readingSettings.verseJoining,
+        },
+      },
+      '*'
+    )
+  }, [readingSettings])
 
   useEffect(() => {
     if (!onHighlightsLoaded) {
@@ -218,6 +300,7 @@ export default function BibleChapterView({
 
       if (payload.type === 'bible-highlights-ready') {
         syncHighlightsToIframe()
+        syncReadingSettingsToIframe()
         return
       }
 
@@ -239,22 +322,42 @@ export default function BibleChapterView({
     return () => {
       window.removeEventListener('message', handleMessage)
     }
-  }, [onVerseTap, syncHighlightsToIframe])
+  }, [onVerseTap, syncHighlightsToIframe, syncReadingSettingsToIframe])
 
   useEffect(() => {
     syncHighlightsToIframe()
   }, [syncHighlightsToIframe])
 
+  useEffect(() => {
+    syncReadingSettingsToIframe()
+  }, [syncReadingSettingsToIframe])
+
+  const themeClassName = readingSettings?.theme === 'dark'
+    ? 'bg-gray-900 text-gray-100'
+    : readingSettings?.theme === 'light'
+      ? 'bg-white text-gray-900'
+      : 'bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100'
+
+  const textStyle = readingSettings
+    ? {
+        fontFamily: readingSettings.fontFamily === 'system' ? undefined : readingSettings.fontFamily,
+        fontSize: `${readingSettings.fontSize}px`,
+        lineHeight: readingSettings.lineHeight,
+        fontWeight: readingSettings.fontWeight,
+        textAlign: readingSettings.textAlign as 'left' | 'justify',
+      }
+    : {}
+
   if (isLoading) {
     return (
-      <section className="rounded-2xl bg-white p-6 shadow-sm">
+      <section className={`rounded-2xl p-6 shadow-sm ${themeClassName}`} style={textStyle}>
         <p className="text-sm text-gray-500">성경 본문을 불러오는 중입니다...</p>
       </section>
     )
   }
 
   return (
-    <section className="rounded-2xl bg-white p-2 shadow-sm">
+    <section className={`rounded-2xl p-2 shadow-sm ${themeClassName}`} style={textStyle}>
       <iframe
         ref={iframeRef}
         data-testid="bible-chapter-content"

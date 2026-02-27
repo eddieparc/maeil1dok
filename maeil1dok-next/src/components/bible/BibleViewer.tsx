@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import BibleChapterView from './BibleChapterView'
 import ChapterNavigation from './ChapterNavigation'
+import ReadingSettingsPanel from './ReadingSettingsPanel'
 import { VerseActionMenu } from './VerseActionMenu'
 import { useVerseSelection } from './VerseSelector'
 import VersionSelector from './VersionSelector'
@@ -11,7 +12,7 @@ import { useReadingPosition } from '@/hooks/useReadingPosition'
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation'
 import { BIBLE_BOOKS, isBibleVersion, type BibleVersion } from '@/lib/bible/books'
 import type { HighlightColor, VerseHighlight } from '@/types'
-import type { UserReadingPosition } from '@/types/profile'
+import type { UserReadingPosition, UserReadingSettings } from '@/types/profile'
 
 interface BibleViewerProps {
   initialBook: string
@@ -61,6 +62,8 @@ export default function BibleViewer({
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | undefined>(undefined)
   const [selectedText, setSelectedText] = useState('')
   const [highlights, setHighlights] = useState<VerseHighlight[]>([])
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [readingSettings, setReadingSettings] = useState<UserReadingSettings | null>(null)
   const { selectedVerseRange, onVerseClick, clearSelection } = useVerseSelection()
 
   const maxChapter = useMemo(() => {
@@ -102,6 +105,61 @@ export default function BibleViewer({
     router,
     onRestore: handleRestorePosition,
   })
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function fetchReadingSettings() {
+      try {
+        const response = await fetch('/api/profile/reading-settings', { signal: controller.signal })
+        if (!response.ok) {
+          return
+        }
+
+        const settings = (await response.json()) as UserReadingSettings
+        setReadingSettings(settings)
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          setReadingSettings(null)
+        }
+      }
+    }
+
+    fetchReadingSettings()
+
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (!readingSettings?.id) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      fetch('/api/profile/reading-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(readingSettings),
+      }).catch(() => undefined)
+    }, 500)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [readingSettings])
+
+  const handleReadingSettingChange = useCallback((key: keyof UserReadingSettings, value: unknown) => {
+    setReadingSettings((prev) => {
+      if (!prev) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [key]: value,
+      }
+    })
+  }, [])
 
   useEffect(() => {
     if (currentChapter > maxChapter) {
@@ -338,9 +396,23 @@ export default function BibleViewer({
           <h1 className="text-xl font-semibold text-gray-900">
             {BIBLE_BOOKS[currentBook]?.ko ?? currentBook} {currentChapter}장
           </h1>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-            {currentVersion}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+              {currentVersion}
+            </span>
+            <button
+              type="button"
+              className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600 transition hover:bg-gray-50"
+              onClick={() => setIsPanelOpen(true)}
+              aria-label="읽기 설정 열기"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <title>읽기 설정</title>
+                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+          </div>
         </div>
         <VersionSelector version={currentVersion} onVersionChange={handleVersionChange} />
       </section>
@@ -364,7 +436,17 @@ export default function BibleViewer({
         onVerseTap={handleVerseTap}
         highlights={highlights}
         onHighlightsLoaded={handleHighlightsLoaded}
+        readingSettings={readingSettings}
       />
+
+      {readingSettings ? (
+        <ReadingSettingsPanel
+          isOpen={isPanelOpen}
+          onClose={() => setIsPanelOpen(false)}
+          settings={readingSettings}
+          onSettingChange={handleReadingSettingChange}
+        />
+      ) : null}
 
       <button
         type="button"

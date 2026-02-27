@@ -8,6 +8,7 @@ export interface UserProfile {
   isPublic: boolean
   createdAt: string
   updatedAt: string
+  avatarUrl?: string
 }
 
 export interface UserReadingSettings {

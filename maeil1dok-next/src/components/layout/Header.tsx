@@ -12,12 +12,14 @@ export default async function Header() {
   // getProfile() throws NotFoundError if no profile row exists
   // Fall back to email prefix or '성도'
   let displayName = user.email?.split('@')[0] ?? '성도'
+  let avatarUrl: string | undefined
   try {
     const profile = await repos.profile.getProfile(user.id)
     if (profile.nickname) displayName = profile.nickname
+    avatarUrl = profile.avatarUrl
   } catch {
     // No profile row yet — use email prefix fallback
   }
 
-  return <HeaderClient displayName={displayName} userId={user.id} />
+  return <HeaderClient displayName={displayName} userId={user.id} avatarUrl={avatarUrl} />
 }

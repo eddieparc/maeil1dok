@@ -19,6 +19,7 @@ function mapProfile(row: DBProfile): UserProfile {
     isPublic: row.is_public,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    avatarUrl: row.avatar_url ?? undefined,
   }
 }
 

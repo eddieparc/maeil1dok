@@ -4,16 +4,19 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import Avatar from '@/components/ui/Avatar'
 
 interface HeaderClientProps {
   displayName: string
   userId: string
+  avatarUrl?: string
   onHamburgerClick?: () => void
 }
 
 export default function HeaderClient({
   displayName,
   userId: _userId,
+  avatarUrl,
   onHamburgerClick,
 }: HeaderClientProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -79,21 +82,8 @@ export default function HeaderClient({
               aria-label="프로필 메뉴"
               data-testid="profile-button"
             >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
+              <Avatar url={avatarUrl} name={displayName} size="sm" />
             </button>
-
             {isDropdownOpen && (
               <div
                 className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 z-50 py-1"
@@ -103,7 +93,7 @@ export default function HeaderClient({
                   <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
                 </div>
                 <div className="py-1">
-                  <div className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 cursor-not-allowed">
+                  <Link href={`/profile/${_userId}`} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsDropdownOpen(false)}>
                     <svg
                       width="16"
                       height="16"
@@ -118,8 +108,14 @@ export default function HeaderClient({
                       <circle cx="12" cy="7" r="4" />
                     </svg>
                     내 프로필
-                    <span className="ml-auto text-xs">준비 중</span>
-                  </div>
+                  </Link>
+                  <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsDropdownOpen(false)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    계정 설정
+                  </Link>
                   <button
                     onClick={handleSignOut}
                     disabled={isSigningOut}

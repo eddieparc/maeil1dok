@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-
+import Avatar from '@/components/ui/Avatar'
 interface FollowRow {
   id: string
   followerId: string
@@ -72,11 +72,14 @@ export default function FollowingModal({ isOpen, onClose, userId, currentUserId 
           ) : (
             <ul className="space-y-3">
               {following.map((followedUser) => (
-                <li key={followedUser.id} className="rounded-xl border border-gray-100 px-3 py-2">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {getDisplayName(followedUser.followingId, currentUserId)}
-                  </p>
-                  <p className="truncate text-xs text-gray-500">소개 정보가 없습니다.</p>
+                <li key={followedUser.id} className="rounded-xl border border-gray-100 px-3 py-2 flex items-center gap-2">
+                  <Avatar url={undefined} name={getDisplayName(followedUser.followingId, currentUserId)} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {getDisplayName(followedUser.followingId, currentUserId)}
+                    </p>
+                    <p className="truncate text-xs text-gray-500">소개 정보가 없습니다.</p>
+                  </div>
                 </li>
               ))}
             </ul>

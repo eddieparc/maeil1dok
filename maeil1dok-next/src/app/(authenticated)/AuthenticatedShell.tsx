@@ -9,12 +9,14 @@ interface AuthenticatedShellProps {
   children: React.ReactNode
   displayName: string
   userId: string
+  avatarUrl?: string
 }
 
 export default function AuthenticatedShell({
   children,
   displayName,
   userId,
+  avatarUrl,
 }: AuthenticatedShellProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
@@ -23,6 +25,7 @@ export default function AuthenticatedShell({
       <HeaderClient
         displayName={displayName}
         userId={userId}
+        avatarUrl={avatarUrl}
         onHamburgerClick={() => setIsMenuOpen(true)}
       />
       <main className="flex-1 pb-20">
