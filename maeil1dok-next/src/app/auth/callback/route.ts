@@ -14,6 +14,15 @@ export async function GET(request: NextRequest) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`)
     }
+    
+    // Handle error cases
+    if (next !== '/') {
+      // This was an identity linking flow — redirect back to settings with error
+      const errorParam = error.message?.includes('already') || error.message?.includes('linked')
+        ? 'identity_already_linked'
+        : 'link_failed'
+      return NextResponse.redirect(`${origin}${next}?error=${errorParam}`)
+    }
   }
 
   return NextResponse.redirect(`${origin}/login?error=auth`)
