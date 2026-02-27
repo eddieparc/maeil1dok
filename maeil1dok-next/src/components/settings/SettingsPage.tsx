@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { User, UserProfile } from '@/types'
+import type { User, UserIdentity, UserProfile } from '@/types'
 import NotificationsSection from './NotificationsSection'
 import ProfileSection from './ProfileSection'
 import SecuritySection from './SecuritySection'
@@ -9,11 +9,12 @@ import SecuritySection from './SecuritySection'
 interface SettingsPageProps {
   user: User
   profile: UserProfile | null
+  identities: UserIdentity[]
 }
 
 type Section = 'profile' | 'security' | 'notifications'
 
-export default function SettingsPage({ user, profile }: SettingsPageProps) {
+export default function SettingsPage({ user, profile, identities }: SettingsPageProps) {
   const [activeSection, setActiveSection] = useState<Section>('profile')
 
   return (
@@ -60,7 +61,7 @@ export default function SettingsPage({ user, profile }: SettingsPageProps) {
 
       <div className="mt-5">
         {activeSection === 'profile' && <ProfileSection user={user} profile={profile} />}
-        {activeSection === 'security' && <SecuritySection user={user} />}
+        {activeSection === 'security' && <SecuritySection user={user} identities={identities} />}
         {activeSection === 'notifications' && <NotificationsSection user={user} />}
       </div>
     </main>

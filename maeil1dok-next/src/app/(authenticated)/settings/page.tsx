@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import SettingsPage from '@/components/settings/SettingsPage'
 import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
+import type { UserIdentity } from '@/types'
 
 export default async function Page() {
   const supabase = await createClient()
@@ -13,11 +14,18 @@ export default async function Page() {
   }
 
   let profile = null
+  let identities: UserIdentity[] = []
   try {
     profile = await repos.profile.getProfile(user.id)
   } catch {
     profile = null
   }
 
-  return <SettingsPage user={user} profile={profile} />
+  try {
+    identities = await repos.auth.getUserIdentities()
+  } catch {
+    identities = []
+  }
+
+  return <SettingsPage user={user} profile={profile} identities={identities} />
 }
