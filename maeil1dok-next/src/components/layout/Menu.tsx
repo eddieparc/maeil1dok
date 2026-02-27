@@ -165,9 +165,9 @@ export default function Menu({ isOpen, onClose }: MenuProps) {
         {/* Footer - legal links */}
         <div className="px-4 py-4 border-t border-gray-100">
           <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
-            <span className="opacity-50 cursor-not-allowed">이용약관</span>
+            <Link href="/terms" className="hover:underline" onClick={onClose}>이용약관</Link>
             <span>|</span>
-            <span className="opacity-50 cursor-not-allowed">개인정보처리방침</span>
+            <Link href="/privacy" className="hover:underline" onClick={onClose}>개인정보처리방침</Link>
           </div>
         </div>
       </div>
