@@ -11,7 +11,7 @@ interface ProfileSectionProps {
 export default function ProfileSection({ user, profile }: ProfileSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [avatarUrl, setAvatarUrl] = useState<string | null>((profile as any)?.avatarUrl ?? null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatarUrl ?? null)
   const [nickname, setNickname] = useState(profile?.nickname ?? '')
   const [bio, setBio] = useState(profile?.bio ?? '')
   const [isUploading, setIsUploading] = useState(false)
