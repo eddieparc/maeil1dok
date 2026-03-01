@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { isDryRun, getTableFlag, BATCH_SIZE } from './config.ts'
-import { createSupabaseAdmin, batchInsert } from './utils.ts'
+import { createSupabaseAdmin, batchInsert, loadUserMapping } from './utils.ts'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   DjangoBibleReadingPlan,
@@ -56,13 +56,16 @@ async function loadBibleReadingPlans(
 
   console.log(`📖 bible_reading_plans: ${djangoData.length} rows`)
 
+  // Load user mapping to resolve created_by FK
+  const userMapping = await loadUserMapping(supabase)
+
   const supabaseRows = djangoData.map((row) => ({
     id: row.id,
     name: row.name,
     description: row.description ?? '',
     is_default: row.is_default,
     is_active: row.is_active,
-    created_by: null, // User mapping not available in 03a; update later if needed
+    created_by: row.created_by_id != null ? (userMapping.get(row.created_by_id) ?? null) : null,
   }))
 
   if (!dryRun) {
