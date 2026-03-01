@@ -63,7 +63,7 @@ export async function loadUserMapping(client: SupabaseClient): Promise<Map<numbe
   const mapping = new Map<number, string>()
 
   const { data, error } = await client
-    .from('user_mappings')
+    .from('migration_user_mapping')
     .select('django_user_id, supabase_user_id')
 
   if (error) {
