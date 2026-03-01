@@ -1,0 +1,25 @@
+{
+  "name": "maeil1dok-migration",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "extract": "tsx 01-extract-mysql.ts",
+    "create-users": "tsx 02-create-supabase-users.ts",
+    "load-reference": "tsx 03a-load-reference-data.ts",
+    "load-user-data": "tsx 03b-load-user-data.ts",
+    "validate": "tsx 04-validate.ts",
+    "migrate": "tsx run-migration.ts"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.0",
+    "@supabase/supabase-js": "^2.97.0",
+    "dotenv": "^16.4.0",
+    "tsx": "^4.19.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20"
+  }
+}
