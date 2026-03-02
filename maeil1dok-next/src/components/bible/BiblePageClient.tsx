@@ -72,7 +72,7 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
       router.replace('/bible')
       pageState.setViewMode('reader')
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) 
 
   const handleSelectBookChapter = useCallback((book: string, chapter: number) => {
     pageState.selectBook(book)
