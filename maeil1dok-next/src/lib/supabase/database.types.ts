@@ -599,6 +599,102 @@ export type Database = {
           updated_at?: string
         }
       }
+      bible_bookmarks: {
+        Row: {
+          id: string
+          user_id: string
+          bookmark_type: string
+          book: string
+          chapter: number
+          start_verse: number | null
+          end_verse: number | null
+          title: string
+          color: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          bookmark_type: string
+          book: string
+          chapter: number
+          start_verse?: number | null
+          end_verse?: number | null
+          title?: string
+          color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          bookmark_type?: string
+          book?: string
+          chapter?: number
+          start_verse?: number | null
+          end_verse?: number | null
+          title?: string
+          color?: string
+          updated_at?: string
+        }
+      }
+      reflection_notes: {
+        Row: {
+          id: string
+          user_id: string
+          book: string
+          chapter: number
+          start_verse: number | null
+          end_verse: number | null
+          content: string
+          is_private: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          book: string
+          chapter: number
+          start_verse?: number | null
+          end_verse?: number | null
+          content: string
+          is_private?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          book?: string
+          chapter?: number
+          start_verse?: number | null
+          end_verse?: number | null
+          content?: string
+          is_private?: boolean
+          updated_at?: string
+        }
+      }
+      personal_reading_records: {
+        Row: {
+          id: string
+          user_id: string
+          book: string
+          chapter: number
+          read_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          book: string
+          chapter: number
+          read_date: string
+          created_at?: string
+        }
+        Update: {
+          book?: string
+          chapter?: number
+          read_date?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
