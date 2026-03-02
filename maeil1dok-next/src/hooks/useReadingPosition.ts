@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { createClientRepositories } from '@/repositories/factory'
+import { getPosition, savePosition } from '@/repositories/bible/readingPositionRepository'
 import type { UserReadingPosition } from '@/types/profile'
 
 interface SearchParamsLike {
@@ -25,6 +25,83 @@ interface UseReadingPositionOptions {
 }
 
 const SAVE_DEBOUNCE_MS = 2000
+const STORAGE_KEY = 'lastReadingPosition'
+
+// --- localStorage helpers ---
+
+interface LocalPosition {
+  book: string
+  chapter: number
+  verse?: number | null
+  scrollPosition?: number
+  version: string
+}
+
+function loadFromLocalStorage(): UserReadingPosition | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (!stored) return null
+    const parsed: LocalPosition = JSON.parse(stored)
+    return {
+      id: '',
+      userId: '',
+      book: parsed.book,
+      chapter: parsed.chapter,
+      verse: parsed.verse ?? null,
+      scrollPosition: parsed.scrollPosition ?? 0,
+      version: parsed.version,
+      updatedAt: '',
+    }
+  } catch {
+    return null
+  }
+}
+
+function saveToLocalStorage(position: {
+  book: string
+  chapter: number
+  verse: number | null
+  version: string
+  scrollPosition: number
+}): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      book: position.book,
+      chapter: position.chapter,
+      verse: position.verse,
+      scrollPosition: position.scrollPosition,
+      version: position.version,
+    }))
+  } catch {
+    // silently fail
+  }
+}
+
+// --- DB row → UserReadingPosition mapper ---
+
+function mapDbRow(row: {
+  id: string
+  user_id: string
+  book: string
+  chapter: number
+  verse: number | null
+  scroll_position: number
+  version: string
+  updated_at: string
+}): UserReadingPosition {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    book: row.book,
+    chapter: row.chapter,
+    verse: row.verse,
+    scrollPosition: Number(row.scroll_position),
+    version: row.version,
+    updatedAt: row.updated_at,
+  }
+}
 
 export function useReadingPosition({
   book,
@@ -37,10 +114,11 @@ export function useReadingPosition({
   onRestore,
   onError,
 }: UseReadingPositionOptions) {
-  const repositories = useMemo(() => createClientRepositories(createClient()), [])
+  const supabase = useMemo(() => createClient(), [])
   const restoredRef = useRef(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previousLocationRef = useRef({ book, chapter, version })
+  const userRef = useRef<{ id: string } | null>(null)
   const latestPositionRef = useRef({
     book,
     chapter,
@@ -69,12 +147,26 @@ export function useReadingPosition({
     version: string
     scrollPosition: number
   }) => {
+    // Always save to localStorage
+    saveToLocalStorage(position)
+
+    // If authenticated, also save to Supabase
+    const user = userRef.current
+    if (!user) return
+
     try {
-      await repositories.profile.updateReadingPosition(position)
+      const { error } = await savePosition(supabase, user.id, {
+        book: position.book,
+        chapter: position.chapter,
+        verse: position.verse,
+        scroll_position: position.scrollPosition,
+        version: position.version,
+      })
+      if (error) notifyError(error)
     } catch (error) {
       notifyError(error)
     }
-  }, [notifyError, repositories.profile])
+  }, [notifyError, supabase])
 
   useEffect(() => {
     latestPositionRef.current = {
@@ -103,7 +195,34 @@ export function useReadingPosition({
 
     const restorePosition = async () => {
       try {
-        const savedPosition = await repositories.profile.getReadingPosition()
+        let savedPosition: UserReadingPosition | null = null
+
+        // Check auth and cache user for future saves
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        userRef.current = (!authError && user) ? user : null
+
+        // Try Supabase first if authenticated
+        if (userRef.current) {
+          const { data, error } = await getPosition(supabase, userRef.current.id)
+          if (!error && data) {
+            savedPosition = mapDbRow(data as {
+              id: string
+              user_id: string
+              book: string
+              chapter: number
+              verse: number | null
+              scroll_position: number
+              version: string
+              updated_at: string
+            })
+          }
+        }
+
+        // Fallback to localStorage
+        if (!savedPosition) {
+          savedPosition = loadFromLocalStorage()
+        }
+
         if (cancelled || !savedPosition) {
           return
         }
@@ -118,11 +237,22 @@ export function useReadingPosition({
 
         if (savedPosition.scrollPosition > 0) {
           requestAnimationFrame(() => {
-            window.scrollTo({ top: savedPosition.scrollPosition, behavior: 'auto' })
+            window.scrollTo({ top: savedPosition!.scrollPosition, behavior: 'auto' })
           })
         }
       } catch (error) {
-        notifyError(error)
+        // On any error, try localStorage as last resort
+        const localFallback = loadFromLocalStorage()
+        if (!cancelled && localFallback) {
+          const params = new URLSearchParams(searchParams.toString())
+          params.set('book', localFallback.book)
+          params.set('chapter', String(localFallback.chapter))
+          params.set('version', localFallback.version)
+          onRestore(localFallback)
+          router.replace(`${pathname}?${params.toString()}`)
+        } else {
+          notifyError(error)
+        }
       }
     }
 
@@ -131,7 +261,7 @@ export function useReadingPosition({
     return () => {
       cancelled = true
     }
-  }, [notifyError, onRestore, pathname, repositories.profile, router, searchParams])
+  }, [notifyError, onRestore, pathname, supabase, router, searchParams])
 
   useEffect(() => {
     const onScroll = () => {
