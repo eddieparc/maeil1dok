@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Noto_Sans_KR } from 'next/font/google'
-import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { ThemeProvider, ToastProvider } from '@/components/providers'
 import './globals.css'
 
 const notoSansKr = Noto_Sans_KR({
@@ -22,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <body className={`${notoSansKr.variable} antialiased`}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
