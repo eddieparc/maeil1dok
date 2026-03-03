@@ -18,7 +18,7 @@ interface ModalProps {
 }
 
 function ModalHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('border-b border-gray-200 px-6 py-4', className)} {...props} />
+  return <div className={cn('border-b border-[var(--color-border-default)] px-6 py-4', className)} {...props} />
 }
 
 function ModalBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -26,7 +26,7 @@ function ModalBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 }
 
 function ModalFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-center justify-end gap-2 border-t border-gray-200 px-6 py-4', className)} {...props} />
+  return <div className={cn('flex items-center justify-end gap-2 border-t border-[var(--color-border-default)] px-6 py-4', className)} {...props} />
 }
 
 const SIZE_CLASS_MAP: Record<ModalSize, string> = {
@@ -108,7 +108,7 @@ function ModalRoot({ isOpen, onClose, children, size = 'md', closeOnOverlayClick
         aria-modal="true"
         tabIndex={-1}
         className={cn(
-          'relative z-10 w-full rounded-2xl bg-white shadow-xl outline-none',
+          'relative z-10 w-full rounded-2xl bg-[var(--color-bg-primary)] shadow-xl outline-none',
           'transition-all duration-200 ease-out',
           isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0',
           modalSize,
