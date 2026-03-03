@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import type { User, UserIdentity, UserProfile } from '@/types'
+import { Container, PageHeader, Tabs, TabList, Tab, TabPanel } from '@/components/ui'
 import NotificationsSection from './NotificationsSection'
 import ProfileSection from './ProfileSection'
 import SecuritySection from './SecuritySection'
-
 interface SettingsPageProps {
   user: User
   profile: UserProfile | null
@@ -15,55 +15,37 @@ interface SettingsPageProps {
 type Section = 'profile' | 'security' | 'notifications'
 
 export default function SettingsPage({ user, profile, identities }: SettingsPageProps) {
-  const [activeSection, setActiveSection] = useState<Section>('profile')
+  const [activeSection, setActiveSection] = useState<string>('profile')
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-6">
-      <h1 className="text-2xl font-bold text-gray-900">계정 설정</h1>
+    <Container maxWidth="lg" className="py-6">
+      <PageHeader title="계정 설정" className="mb-6" />
 
-      <div className="mt-5 border-b border-gray-200">
-        <div className="flex gap-6">
-          <button
-            type="button"
-            onClick={() => setActiveSection('profile')}
-            className={`pb-2 text-sm font-medium ${
-              activeSection === 'profile'
-                ? 'border-b-2 border-indigo-600 text-indigo-600'
-                : 'text-gray-500'
-            }`}
-          >
-            프로필
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSection('security')}
-            className={`pb-2 text-sm font-medium ${
-              activeSection === 'security'
-                ? 'border-b-2 border-indigo-600 text-indigo-600'
-                : 'text-gray-500'
-            }`}
-          >
-            보안
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSection('notifications')}
-            className={`pb-2 text-sm font-medium ${
-              activeSection === 'notifications'
-                ? 'border-b-2 border-indigo-600 text-indigo-600'
-                : 'text-gray-500'
-            }`}
-          >
-            알림
-          </button>
+      <Tabs activeTab={activeSection} onTabChange={setActiveSection}>
+        <TabList>
+          <Tab id="profile" label="프로필" />
+          <Tab id="security" label="보안" />
+          <Tab id="notifications" label="알림" />
+        </TabList>
+        
+        <div className="mt-6">
+          {activeSection === 'profile' && (
+            <TabPanel id="profile">
+              <ProfileSection user={user} profile={profile} />
+            </TabPanel>
+          )}
+          {activeSection === 'security' && (
+            <TabPanel id="security">
+              <SecuritySection user={user} identities={identities} />
+            </TabPanel>
+          )}
+          {activeSection === 'notifications' && (
+            <TabPanel id="notifications">
+              <NotificationsSection user={user} />
+            </TabPanel>
+          )}
         </div>
-      </div>
-
-      <div className="mt-5">
-        {activeSection === 'profile' && <ProfileSection user={user} profile={profile} />}
-        {activeSection === 'security' && <SecuritySection user={user} identities={identities} />}
-        {activeSection === 'notifications' && <NotificationsSection user={user} />}
-      </div>
-    </main>
+      </Tabs>
+    </Container>
   )
 }

@@ -32,7 +32,7 @@ export default async function ProfileRoutePage({ params }: Props) {
   if (!profile) {
     return (
       <Container fullHeight className="py-6">
-        <p className="text-sm text-gray-600">프로필을 찾을 수 없습니다.</p>
+        <p className="text-sm text-[var(--color-text-secondary)]">프로필을 찾을 수 없습니다.</p>
       </Container>
     )
   }
@@ -42,9 +42,9 @@ export default async function ProfileRoutePage({ params }: Props) {
   if (!profile.isPublic && !isOwnProfile) {
     return (
       <Container fullHeight className="py-6">
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <h1 className="text-lg font-semibold text-gray-900">비공개 프로필</h1>
-          <p className="mt-2 text-sm text-gray-500">이 사용자의 프로필은 비공개입니다.</p>
+        <div className="rounded-2xl bg-[var(--color-bg-secondary)] p-6 shadow-sm">
+          <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">비공개 프로필</h1>
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">이 사용자의 프로필은 비공개입니다.</p>
         </div>
       </Container>
     )

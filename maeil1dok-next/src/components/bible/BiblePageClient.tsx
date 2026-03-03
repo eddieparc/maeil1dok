@@ -96,7 +96,8 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
   const version = isBibleVersion(pageState.currentVersion) ? pageState.currentVersion : 'GAE'
 
   return (
-    <Container fullHeight className="max-w-2xl pb-24">
+    <>
+      <Container fullHeight className="max-w-2xl pb-24">
         {pageState.viewMode === 'home' && (
           <BibleHome
             lastPosition={lastPosition ?? undefined}
@@ -131,7 +132,8 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
             onMarkAsRead={() => void handleMarkAsRead()}
           />
         )}
-    </Container>
+      </Container>
+
       <BookSelector
         isOpen={showBookSelector}
         onClose={() => setShowBookSelector(false)}
@@ -193,6 +195,6 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
           })
         }}
       />
-    </main>
+    </>
   )
 }
