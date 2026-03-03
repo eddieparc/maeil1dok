@@ -31,7 +31,7 @@ export default async function IntroPage() {
 
     if (planIds.length === 0) {
       return (
-        <Container className="pb-20">
+        <Container maxWidth="md" className="pb-20">
           <PageHeader title="성경 개론" />
           <div className="px-4 py-6">
             <p className="text-center text-sm text-[var(--color-text-secondary)]">
@@ -91,7 +91,7 @@ export default async function IntroPage() {
     }
 
     return (
-      <Container className="pb-20">
+      <Container maxWidth="md" className="pb-20">
         <PageHeader title="성경 개론" />
         <IntroClient
           plans={planList}
@@ -102,7 +102,7 @@ export default async function IntroPage() {
     )
   } catch {
     return (
-      <Container>
+      <Container maxWidth="md">
         <PageHeader title="성경 개론" />
         <div className="flex min-h-[50vh] items-center justify-center px-4">
           <p className="text-center text-sm text-red-600">
