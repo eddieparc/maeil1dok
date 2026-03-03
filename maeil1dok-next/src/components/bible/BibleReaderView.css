@@ -1,0 +1,289 @@
+/* ===================================================
+   BibleReaderView — Custom styles for glassmorphism,
+   animations, and iOS safe-area that Tailwind can't do
+   =================================================== */
+
+/* ===== Sticky header glassmorphism ===== */
+.bible-reader-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  height: 50px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(250, 248, 246, 0.85);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.dark .bible-reader-header {
+  background: rgba(26, 26, 26, 0.85);
+}
+
+@media (max-width: 768px) {
+  .bible-reader-header {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+/* ===== Book name toggle for narrow screens ===== */
+.book-name-short {
+  display: none;
+}
+
+@media (max-width: 380px) {
+  .book-name-full {
+    display: none;
+  }
+  .book-name-short {
+    display: inline;
+  }
+}
+
+/* ===== Tongdok status dot ===== */
+.tongdok-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-success);
+  flex-shrink: 0;
+  animation: pulse-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0.4; transform: scale(0.9); }
+}
+
+/* ===== Story-style progress bar ===== */
+.story-progress-segments {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+
+.progress-segment {
+  flex: 1;
+  height: 4px;
+  background: var(--color-border-default);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.dark .progress-segment {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.progress-segment.filled {
+  background: var(--color-accent-primary);
+}
+
+.progress-segment.current {
+  background: var(--color-success);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+  animation: pulse-segment 2s infinite;
+}
+
+.dark .progress-segment.filled {
+  background: var(--color-accent-primary);
+}
+
+.dark .progress-segment.current {
+  background: var(--color-success);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+}
+
+@keyframes pulse-segment {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* ===== Floating bottom nav — glassmorphism ===== */
+.bible-floating-nav {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: min(400px, calc(100vw - 32px));
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .bible-floating-nav {
+  background: rgba(36, 36, 36, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 -4px 24px rgba(0, 0, 0, 0.4),
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* iOS safe area */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .bible-floating-nav {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  .bible-floating-nav {
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ===== Chapter info button (center of floating nav) ===== */
+.chapter-info-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-size: clamp(0.6875rem, 2.5vw, 0.8125rem);
+  color: var(--color-text-primary);
+  padding: 0.375rem 0.5rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--color-border-default);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  flex: 1;
+  max-width: min(200px, 55vw);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dark .chapter-info-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.chapter-info-btn:hover {
+  background: var(--color-button-default);
+  border-color: var(--color-border-dark);
+}
+
+.dark .chapter-info-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.chapter-info-btn:active {
+  background: var(--color-button-active);
+  transform: scale(0.98);
+}
+
+.dark .chapter-info-btn:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ===== Mark-as-read button ===== */
+.mark-read-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 180px;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, var(--color-accent-primary) 0%, #6bc99f 100%);
+  color: white;
+  border-radius: 12px;
+  font-family: var(--font-family-ui);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 4px 14px rgba(75, 159, 126, 0.35),
+    0 2px 6px rgba(75, 159, 126, 0.2);
+}
+
+.mark-read-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-accent-hover) 0%, var(--color-accent-primary) 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 20px rgba(75, 159, 126, 0.4),
+    0 4px 10px rgba(75, 159, 126, 0.25);
+}
+
+.mark-read-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.mark-read-btn.is-read {
+  background: linear-gradient(135deg, var(--color-success) 0%, #34d399 100%);
+  box-shadow:
+    0 4px 14px rgba(16, 185, 129, 0.35),
+    0 2px 6px rgba(16, 185, 129, 0.2);
+}
+
+.mark-read-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ===== Content bottom gradient area ===== */
+.content-bottom-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2.5rem 1.5rem 2rem;
+  margin-top: 2rem;
+  font-family: var(--font-family-ui);
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--color-bg-tertiary) 20%,
+    var(--color-bg-tertiary) 100%
+  );
+  border-radius: 24px 24px 0 0;
+}
+
+/* ===== Progress bar (book reading progress) ===== */
+.book-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.dark .book-progress-bar {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.book-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent-primary) 0%, #6bc99f 100%);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 4px;
+}
+
+/* ===== Tongdok action links (audio/guide) ===== */
+@media (max-width: 480px) {
+  .tongdok-action-text {
+    display: none;
+  }
+}
