@@ -4,6 +4,7 @@ import { type HTMLAttributes, type ReactNode, useEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { useScrollLock } from '@/hooks/useScrollLock'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 type ModalSize = 'sm' | 'md' | 'lg'
 
@@ -34,26 +35,13 @@ const SIZE_CLASS_MAP: Record<ModalSize, string> = {
   lg: 'max-w-2xl',
 }
 
-const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'area[href]',
-  'input:not([disabled]):not([type="hidden"])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  'button:not([disabled])',
-  'iframe',
-  'object',
-  'embed',
-  '[contenteditable="true"]',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',')
 
 function ModalRoot({ isOpen, onClose, children, size = 'md', closeOnOverlayClick = true, className }: ModalProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [isRendered, setIsRendered] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const closeTimeoutRef = useRef<number | null>(null)
-  const dialogRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useFocusTrap(isRendered, onClose)
 
   useScrollLock(isRendered)
 
@@ -92,53 +80,6 @@ function ModalRoot({ isOpen, onClose, children, size = 'md', closeOnOverlayClick
     }
   }, [isOpen])
 
-  useEffect(() => {
-    if (!isRendered) return
-
-    const previousActiveElement = document.activeElement as HTMLElement | null
-    const dialog = dialogRef.current
-    if (!dialog) return
-
-    const focusableElements = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
-    const initialFocus = focusableElements[0] ?? dialog
-    initialFocus.focus()
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onClose()
-        return
-      }
-
-      if (event.key !== 'Tab') return
-
-      const tabbable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
-      if (tabbable.length === 0) {
-        event.preventDefault()
-        dialog.focus()
-        return
-      }
-
-      const firstElement = tabbable[0]
-      const lastElement = tabbable[tabbable.length - 1]
-      const activeElement = document.activeElement as HTMLElement | null
-
-      if (event.shiftKey && activeElement === firstElement) {
-        event.preventDefault()
-        lastElement.focus()
-      } else if (!event.shiftKey && activeElement === lastElement) {
-        event.preventDefault()
-        firstElement.focus()
-      }
-    }
-
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      previousActiveElement?.focus()
-    }
-  }, [isRendered, onClose])
-
   const modalSize = useMemo(() => SIZE_CLASS_MAP[size], [size])
 
   if (!isMounted || !isRendered) return null
@@ -162,7 +103,7 @@ function ModalRoot({ isOpen, onClose, children, size = 'md', closeOnOverlayClick
         }}
       />
       <div
-        ref={dialogRef}
+        ref={dialogRef as React.RefObject<HTMLDivElement>}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
