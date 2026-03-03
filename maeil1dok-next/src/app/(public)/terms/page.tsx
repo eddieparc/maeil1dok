@@ -1,12 +1,12 @@
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[var(--color-bg-primary)]">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-2">이용약관</h1>
-        <p className="text-gray-600 mb-8">서비스 이용약관</p>
+        <p className="text-[var(--color-text-secondary)] mb-8">서비스 이용약관</p>
 
         <div className="prose prose-sm max-w-none space-y-6">
-          <p className="text-gray-700 pb-6 border-b border-gray-200">
+          <p className="text-gray-700 pb-6 border-b border-[var(--color-border)]">
             제이지피랩스(이하 "회사")가 제공하는 서비스를 이용해 주셔서 감사합니다. 
             본 약관은 회사가 제공하는 서비스의 이용조건 및 절차, 회사와 회원 간의 권리와 의무 등을 규정합니다.
           </p>

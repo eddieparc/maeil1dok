@@ -60,8 +60,7 @@ export default function LoginPage() {
           <button
             onClick={signInWithKakao}
             disabled={isLoading !== null}
-            className="w-full flex items-center justify-center py-3 px-4 rounded-xl font-medium text-sm disabled:opacity-60"
-            style={{ backgroundColor: '#FEE500', color: '#191919' }}
+            className="w-full flex items-center justify-center py-3 px-4 rounded-xl font-medium text-sm disabled:opacity-60 bg-[var(--color-kakao)] text-[var(--color-kakao-text)]"
           >
             {isLoading === 'kakao' ? '로딩 중...' : '카카오 로그인'}
           </button>
