@@ -76,6 +76,20 @@
   --color-kakao-bg: #FEE500;
 }
 
+/* Sanctuary Theme Variables */
+@theme {
+  --sanctuary-bg: #F9F8F6;
+  --sanctuary-bg-dark: #222222;
+  --sanctuary-accent: #4A5D53;
+  --sanctuary-accent-hover: #3D4A42;
+  --sanctuary-card-bg: #FFFFFF;
+  --sanctuary-card-bg-dark: #2A2A2A;
+  --sanctuary-text-main: #2C3333;
+  --sanctuary-text-secondary: #6B7280;
+  --sanctuary-border: #E5E7EB;
+  --sanctuary-border-dark: #3F3F3F;
+}
+
 .dark {
   color-scheme: dark;
 
@@ -119,10 +133,105 @@
   --color-input-focus: #6bc99f;
 
   --color-kakao-bg: #FEE500;
+
+  /* Sanctuary Theme Dark Mode Overrides */
+  --sanctuary-bg: #222222;
+  --sanctuary-card-bg: #2A2A2A;
+  --sanctuary-text-main: #EDEDED;
+  --sanctuary-text-secondary: #B0B0B0;
+  --sanctuary-border: #3F3F3F;
 }
 
 body {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-family-ui);
+}
+
+/* Common Utility Styles */
+
+/* Gradient Background Pattern */
+.sanctuary-bg {
+  background: linear-gradient(180deg, var(--sanctuary-bg) 0%, #EFEFEA 100%);
+}
+
+.dark .sanctuary-bg {
+  background: linear-gradient(180deg, var(--sanctuary-bg) 0%, #222222 100%);
+}
+
+/* Floating Footer */
+.floating-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  background: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border-default);
+  z-index: 40;
+}
+
+/* Sticky Header */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(10px);
+  background: rgba(249, 248, 246, 0.8);
+  z-index: 30;
+}
+
+.dark .sticky-header {
+  background: rgba(34, 34, 34, 0.8);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--color-border-default);
+  border-top-color: var(--sanctuary-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner.small {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-width: 1.5px;
+}
+
+/* Button Interactions */
+.btn-interactive {
+  transition: transform 0.2s ease-out;
+}
+
+.btn-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.btn-interactive:active {
+  transform: scale(0.95);
 }
