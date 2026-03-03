@@ -1,14 +1,9 @@
 export const dynamic = 'force-dynamic'
 
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
-import PlanSelector from '@/components/schedule/PlanSelector'
-import ScheduleList from '@/components/schedule/ScheduleList'
-import Container from '@/components/ui/Container'
-import { Card, CardBody } from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
-import PageHeader from '@/components/ui/PageHeader'
+import PlanPageClient, { PlanPageEmpty } from './PlanPageClient'
+import styles from './plan.module.css'
 
 export default async function PlanPage({
   searchParams,
@@ -29,23 +24,7 @@ export default async function PlanPage({
 
     // No active subscriptions — empty state
     if (activeSubscriptions.length === 0) {
-      return (
-        <Container fullHeight>
-          <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
-            <Card variant="elevated" className="w-full max-w-sm text-center">
-              <CardBody className="py-10">
-                <p className="text-sm text-[var(--color-text-secondary)]">구독 중인 플랜이 없습니다.</p>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">플랜을 구독해주세요.</p>
-                <Link href="/plans">
-                  <Button variant="primary" className="mt-6">
-                    플랜 둘러보기
-                  </Button>
-                </Link>
-              </CardBody>
-            </Card>
-          </div>
-        </Container>
-      )
+      return <PlanPageEmpty />
     }
 
     // Determine selected subscription
@@ -80,32 +59,33 @@ export default async function PlanPage({
     }
 
     return (
-      <Container fullHeight className="py-6">
-        <div className="mx-auto max-w-md">
-          <PlanSelector
-            subscriptions={activeSubscriptions}
-            plans={availablePlans}
-            selectedSubscriptionId={selectedSub.id}
-          />
-          <ScheduleList
-            schedules={schedules}
-            progressMap={progressMap}
-            currentYear={year}
-            currentMonth={month}
-            subscriptionId={selectedSub.id}
-          />
-        </div>
-      </Container>
+      <PlanPageClient
+        schedules={schedules}
+        progressMap={progressMap}
+        currentYear={year}
+        currentMonth={month}
+        subscriptionId={selectedSub.id}
+        subscriptions={activeSubscriptions}
+        plans={availablePlans}
+        selectedSubscriptionId={selectedSub.id}
+      />
     )
   } catch {
     return (
-      <Container fullHeight>
-        <div className="flex min-h-[50vh] items-center justify-center px-4">
-          <p className="text-center text-sm text-[var(--color-danger)]">
-            일정을 불러오는 중 오류가 발생했습니다
-          </p>
+      <div className={styles.container}>
+        <div className={styles.fixedArea}>
+          <div className={styles.headerRow}>
+            <h1 className={styles.headerTitle}>성경통독표</h1>
+          </div>
         </div>
-      </Container>
+        <div className={styles.scrollArea}>
+          <div className={styles.errorState}>
+            <p className={styles.errorText}>
+              일정을 불러오는 중 오류가 발생했습니다
+            </p>
+          </div>
+        </div>
+      </div>
     )
   }
 }
