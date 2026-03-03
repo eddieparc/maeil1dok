@@ -1,4 +1,6 @@
 export { useTheme } from './useTheme'
 export { useReadingPosition } from './useReadingPosition'
 export { useSwipeNavigation } from './useSwipeNavigation'
+export { useScrollLock } from './useScrollLock'
+export { useModal } from './useModal'
 export { useToast } from './useToast'
