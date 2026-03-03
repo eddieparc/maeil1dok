@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Calendar, ClipboardList, Star } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const navItems = [
   {
@@ -44,7 +45,7 @@ export default function FloatingNav() {
       style={{ bottom: 'max(8px, env(safe-area-inset-bottom))' }}
       data-testid="floating-nav"
     >
-      <div className="flex items-center gap-0.5 p-1.5 bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="flex items-center gap-0.5 rounded-2xl border border-[var(--color-border-default)]/60 bg-[var(--color-bg-primary)]/80 p-1.5 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)]">
         {navItems.map((item) => {
           const active = item.isActive(pathname)
           return (
@@ -52,12 +53,12 @@ export default function FloatingNav() {
               key={item.href}
               href={item.href}
               data-testid={item.testId}
-              className={[
-                'flex-1 flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl transition-all duration-200 text-xs font-medium',
+              className={cn(
+                'flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-xs font-medium transition-all duration-200',
                 active
-                  ? 'bg-indigo-600 text-white font-semibold shadow-[0_2px_8px_rgba(99,102,241,0.3)]'
-                  : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50',
-              ].join(' ')}
+                  ? 'bg-[var(--color-primary)] font-semibold text-white shadow-[0_2px_8px_rgba(59,130,246,0.3)]'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-light)] hover:text-[var(--color-primary)]'
+              )}
             >
               {item.icon}
               <span>{item.label}</span>

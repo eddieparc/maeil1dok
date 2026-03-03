@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
+import Button from '@/components/ui/Button'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 import { Menu, User, Settings, LogOut } from 'lucide-react'
 
@@ -45,19 +47,22 @@ export default function HeaderClient({
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-100">
+    <header className="sticky top-0 z-40 border-b border-[var(--color-border-default)] bg-[var(--color-bg-primary)]">
       <div className="flex items-center justify-between h-14 px-4 max-w-lg mx-auto">
         {/* Logo */}
-        <Link href="/" className="text-lg font-bold text-gray-900">
+        <Link href="/" className="text-lg font-bold text-[var(--color-text-primary)]">
           매일일독
         </Link>
 
         {/* Right controls */}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
+
           {/* Hamburger */}
           <button
             onClick={onHamburgerClick}
-            className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
+            type="button"
+            className="rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
             aria-label="메뉴 열기"
             data-testid="hamburger-menu"
           >
@@ -68,7 +73,8 @@ export default function HeaderClient({
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen((v) => !v)}
-              className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
+              type="button"
+              className="rounded-xl p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
               aria-label="프로필 메뉴"
               data-testid="profile-button"
             >
@@ -76,30 +82,32 @@ export default function HeaderClient({
             </button>
             {isDropdownOpen && (
               <div
-                className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 z-50 py-1"
+                className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] py-1 shadow-lg"
                 data-testid="profile-dropdown"
               >
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
+                <div className="border-b border-[var(--color-border-default)] px-4 py-3">
+                  <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{displayName}</p>
                 </div>
                 <div className="py-1">
-                  <Link href={`/profile/${_userId}`} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsDropdownOpen(false)}>
+                  <Link href={`/profile/${_userId}`} className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]" onClick={() => setIsDropdownOpen(false)}>
                     <User size={16} />
                     내 프로필
                   </Link>
-                  <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsDropdownOpen(false)}>
+                  <Link href="/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]" onClick={() => setIsDropdownOpen(false)}>
                     <Settings size={16} />
                     계정 설정
                   </Link>
-                  <button
+                  <Button
                     onClick={handleSignOut}
                     disabled={isSigningOut}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start rounded-none px-4 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] hover:text-[var(--color-danger)]"
                     data-testid="signout-button"
                   >
                     <LogOut size={16} />
                     {isSigningOut ? '로그아웃 중...' : '로그아웃'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

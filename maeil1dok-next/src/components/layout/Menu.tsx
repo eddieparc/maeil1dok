@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { BookOpen, ClipboardList, Calendar, User, Settings, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface MenuProps {
   isOpen: boolean
@@ -55,32 +56,36 @@ export default function Menu({ isOpen, onClose }: MenuProps) {
 
   return (
     <div
-      className={`fixed inset-0 z-[999] ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      className={cn('fixed inset-0 z-[999]', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}
       data-testid="menu"
     >
       {/* Overlay */}
-      <div
-        className={`absolute inset-0 bg-black/25 backdrop-blur-sm transition-opacity duration-200 ${
+      <button
+        type="button"
+        className={cn(
+          'absolute inset-0 bg-black/25 backdrop-blur-sm transition-opacity duration-200',
           isOpen ? 'opacity-100' : 'opacity-0'
-        }`}
+        )}
         onClick={onClose}
+        aria-label="메뉴 닫기"
         data-testid="menu-overlay"
       />
 
       {/* Panel */}
       <div
-        className={`absolute right-0 top-0 h-full w-full max-w-[360px] bg-white shadow-[-4px_0_25px_rgba(0,0,0,0.15)] flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+        className={cn(
+          'absolute right-0 top-0 flex h-full w-full max-w-[360px] flex-col bg-[var(--color-bg-primary)] shadow-[-4px_0_25px_rgba(0,0,0,0.15)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
           isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        onClick={(e) => e.stopPropagation()}
+        )}
         data-testid="menu-panel"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">메뉴</h2>
+        <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-4 py-4">
+          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">메뉴</h2>
           <button
             onClick={onClose}
-            className="p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            type="button"
+            className="-mr-2 rounded-lg p-2 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
             aria-label="메뉴 닫기"
           >
             <X size={22} />
@@ -96,7 +101,7 @@ export default function Menu({ isOpen, onClose }: MenuProps) {
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-800 hover:bg-indigo-50 hover:text-indigo-600 transition-all font-medium"
+                className="flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-[var(--color-text-primary)] transition-all hover:bg-[var(--color-accent-light)] hover:text-[var(--color-primary)]"
               >
                 {item.icon}
                 <span>{item.label}</span>
@@ -105,27 +110,27 @@ export default function Menu({ isOpen, onClose }: MenuProps) {
           </div>
 
           {/* Divider */}
-          <div className="my-3 border-t border-gray-100" />
+          <div className="my-3 border-t border-[var(--color-border-default)]" />
 
           {/* Disabled items */}
           <div className="space-y-1">
             {disabledMenuItems.map((item) => (
               <div
                 key={item.label}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-400 opacity-50 cursor-not-allowed"
+                className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-[var(--color-text-muted)] opacity-50"
                 aria-disabled="true"
               >
                 {item.icon}
                 <span>{item.label}</span>
-                <span className="ml-auto text-xs text-gray-400">준비 중</span>
+                <span className="ml-auto text-xs text-[var(--color-text-muted)]">준비 중</span>
               </div>
             ))}
           </div>
         </nav>
 
         {/* Footer - legal links */}
-        <div className="px-4 py-4 border-t border-gray-100">
-          <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+        <div className="border-t border-[var(--color-border-default)] px-4 py-4">
+          <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)]">
             <Link href="/terms" className="hover:underline" onClick={onClose}>이용약관</Link>
             <span>|</span>
             <Link href="/privacy" className="hover:underline" onClick={onClose}>개인정보처리방침</Link>

@@ -21,7 +21,7 @@ export default function AuthenticatedShell({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col bg-[var(--color-bg-primary)]">
       <HeaderClient
         displayName={displayName}
         userId={userId}
