@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
+import { Container } from '@/components/ui'
 import ReadingProgressButton from './ReadingProgressButton'
 
 function EmptyCard({ children }: { children: React.ReactNode }) {
@@ -24,7 +25,7 @@ export default async function ReadingPage() {
 
     if (!schedule) {
       return (
-        <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="px-4 py-8">
+        <Container fullHeight className="py-8">
           <div className="mx-auto max-w-md">
             <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
               ← 홈으로
@@ -36,7 +37,7 @@ export default async function ReadingPage() {
               📅 통독표 보기
             </Link>
           </div>
-        </main>
+        </Container>
       )
     }
 
@@ -44,7 +45,7 @@ export default async function ReadingPage() {
 
     if (!activeSubscription) {
       return (
-        <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="px-4 py-8">
+        <Container fullHeight className="py-8">
           <div className="mx-auto max-w-md">
             <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
               ← 홈으로
@@ -70,7 +71,7 @@ export default async function ReadingPage() {
               📅 통독표 보기
             </Link>
           </div>
-        </main>
+        </Container>
       )
     }
 
@@ -78,7 +79,7 @@ export default async function ReadingPage() {
     const initialCompleted = progress?.isCompleted ?? false
 
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="px-4 py-8">
+      <Container fullHeight className="py-8">
         <div className="mx-auto max-w-md">
           <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
             ← 홈으로
@@ -108,11 +109,11 @@ export default async function ReadingPage() {
             📅 통독표 보기
           </Link>
         </div>
-      </main>
+      </Container>
     )
   } catch {
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="px-4 py-8">
+      <Container fullHeight className="py-8">
         <div className="mx-auto max-w-md">
           <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
             ← 홈으로
@@ -121,7 +122,7 @@ export default async function ReadingPage() {
             <p className="text-center text-sm text-white/80">일정을 불러오는 중 오류가 발생했습니다</p>
           </EmptyCard>
         </div>
-      </main>
+      </Container>
     )
   }
 }
