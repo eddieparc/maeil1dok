@@ -57,6 +57,7 @@ export default function BibleViewer({
   const [currentChapter, setCurrentChapter] = useState(initialChapter)
   const [currentVersion, setCurrentVersion] = useState<BibleVersion>(initialVersion)
   const [content, setContent] = useState('')
+  const [contentError, setContentError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | undefined>(undefined)
@@ -187,30 +188,40 @@ export default function BibleViewer({
     router.push(`${pathname}?${params.toString()}`)
   }, [currentBook, currentChapter, currentVersion, pathname, router, searchParams])
 
-  useEffect(() => {
-    const controller = new AbortController()
+  const fetchChapterContent = useCallback(async (signal?: AbortSignal) => {
     const prefix = getProxyPrefix(currentVersion)
     const url = `/api/bible-proxy/${prefix}/korbibReadpage.php?version=${currentVersion}&book=${currentBook}&chap=${currentChapter}`
 
-    async function fetchContent() {
-      try {
-        setIsLoading(true)
-        const response = await fetch(url, { signal: controller.signal })
-        const html = await response.text()
-        setContent(html)
-      } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
-          setContent('<p>성경 본문을 불러오지 못했습니다.</p>')
-        }
-      } finally {
+    try {
+      setIsLoading(true)
+      setContentError(null)
+
+      const response = await fetch(url, signal ? { signal } : undefined)
+      if (!response.ok) {
+        throw new Error(`성경 본문 요청 실패 (${response.status})`)
+      }
+
+      const html = await response.text()
+      setContent(html)
+      setContentError(null)
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        setContent('')
+        setContentError('네트워크 상태를 확인한 뒤 다시 시도해 주세요.')
+      }
+    } finally {
+      if (!signal?.aborted) {
         setIsLoading(false)
       }
     }
+  }, [currentBook, currentChapter, currentVersion])
 
-    fetchContent()
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetchChapterContent(controller.signal)
 
     return () => controller.abort()
-  }, [currentBook, currentChapter, currentVersion])
+  }, [fetchChapterContent])
 
   const loadHighlights = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -271,8 +282,8 @@ export default function BibleViewer({
     setIsMenuOpen(true)
   }
 
-  const handleVerseTap = (payload: { text: string; position?: { x: number; y: number } }) => {
-    const verseNumber = inferVerseNumber(payload.text)
+  const handleVerseTap = (payload: { text: string; verseNumber?: number; position?: { x: number; y: number } }) => {
+    const verseNumber = typeof payload.verseNumber === 'number' ? payload.verseNumber : inferVerseNumber(payload.text)
 
     if (verseNumber !== null) {
       onVerseClick(verseNumber)
@@ -289,6 +300,10 @@ export default function BibleViewer({
     setIsMenuOpen(false)
     setMenuPosition(undefined)
   }
+
+  const handleRetryFetch = useCallback(() => {
+    void fetchChapterContent()
+  }, [fetchChapterContent])
 
   const selectedHighlight = useMemo(() => {
     if (!selectedVerseRange) {
@@ -433,10 +448,13 @@ export default function BibleViewer({
         version={currentVersion}
         content={content}
         isLoading={isLoading}
+        error={contentError}
+        onRetry={handleRetryFetch}
         onVerseTap={handleVerseTap}
         highlights={highlights}
         onHighlightsLoaded={handleHighlightsLoaded}
         readingSettings={readingSettings}
+        selectedVerseRange={selectedVerseRange}
       />
 
       {readingSettings ? (
