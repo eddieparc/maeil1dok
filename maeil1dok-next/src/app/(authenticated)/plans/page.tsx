@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
 import PlanCard from '@/components/plans/PlanCard'
 import type { PlanSubscription } from '@/types'
+import Container from '@/components/ui/Container'
+import PageHeader from '@/components/ui/PageHeader'
 
 export default async function PlansPage() {
   try {
@@ -22,8 +24,8 @@ export default async function PlansPage() {
     }
 
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="px-4 py-6">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">플랜 관리</h1>
+      <Container fullHeight className="pb-6">
+        <PageHeader title="플랜 관리" />
         <div className="flex flex-col gap-4">
           {availablePlans.filter(p => p.isActive).map((plan) => (
             <PlanCard
@@ -34,17 +36,17 @@ export default async function PlansPage() {
           ))}
         </div>
         {availablePlans.filter(p => p.isActive).length === 0 && (
-          <p className="text-center text-sm text-gray-500">이용 가능한 플랜이 없습니다</p>
+          <p className="mt-8 text-center text-sm text-[var(--color-text-secondary)]">이용 가능한 플랜이 없습니다</p>
         )}
-      </main>
+      </Container>
     )
   } catch {
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
+      <Container fullHeight>
         <div className="flex min-h-[50vh] items-center justify-center px-4">
-          <p className="text-center text-sm text-red-600">플랜 목록을 불러오는 중 오류가 발생했습니다</p>
+          <p className="text-center text-sm text-[var(--color-danger)]">플랜 목록을 불러오는 중 오류가 발생했습니다</p>
         </div>
-      </main>
+      </Container>
     )
   }
 }

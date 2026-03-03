@@ -21,16 +21,16 @@ function Toggle({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <span className="text-sm font-medium text-[var(--color-text-primary)]">{label}</span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-7 w-12 rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}
+        className={`relative h-7 w-12 rounded-full transition-colors ${checked ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border-dark)]'}`}
       >
         <span
-          className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
+          className={`absolute top-1 h-5 w-5 rounded-full bg-[var(--color-bg-secondary)] transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
         />
       </button>
     </div>
@@ -52,8 +52,8 @@ function OptionButton({
       onClick={onClick}
       className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
         active
-          ? 'border-blue-600 bg-blue-50 text-blue-700'
-          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+          ? 'border-[var(--color-primary)] bg-[var(--color-info-bg)] text-[var(--color-primary)]'
+          : 'border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
       }`}
     >
       {label}
@@ -108,16 +108,16 @@ export default function ReadingSettingsPanel({
       />
 
       <aside
-        className={`absolute right-0 top-0 h-full w-80 max-w-full bg-white shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+        className={`absolute right-0 top-0 h-full w-80 max-w-full bg-[var(--color-bg-secondary)] shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">읽기 설정</h2>
+        <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-4 py-4">
+          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">읽기 설정</h2>
           <button
             type="button"
             onClick={onClose}
-            className="-mr-2 rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100"
+            className="-mr-2 rounded-lg p-2 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
             aria-label="읽기 설정 닫기"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -129,7 +129,7 @@ export default function ReadingSettingsPanel({
 
         <div className="h-[calc(100%-69px)] space-y-5 overflow-y-auto px-4 py-4">
           <section className="space-y-2">
-            <p className="text-sm font-semibold text-gray-900">테마</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">테마</p>
             <div className="grid grid-cols-3 gap-2">
               <OptionButton active={settings.theme === 'light'} label="밝음" onClick={() => onSettingChange('theme', 'light')} />
               <OptionButton active={settings.theme === 'dark'} label="어둠" onClick={() => onSettingChange('theme', 'dark')} />
@@ -138,12 +138,12 @@ export default function ReadingSettingsPanel({
           </section>
 
           <section className="space-y-2">
-            <label htmlFor="font-family" className="text-sm font-semibold text-gray-900">글꼴</label>
+            <label htmlFor="font-family" className="text-sm font-semibold text-[var(--color-text-primary)]">글꼴</label>
             <select
               id="font-family"
               value={settings.fontFamily}
               onChange={(event) => onSettingChange('fontFamily', event.target.value)}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+              className="w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
             >
               <option value="KoPub Batang">KoPub Batang</option>
               <option value="RIDI Batang">RIDI Batang</option>
@@ -156,8 +156,8 @@ export default function ReadingSettingsPanel({
 
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-900">글자 크기</p>
-              <span className="text-xs font-medium text-gray-500">{settings.fontSize}px</span>
+              <p className="text-sm font-semibold text-[var(--color-text-primary)]">글자 크기</p>
+              <span className="text-xs font-medium text-[var(--color-text-tertiary)]">{settings.fontSize}px</span>
             </div>
             <input
               type="range"
@@ -172,8 +172,8 @@ export default function ReadingSettingsPanel({
 
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-900">줄 간격</p>
-              <span className="text-xs font-medium text-gray-500">{settings.lineHeight.toFixed(1)}</span>
+              <p className="text-sm font-semibold text-[var(--color-text-primary)]">줄 간격</p>
+              <span className="text-xs font-medium text-[var(--color-text-tertiary)]">{settings.lineHeight.toFixed(1)}</span>
             </div>
             <input
               type="range"
@@ -187,7 +187,7 @@ export default function ReadingSettingsPanel({
           </section>
 
           <section className="space-y-2">
-            <p className="text-sm font-semibold text-gray-900">글자 굵기</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">글자 굵기</p>
             <div className="grid grid-cols-3 gap-2">
               <OptionButton active={settings.fontWeight === 'normal'} label="보통" onClick={() => onSettingChange('fontWeight', 'normal')} />
               <OptionButton active={settings.fontWeight === '500'} label="중간" onClick={() => onSettingChange('fontWeight', '500')} />
@@ -196,14 +196,14 @@ export default function ReadingSettingsPanel({
           </section>
 
           <section className="space-y-2">
-            <p className="text-sm font-semibold text-gray-900">텍스트 정렬</p>
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">텍스트 정렬</p>
             <div className="grid grid-cols-2 gap-2">
               <OptionButton active={settings.textAlign === 'left'} label="왼쪽" onClick={() => onSettingChange('textAlign', 'left')} />
               <OptionButton active={settings.textAlign === 'justify'} label="양쪽" onClick={() => onSettingChange('textAlign', 'justify')} />
             </div>
           </section>
 
-          <section className="space-y-1 border-t border-gray-100 pt-3">
+          <section className="space-y-1 border-t border-[var(--color-border-default)] pt-3">
             <Toggle
               checked={settings.showVerseNumbers}
               onChange={(next) => onSettingChange('showVerseNumbers', next)}

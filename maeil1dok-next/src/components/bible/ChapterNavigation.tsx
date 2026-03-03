@@ -1,5 +1,6 @@
 import { BIBLE_BOOKS } from '@/lib/bible/books'
-
+import Select from '@/components/ui/Select'
+import Button from '@/components/ui/Button'
 interface ChapterNavigationProps {
   book: string
   chapter: number
@@ -22,56 +23,50 @@ export default function ChapterNavigation({
   const maxChapter = BIBLE_BOOKS[book]?.chapters ?? 1
 
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm">
+    <section className="rounded-2xl bg-[var(--color-bg-secondary)] p-4 shadow-sm border border-[var(--color-border-default)]">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm text-gray-600">
-          <span className="text-xs font-medium tracking-wide text-gray-500">성경 책</span>
-          <select
-            value={book}
-            onChange={(event) => onBookChange(event.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-400 focus:outline-none"
-          >
-            {bookKeys.map((key) => (
-              <option key={key} value={key}>
-                {BIBLE_BOOKS[key].ko}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="성경 책"
+          value={book}
+          onChange={(event) => onBookChange(event.target.value)}
+        >
+          {bookKeys.map((key) => (
+            <option key={key} value={key}>
+              {BIBLE_BOOKS[key].ko}
+            </option>
+          ))}
+        </Select>
 
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm text-gray-600">
-          <span className="text-xs font-medium tracking-wide text-gray-500">장</span>
-          <select
-            value={chapter}
-            onChange={(event) => onChapterChange(Number.parseInt(event.target.value, 10))}
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-400 focus:outline-none"
-          >
-            {Array.from({ length: maxChapter }, (_, index) => index + 1).map((chapterNo) => (
-              <option key={chapterNo} value={chapterNo}>
-                {chapterNo}장
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="장"
+          value={chapter}
+          onChange={(event) => onChapterChange(Number.parseInt(event.target.value, 10))}
+        >
+          {Array.from({ length: maxChapter }, (_, index) => index + 1).map((chapterNo) => (
+            <option key={chapterNo} value={chapterNo}>
+              {chapterNo}장
+            </option>
+          ))}
+        </Select>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={onPrevChapter}
           disabled={chapter <= 1}
-          className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-45"
+          className="w-full"
         >
           이전 장
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
           onClick={onNextChapter}
           disabled={chapter >= maxChapter}
-          className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-45"
+          className="w-full"
         >
           다음 장
-        </button>
+        </Button>
       </div>
     </section>
   )

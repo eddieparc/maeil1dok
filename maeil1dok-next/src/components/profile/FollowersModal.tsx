@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Avatar from '@/components/ui/Avatar'
+import { Modal } from '@/components/ui/Modal'
 interface FollowRow {
   id: string
   followerId: string
@@ -56,36 +57,31 @@ export default function FollowersModal({ isOpen, onClose, userId, currentUserId 
     return null
   }, [followers.length, isLoading])
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-lg">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-base font-semibold text-gray-900">팔로워</h2>
-          <button type="button" onClick={onClose} className="text-sm text-gray-500">닫기</button>
-        </div>
-
-        <div className="max-h-[60vh] overflow-y-auto p-4">
-          {emptyMessage ? (
-            <p className="text-sm text-gray-500">{emptyMessage}</p>
-          ) : (
-            <ul className="space-y-3">
-              {followers.map((follower) => (
-                <li key={follower.id} className="rounded-xl border border-gray-100 px-3 py-2 flex items-center gap-2">
-                  <Avatar url={undefined} name={getDisplayName(follower.followerId, currentUserId)} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {getDisplayName(follower.followerId, currentUserId)}
-                    </p>
-                    <p className="truncate text-xs text-gray-500">소개 정보가 없습니다.</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <Modal.Header className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)]">팔로워</h2>
+        <button type="button" onClick={onClose} className="text-sm text-[var(--color-text-secondary)]">닫기</button>
+      </Modal.Header>
+      <Modal.Body className="max-h-[60vh] overflow-y-auto">
+        {emptyMessage ? (
+          <p className="text-sm text-[var(--color-text-secondary)]">{emptyMessage}</p>
+        ) : (
+          <ul className="space-y-3">
+            {followers.map((follower) => (
+              <li key={follower.id} className="rounded-xl border border-[var(--color-border-default)] px-3 py-2 flex items-center gap-2">
+                <Avatar url={undefined} name={getDisplayName(follower.followerId, currentUserId)} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                    {getDisplayName(follower.followerId, currentUserId)}
+                  </p>
+                  <p className="truncate text-xs text-[var(--color-text-secondary)]">소개 정보가 없습니다.</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal.Body>
+    </Modal>
   )
 }

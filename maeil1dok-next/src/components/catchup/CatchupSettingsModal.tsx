@@ -1,5 +1,7 @@
 'use client'
 
+import { Modal, Button } from '@/components/ui'
+
 export interface CatchupSettings {
   strategy: 'parallel' | 'sequential'
   targetDate: string
@@ -17,95 +19,94 @@ interface CatchupSettingsModalProps {
 }
 
 export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChange }: CatchupSettingsModalProps) {
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <button type="button" onClick={onClose} aria-label="캐치업 설정 닫기" className="absolute inset-0 bg-black/50" />
-      <div className="relative w-full max-w-md rounded-2xl bg-white p-5" role="dialog" aria-modal="true">
-        <h2 className="text-lg font-semibold text-gray-900">캐치업 설정</h2>
-
-        <div className="mt-4 space-y-3">
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <Modal.Header>
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">캐치업 설정</h2>
+      </Modal.Header>
+      <Modal.Body>
+        <div className="space-y-3">
           <div>
-            <p className="mb-2 text-sm font-medium text-gray-700">전략</p>
-            <label className="mb-2 block rounded-xl border border-gray-200 px-3 py-2">
+            <p className="mb-2 text-sm font-medium text-[var(--color-text-primary)]">전략</p>
+            <label className="mb-2 block rounded-xl border border-[var(--color-border-default)] px-3 py-2 cursor-pointer hover:bg-[var(--color-bg-tertiary)]">
               <input
                 type="radio"
                 name="strategy"
                 checked={value.strategy === 'parallel'}
                 onChange={() => onChange({ ...value, strategy: 'parallel' })}
               />
-              <span className="ml-2 text-sm text-gray-900">병렬 (각 플랜을 균등하게 분배)</span>
+              <span className="ml-2 text-sm text-[var(--color-text-primary)]">병렬 (각 플랜을 균등하게 분배)</span>
             </label>
-            <label className="block rounded-xl border border-gray-200 px-3 py-2">
+            <label className="block rounded-xl border border-[var(--color-border-default)] px-3 py-2 cursor-pointer hover:bg-[var(--color-bg-tertiary)]">
               <input
                 type="radio"
                 name="strategy"
                 checked={value.strategy === 'sequential'}
                 onChange={() => onChange({ ...value, strategy: 'sequential' })}
               />
-              <span className="ml-2 text-sm text-gray-900">순차 (앞선 날짜부터 순서대로)</span>
+              <span className="ml-2 text-sm text-[var(--color-text-primary)]">순차 (앞선 날짜부터 순서대로)</span>
             </label>
           </div>
 
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-700">재합류 목표일</span>
+            <span className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">재합류 목표일</span>
             <input
               type="date"
               value={value.targetDate}
               onChange={(event) => onChange({ ...value, targetDate: event.target.value })}
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
             />
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-700">일일 최대 읽기 수</span>
+            <span className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">일일 최대 읽기 수</span>
             <input
               type="number"
               min={1}
               value={value.maxDailyReadings}
               onChange={(event) => onChange({ ...value, maxDailyReadings: Number(event.target.value) || 1 })}
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
             />
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-700">일일 최대 장 수</span>
+            <span className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">일일 최대 장 수</span>
             <input
               type="number"
               min={1}
               value={value.maxDailyChapters}
               onChange={(event) => onChange({ ...value, maxDailyChapters: Number(event.target.value) || 1 })}
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
             />
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-700">주말 배수</span>
+            <span className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">주말 배수</span>
             <input
               type="number"
               min={0.5}
               step={0.5}
               value={value.weekendMultiplier}
               onChange={(event) => onChange({ ...value, weekendMultiplier: Number(event.target.value) || 1 })}
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
             />
           </label>
         </div>
-
-        <div className="mt-5 flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-gray-300 py-2 text-sm text-gray-700">
+      </Modal.Body>
+      <Modal.Footer>
+        <div className="flex w-full gap-2">
+          <Button variant="secondary" onClick={onClose} className="flex-1">
             취소
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="primary"
             onClick={() => onPreview(value)}
-            className="flex-1 rounded-xl bg-emerald-600 py-2 text-sm font-semibold text-white"
+            className="flex-1"
           >
             미리보기
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </Modal.Footer>
+    </Modal>
   )
 }

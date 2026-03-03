@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-
+import { Modal } from '@/components/ui/Modal'
+import Input from '@/components/ui/Input'
+import Textarea from '@/components/ui/Textarea'
+import Button from '@/components/ui/Button'
 interface ProfileEditModalProps {
   isOpen: boolean
   onClose: () => void
@@ -22,7 +25,6 @@ export function ProfileEditModal({
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
-  if (!isOpen) return null
 
   const handleSave = async () => {
     if (!nickname.trim()) {
@@ -53,57 +55,45 @@ export function ProfileEditModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="mb-4 text-lg font-bold">프로필 편집</h2>
-
-        <div className="mb-4">
-          <label className="text-sm font-medium text-gray-700">닉네임 *</label>
-          <input
-            type="text"
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <Modal.Header>
+        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">프로필 편집</h2>
+      </Modal.Header>
+      <Modal.Body>
+        <div className="flex flex-col gap-4">
+          <Input
+            label="닉네임 *"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-gray-300 p-2"
             placeholder="닉네임"
             maxLength={30}
+            error={error}
           />
-          {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-        </div>
-
-        <div className="mb-6">
-          <label className="text-sm font-medium text-gray-700">소개</label>
-          <textarea
+          <Textarea
+            label="소개"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            className="mt-1 w-full resize-none rounded-xl border border-gray-300 p-2"
             placeholder="소개 (선택사항)"
             rows={3}
             maxLength={150}
+            className="resize-none"
           />
         </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-xl border border-gray-300 py-2 text-gray-700"
-          >
+      </Modal.Body>
+      <Modal.Footer>
+        <div className="flex w-full gap-3">
+          <Button variant="secondary" onClick={onClose} className="flex-1">
             취소
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleSave}
-            disabled={isSaving}
-            className="flex-1 rounded-xl bg-blue-500 py-2 text-white disabled:opacity-50"
+            loading={isSaving}
+            className="flex-1"
           >
-            {isSaving ? '저장 중...' : '저장'}
-          </button>
+            저장
+          </Button>
         </div>
-      </div>
-    </div>
+      </Modal.Footer>
+    </Modal>
   )
 }

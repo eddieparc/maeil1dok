@@ -8,6 +8,7 @@ import { CatchupSettingsModal, type CatchupSettings } from './CatchupSettingsMod
 import { CatchupPreviewModal } from './CatchupPreviewModal'
 import { CatchupProgressCard } from './CatchupProgressCard'
 import { TodayCatchupList, type TodayCatchupItem } from './TodayCatchupList'
+import { Card, CardBody, Button, PageHeader } from '@/components/ui'
 
 interface CatchupClientProps {
   planId: number | null
@@ -158,25 +159,26 @@ export function CatchupClient({
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-4 px-4 py-6">
+    <div className="space-y-4 py-6">
+      <PageHeader title="밀린 통독 따라잡기" />
       {!session ? (
-        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold tracking-[0.12em] text-gray-500">CATCHUP</p>
-          <h1 className="mt-1 text-xl font-semibold text-gray-900">밀린 통독 따라잡기</h1>
-          <p className="mt-2 text-sm text-gray-600">미완료 일정 {missedCount}개</p>
+        <Card>
+          <CardBody className="p-5">
+            <p className="text-[var(--font-size-sm)] text-[var(--color-text-secondary)] mb-4">미완료 일정 <strong>{missedCount}개</strong></p>
 
-          <button
-            type="button"
-            disabled={!canStartCatchup}
-            onClick={() => setIsSettingsOpen(true)}
-            className="mt-4 w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
-          >
-            캐치업 시작
-          </button>
+            <Button
+              variant="primary"
+              disabled={!canStartCatchup}
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-full"
+            >
+              캐치업 시작
+            </Button>
 
-          {missedCount === 0 ? <p className="mt-2 text-xs text-emerald-700">현재 밀린 일정이 없습니다.</p> : null}
-          {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
-        </section>
+            {missedCount === 0 ? <p className="mt-2 text-[var(--font-size-xs)] text-[var(--color-success-text)]">현재 밀린 일정이 없습니다.</p> : null}
+            {error ? <p className="mt-2 text-[var(--font-size-xs)] text-[var(--color-danger)]">{error}</p> : null}
+          </CardBody>
+        </Card>
       ) : (
         <>
           <CatchupProgressCard
@@ -188,16 +190,16 @@ export function CatchupClient({
 
           <TodayCatchupList items={todayItems} onItemCompleted={handleItemCompleted} />
 
-          <button
-            type="button"
+          <Button
+            variant="danger"
             onClick={handleAbandon}
-            disabled={isAbandoning}
-            className="w-full rounded-xl border border-red-200 bg-red-50 py-2 text-sm font-medium text-red-700 disabled:opacity-60"
+            loading={isAbandoning}
+            className="w-full"
           >
-            {isAbandoning ? '중단 중...' : '캐치업 세션 중단'}
-          </button>
+            캐치업 세션 중단
+          </Button>
 
-          {error ? <p className="text-xs text-red-600">{error}</p> : null}
+          {error ? <p className="text-[var(--font-size-xs)] text-[var(--color-danger)]">{error}</p> : null}
         </>
       )}
 

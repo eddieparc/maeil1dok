@@ -5,6 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
 import PlanSelector from '@/components/schedule/PlanSelector'
 import ScheduleList from '@/components/schedule/ScheduleList'
+import Container from '@/components/ui/Container'
+import { Card, CardBody } from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import PageHeader from '@/components/ui/PageHeader'
 
 export default async function PlanPage({
   searchParams,
@@ -26,21 +30,21 @@ export default async function PlanPage({
     // No active subscriptions — empty state
     if (activeSubscriptions.length === 0) {
       return (
-        <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
+        <Container fullHeight>
           <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
-            <div className="rounded-xl bg-white px-6 py-10 text-center shadow-sm">
-              <p className="text-sm text-gray-500">구독 중인 플랜이 없습니다.</p>
-              <p className="mt-1 text-sm text-gray-500">플랜을 구독해주세요.</p>
-              <Link
-                href="/plans"
-                className="mt-4 inline-block rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm"
-                style={{ backgroundColor: '#3B82F6' }}
-              >
-                플랜 둘러보기
-              </Link>
-            </div>
+            <Card variant="elevated" className="w-full max-w-sm text-center">
+              <CardBody className="py-10">
+                <p className="text-sm text-[var(--color-text-secondary)]">구독 중인 플랜이 없습니다.</p>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">플랜을 구독해주세요.</p>
+                <Link href="/plans">
+                  <Button variant="primary" className="mt-6">
+                    플랜 둘러보기
+                  </Button>
+                </Link>
+              </CardBody>
+            </Card>
           </div>
-        </main>
+        </Container>
       )
     }
 
@@ -76,8 +80,8 @@ export default async function PlanPage({
     }
 
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
-        <div className="mx-auto max-w-md px-4 py-6">
+      <Container fullHeight className="py-6">
+        <div className="mx-auto max-w-md">
           <PlanSelector
             subscriptions={activeSubscriptions}
             plans={availablePlans}
@@ -91,17 +95,17 @@ export default async function PlanPage({
             subscriptionId={selectedSub.id}
           />
         </div>
-      </main>
+      </Container>
     )
   } catch {
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
+      <Container fullHeight>
         <div className="flex min-h-[50vh] items-center justify-center px-4">
-          <p className="text-center text-sm text-red-600">
+          <p className="text-center text-sm text-[var(--color-danger)]">
             일정을 불러오는 중 오류가 발생했습니다
           </p>
         </div>
-      </main>
+      </Container>
     )
   }
 }

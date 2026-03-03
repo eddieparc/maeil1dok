@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
+import { Container } from '@/components/ui'
 import HomeHero from '@/components/home/HomeHero'
 import { DailyStatus } from '@/components/home/DailyStatus'
 import ReadingCardStack from '@/components/home/ReadingCardStack'
@@ -19,11 +20,9 @@ export default async function HomePage() {
 
     if (!user) {
       return (
-        <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
-          <div className="flex min-h-[50vh] items-center justify-center px-4">
-            <p className="text-center text-sm text-gray-500">로그인이 필요합니다</p>
-          </div>
-        </main>
+        <Container fullHeight className="flex items-center justify-center">
+          <p className="text-center text-sm text-[var(--color-text-tertiary)]">로그인이 필요합니다</p>
+        </Container>
       )
     }
 
@@ -98,7 +97,7 @@ export default async function HomePage() {
     }
 
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
+      <Container fullHeight>
         <HomeHero displayName={displayName} />
         <DailyStatus data={dailyStatusData} />
         <ReadingCardStack
@@ -108,15 +107,13 @@ export default async function HomePage() {
           hasenaCompleted={hasenaCompleted}
         />
         <QuickAccessGrid userId={user.id} />
-      </main>
+      </Container>
     )
   } catch {
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
-        <div className="flex min-h-[50vh] items-center justify-center px-4">
-          <p className="text-center text-sm text-red-600">페이지를 불러오는 중 오류가 발생했습니다</p>
-        </div>
-      </main>
+      <Container fullHeight className="flex items-center justify-center">
+        <p className="text-center text-sm text-[var(--color-status-error)]">페이지를 불러오는 중 오류가 발생했습니다</p>
+      </Container>
     )
-  }
+}
 }

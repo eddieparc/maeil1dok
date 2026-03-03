@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import type { VideoBibleIntro, VideoIntroProgress } from '@/types'
+import { Card, Button } from '@/components/ui'
 
 interface PlanInfo {
   id: number
@@ -82,9 +83,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
   }
 
   return (
-    <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="py-6 pb-20">
-      <h1 className="mb-4 px-4 text-2xl font-bold text-gray-900">성경 개론</h1>
-
+    <div className="flex flex-col gap-4 py-6">
       {/* Plan Selector */}
       {plans.length > 1 && (
         <div className="mx-4 mb-4">
@@ -95,7 +94,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
               setSelectedPlanId(e.target.value)
               setSelectedVideo(null)
             }}
-            className="w-full rounded-xl border border-gray-200 bg-white p-2.5 text-sm focus:border-blue-400 focus:outline-none"
+            className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-2.5 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none"
           >
             {plans.map(plan => (
               <option key={plan.id} value={String(plan.id)}>{plan.name}</option>
@@ -103,25 +102,23 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
           </select>
         </div>
       )}
-
       {/* Progress Summary */}
-      <div className="mx-4 mb-4 rounded-2xl bg-white p-4 shadow-sm">
+      <Card className="mx-4 mb-4 p-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">진행률</span>
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm text-[var(--color-text-secondary)]">진행률</span>
+          <span className="text-sm font-medium text-[var(--color-text-primary)]">
             {completedCount} / {filteredVideos.length}
           </span>
         </div>
         {filteredVideos.length > 0 && (
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
             <div
-              className="h-full rounded-full bg-green-500 transition-all duration-300"
+              className="h-full rounded-full bg-[var(--color-success)] transition-all duration-300"
               style={{ width: `${(completedCount / filteredVideos.length) * 100}%` }}
             />
           </div>
         )}
-      </div>
-
+      </Card>
       {/* Video Player */}
       {selectedVideo && (
         <div className="mx-4 mb-4">
@@ -135,39 +132,35 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
             />
           </div>
           <div className="mt-2 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">{selectedVideo.book} 개론</h2>
+            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{selectedVideo.book} 개론</h2>
             <a
               href={selectedVideo.urlLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-500 hover:underline"
+              className="text-xs text-[var(--color-info)] hover:underline"
             >
               YouTube에서 보기
             </a>
           </div>
-          <button
+          <Button
             data-testid="intro-complete-toggle"
             onClick={() => handleToggleComplete(selectedVideo.id)}
             disabled={isToggling}
-            className={`mt-3 w-full rounded-xl py-2.5 text-sm font-medium transition-colors ${
-              isVideoCompleted(selectedVideo.id)
-                ? 'bg-green-100 text-green-700'
-                : 'bg-gray-900 text-white'
-            } disabled:opacity-50`}
+            variant={isVideoCompleted(selectedVideo.id) ? 'secondary' : 'primary'}
+            className={`mt-3 w-full ${isVideoCompleted(selectedVideo.id) ? 'bg-[var(--color-success-bg)] text-[var(--color-success-text)] border-transparent hover:bg-[var(--color-success-bg)]/80' : ''}`}
           >
             {isToggling
               ? '처리 중...'
               : isVideoCompleted(selectedVideo.id)
                 ? '✓ 완료'
                 : '완료로 표시'}
-          </button>
+          </Button>
         </div>
       )}
-
       {/* Video List */}
       <div data-testid="intro-video-list">
         {filteredVideos.length === 0 ? (
-          <p className="px-4 text-center text-sm text-gray-500">
+          <p className="px-4 text-center text-sm text-[var(--color-text-tertiary)]">
             등록된 개론 영상이 없습니다
           </p>
         ) : (
@@ -175,38 +168,37 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
             const completed = isVideoCompleted(video.id)
             const isSelected = selectedVideo?.id === video.id
             return (
-              <div
+              <Card
                 key={video.id}
                 data-testid="intro-video-item"
                 onClick={() => setSelectedVideo(video)}
-                className={`mx-4 mb-3 cursor-pointer rounded-2xl p-4 shadow-sm transition-colors ${
-                  isSelected
-                    ? 'border-2 border-blue-400 bg-blue-50'
-                    : 'border-2 border-transparent bg-white'
+                variant={isSelected ? 'bordered' : 'default'}
+                className={`mx-4 mb-3 cursor-pointer p-4 transition-colors ${
+                  isSelected ? 'border-[var(--color-primary)] bg-[var(--color-info-bg)]' : ''
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium text-gray-900">{video.book}</div>
-                    <div className="mt-0.5 text-xs text-gray-400">
+                    <div className="font-medium text-[var(--color-text-primary)]">{video.book}</div>
+                    <div className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">
                       {formatDate(video.startDate)} ~ {formatDate(video.endDate)}
                     </div>
                   </div>
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                       completed
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
+                        ? 'bg-[var(--color-success-bg)] text-[var(--color-success-text)]'
+                        : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]'
                     }`}
                   >
                     {completed ? '완료' : '미완료'}
                   </span>
                 </div>
-              </div>
+              </Card>
             )
           })
         )}
       </div>
-    </main>
+    </div>
   )
 }

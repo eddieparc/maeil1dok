@@ -3,6 +3,8 @@ import { createServerRepositories } from '@/repositories/factory'
 import type { HasenaRecord } from '@/types'
 import { HasenaClient } from '@/components/hasena/HasenaClient'
 
+import { Container, PageHeader } from '@/components/ui'
+
 interface HasenaStatus {
   date: string
   isCompleted: boolean
@@ -98,12 +100,13 @@ export default async function HasenaPage() {
   }
 
   return (
-    <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="pb-24">
+    <Container className="pb-24">
+      <PageHeader title="하세나하시조" />
       <HasenaClient
         initialStatus={status}
         initialStats={stats}
         today={today}
       />
-    </main>
+    </Container>
   )
 }

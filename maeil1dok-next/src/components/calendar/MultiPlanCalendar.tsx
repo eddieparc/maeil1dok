@@ -99,7 +99,7 @@ export default function MultiPlanCalendar({ year, month, plans }: MultiPlanCalen
       <div>
         <div className="mb-1 grid grid-cols-7 gap-1">
           {weekDays.map((day) => (
-            <div key={day} className="py-1 text-center text-xs font-semibold text-gray-500">
+            <div key={day} className="py-1 text-center text-xs font-semibold text-[var(--color-text-secondary)]">
               {day}
             </div>
           ))}

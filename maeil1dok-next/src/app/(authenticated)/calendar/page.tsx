@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
 import MultiPlanCalendar, { type PlanCalendarData } from '@/components/calendar/MultiPlanCalendar'
-
+import Container from '@/components/ui/Container'
+import PageHeader from '@/components/ui/PageHeader'
 const PLAN_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316']
 
 export default async function CalendarPage({
@@ -53,17 +54,19 @@ export default async function CalendarPage({
     )
 
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
+      <Container fullHeight>
+        <PageHeader title="내 캘린더" />
         <MultiPlanCalendar year={year} month={month} plans={plans} />
-      </main>
+      </Container>
     )
   } catch {
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
+      <Container fullHeight>
+        <PageHeader title="내 캘린더" />
         <div className="flex min-h-[50vh] items-center justify-center px-4">
-          <p className="text-center text-sm text-red-600">캘린더를 불러오는 중 오류가 발생했습니다</p>
+          <p className="text-center text-sm text-[var(--color-danger)]">캘린더를 불러오는 중 오류가 발생했습니다</p>
         </div>
-      </main>
+      </Container>
     )
   }
 }

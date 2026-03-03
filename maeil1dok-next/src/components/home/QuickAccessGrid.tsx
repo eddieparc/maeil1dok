@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-
+import { Card, Badge } from '@/components/ui'
 interface CardItem {
   id: string
   testId: string
@@ -152,8 +152,8 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
   return (
     <section data-testid="quick-access-grid" className="px-4 pb-4">
       <h2
-        className="mb-3 text-lg font-bold text-gray-900"
-        style={{ fontFamily: 'Georgia, "KoPub Batang", serif' }}
+        className="mb-3 text-lg font-bold text-[var(--color-text-primary)]"
+        style={{ fontFamily: 'var(--font-family-reading)' }}
       >
         Explore
       </h2>
@@ -161,20 +161,20 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
         {cards(userId).map((card) => {
           if (card.disabled) {
             return (
-              <div
+              <Card
                 key={card.id}
                 data-testid={card.testId}
-                className="relative rounded-xl border border-gray-100 bg-white p-4 opacity-50 pointer-events-none cursor-not-allowed shadow-sm"
+                className="relative p-4 opacity-50 pointer-events-none cursor-not-allowed"
               >
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-700">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
                   {card.icon}
                 </div>
-                <p className="text-sm font-semibold text-gray-900">{card.title}</p>
-                <p className="mt-0.5 text-xs text-gray-500">{card.description}</p>
-                <span className="absolute top-3 right-3 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{card.title}</p>
+                <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">{card.description}</p>
+                <Badge variant="default" size="sm" className="absolute top-3 right-3 bg-[var(--color-border-light)] text-[var(--color-text-muted)] text-[10px] px-2 py-0.5">
                   준비 중
-                </span>
-              </div>
+                </Badge>
+              </Card>
             )
           }
 
@@ -183,13 +183,15 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
               key={card.id}
               href={card.href!}
               data-testid={card.testId}
-              className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="group"
             >
-              <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-700">
-                {card.icon}
-              </div>
-              <p className="text-sm font-semibold text-gray-900">{card.title}</p>
-              <p className="mt-0.5 text-xs text-gray-500">{card.description}</p>
+              <Card className="p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-[var(--shadow-md)]">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
+                  {card.icon}
+                </div>
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">{card.title}</p>
+                <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">{card.description}</p>
+              </Card>
             </Link>
           )
         })}

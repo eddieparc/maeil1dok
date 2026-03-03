@@ -20,10 +20,10 @@ export default function HomeHero({ displayName }: HomeHeroProps) {
 
   return (
     <section className="px-4 pt-6 pb-4" data-testid="home-hero">
-      <p className="text-sm text-gray-500 mb-1">{greetingMessage}</p>
+      <p className="text-sm text-[var(--color-text-tertiary)] mb-1">{greetingMessage}</p>
       <h1
-        className="text-3xl font-light leading-snug text-gray-900"
-        style={{ fontFamily: 'Georgia, "KoPub Batang", serif' }}
+        className="text-3xl font-light leading-snug text-[var(--color-text-primary)]"
+        style={{ fontFamily: 'var(--font-family-reading)' }}
       >
         {timeGreeting}
         <br />

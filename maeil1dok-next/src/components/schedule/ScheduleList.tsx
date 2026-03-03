@@ -54,7 +54,7 @@ export default function ScheduleList({
       <div className="mb-5 flex items-center justify-between px-1">
         <button
           onClick={() => navigateMonth(-1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] shadow-sm transition-colors hover:bg-[var(--color-button-hover)] border border-[var(--color-border-light)]"
           aria-label="이전 달"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -63,11 +63,11 @@ export default function ScheduleList({
         </button>
 
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
             {currentYear}년 {MONTH_NAMES[currentMonth - 1]}
           </h3>
           {schedules.length > 0 && (
-            <p className="mt-0.5 text-xs text-gray-400">
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
               {completedCount}/{schedules.length}일 완료
             </p>
           )}
@@ -75,7 +75,7 @@ export default function ScheduleList({
 
         <button
           onClick={() => navigateMonth(1)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] shadow-sm transition-colors hover:bg-[var(--color-button-hover)] border border-[var(--color-border-light)]"
           aria-label="다음 달"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -86,8 +86,8 @@ export default function ScheduleList({
 
       {/* Schedule items */}
       {schedules.length === 0 ? (
-        <div className="rounded-xl bg-white px-4 py-10 text-center shadow-sm">
-          <p className="text-sm text-gray-400">이 달에 등록된 일정이 없습니다</p>
+        <div className="rounded-xl bg-[var(--color-bg-secondary)] px-4 py-10 text-center shadow-sm border border-[var(--color-border-light)]">
+          <p className="text-sm text-[var(--color-text-muted)]">이 달에 등록된 일정이 없습니다</p>
         </div>
       ) : (
         <div className="space-y-2">

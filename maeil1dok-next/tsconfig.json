@@ -38,6 +38,9 @@
   ],
   "exclude": [
     "node_modules",
-    "scripts/migrate"
+    "scripts/migrate",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/__tests__/*"
   ]
 }

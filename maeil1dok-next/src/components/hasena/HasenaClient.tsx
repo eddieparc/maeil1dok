@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Card, Button } from '@/components/ui'
 
 interface HasenaStatus {
   date: string
@@ -281,110 +282,107 @@ export function HasenaClient({ initialStatus, initialStats, today }: HasenaClien
   })
 
   return (
-    <div className="mx-auto max-w-md py-6">
-      <section className="bg-white rounded-2xl shadow-sm mx-4 mb-4 p-4">
+    <div className="mx-auto max-w-md py-6 space-y-4">
+      <Card className="mx-4 p-4">
         <div className="mb-3">
-          <p className="text-xs font-semibold tracking-[0.12em] text-gray-500">HASENA</p>
-          <h1 className="text-lg font-semibold text-gray-900">하세나하시조</h1>
+          <p className="text-xs font-semibold tracking-[0.12em] text-[var(--color-text-tertiary)]">HASENA</p>
+          <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">하세나하시조</h1>
         </div>
         {playlistConfigured ? (
-          <div id="youtube-player" data-testid="youtube-player" className="w-full overflow-hidden rounded-xl bg-gray-100" />
+          <div id="youtube-player" data-testid="youtube-player" className="w-full overflow-hidden rounded-xl bg-[var(--color-bg-tertiary)]" />
         ) : (
-          <div className="flex h-[315px] items-center justify-center rounded-xl bg-gray-100 text-sm text-gray-500">
+          <div className="flex h-[315px] items-center justify-center rounded-xl bg-[var(--color-bg-tertiary)] text-sm text-[var(--color-text-secondary)]">
             재생목록 설정이 필요합니다
           </div>
         )}
-      </section>
-
-      <div data-testid="hasena-streak" className="flex justify-around gap-4 p-4 bg-white rounded-2xl shadow-sm mx-4 mb-4">
-        <div className="text-center">
-          <div className="text-xl font-bold">🔥{stats.currentStreak}</div>
-          <div className="text-xs text-gray-500">연속</div>
+      </Card>
+      <Card data-testid="hasena-streak" className="mx-4 p-4">
+        <div className="flex justify-around gap-4">
+          <div className="text-center">
+            <div className="text-xl font-bold text-[var(--color-text-primary)]">🔥{stats.currentStreak}</div>
+            <div className="text-xs text-[var(--color-text-secondary)]">연속</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-[var(--color-text-primary)]">🏆{stats.longestStreak}</div>
+            <div className="text-xs text-[var(--color-text-secondary)]">최장</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-[var(--color-text-primary)]">📅{stats.totalCompleted}</div>
+            <div className="text-xs text-[var(--color-text-secondary)]">총 완료</div>
+          </div>
         </div>
-        <div className="text-center">
-          <div className="text-xl font-bold">🏆{stats.longestStreak}</div>
-          <div className="text-xs text-gray-500">최장</div>
-        </div>
-        <div className="text-center">
-          <div className="text-xl font-bold">📅{stats.totalCompleted}</div>
-          <div className="text-xs text-gray-500">총 완료</div>
-        </div>
-      </div>
-
-      <section className="bg-white rounded-2xl shadow-sm mx-4 mb-4 p-4">
+      </Card>
+      <Card className="mx-4 p-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-500">{todayLabel}</p>
-            <p className="text-sm font-medium text-gray-900">오늘의 하세나</p>
+            <p className="text-xs text-[var(--color-text-tertiary)]">{todayLabel}</p>
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">오늘의 하세나</p>
           </div>
-          <button
+          <Button
             type="button"
             data-testid="hasena-complete-toggle"
             disabled={isSaving}
             onClick={handleToggleComplete}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60 ${
-              isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
-            }`}
+            variant={isCompleted ? 'primary' : 'secondary'}
+            className={isCompleted ? 'bg-[var(--color-success)] hover:bg-[var(--color-success)]/90 border-transparent text-white' : ''}
           >
             {isSaving ? '저장 중...' : isCompleted ? '✓ 완료' : '완료하기'}
-          </button>
+          </Button>
         </div>
-        {toggleError ? <p className="text-xs text-red-600">{toggleError}</p> : null}
-      </section>
-
-      <section className="bg-white rounded-2xl shadow-sm mx-4 mb-4 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">AI 요약</h2>
+        {toggleError ? <p className="text-xs text-[var(--color-danger)]">{toggleError}</p> : null}
+      </Card>
+      <Card className="mx-4 p-4">
+        <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">AI 요약</h2>
         {summaryLoading ? (
-          <p className="text-sm text-gray-500">요약을 불러오는 중입니다...</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">요약을 불러오는 중입니다...</p>
         ) : summaryError ? (
-          <p className="text-sm text-gray-500">{summaryError}</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">{summaryError}</p>
         ) : !summary ? (
-          <p className="text-sm text-gray-500">요약을 준비 중입니다</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">요약을 준비 중입니다</p>
         ) : (
           <div className="space-y-2">
             <button
               type="button"
               onClick={() => toggleSection('scripture')}
-              className="flex w-full items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-left"
+              className="flex w-full items-center justify-between rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2 text-left hover:bg-[var(--color-button-hover)] transition-colors"
             >
-              <span className="text-sm font-medium text-gray-900">오늘의 본문</span>
-              <span className="text-xs text-gray-500">{openSection === 'scripture' ? '접기' : '펼치기'}</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">오늘의 본문</span>
+              <span className="text-xs text-[var(--color-text-tertiary)]">{openSection === 'scripture' ? '접기' : '펼치기'}</span>
             </button>
             {openSection === 'scripture' ? (
-              <p className="whitespace-pre-line rounded-lg border border-gray-100 px-3 py-2 text-sm text-gray-700">{renderText(parsedSummary.scripture || '요약을 준비 중입니다')}</p>
+              <p className="whitespace-pre-line rounded-lg border border-[var(--color-border-default)] px-3 py-2 text-sm text-[var(--color-text-secondary)]">{renderText(parsedSummary.scripture || '요약을 준비 중입니다')}</p>
             ) : null}
 
             <button
               type="button"
               onClick={() => toggleSection('commentary')}
-              className="flex w-full items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-left"
+              className="flex w-full items-center justify-between rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2 text-left hover:bg-[var(--color-button-hover)] transition-colors"
             >
-              <span className="text-sm font-medium text-gray-900">교역자 해설</span>
-              <span className="text-xs text-gray-500">{openSection === 'commentary' ? '접기' : '펼치기'}</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">교역자 해설</span>
+              <span className="text-xs text-[var(--color-text-tertiary)]">{openSection === 'commentary' ? '접기' : '펼치기'}</span>
             </button>
             {openSection === 'commentary' ? (
-              <p className="whitespace-pre-line rounded-lg border border-gray-100 px-3 py-2 text-sm text-gray-700">{renderText(parsedSummary.commentary || '요약을 준비 중입니다')}</p>
+              <p className="whitespace-pre-line rounded-lg border border-[var(--color-border-default)] px-3 py-2 text-sm text-[var(--color-text-secondary)]">{renderText(parsedSummary.commentary || '요약을 준비 중입니다')}</p>
             ) : null}
 
             <button
               type="button"
               onClick={() => toggleSection('action')}
-              className="flex w-full items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-left"
+              className="flex w-full items-center justify-between rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2 text-left hover:bg-[var(--color-button-hover)] transition-colors"
             >
-              <span className="text-sm font-medium text-gray-900">오늘의 하시조</span>
-              <span className="text-xs text-gray-500">{openSection === 'action' ? '접기' : '펼치기'}</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">오늘의 하시조</span>
+              <span className="text-xs text-[var(--color-text-tertiary)]">{openSection === 'action' ? '접기' : '펼치기'}</span>
             </button>
             {openSection === 'action' ? (
-              <p className="whitespace-pre-line rounded-lg border border-gray-100 px-3 py-2 text-sm text-gray-700">{renderText(parsedSummary.action || '요약을 준비 중입니다')}</p>
+              <p className="whitespace-pre-line rounded-lg border border-[var(--color-border-default)] px-3 py-2 text-sm text-[var(--color-text-secondary)]">{renderText(parsedSummary.action || '요약을 준비 중입니다')}</p>
             ) : null}
           </div>
         )}
-      </section>
-
-      <section className="bg-white rounded-2xl shadow-sm mx-4 mb-4 p-4">
-        <h2 className="text-sm font-semibold text-gray-900">오늘의 본문</h2>
-        <p className="mt-2 text-sm text-gray-600">오늘의 하세나 본문은 영상과 AI 요약에서 함께 확인하세요.</p>
-      </section>
+      </Card>
+      <Card className="mx-4 p-4">
+        <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">오늘의 본문</h2>
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">오늘의 하세나 본문은 영상과 AI 요약에서 함께 확인하세요.</p>
+      </Card>
     </div>
   )
 }

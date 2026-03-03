@@ -15,6 +15,7 @@ import NoteQuickModal from './NoteQuickModal'
 import HighlightModal from './HighlightModal'
 import ReadingSettingsModal from './ReadingSettingsModal'
 import PlanSelectorModal from './PlanSelectorModal'
+import Container from '@/components/ui/Container'
 
 interface BiblePageClientProps {
   initialBook?: string
@@ -95,8 +96,7 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
   const version = isBibleVersion(pageState.currentVersion) ? pageState.currentVersion : 'GAE'
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-24">
-      <div className="mx-auto max-w-2xl">
+    <Container fullHeight className="max-w-2xl pb-24">
         {pageState.viewMode === 'home' && (
           <BibleHome
             lastPosition={lastPosition ?? undefined}
@@ -131,8 +131,7 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
             onMarkAsRead={() => void handleMarkAsRead()}
           />
         )}
-      </div>
-
+    </Container>
       <BookSelector
         isOpen={showBookSelector}
         onClose={() => setShowBookSelector(false)}

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import IntroClient from '@/components/intro/IntroClient'
 import type { VideoBibleIntro, VideoIntroProgress } from '@/types'
+import { Container, PageHeader } from '@/components/ui'
 
 interface PlanInfo {
   id: number
@@ -30,12 +31,14 @@ export default async function IntroPage() {
 
     if (planIds.length === 0) {
       return (
-        <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="px-4 py-6 pb-20">
-          <h1 className="mb-6 text-2xl font-bold text-gray-900">성경 개론</h1>
-          <p className="text-center text-sm text-gray-500">
-            구독 중인 플랜이 없습니다. 플랜을 먼저 구독해주세요.
-          </p>
-        </main>
+        <Container className="pb-20">
+          <PageHeader title="성경 개론" />
+          <div className="px-4 py-6">
+            <p className="text-center text-sm text-[var(--color-text-secondary)]">
+              구독 중인 플랜이 없습니다. 플랜을 먼저 구독해주세요.
+            </p>
+          </div>
+        </Container>
       )
     }
 
@@ -88,21 +91,25 @@ export default async function IntroPage() {
     }
 
     return (
-      <IntroClient
-        plans={planList}
-        videoIntros={videoIntros}
-        progressList={progressList}
-      />
+      <Container className="pb-20">
+        <PageHeader title="성경 개론" />
+        <IntroClient
+          plans={planList}
+          videoIntros={videoIntros}
+          progressList={progressList}
+        />
+      </Container>
     )
   } catch {
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }}>
+      <Container>
+        <PageHeader title="성경 개론" />
         <div className="flex min-h-[50vh] items-center justify-center px-4">
           <p className="text-center text-sm text-red-600">
             개론 목록을 불러오는 중 오류가 발생했습니다
           </p>
         </div>
-      </main>
+      </Container>
     )
   }
 }

@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BibleReadingPlan, PlanSubscription } from '@/types'
-
+import { Card, CardBody } from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import Badge from '@/components/ui/Badge'
 interface PlanCardProps {
   plan: BibleReadingPlan
   subscription: PlanSubscription | null
@@ -56,47 +58,48 @@ export default function PlanCard({ plan, subscription }: PlanCardProps) {
   }
 
   return (
-    <div
-      data-testid="plan-card"
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-gray-900">{plan.name}</h2>
-            {isSubscribed && (
-              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                구독 중
-              </span>
+    <Card variant="default" className="w-full" data-testid="plan-card">
+      <CardBody>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{plan.name}</h2>
+              {isSubscribed && (
+                <Badge variant="primary" size="sm">
+                  구독 중
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{plan.description}</p>
+          </div>
+          <div className="shrink-0">
+            {isSubscribed ? (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={handleUnsubscribe}
+                loading={loading}
+                className="w-full sm:w-auto"
+                data-testid="unsubscribe-button"
+              >
+                해지하기
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleSubscribe}
+                loading={loading}
+                className="w-full sm:w-auto"
+                data-testid="subscribe-button"
+              >
+                구독하기
+              </Button>
             )}
           </div>
-          <p className="mt-1 text-sm text-gray-600">{plan.description}</p>
         </div>
-        <div className="shrink-0">
-          {isSubscribed ? (
-            <button
-              type="button"
-              onClick={handleUnsubscribe}
-              disabled={loading}
-              className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-              data-testid="unsubscribe-button"
-            >
-              {loading ? '처리 중...' : '해지하기'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubscribe}
-              disabled={loading}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
-              data-testid="subscribe-button"
-            >
-              {loading ? '처리 중...' : '구독하기'}
-            </button>
-          )}
-        </div>
-      </div>
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-    </div>
+        {error && <p className="mt-3 text-xs text-[var(--color-danger)]">{error}</p>}
+      </CardBody>
+    </Card>
   )
 }

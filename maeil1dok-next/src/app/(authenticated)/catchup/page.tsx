@@ -4,6 +4,7 @@ import { createServerRepositories } from '@/repositories/factory'
 import type { CatchupSession, DailySchedule } from '@/types'
 import { CatchupClient } from '@/components/catchup/CatchupClient'
 import type { TodayCatchupItem } from '@/components/catchup/TodayCatchupList'
+import Container from '@/components/ui/Container'
 
 function getTodayString(): string {
   return new Date().toISOString().slice(0, 10)
@@ -73,7 +74,7 @@ export default async function CatchupPage() {
 
   if (!activeSubscription) {
     return (
-      <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="pb-24">
+      <Container fullHeight className="pb-24">
         <CatchupClient
           planId={null}
           missedCount={0}
@@ -82,7 +83,7 @@ export default async function CatchupPage() {
           todayReadings={[]}
           progress={{ completedCount: 0, totalCount: 0, estimatedCompletionDate: null }}
         />
-      </main>
+      </Container>
     )
   }
 
@@ -149,15 +150,15 @@ export default async function CatchupPage() {
   }
 
   return (
-    <main style={{ backgroundColor: '#F9F8F6', minHeight: '100vh' }} className="pb-24">
+    <Container fullHeight className="pb-24">
       <CatchupClient
         planId={activeSubscription.planId}
-        missedCount={missedSchedules.length}
         missedSchedules={missedSchedules}
+        missedCount={missedSchedules.length}
         activeSession={activeSession}
         todayReadings={todayReadings}
         progress={progress}
       />
-    </main>
+    </Container>
   )
 }

@@ -391,18 +391,18 @@ export default function BibleViewer({
 
   return (
     <div className="space-y-4" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
+      <section className="rounded-2xl bg-[var(--color-bg-secondary)] p-4 shadow-sm border border-[var(--color-border-default)]">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-xl font-semibold text-gray-900">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
             {BIBLE_BOOKS[currentBook]?.ko ?? currentBook} {currentChapter}장
           </h1>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+            <span className="rounded-full bg-[var(--color-info-bg)] px-3 py-1 text-xs font-medium text-[var(--color-info-text)]">
               {currentVersion}
             </span>
             <button
               type="button"
-              className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600 transition hover:bg-gray-50"
+              className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-2 text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-tertiary)]"
               onClick={() => setIsPanelOpen(true)}
               aria-label="읽기 설정 열기"
             >
@@ -450,7 +450,7 @@ export default function BibleViewer({
 
       <button
         type="button"
-        className="fixed bottom-24 right-4 z-30 rounded-full bg-blue-500 p-3 text-white shadow-lg transition hover:bg-blue-600"
+        className="fixed bottom-24 right-4 z-30 rounded-full bg-[var(--color-primary)] p-3 text-white shadow-[var(--shadow-lg)] transition hover:opacity-90"
         onClick={openMenuWithChapter}
         aria-label="본문 작업 메뉴 열기"
       >
@@ -458,7 +458,7 @@ export default function BibleViewer({
       </button>
 
       {selectedVerseRange ? (
-        <div className="fixed bottom-24 left-4 z-20 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 shadow-sm">
+        <div className="fixed bottom-24 left-4 z-20 rounded-full bg-[var(--color-info-bg)] px-3 py-1 text-xs font-medium text-[var(--color-info-text)] shadow-sm">
           선택 {selectedVerseRange.start}절
         </div>
       ) : null}

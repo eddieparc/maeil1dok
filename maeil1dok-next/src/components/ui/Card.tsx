@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 
 type CardVariant = 'default' | 'elevated' | 'bordered'
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: ReactNode
   variant?: CardVariant
   className?: string
@@ -26,7 +26,7 @@ const variantStyles: Record<CardVariant, string> = {
  * Card component with three variants: default, elevated, and bordered
  * Supports composable sub-components: CardHeader, CardBody, CardFooter
  */
-export function Card({ children, variant = 'default', className }: CardProps) {
+export function Card({ children, variant = 'default', className, ...props }: CardProps) {
   return (
     <div
       className={cn(
@@ -34,6 +34,7 @@ export function Card({ children, variant = 'default', className }: CardProps) {
         variantStyles[variant],
         className
       )}
+      {...props}
     >
       {children}
     </div>

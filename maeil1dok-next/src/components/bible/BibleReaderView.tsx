@@ -247,39 +247,39 @@ export default function BibleReaderView({
         readingSettings={mappedReadingSettings}
       />
 
-      <section className="rounded-2xl bg-white p-3 shadow-sm">
+      <section className="rounded-2xl bg-[var(--color-bg-secondary)] p-3 shadow-sm border border-[var(--color-border-default)]">
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="rounded-lg border border-[var(--color-border-default)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
             onClick={() => void toggleBookmark()}
           >
             {isBookmarked ? '북마크 해제' : '북마크'}
           </button>
           <button
             type="button"
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="rounded-lg border border-[var(--color-border-default)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
             onClick={onOpenNoteModal}
           >
             노트 ({noteCount})
           </button>
           <button
             type="button"
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="rounded-lg border border-[var(--color-border-default)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
             onClick={onOpenHighlightModal}
           >
             하이라이트
           </button>
           <button
             type="button"
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="rounded-lg border border-[var(--color-border-default)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]"
             onClick={() => void handleShare()}
           >
             공유
           </button>
           <button
             type="button"
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
             onClick={onMarkAsRead}
           >
             읽음으로 표시
@@ -287,11 +287,11 @@ export default function BibleReaderView({
         </div>
 
         {selectedVerseRange ? (
-          <div className="mt-3 flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          <div className="mt-3 flex items-center justify-between rounded-lg bg-[var(--color-info-bg)] px-3 py-2 text-xs text-[var(--color-info-text)]">
             <span>선택 구절: {selectedVerseRange.start}절</span>
             <button
               type="button"
-              className="rounded border border-blue-200 px-2 py-1"
+              className="rounded border border-[var(--color-info)] px-2 py-1"
               onClick={() => setIsMenuOpen(true)}
             >
               액션 열기
@@ -300,13 +300,13 @@ export default function BibleReaderView({
         ) : null}
 
         {customColors.length > 0 ? (
-          <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+          <div className="mt-3 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
             <span>최근 색상</span>
             {customColors.map((color) => (
               <button
                 key={color}
                 type="button"
-                className="h-4 w-4 rounded-full border border-gray-300"
+                className="h-4 w-4 rounded-full border border-[var(--color-border-default)]"
                 style={{ backgroundColor: color }}
                 aria-label={`최근 색상 ${color}`}
                 onClick={() => void handleHighlightSelect(color as HighlightColor)}

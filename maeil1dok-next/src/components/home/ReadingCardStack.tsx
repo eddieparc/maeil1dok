@@ -4,10 +4,10 @@ import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import type { UserProgress } from '@/types/progress'
 import type { DailySchedule } from '@/types/schedule'
+import { Card, Button } from '@/components/ui'
 import { determineCardType, type PastIncompleteData } from './ReadingCardStack.utils'
 import { HasenaCard } from './HasenaCard'
 import { IntroCard } from './IntroCard'
-
 interface ReadingCardStackProps {
   todaySchedule: DailySchedule | null
   todayProgress: UserProgress | null
@@ -24,7 +24,7 @@ interface CardProps {
   'data-testid'?: string
 }
 
-function Card({ children, onClick, className = '', ...props }: CardProps) {
+function ReadingCard({ children, onClick, className = '', ...props }: CardProps) {
   const isInteractive = typeof onClick === 'function'
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -36,7 +36,8 @@ function Card({ children, onClick, className = '', ...props }: CardProps) {
   }
 
   return (
-    <div
+    <Card
+      variant="elevated"
       {...(isInteractive
         ? {
             onClick,
@@ -45,7 +46,7 @@ function Card({ children, onClick, className = '', ...props }: CardProps) {
             tabIndex: 0,
           }
         : {})}
-      className={`relative w-full overflow-hidden rounded-3xl border border-white/20 p-5 shadow-[0_12px_26px_rgba(0,0,0,0.14)] transition-all duration-200 ${
+      className={`relative w-full border border-white/20 p-5 transition-all duration-200 ${
         isInteractive ? 'cursor-pointer active:scale-[0.98] hover:shadow-[0_16px_32px_rgba(0,0,0,0.2)]' : ''
       } ${className}`}
       data-testid="reading-card"
@@ -53,7 +54,7 @@ function Card({ children, onClick, className = '', ...props }: CardProps) {
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_58%)]" />
       <div className="relative">{children}</div>
-    </div>
+    </Card>
   )
 }
 
@@ -63,7 +64,7 @@ function CardLabel({ label }: { label: string }) {
 
 function StartButton({ label }: { label: string }) {
   return (
-    <div className="mt-4 inline-flex items-center gap-1 rounded-xl bg-white/25 px-4 py-2 text-sm font-semibold text-current backdrop-blur-sm">
+    <Button variant="secondary" size="sm" className="mt-4 bg-white/25 border-white/20 text-white hover:bg-white/30 backdrop-blur-sm">
       <span>{label}</span>
       <svg
         width="14"
@@ -78,13 +79,13 @@ function StartButton({ label }: { label: string }) {
       >
         <path d="M5 12h14M12 5l7 7-7 7" />
       </svg>
-    </div>
+    </Button>
   )
 }
 
 function LoginCard({ onNavigate }: { onNavigate: () => void }) {
   return (
-    <Card onClick={onNavigate} className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white" data-testid="login-card">
+    <ReadingCard onClick={onNavigate} className="bg-[var(--color-primary)] text-white" data-testid="login-card">
       <CardLabel label="WELCOME" />
       <h2 className="mt-2 text-2xl leading-tight font-light">
         로그인하고
@@ -93,13 +94,13 @@ function LoginCard({ onNavigate }: { onNavigate: () => void }) {
       </h2>
       <p className="mt-1 text-sm opacity-75">나만의 통독 기록을 관리할 수 있습니다</p>
       <StartButton label="로그인 / 회원가입" />
-    </Card>
+    </ReadingCard>
   )
 }
 
 function MainReadingCard({ schedule, onNavigate }: { schedule: DailySchedule; onNavigate: () => void }) {
   return (
-    <Card onClick={onNavigate} className="bg-gradient-to-br from-sky-600 to-indigo-900 text-white" data-testid="main-card">
+    <ReadingCard onClick={onNavigate} className="bg-[var(--color-accent-primary)] text-white" data-testid="main-card">
       <CardLabel label="TODAY'S READING" />
       <h2 className="mt-2 text-2xl leading-tight font-light">
         {schedule.book}
@@ -110,15 +111,15 @@ function MainReadingCard({ schedule, onNavigate }: { schedule: DailySchedule; on
       </h2>
       <p className="mt-1 text-sm opacity-75">{schedule.date}</p>
       <StartButton label="통독 시작하기" />
-    </Card>
+    </ReadingCard>
   )
 }
 
 function PastIncompleteCard({ data, onNavigate }: { data: PastIncompleteData; onNavigate: () => void }) {
   return (
-    <Card
+    <ReadingCard
       onClick={onNavigate}
-      className="bg-gradient-to-br from-amber-500 to-orange-700 text-white"
+      className="bg-[var(--color-warning)] text-white"
       data-testid="past-incomplete-card"
     >
       <CardLabel label="CATCH UP" />
@@ -131,13 +132,13 @@ function PastIncompleteCard({ data, onNavigate }: { data: PastIncompleteData; on
         {data.date} - {data.schedule.book} {data.schedule.startChapter}-{data.schedule.endChapter}장
       </p>
       <StartButton label="밀린 읽기 하러가기" />
-    </Card>
+    </ReadingCard>
   )
 }
 
 function AllDoneCard() {
   return (
-    <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white" data-testid="all-done-card">
+    <ReadingCard className="bg-[var(--color-success)] text-white" data-testid="all-done-card">
       <CardLabel label="AMAZING!" />
       <h2 className="mt-2 text-2xl leading-tight font-light">
         오늘 할 일을
@@ -145,7 +146,7 @@ function AllDoneCard() {
         <strong className="font-bold">모두 마쳤어요! 🎉</strong>
       </h2>
       <p className="mt-1 text-sm opacity-75">정말 대단해요! 내일도 함께해요</p>
-    </Card>
+    </ReadingCard>
   )
 }
 
