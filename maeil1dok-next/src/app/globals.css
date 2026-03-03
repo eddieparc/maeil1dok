@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #3B82F6;
   --color-success: #10B981;
@@ -70,6 +72,51 @@
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
   --radius-full: 9999px;
+
+  --color-kakao-bg: #FEE500;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-primary: #60a5fa;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #1a1a1a;
+  --color-bg-tertiary: #2a2a2a;
+
+  --color-text-primary: #ededed;
+  --color-text-secondary: #d1d5db;
+  --color-text-tertiary: #9ca3af;
+  --color-text-muted: #6b7280;
+
+  --color-border-default: #374151;
+  --color-border-light: #4b5563;
+  --color-border-dark: #1f2937;
+
+  --color-accent-primary: #6bc99f;
+  --color-accent-hover: #5ab88e;
+  --color-accent-light: #1a2f25;
+
+  --color-success-bg: #065f46;
+  --color-success-text: #a7f3d0;
+  --color-warning-bg: #78350f;
+  --color-warning-text: #fde68a;
+  --color-danger-bg: #7f1d1d;
+  --color-danger-text: #fecaca;
+  --color-info: #60a5fa;
+  --color-info-bg: #1e3a5f;
+  --color-info-text: #bfdbfe;
+
+  --color-button-default: #1f2937;
+  --color-button-hover: #374151;
+  --color-button-active: #4b5563;
+  --color-input-bg: #111827;
+  --color-input-border: #4b5563;
+  --color-input-focus: #6bc99f;
 
   --color-kakao-bg: #FEE500;
 }
