@@ -100,12 +100,13 @@ export default async function HasenaPage() {
   }
 
   return (
-    <Container className="pb-24">
+    <Container className="pb-0">
       <PageHeader title="하세나하시조" />
       <HasenaClient
         initialStatus={status}
         initialStats={stats}
         today={today}
+        isAuthenticated={Boolean(user)}
       />
     </Container>
   )
