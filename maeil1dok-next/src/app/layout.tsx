@@ -3,7 +3,7 @@ import { Noto_Sans_KR } from 'next/font/google'
 import './globals.css'
 
 const notoSansKr = Noto_Sans_KR({
-  variable: '--font-pretendard',
+  variable: '--font-noto-sans-kr',
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
 })
