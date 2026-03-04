@@ -118,16 +118,16 @@ describe('loadFromLocalStorage', () => {
 // migrateOldSettings
 // ─────────────────────────────────────────────────────────────────────
 describe('migrateOldSettings', () => {
-  it('migrates from old readingSettings key', async () => {
+  it('migrates from old bible-reading-settings key', async () => {
     const { migrateOldSettings, DEFAULT_SETTINGS } = await importModule()
     localStorageMock.setItem(
-      'readingSettings',
+      'bible-reading-settings',
       JSON.stringify({ fontSize: 22, theme: 'dark' }),
     )
     const result = migrateOldSettings({ ...DEFAULT_SETTINGS })
     expect(result.fontSize).toBe(22)
     expect(result.theme).toBe('dark')
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith('readingSettings')
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith('bible-reading-settings')
   })
 
   it('migrates old bibleViewOptions', async () => {
@@ -157,6 +157,13 @@ describe('migrateOldSettings', () => {
     expect(localStorageMock.removeItem).toHaveBeenCalledWith('bibleFontSize')
   })
 
+  it('accepts minimum bibleFontSize 12', async () => {
+    const { migrateOldSettings, DEFAULT_SETTINGS } = await importModule()
+    localStorageMock.setItem('bibleFontSize', '12')
+    const result = migrateOldSettings({ ...DEFAULT_SETTINGS })
+    expect(result.fontSize).toBe(12)
+  })
+
   it('rejects out-of-range bibleFontSize', async () => {
     const { migrateOldSettings, DEFAULT_SETTINGS } = await importModule()
     localStorageMock.setItem('bibleFontSize', '50')
@@ -164,10 +171,10 @@ describe('migrateOldSettings', () => {
     expect(result.fontSize).toBe(DEFAULT_SETTINGS.fontSize) // unchanged
   })
 
-  it('migrates legacy string lineHeight in readingSettings', async () => {
+  it('migrates legacy string lineHeight in bible-reading-settings', async () => {
     const { migrateOldSettings, DEFAULT_SETTINGS } = await importModule()
     localStorageMock.setItem(
-      'readingSettings',
+      'bible-reading-settings',
       JSON.stringify({ lineHeight: 'wide' }),
     )
     const result = migrateOldSettings({ ...DEFAULT_SETTINGS })
@@ -334,9 +341,9 @@ describe('Constants', () => {
     })
   })
 
-  it('STORAGE_KEY is "bible-reading-settings"', async () => {
+  it('STORAGE_KEY is "readingSettings"', async () => {
     const { STORAGE_KEY } = await importModule()
-    expect(STORAGE_KEY).toBe('bible-reading-settings')
+    expect(STORAGE_KEY).toBe('readingSettings')
   })
 })
 

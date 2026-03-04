@@ -10,12 +10,9 @@ import {
   LINE_HEIGHT_MIN,
   LINE_HEIGHT_MAX,
   LINE_HEIGHT_STEP,
-  DEFAULT_SETTINGS,
-  type FontFamily,
   type FontWeight,
   type TextAlign,
   type ThemeMode,
-  type ReadingSettings,
 } from '@/hooks/bible/ReadingSettingsContext'
 import { cn } from '@/lib/utils'
 import { useScrollLock } from '@/hooks/useScrollLock'
@@ -24,7 +21,7 @@ import { useScrollLock } from '@/hooks/useScrollLock'
 
 function SunIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <circle cx="12" cy="12" r="5" />
       <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
     </svg>
@@ -33,7 +30,7 @@ function SunIcon() {
 
 function MoonIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   )
@@ -41,7 +38,7 @@ function MoonIcon() {
 
 function MonitorIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
       <line x1="8" y1="21" x2="16" y2="21" />
       <line x1="12" y1="17" x2="12" y2="21" />
@@ -51,7 +48,7 @@ function MonitorIcon() {
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
   return (
-    <svg
+      <svg
       width="20"
       height="20"
       viewBox="0 0 24 24"
@@ -61,16 +58,9 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={cn('transition-transform duration-200', expanded && 'rotate-180')}
+      aria-hidden="true"
     >
       <path d="M6 9l6 6 6-6" />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
     </svg>
   )
 }
@@ -133,7 +123,7 @@ const ALIGN_OPTIONS: Array<{ value: TextAlign; label: string; icon: React.ReactN
     value: 'left',
     label: '왼쪽',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
         <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="15" y2="12" /><line x1="3" y1="18" x2="18" y2="18" />
       </svg>
     ),
@@ -142,7 +132,7 @@ const ALIGN_OPTIONS: Array<{ value: TextAlign; label: string; icon: React.ReactN
     value: 'justify',
     label: '양쪽',
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
         <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
       </svg>
     ),
@@ -157,7 +147,7 @@ interface ReadingSettingsModalProps {
 }
 
 export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSettingsModalProps) {
-  const { settings, updateSetting, updateSettings, resetSettings } = useReadingSettings()
+  const { settings, updateSetting, resetSettings } = useReadingSettings()
   const [isMounted, setIsMounted] = useState(false)
   const [isRendered, setIsRendered] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
@@ -250,7 +240,7 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
               onClick={onClose}
               aria-label="닫기"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -284,19 +274,27 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
             >
               {settings.verseJoining ? (
                 <p className="m-0">
-                  <sup className="mr-0.5 text-[0.6em] opacity-50" style={{ fontFamily: 'sans-serif' }}>1</sup>
+                  {settings.showVerseNumbers ? (
+                    <sup className="mr-0.5 text-[0.6em] opacity-50" style={{ fontFamily: 'sans-serif' }}>1</sup>
+                  ) : null}
                   아브라함과 다윗의 자손 예수 그리스도의 계보라{' '}
-                  <sup className="mr-0.5 text-[0.6em] opacity-50" style={{ fontFamily: 'sans-serif' }}>2</sup>
+                  {settings.showVerseNumbers ? (
+                    <sup className="mr-0.5 text-[0.6em] opacity-50" style={{ fontFamily: 'sans-serif' }}>2</sup>
+                  ) : null}
                   아브라함이 이삭을 낳고 이삭은 야곱을 낳고
                 </p>
               ) : (
                 <>
                   <p className="m-0 flex gap-1.5">
-                    <span className="shrink-0 text-[0.7em] font-medium opacity-40" style={{ fontFamily: 'sans-serif', lineHeight: '2' }}>1</span>
+                    {settings.showVerseNumbers ? (
+                      <span className="shrink-0 text-[0.7em] font-medium opacity-40" style={{ fontFamily: 'sans-serif', lineHeight: '2' }}>1</span>
+                    ) : null}
                     <span>아브라함과 다윗의 자손 예수 그리스도의 계보라</span>
                   </p>
                   <p className="m-0 flex gap-1.5">
-                    <span className="shrink-0 text-[0.7em] font-medium opacity-40" style={{ fontFamily: 'sans-serif', lineHeight: '2' }}>2</span>
+                    {settings.showVerseNumbers ? (
+                      <span className="shrink-0 text-[0.7em] font-medium opacity-40" style={{ fontFamily: 'sans-serif', lineHeight: '2' }}>2</span>
+                    ) : null}
                     <span>아브라함이 이삭을 낳고 이삭은 야곱을 낳고</span>
                   </p>
                 </>
@@ -354,7 +352,7 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
               <div className="space-y-4 px-4 pb-4">
                 {/* Font family grid */}
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-[var(--color-text-tertiary)]">글꼴</label>
+                  <p className="mb-2 block text-xs font-medium text-[var(--color-text-tertiary)]">글꼴</p>
                   <div className="grid grid-cols-3 gap-1.5">
                     {fontFamilyList.map(({ key, name, css }) => (
                       <button
@@ -377,12 +375,12 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
 
                 {/* Font size slider */}
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-[var(--color-text-tertiary)]">크기</label>
+                  <p className="mb-2 block text-xs font-medium text-[var(--color-text-tertiary)]">크기</p>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--color-text-muted)]">가</span>
                     <input
                       type="range"
-                      min={14}
+                      min={12}
                       max={24}
                       step={1}
                       value={settings.fontSize}
@@ -398,7 +396,7 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
 
                 {/* Line height slider */}
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-[var(--color-text-tertiary)]">줄간격</label>
+                  <p className="mb-2 block text-xs font-medium text-[var(--color-text-tertiary)]">줄간격</p>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--color-text-muted)]">좁</span>
                     <input
@@ -420,7 +418,7 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
                 {/* Weight + Align chips */}
                 <div className="flex flex-wrap gap-3">
                   <div>
-                    <label className="mb-1.5 block text-[11px] text-[var(--color-text-muted)]">두께</label>
+                    <p className="mb-1.5 block text-[11px] text-[var(--color-text-muted)]">두께</p>
                     <div className="flex gap-1">
                       {WEIGHT_OPTIONS.map(({ value, label }) => (
                         <button
@@ -440,7 +438,7 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-[11px] text-[var(--color-text-muted)]">정렬</label>
+                    <p className="mb-1.5 block text-[11px] text-[var(--color-text-muted)]">정렬</p>
                     <div className="flex gap-1">
                       {ALIGN_OPTIONS.map(({ value, icon }) => (
                         <button
@@ -459,6 +457,19 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
                       ))}
                     </div>
                   </div>
+                </div>
+
+                <div className="rounded-lg border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] p-3">
+                  <p className="mb-1 text-[11px] font-medium text-[var(--color-text-muted)]">글꼴 미리보기</p>
+                  <p
+                    className="text-sm text-[var(--color-text-primary)]"
+                    style={{
+                      fontFamily: FONT_FAMILIES[settings.fontFamily].css,
+                      fontWeight: FONT_WEIGHTS[settings.fontWeight],
+                    }}
+                  >
+                    태초에 하나님이 천지를 창조하시니라
+                  </p>
                 </div>
               </div>
             </div>

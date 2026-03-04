@@ -69,10 +69,10 @@ export const DEFAULT_SETTINGS: ReadingSettings = {
   showFootnotes: false,
 }
 
-export const STORAGE_KEY = 'bible-reading-settings'
+export const STORAGE_KEY = 'readingSettings'
 const OLD_VIEW_OPTIONS_KEY = 'bibleViewOptions'
 const OLD_FONT_SIZE_KEY = 'bibleFontSize'
-const OLD_READING_SETTINGS_KEY = 'readingSettings'
+const OLD_READING_SETTINGS_KEY = 'bible-reading-settings'
 
 export const LEGACY_LINE_HEIGHTS: Record<string, number> = {
   compact: 1.5,
@@ -201,7 +201,7 @@ export function migrateOldSettings(settings: ReadingSettings): ReadingSettings {
     const oldFontSize = localStorage.getItem(OLD_FONT_SIZE_KEY)
     if (oldFontSize) {
       const size = parseInt(oldFontSize, 10)
-      if (!isNaN(size) && size >= 14 && size <= 24) {
+      if (!isNaN(size) && size >= 12 && size <= 24) {
         migrated.fontSize = size
       }
       localStorage.removeItem(OLD_FONT_SIZE_KEY)
