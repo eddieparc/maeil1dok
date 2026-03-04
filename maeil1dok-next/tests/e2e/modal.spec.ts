@@ -25,10 +25,12 @@ test.describe('Unified modal system', () => {
     await page.getByTestId('btn-modal-confirm').click()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('modal-result')).toContainText('confirm:false')
+    await page.waitForTimeout(250)
 
     await page.getByTestId('btn-modal-confirm').click()
-    await page.getByTestId('modal-overlay').last().click({ force: true })
+    await page.mouse.click(8, 8)
     await expect(page.getByTestId('modal-result')).toContainText('confirm:false')
+    await page.waitForTimeout(250)
 
     await page.getByTestId('btn-modal-alert').click()
     await page.getByTestId('alert-modal-confirm').click()
@@ -39,7 +41,7 @@ test.describe('Unified modal system', () => {
     await page.getByTestId('btn-modal-stack').click()
 
     await expect(page.getByText('첫 번째 모달')).toBeVisible()
-    await expect(page.getByText('두 번째 모달')).toBeVisible()
+    await expect(page.getByTestId('alert-modal-title')).toHaveText('두 번째 모달')
 
     await page.screenshot({
       path: path.join(evidenceDir, 'task-6-modal-stack.png'),

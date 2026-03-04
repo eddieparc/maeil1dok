@@ -96,6 +96,8 @@ export default function BibleViewer({
     }
   }, [initialBook, initialVersion, onVerseClick, resetSelectionAndMenu])
 
+  if (!pathname || !searchParams) return null
+
   useReadingPosition({
     book: currentBook,
     chapter: currentChapter,
@@ -169,7 +171,7 @@ export default function BibleViewer({
   }, [currentChapter, maxChapter])
 
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
     const nextBook = params.get('book')
     const nextChapter = params.get('chapter')
     const nextVersion = params.get('version')

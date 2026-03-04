@@ -39,7 +39,7 @@ export default function ScheduleList({
       newYear += 1
     }
 
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
     params.set('planId', subscriptionId)
     params.set('year', String(newYear))
     params.set('month', String(newMonth))

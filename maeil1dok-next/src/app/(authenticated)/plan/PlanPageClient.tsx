@@ -137,7 +137,7 @@ export default function PlanPageClient({
   /* ── navigation ────────────────────────────────────── */
 
   function navigateToMonth(month: number) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
     params.set('planId', subscriptionId)
     params.set('year', String(currentYear))
     params.set('month', String(month))
@@ -147,7 +147,7 @@ export default function PlanPageClient({
   }
 
   function handlePlanChange(subId: string) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
     params.set('planId', subId)
     startTransition(() => {
       router.push(`/plan?${params.toString()}`)

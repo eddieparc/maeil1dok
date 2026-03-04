@@ -19,7 +19,7 @@ interface Note {
 export default function NoteDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const id = typeof params.id === 'string' ? params.id : ''
+  const id = params && typeof params.id === 'string' ? params.id : ''
 
   const [note, setNote] = useState<Note | null>(null)
   const [isLoading, setIsLoading] = useState(true)

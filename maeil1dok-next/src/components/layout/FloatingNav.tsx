@@ -35,7 +35,7 @@ const navItems = [
 ]
 
 export default function FloatingNav() {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? '/'
 
   return (
     <nav

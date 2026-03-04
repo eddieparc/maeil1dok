@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import HeaderClient from '@/components/layout/HeaderClient'
-import FloatingNav from '@/components/layout/FloatingNav'
+import BottomNavigation from '@/components/layout/BottomNavigation'
 import Menu from '@/components/layout/Menu'
 
 interface AuthenticatedShellProps {
@@ -29,10 +29,9 @@ export default function AuthenticatedShell({
         onHamburgerClick={() => setIsMenuOpen(true)}
       />
       <main className="flex-1 pb-20">
-        {/* pb-20 = 80px bottom padding to prevent FloatingNav overlap */}
         {children}
       </main>
-      <FloatingNav />
+      <BottomNavigation userId={userId} />
       <Menu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
     </div>
   )

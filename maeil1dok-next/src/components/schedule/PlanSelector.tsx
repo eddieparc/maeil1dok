@@ -27,7 +27,7 @@ export default function PlanSelector({ subscriptions, plans, selectedSubscriptio
   const planMap = new Map(plans.map((p) => [p.id, p]))
 
   function handleChange(subscriptionId: string) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
     params.set('planId', subscriptionId)
     router.push(`/plan?${params.toString()}`)
   }

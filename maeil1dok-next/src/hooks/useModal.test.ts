@@ -1,9 +1,8 @@
-// @ts-nocheck
 import React, { useState } from 'react'
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ModalHost } from '@/components/ui/modal/ModalHost'
-import { useModal } from '@/hooks/useModal'
+import { ModalHost } from '../components/ui/modal/ModalHost'
+import { useModal } from './useModal'
 
 function TestHarness() {
   const modal = useModal()
