@@ -1,0 +1,89 @@
+- generic [ref=e1]:
+  - generic [active]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - navigation [ref=e11]:
+            - button "previous" [disabled] [ref=e12]:
+              - img "previous" [ref=e13]
+            - generic [ref=e15]:
+              - generic [ref=e16]: 1/
+              - text: "1"
+            - button "next" [disabled] [ref=e17]:
+              - img "next" [ref=e18]
+          - img
+        - generic [ref=e20]:
+          - link "Next.js 15.5.12 (outdated) Webpack" [ref=e21] [cursor=pointer]:
+            - /url: https://nextjs.org/docs/messages/version-staleness
+            - img [ref=e22]
+            - generic "An outdated version detected (latest is 16.1.6), upgrade is highly recommended!" [ref=e24]: Next.js 15.5.12 (outdated)
+            - generic [ref=e25]: Webpack
+          - img
+      - dialog "Runtime AuthError" [ref=e27]:
+        - generic [ref=e30]:
+          - generic [ref=e31]:
+            - generic [ref=e32]:
+              - generic [ref=e33]:
+                - generic [ref=e34]: Runtime AuthError
+                - generic [ref=e35]: Server
+              - generic [ref=e36]:
+                - button "Copy Error Info" [ref=e37] [cursor=pointer]:
+                  - img [ref=e38]
+                - button "No related documentation found" [disabled] [ref=e40]:
+                  - img [ref=e41]
+                - link "Learn more about enabling Node.js inspector for server code with Chrome DevTools" [ref=e43] [cursor=pointer]:
+                  - /url: https://nextjs.org/docs/app/building-your-application/configuring/debugging#server-side-code
+                  - img [ref=e44]
+            - paragraph [ref=e53]: Auth session missing!
+          - generic [ref=e54]:
+            - generic [ref=e55]:
+              - paragraph [ref=e57]:
+                - img [ref=e59]
+                - generic [ref=e63]: src/repositories/implementations/SupabaseAuthRepository.ts (25:22) @ SupabaseAuthRepository.getUser
+                - button "Open in editor" [ref=e64] [cursor=pointer]:
+                  - img [ref=e66]
+              - generic [ref=e69]:
+                - generic [ref=e70]: "23 | async getUser(): Promise<User | null> {"
+                - generic [ref=e71]: "24 | const { data: { user }, error } = await this.supabase.auth.getUser()"
+                - generic [ref=e72]: "> 25 | if (error) throw new AuthError(error.message, error)"
+                - generic [ref=e73]: "| ^"
+                - generic [ref=e74]: 26 | if (!user) return null
+                - generic [ref=e75]: 27 |
+                - generic [ref=e76]: "28 | return {"
+            - generic [ref=e77]:
+              - generic [ref=e78]:
+                - paragraph [ref=e79]:
+                  - text: Call Stack
+                  - generic [ref=e80]: "7"
+                - button "Show 5 ignore-listed frame(s)" [ref=e81] [cursor=pointer]:
+                  - text: Show 5 ignore-listed frame(s)
+                  - img [ref=e82]
+              - generic [ref=e84]:
+                - generic [ref=e85]:
+                  - text: SupabaseAuthRepository.getUser
+                  - button "Open SupabaseAuthRepository.getUser in editor" [ref=e86] [cursor=pointer]:
+                    - img [ref=e87]
+                - text: src/repositories/implementations/SupabaseAuthRepository.ts (25:22)
+              - generic [ref=e89]:
+                - generic [ref=e90]:
+                  - text: AuthenticatedLayout
+                  - button "Open AuthenticatedLayout in editor" [ref=e91] [cursor=pointer]:
+                    - img [ref=e92]
+                - text: src/app/(authenticated)/layout.tsx (13:16)
+        - generic [ref=e94]:
+          - generic [ref=e95]: "1"
+          - generic [ref=e96]: "2"
+    - generic [ref=e101] [cursor=pointer]:
+      - button "Open Next.js Dev Tools" [ref=e102]:
+        - img [ref=e103]
+      - generic [ref=e106]:
+        - button "Open issues overlay" [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]: "0"
+            - generic [ref=e110]: "1"
+          - generic [ref=e111]: Issue
+        - button "Collapse issues badge" [ref=e112]:
+          - img [ref=e113]
+  - generic [ref=e3]:
+    - 'heading "Application error: a server-side exception has occurred while loading 127.0.0.1 (see the server logs for more information)." [level=2] [ref=e4]'
+    - paragraph [ref=e5]: "Digest: 2711912433"

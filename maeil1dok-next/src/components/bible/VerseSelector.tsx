@@ -18,9 +18,16 @@ export function useVerseSelection() {
     setSelectedVerseRange(null)
   }
 
+  const onVerseRangeSelect = (start: number, end: number) => {
+    const min = Math.min(start, end)
+    const max = Math.max(start, end)
+    setSelectedVerseRange({ start: min, end: max })
+  }
+
   return {
     selectedVerseRange,
     onVerseClick,
+    onVerseRangeSelect,
     clearSelection,
   }
 }

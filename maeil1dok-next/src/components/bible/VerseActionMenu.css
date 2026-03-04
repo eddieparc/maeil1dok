@@ -1,203 +1,103 @@
-/* ===================================================
-   VerseActionMenu — Floating pill action bar
-   Matches Vue BibleViewer.vue action menu design
-   =================================================== */
-
-/* ── Container ── */
-.verse-action-menu {
+.verse-action-menu,
+.copy-menu {
   position: fixed;
   z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.375rem;
-  font-family: var(--font-family-ui, "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif);
-
-  /* Animation initial state */
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   opacity: 0;
-  transform: translateX(-50%) translateY(8px);
-  transition:
-    opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
 }
 
-.verse-action-menu--visible {
+.menu-visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
-  pointer-events: auto;
 }
 
-/* ── Main action row (horizontal pill) ── */
-.verse-action-row {
+.verse-action-menu {
   display: flex;
   align-items: center;
   gap: 0.125rem;
   padding: 0.375rem 0.5rem;
-  background: var(--color-bg-secondary, #fff);
   border-radius: 24px;
-  box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.12),
-    0 0 0 1px rgba(0, 0, 0, 0.04);
+  background: var(--color-bg-secondary, #ffffff);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* ── Action buttons ── */
-.verse-action-btn {
+.action-button {
   display: flex;
-  flex-direction: row;
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 0.75rem;
-  background: transparent;
   border: none;
+  background: transparent;
   border-radius: 16px;
   color: var(--color-text-primary, #1f2937);
   font-size: 0.8125rem;
   font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease;
   white-space: nowrap;
-  -webkit-tap-highlight-color: transparent;
 }
 
-.verse-action-btn:hover {
+.action-button:hover {
   background: var(--color-button-default, #f3f4f6);
 }
 
-.verse-action-btn:active {
-  background: var(--color-button-hover, #e5e7eb);
-}
-
-/* Icon styling */
-.verse-action-icon {
-  color: var(--color-text-tertiary, #6b7280);
-  flex-shrink: 0;
-}
-
-/* Close button — compact, muted */
-.verse-action-btn--close {
+.action-button.close {
   padding: 0.375rem;
   margin-left: 0.125rem;
-  color: var(--color-text-muted, #9ca3af);
+  color: var(--color-text-tertiary, #6b7280);
 }
 
-.verse-action-btn--close:hover {
+.copy-menu {
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 200px;
+  width: max-content;
+  max-width: 95vw;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-default, #e5e7eb);
+  background: var(--color-bg-secondary, #ffffff);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.copy-menu-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-accent-primary, #4b9f7e);
+  white-space: nowrap;
+}
+
+.copy-menu-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.copy-button {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  border: none;
+  background: none;
+  padding: 0.25rem 0.5rem;
+  color: var(--color-text-tertiary, #6b7280);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.copy-button:hover {
   color: var(--color-text-primary, #1f2937);
 }
 
-/* Danger state (remove highlight) */
-.verse-action-btn--danger {
-  color: var(--color-danger, #ef4444);
+.copy-button.cancel {
+  color: #dc2626;
+  padding: 0.25rem;
 }
 
-.verse-action-btn--danger .verse-action-icon {
-  color: var(--color-danger, #ef4444);
-}
-
-.verse-action-btn--danger:hover {
-  background: var(--color-danger-bg, #fee2e2);
-}
-
-/* ── Inline color picker row ── */
-.verse-color-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--color-bg-secondary, #fff);
-  border-radius: 20px;
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.10),
-    0 0 0 1px rgba(0, 0, 0, 0.04);
-
-  /* Slide-in animation */
-  animation: verse-colors-in 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-.verse-color-dot {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.verse-color-dot:hover {
-  transform: scale(1.15);
-  border-color: rgba(0, 0, 0, 0.15);
-}
-
-.verse-color-dot:active {
-  transform: scale(0.95);
-}
-
-@keyframes verse-colors-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* ================================================================== */
-/*  Dark mode                                                         */
-/* ================================================================== */
-
-.dark .verse-action-row {
-  background: var(--color-bg-tertiary, #2a2a2a);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.dark .verse-action-btn {
-  color: var(--color-text-primary, #ededed);
-}
-
-.dark .verse-action-btn:hover {
-  background: var(--color-button-default, #1f2937);
-}
-
-.dark .verse-action-btn:active {
-  background: var(--color-button-hover, #374151);
-}
-
-.dark .verse-action-icon {
-  color: var(--color-text-tertiary, #9ca3af);
-}
-
-.dark .verse-action-btn--close {
-  color: var(--color-text-muted, #6b7280);
-}
-
-.dark .verse-action-btn--close:hover {
-  color: var(--color-text-primary, #ededed);
-}
-
-.dark .verse-action-btn--danger {
-  color: var(--color-danger, #f87171);
-}
-
-.dark .verse-action-btn--danger .verse-action-icon {
-  color: var(--color-danger, #f87171);
-}
-
-.dark .verse-action-btn--danger:hover {
-  background: var(--color-danger-bg, #7f1d1d);
-}
-
-.dark .verse-color-row {
-  background: var(--color-bg-tertiary, #2a2a2a);
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.dark .verse-color-dot:hover {
-  border-color: rgba(255, 255, 255, 0.25);
+.action-divider {
+  color: var(--color-border-strong, #d1d5db);
+  font-size: 0.75rem;
 }

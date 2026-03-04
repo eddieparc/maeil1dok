@@ -11,18 +11,16 @@ interface NoteQuickModalProps {
   book: string
   chapter: number
   verse?: number
-  onSave: (content: string, isPrivate: boolean) => void
+  onSave: (content: string) => void
 }
 
 export default function NoteQuickModal({ isOpen, onClose, book, chapter, verse, onSave }: NoteQuickModalProps) {
   const [content, setContent] = useState('')
-  const [isPrivate, setIsPrivate] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (isOpen) {
       setContent('')
-      setIsPrivate(false)
       const timer = setTimeout(() => textareaRef.current?.focus(), 250)
       return () => clearTimeout(timer)
     }
@@ -30,9 +28,8 @@ export default function NoteQuickModal({ isOpen, onClose, book, chapter, verse, 
 
   function handleSave() {
     if (!content.trim()) return
-    onSave(content.trim(), isPrivate)
+    onSave(content.trim())
     setContent('')
-    setIsPrivate(false)
     onClose()
   }
 
@@ -52,7 +49,7 @@ export default function NoteQuickModal({ isOpen, onClose, book, chapter, verse, 
       <div className="px-5 py-4">
         {/* Location info */}
         <div className="mb-4 flex items-center justify-center gap-2 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-sm font-medium text-[var(--color-accent-primary)]">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
           </svg>
@@ -81,26 +78,6 @@ export default function NoteQuickModal({ isOpen, onClose, book, chapter, verse, 
           </span>
         </div>
 
-        {/* Private toggle */}
-        <label className="flex cursor-pointer items-center gap-2.5">
-          <div className="relative">
-            <input
-              type="checkbox"
-              className="peer sr-only"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-            />
-            <div className={cn(
-              'h-5 w-9 rounded-full transition-colors duration-200',
-              'bg-[var(--color-border-default)] peer-checked:bg-[var(--color-accent-primary)]'
-            )} />
-            <div className={cn(
-              'absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200',
-              'peer-checked:translate-x-4'
-            )} />
-          </div>
-          <span className="text-sm text-[var(--color-text-secondary)]">비공개</span>
-        </label>
       </div>
 
       {/* Footer */}

@@ -13,6 +13,7 @@ import BibleReaderView from './BibleReaderView'
 import BookSelector from './BookSelector'
 import NoteQuickModal from './NoteQuickModal'
 import HighlightModal from './HighlightModal'
+import BookmarkModal from './BookmarkModal'
 import ReadingSettingsModal from './ReadingSettingsModal'
 import PlanSelectorModal from './PlanSelectorModal'
 import Container from '@/components/ui/Container'
@@ -52,6 +53,7 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
   const [showBookSelector, setShowBookSelector] = useState(false)
   const [showNoteModal, setShowNoteModal] = useState(false)
   const [showHighlightModal, setShowHighlightModal] = useState(false)
+  const [showBookmarkModal, setShowBookmarkModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showPlanModal, setShowPlanModal] = useState(false)
 
@@ -73,7 +75,7 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
       router.replace('/bible')
       pageState.setViewMode('reader')
     }
-  }, []) 
+  }, [initialBook, initialChapter, initialVersion, pageState, router])
 
   const handleSelectBookChapter = useCallback((book: string, chapter: number) => {
     pageState.selectBook(book)
@@ -133,6 +135,7 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
             onOpenBookSelector={() => setShowBookSelector(true)}
             onOpenNoteModal={() => setShowNoteModal(true)}
             onOpenHighlightModal={() => setShowHighlightModal(true)}
+            onOpenBookmarkModal={() => setShowBookmarkModal(true)}
             onOpenSettingsModal={() => setShowSettingsModal(true)}
             onMarkAsRead={() => void handleMarkAsRead()}
           />
@@ -152,7 +155,7 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
         onClose={() => setShowNoteModal(false)}
         book={pageState.currentBook}
         chapter={pageState.currentChapter}
-        onSave={async (content, isPrivate) => {
+        onSave={async (content) => {
           await fetch('/api/bible/notes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -160,7 +163,28 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
               book: pageState.currentBook,
               chapter: pageState.currentChapter,
               content,
-              is_private: isPrivate,
+              is_private: false,
+            }),
+          })
+        }}
+      />
+
+      <BookmarkModal
+        isOpen={showBookmarkModal}
+        onClose={() => setShowBookmarkModal(false)}
+        book={pageState.currentBook}
+        chapter={pageState.currentChapter}
+        onSave={async ({ title, color, memo }) => {
+          await fetch('/api/bible/bookmarks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bookmark_type: 'chapter',
+              book: pageState.currentBook,
+              chapter: pageState.currentChapter,
+              title,
+              color,
+              memo,
             }),
           })
         }}

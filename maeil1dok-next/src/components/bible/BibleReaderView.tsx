@@ -32,6 +32,9 @@ import type { HighlightColor } from '@/types'
 import type { UserReadingSettings } from '@/types/profile'
 import './BibleReaderView.css'
 
+type CopyType = 'includeLocation' | 'numOnly' | 'textOnly' | 'includeLocationRange' | 'excludeLocationRange'
+type MenuMode = 'copy' | 'action'
+
 /* ===== Book name abbreviation map ===== */
 const BOOK_ABBREVIATIONS: Record<string, string> = {
   '창세기': '창', '출애굽기': '출', '레위기': '레', '민수기': '민', '신명기': '신',
@@ -61,6 +64,7 @@ interface BibleReaderViewProps {
   onOpenBookSelector: () => void
   onOpenNoteModal: () => void
   onOpenHighlightModal: () => void
+  onOpenBookmarkModal: () => void
   onOpenSettingsModal: () => void
   onMarkAsRead: () => void
 }
@@ -95,6 +99,7 @@ export default function BibleReaderView({
   onOpenBookSelector,
   onOpenNoteModal,
   onOpenHighlightModal,
+  onOpenBookmarkModal,
   onOpenSettingsModal,
   onMarkAsRead,
 }: BibleReaderViewProps) {
@@ -122,8 +127,10 @@ export default function BibleReaderView({
   const { isChapterRead, getBookProgress } = usePersonalRecord(book)
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [menuMode, setMenuMode] = useState<MenuMode>('copy')
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | undefined>(undefined)
   const [selectedText, setSelectedText] = useState('')
+  const [selectedVerseNumbers, setSelectedVerseNumbers] = useState<number[]>([])
 
   /* --- Effects --- */
   useEffect(() => {
@@ -186,18 +193,66 @@ export default function BibleReaderView({
   const tongdokRangeText = formatTongdokRange(book, chapter, tongdokRange)
 
   /* --- Event handlers --- */
-  const handleVerseTap = useCallback((payload: { text: string; position?: { x: number; y: number } }) => {
-    const verseNumber = inferVerseNumber(payload.text)
+  const handleVerseTap = useCallback((payload: {
+    interaction: 'tap' | 'selection'
+    text: string
+    verseNumber?: number
+    startVerse?: number
+    endVerse?: number
+    position?: { x: number; y: number }
+  }) => {
+    if (payload.interaction === 'selection') {
+      const start = payload.startVerse
+      const end = payload.endVerse
+
+      if (typeof start === 'number' && typeof end === 'number') {
+        onVerseClick(start)
+        setSelectedVerseNumbers(Array.from({ length: end - start + 1 }, (_, index) => start + index))
+      }
+
+      setSelectedText(payload.text)
+      setMenuMode('action')
+      setMenuPosition(payload.position)
+      setIsMenuOpen(true)
+      return
+    }
+
+    const verseNumber = typeof payload.verseNumber === 'number' ? payload.verseNumber : inferVerseNumber(payload.text)
     if (verseNumber !== null) {
       onVerseClick(verseNumber)
+      setSelectedVerseNumbers([verseNumber])
     } else {
       clearSelection()
+      setSelectedVerseNumbers([])
     }
 
     setSelectedText(payload.text || chapterText)
+    setMenuMode('copy')
     setMenuPosition(payload.position)
     setIsMenuOpen(true)
   }, [chapterText, clearSelection, onVerseClick])
+
+  const handleCopyByType = useCallback(async (copyType: CopyType) => {
+    const numbers = selectedVerseNumbers.length > 0 ? selectedVerseNumbers : selectedVerseRange ? [selectedVerseRange.start] : []
+    const start = numbers[0]
+    const end = numbers[numbers.length - 1]
+    let textToCopy = selectedText.trim()
+
+    if (!start) {
+      textToCopy = chapterText
+    } else if (copyType === 'includeLocation') {
+      textToCopy = `[${bookName}${chapter}:${start}] ${selectedText}`
+    } else if (copyType === 'numOnly') {
+      textToCopy = `${start} ${selectedText}`
+    } else if (copyType === 'includeLocationRange' && end) {
+      textToCopy = `[${bookName}${chapter}:${start}-${end}]\n${selectedText}`
+    } else if (copyType === 'excludeLocationRange') {
+      textToCopy = selectedText
+    }
+
+    await navigator.clipboard.writeText(textToCopy).catch(() => undefined)
+    setIsMenuOpen(false)
+  }, [bookName, chapter, chapterText, selectedText, selectedVerseNumbers, selectedVerseRange])
 
   const handleHighlightSelect = useCallback(async (color: HighlightColor) => {
     if (!selectedVerseRange) {
@@ -335,7 +390,7 @@ export default function BibleReaderView({
                   ? 'text-[var(--color-accent-primary)] bg-[var(--color-accent-light)]'
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)]',
               )}
-              onClick={() => void toggleBookmark()}
+              onClick={isBookmarked ? () => void toggleBookmark() : onOpenBookmarkModal}
               aria-label={isBookmarked ? '북마크 삭제' : '북마크 추가'}
             >
               <Bookmark size={18} aria-hidden="true" fill={isBookmarked ? 'currentColor' : 'none'} />
@@ -519,14 +574,15 @@ export default function BibleReaderView({
             onClick={() => setIsMenuOpen(false)}
           />
           <VerseActionMenu
-            book={book}
-            chapter={chapter}
-            version={version}
-            verseText={selectedText || chapterText}
+            mode={menuMode}
             position={menuPosition}
+            isRange={selectedVerseNumbers.length > 1}
             isHighlighted={Boolean(currentHighlight)}
-            onHighlightSelect={selectedVerseRange ? handleHighlightSelect : undefined}
-            onRemoveHighlight={currentHighlight ? handleRemoveHighlight : undefined}
+            onCopyTypeSelect={handleCopyByType}
+            onHighlight={selectedVerseRange ? () => void handleHighlightSelect('yellow') : undefined}
+            onRemoveHighlight={currentHighlight ? () => void handleRemoveHighlight() : undefined}
+            onCopy={() => void navigator.clipboard.writeText(selectedText || chapterText).catch(() => undefined)}
+            onShare={() => void handleShare()}
             onClose={() => setIsMenuOpen(false)}
           />
         </>

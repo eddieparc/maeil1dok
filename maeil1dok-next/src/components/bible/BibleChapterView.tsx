@@ -13,7 +13,14 @@ interface BibleChapterViewProps {
   isLoading: boolean
   error?: string | null
   onRetry?: () => void
-  onVerseTap?: (payload: { text: string; verseNumber?: number; position?: { x: number; y: number } }) => void
+  onVerseTap?: (payload: {
+    interaction: 'tap' | 'selection'
+    text: string
+    verseNumber?: number
+    startVerse?: number
+    endVerse?: number
+    position?: { x: number; y: number }
+  }) => void
   highlights?: VerseHighlight[]
   onHighlightsLoaded?: (highlights: VerseHighlight[]) => void
   readingSettings?: UserReadingSettings | null
@@ -155,6 +162,8 @@ function buildInteractiveSrcDoc(content: string) {
 
     var currentHighlights = [];
     var currentSelection = null;
+
+    var suppressClickUntil = 0;
 
     function cleanText(value) {
       return (value || '').replace(/\s+/g, ' ').trim();
@@ -317,7 +326,73 @@ function buildInteractiveSrcDoc(content: string) {
       }
     }
 
+    function getSelectionVerses(range) {
+      var nodes = Array.from(document.querySelectorAll('.ocd-verse-node[data-verse-number]'));
+      var selected = [];
+
+      nodes.forEach(function (node) {
+        var verse = Number(node.getAttribute('data-verse-number'));
+        if (!Number.isFinite(verse)) {
+          return;
+        }
+
+        try {
+          if (range.intersectsNode(node)) {
+            selected.push(verse);
+          }
+        } catch (_error) {
+          return;
+        }
+      });
+
+      if (selected.length === 0) {
+        return null;
+      }
+
+      return {
+        startVerse: Math.min.apply(null, selected),
+        endVerse: Math.max.apply(null, selected),
+      };
+    }
+
+    function handleTextSelection() {
+      var selection = window.getSelection && window.getSelection();
+      if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+        return;
+      }
+
+      var selectedText = cleanText(selection.toString());
+      if (!selectedText) {
+        return;
+      }
+
+      var range = selection.getRangeAt(0);
+      var verses = getSelectionVerses(range);
+      if (!verses) {
+        return;
+      }
+
+      var rect = range.getBoundingClientRect();
+      suppressClickUntil = Date.now() + 220;
+
+      window.parent.postMessage(
+        {
+          type: 'bible-text-selection',
+          text: selectedText,
+          startVerse: verses.startVerse,
+          endVerse: verses.endVerse,
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+        },
+        '*'
+      );
+    }
+
     document.addEventListener('click', function (event) {
+      if (Date.now() < suppressClickUntil) {
+        return;
+      }
+
       var target = event.target;
       var verseNode = target && target.closest ? target.closest('.ocd-verse-node') : null;
       var parentNode = target && target.closest ? target.closest('p, div, li, span, td') : null;
@@ -343,6 +418,11 @@ function buildInteractiveSrcDoc(content: string) {
         },
         '*'
       );
+    });
+
+    document.addEventListener('mouseup', handleTextSelection);
+    document.addEventListener('touchend', function () {
+      setTimeout(handleTextSelection, 10);
     });
 
     window.addEventListener('message', function (event) {
@@ -510,6 +590,8 @@ export default function BibleChapterView({
         type?: string
         text?: string
         verseNumber?: number | null
+        startVerse?: number
+        endVerse?: number
         x?: number
         y?: number
       }
@@ -522,10 +604,23 @@ export default function BibleChapterView({
       }
 
       if (payload.type !== 'bible-verse-tap') {
+        if (payload.type === 'bible-text-selection') {
+          onVerseTap({
+            interaction: 'selection',
+            text: payload.text ?? '',
+            startVerse: typeof payload.startVerse === 'number' ? payload.startVerse : undefined,
+            endVerse: typeof payload.endVerse === 'number' ? payload.endVerse : undefined,
+            position:
+              typeof payload.x === 'number' && typeof payload.y === 'number'
+                ? { x: payload.x, y: payload.y }
+                : undefined,
+          })
+        }
         return
       }
 
       onVerseTap({
+        interaction: 'tap',
         text: payload.text ?? '',
         verseNumber: typeof payload.verseNumber === 'number' ? payload.verseNumber : undefined,
         position:

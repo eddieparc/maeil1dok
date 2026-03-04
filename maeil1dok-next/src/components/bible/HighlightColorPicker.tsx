@@ -1,5 +1,6 @@
 'use client'
 
+import { cn } from '@/lib/utils'
 import type { HighlightColor } from '@/types'
 
 interface HighlightColorPickerProps {
@@ -7,26 +8,29 @@ interface HighlightColorPickerProps {
   selectedColor?: HighlightColor
 }
 
-const COLOR_OPTIONS: Array<{ color: HighlightColor; className: string; label: string }> = [
-  { color: 'yellow', className: 'bg-yellow-300', label: '노랑' },
-  { color: 'green', className: 'bg-green-300', label: '초록' },
-  { color: 'blue', className: 'bg-blue-300', label: '파랑' },
-  { color: 'pink', className: 'bg-pink-300', label: '분홍' },
-  { color: 'purple', className: 'bg-purple-300', label: '보라' },
+const COLOR_OPTIONS: Array<{ color: HighlightColor; hex: string; label: string }> = [
+  { color: 'yellow', hex: '#FEF3C7', label: '노랑' },
+  { color: 'green', hex: '#D1FAE5', label: '초록' },
+  { color: 'blue', hex: '#DBEAFE', label: '파랑' },
+  { color: 'pink', hex: '#FCE7F3', label: '분홍' },
+  { color: 'purple', hex: '#E9D5FF', label: '보라' },
 ]
 
 export default function HighlightColorPicker({ onSelect, selectedColor }: HighlightColorPickerProps) {
   return (
-    <div className="px-3 pb-2 pt-1">
-      <p className="mb-2 text-xs font-medium text-gray-500">하이라이트 색상</p>
-      <div className="flex items-center gap-2">
+    <div className="rounded-lg p-2">
+      <div className="flex flex-wrap gap-2">
         {COLOR_OPTIONS.map((option) => (
           <button
             key={option.color}
             type="button"
-            className={`h-6 w-6 rounded-full border transition hover:scale-105 ${option.className} ${
-              selectedColor === option.color ? 'border-gray-800 ring-2 ring-gray-300' : 'border-gray-300'
-            }`}
+            className={cn(
+              'h-8 w-8 rounded-full border-2 transition duration-200 hover:scale-110',
+              selectedColor === option.color
+                ? 'border-[var(--color-accent-primary)] shadow-[0_0_0_2px_var(--color-bg-primary),0_0_0_4px_var(--color-accent-primary)]'
+                : 'border-transparent'
+            )}
+            style={{ backgroundColor: option.hex }}
             aria-label={`${option.label} 하이라이트`}
             onClick={() => onSelect(option.color)}
           />
