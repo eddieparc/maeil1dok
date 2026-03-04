@@ -19,15 +19,21 @@ export default function HomeHero({ displayName }: HomeHeroProps) {
   const greetingMessage = `${displayName}님, 안녕하세요`
 
   return (
-    <section className="px-4 pt-6 pb-4" data-testid="home-hero">
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-1">{greetingMessage}</p>
+    <section className="mt-4 mb-2" data-testid="home-hero">
+      <p className="mb-1 text-sm text-[var(--color-text-tertiary)]" style={{ fontSize: 'min(0.875rem, 14px)' }}>
+        {greetingMessage}
+      </p>
       <h1
-        className="text-3xl font-light leading-snug text-[var(--color-text-primary)]"
-        style={{ fontFamily: 'var(--font-family-reading)' }}
+        className="font-light leading-tight text-[var(--color-text-primary)]"
+        style={{
+          fontFamily: 'var(--font-family-reading)',
+          fontSize: 'clamp(1.75rem, 5vw, 2rem)',
+          lineHeight: 1.25,
+        }}
       >
         {timeGreeting}
         <br />
-        <strong className="font-bold">말씀과 동행하세요</strong>
+        <strong className="relative font-bold">말쥍과 동행하세요</strong>
       </h1>
     </section>
   )
