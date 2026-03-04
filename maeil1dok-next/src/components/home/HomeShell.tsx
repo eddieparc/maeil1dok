@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Sun, Moon, Monitor, Menu as MenuIcon } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
-import FloatingNav from '@/components/layout/FloatingNav'
+import BottomNavigation from '@/components/layout/BottomNavigation'
 import MenuPanel from '@/components/layout/Menu'
 
 interface HomeShellProps {
@@ -49,6 +49,7 @@ function HomeThemeToggle() {
 
   return (
     <button
+      type="button"
       onClick={handleToggle}
       aria-label={`현재 테마: ${theme}. 클릭하여 전환`}
       className={cn(
@@ -110,6 +111,7 @@ export default function HomeShell({ children }: HomeShellProps) {
           <div className="flex items-center gap-1">
             <HomeThemeToggle />
             <button
+              type="button"
               onClick={() => setIsMenuOpen(true)}
               className={cn(
                 'flex items-center justify-center p-2 -mr-2',
@@ -130,8 +132,7 @@ export default function HomeShell({ children }: HomeShellProps) {
         </main>
       </div>
 
-      {/* Floating Navigation */}
-      <FloatingNav />
+      <BottomNavigation />
 
       {/* Menu Panel */}
       <MenuPanel isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />

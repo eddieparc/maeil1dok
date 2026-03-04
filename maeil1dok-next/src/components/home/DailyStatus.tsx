@@ -17,11 +17,19 @@ function CheckItem({
   'data-testid': string
 }) {
   return (
-    <div data-testid={testId} className="flex items-center gap-1">
-      <span className={completed ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-border-dark)]'}>
+    <div
+      data-testid={testId}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium',
+        completed
+          ? 'bg-[var(--color-accent-primary-light)] text-[var(--color-accent-primary)]'
+          : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]',
+      )}
+    >
+      <span className={completed ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-text-secondary)]'}>
         {completed ? '✓' : '○'}
       </span>
-      <span className="text-xs text-[var(--color-text-secondary)]">{label}</span>
+      <span>{label}</span>
     </div>
   )
 }
@@ -81,7 +89,7 @@ export function DailyStatus({ data }: DailyStatusProps) {
         {/* Profile Stats Row */}
         <div className="mb-3 flex justify-around">
           <div className="text-center">
-            <div className="text-2xl font-bold text-orange-500">🔥{data.currentStreak}</div>
+            <div className="text-2xl font-bold text-orange-500">🔥 {data.currentStreak}</div>
             <div className="text-xs text-[var(--color-text-tertiary)]">현재 연속</div>
           </div>
           <div className="text-center">
@@ -97,7 +105,7 @@ export function DailyStatus({ data }: DailyStatusProps) {
         {/* Today's Checklist */}
         <div className="border-t border-[var(--color-border-default)] pt-3">
           <div className="mb-2 text-xs font-medium text-[var(--color-text-tertiary)]">오늘의 진행</div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2">
             <CheckItem data-testid="checklist-reading" label="성경읽기" completed={data.readingCompleted} />
             <CheckItem data-testid="checklist-hasena" label="하세나" completed={data.hasenaCompleted} />
             <CheckItem data-testid="checklist-intro" label="성경개론" completed={data.introCompleted} />

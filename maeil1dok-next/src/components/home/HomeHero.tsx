@@ -3,7 +3,8 @@
 import { useMemo } from 'react'
 
 interface HomeHeroProps {
-  displayName: string
+  displayName?: string
+  isAuthenticated?: boolean
 }
 
 function getTimeGreeting(): string {
@@ -14,9 +15,9 @@ function getTimeGreeting(): string {
   return '평안한 밤,'
 }
 
-export default function HomeHero({ displayName }: HomeHeroProps) {
+export default function HomeHero({ displayName = '방문자', isAuthenticated = true }: HomeHeroProps) {
   const timeGreeting = useMemo(() => getTimeGreeting(), [])
-  const greetingMessage = `${displayName}님, 안녕하세요`
+  const greetingMessage = isAuthenticated ? `${displayName}님, 안녕하세요` : '방문자님, 환영합니다'
 
   return (
     <section className="mt-4 mb-2" data-testid="home-hero">
@@ -33,7 +34,7 @@ export default function HomeHero({ displayName }: HomeHeroProps) {
       >
         {timeGreeting}
         <br />
-        <strong className="relative font-bold">말쥍과 동행하세요</strong>
+        <strong className="relative font-bold">말씀과 동행하세요</strong>
       </h1>
     </section>
   )

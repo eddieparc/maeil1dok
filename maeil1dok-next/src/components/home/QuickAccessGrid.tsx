@@ -15,7 +15,7 @@ interface CardItem {
 }
 
 interface QuickAccessGridProps {
-  userId: string
+  userId?: string
 }
 
 function IconBookOpen() {
@@ -73,7 +73,7 @@ function IconActivity() {
   )
 }
 
-const cards = (userId: string): CardItem[] => [
+const cards = (userId?: string): CardItem[] => [
   {
     id: 'plan',
     testId: 'card-plan',
@@ -104,7 +104,7 @@ const cards = (userId: string): CardItem[] => [
     title: '커뮤니티',
     description: '함께 읽는 기쁨',
     icon: <IconUsers />,
-    disabled: true,
+    href: '/groups',
   },
   {
     id: 'profile',
@@ -112,7 +112,7 @@ const cards = (userId: string): CardItem[] => [
     title: '내 활동',
     description: '기록과 통계',
     icon: <IconActivity />,
-    href: `/profile/${userId}`,
+    href: userId ? `/profile/${userId}` : '/login',
   },
 ]
 
@@ -127,29 +127,6 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
       </h2>
       <div className="grid grid-cols-2 gap-3">
         {cards(userId).map((card) => {
-          if (card.disabled) {
-            return (
-              <div
-                key={card.id}
-                data-testid={card.testId}
-                className={cn(
-                  'relative cursor-not-allowed rounded-[20px] border border-black/[0.02] p-4 opacity-50',
-                  'bg-[var(--sanctuary-card-bg)] shadow-[0_4px_20px_rgba(44,51,51,0.04)]',
-                  'dark:border-white/10 dark:bg-[var(--sanctuary-card-bg-dark)] dark:shadow-none',
-                )}
-              >
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]">
-                  {card.icon}
-                </div>
-                <p className="text-base font-semibold text-[var(--color-text-primary)]">{card.title}</p>
-                <p className="mt-1 text-[0.8125rem] text-[var(--color-text-secondary)]">{card.description}</p>
-                <span className="absolute top-3 right-3 rounded-full bg-[var(--color-border-light)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">
-                  준비 중
-                </span>
-              </div>
-            )
-          }
-
           return (
             <Link
               key={card.id}
@@ -165,8 +142,15 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
                   'dark:border-white/10 dark:bg-[var(--sanctuary-card-bg-dark)] dark:shadow-none',
                 )}
               >
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]">
-                  {card.icon}
+                <div className={cn('mb-2', card.id === 'plan' && 'mb-3 flex items-start justify-between gap-2')}>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]">
+                    {card.icon}
+                  </div>
+                  {card.id === 'plan' && (
+                    <span className="inline-flex shrink-0 rounded-full border border-black/5 bg-[var(--color-bg-primary)] px-2 py-1 text-[0.75rem] font-semibold text-[var(--color-text-secondary)] dark:border-white/10 dark:bg-[var(--color-bg-tertiary)]">
+                      플랜 관리
+                    </span>
+                  )}
                 </div>
                 <p className="text-base font-semibold text-[var(--color-text-primary)]">{card.title}</p>
                 <p className="mt-1 text-[0.8125rem] text-[var(--color-text-secondary)]">{card.description}</p>

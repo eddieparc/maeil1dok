@@ -10,6 +10,7 @@ import { HasenaCard } from './HasenaCard'
 import { IntroCard } from './IntroCard'
 
 interface ReadingCardStackProps {
+  isAuthenticated?: boolean
   todaySchedule: DailySchedule | null
   todayProgress: UserProgress | null
   pastIncomplete: PastIncompleteData | null
@@ -108,25 +109,29 @@ function LoginCard({ onNavigate }: { onNavigate: () => void }) {
   return (
     <ReadingCard
       onClick={onNavigate}
-      className="bg-[var(--color-accent-primary)] text-white dark:bg-[var(--color-accent-primary)]"
+      className="bg-[var(--sanctuary-card-bg)] text-[var(--color-text-primary)] dark:bg-[var(--sanctuary-card-bg-dark)]"
       data-testid="login-card"
     >
       <CardLabel label="WELCOME" />
       <h2
-        className="mt-2 leading-tight font-light text-white"
+        className="mt-2 leading-tight font-light text-[var(--color-text-primary)]"
         style={{ fontFamily: 'var(--font-family-reading)', fontSize: 'clamp(1.5rem, 6vw, 2rem)', lineHeight: 1.2 }}
       >
         로그인하고
         <br />
         <strong className="font-bold">시작하세요</strong>
       </h2>
-      <div className="mt-1 text-sm opacity-75">나만의 통독 기록을 관리할 수 있습니다</div>
+      <div className="mt-1 text-sm text-[var(--color-text-secondary)]">나만의 통독 기록을 관리할 수 있습니다</div>
       <StartButton label="로그인 / 회원가입" />
     </ReadingCard>
   )
 }
 
-function MainReadingCard({ schedule, onNavigate }: { schedule: DailySchedule; onNavigate: () => void }) {
+function MainReadingCard({ schedule, onNavigate, progressPercentage }: { schedule: DailySchedule; onNavigate: () => void; progressPercentage: number }) {
+  const readingRange = schedule.startChapter === schedule.endChapter
+    ? `${schedule.book} ${schedule.startChapter}장`
+    : `${schedule.book} ${schedule.startChapter}-${schedule.endChapter}장`
+
   return (
     <ReadingCard
       onClick={onNavigate}
@@ -140,15 +145,20 @@ function MainReadingCard({ schedule, onNavigate }: { schedule: DailySchedule; on
         className="mb-1 font-medium leading-tight text-[var(--color-text-primary)]"
         style={{ fontFamily: 'var(--font-family-reading)', fontSize: 'clamp(1.5rem, 6vw, 2rem)', lineHeight: 1.2, wordBreak: 'keep-all' }}
       >
-        {schedule.book}
-        <br />
-        <strong className="font-bold">
-          {schedule.startChapter}-{schedule.endChapter}장
-        </strong>
+        {readingRange}
       </h2>
+
       <div className="mb-4 text-sm text-[var(--color-text-secondary)]" style={{ fontSize: 'clamp(0.9375rem, 3.5vw, 1.125rem)' }}>
-        {schedule.date}
+        오늘의 말씀
       </div>
+
+      <div className="mb-4 flex items-center gap-4">
+        <div className="h-1 flex-1 rounded bg-[#F0F0F0] dark:bg-white/10">
+          <div className="h-full rounded bg-[var(--color-accent-primary)] transition-all duration-500" style={{ width: `${progressPercentage}%` }} />
+        </div>
+        <span className="min-w-[70px] text-right text-sm font-medium text-[var(--color-accent-primary)]">{progressPercentage}% 완료</span>
+      </div>
+
       <StartButton label="통독 시작하기" />
     </ReadingCard>
   )
@@ -199,6 +209,7 @@ function AllDoneCard() {
 }
 
 export default function ReadingCardStack({
+  isAuthenticated = true,
   todaySchedule,
   todayProgress,
   pastIncomplete,
@@ -208,7 +219,7 @@ export default function ReadingCardStack({
 }: ReadingCardStackProps) {
   const router = useRouter()
   const cardType = determineCardType({
-    isAuthenticated: true,
+    isAuthenticated,
     todaySchedule,
     todayProgress,
     pastIncomplete,
@@ -221,10 +232,16 @@ export default function ReadingCardStack({
     router.push('/reading')
   }
 
+  const handleLoginNavigate = () => {
+    router.push('/login')
+  }
+
+  const progressPercentage = todayProgress?.isCompleted ? 100 : 0
+
   return (
     <div className="relative mb-6" data-testid="reading-card-stack">
-      {cardType === 'login' && <LoginCard onNavigate={handleNavigate} />}
-      {cardType === 'main' && todaySchedule && <MainReadingCard schedule={todaySchedule} onNavigate={handleNavigate} />}
+      {cardType === 'login' && <LoginCard onNavigate={handleLoginNavigate} />}
+      {cardType === 'main' && todaySchedule && <MainReadingCard schedule={todaySchedule} onNavigate={handleNavigate} progressPercentage={progressPercentage} />}
       {cardType === 'pastIncomplete' && pastIncomplete && <PastIncompleteCard data={pastIncomplete} onNavigate={handleNavigate} />}
       {cardType === 'hasena' && <HasenaCard />}
       {cardType === 'intro' && <IntroCard />}
