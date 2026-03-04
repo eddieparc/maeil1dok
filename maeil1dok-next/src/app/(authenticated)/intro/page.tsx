@@ -96,9 +96,6 @@ export default async function IntroPage() {
 
     return (
       <div className="pb-0">
-        <div className="mx-auto max-w-[768px]">
-          <PageHeader title="성경 개론" />
-        </div>
         <IntroClient
           plans={planList}
           videoIntros={videoIntros}
