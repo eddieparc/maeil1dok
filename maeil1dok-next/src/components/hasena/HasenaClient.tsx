@@ -1,10 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle, Calendar, ChevronDown, ChevronRight } from 'lucide-react'
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CheckCircle, ChevronDown, ChevronLeft, SlidersHorizontal } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useModal } from '@/hooks/useModal'
+import { useReadingSettings } from '@/hooks/bible/useReadingSettings'
+import { FONT_FAMILIES, FONT_WEIGHTS } from '@/hooks/bible/ReadingSettingsContext'
+import ReadingSettingsModal from '@/components/bible/ReadingSettingsModal'
 import { cn } from '@/lib/utils'
-
-/* ─── types ─── */
 
 interface HasenaStatus {
   date: string
@@ -24,6 +27,11 @@ interface HasenaClientProps {
   isAuthenticated: boolean
 }
 
+interface ParsedBibleContent {
+  title: string
+  verses: Array<{ number: string; text: string }>
+}
+
 interface SummarySections {
   scripture: string
   commentary: string
@@ -39,24 +47,12 @@ interface YouTubePlayerEvent {
   target: YouTubePlayer
 }
 
-interface YouTubeStateEvent extends YouTubePlayerEvent {
-  data: number
-}
-
 interface YouTubePlayerConstructor {
   new (
     elementId: string,
     options: {
-      height: string
-      width: string
-      playerVars: {
-        listType: 'playlist'
-        list: string
-        autoplay: 0 | 1
-      }
       events?: {
         onReady?: (event: YouTubePlayerEvent) => void
-        onStateChange?: (event: YouTubeStateEvent) => void
       }
     }
   ): YouTubePlayer
@@ -66,26 +62,17 @@ declare global {
   interface Window {
     YT?: {
       Player: YouTubePlayerConstructor
-      PlayerState?: {
-        PLAYING?: number
-        CUED?: number
-      }
     }
     onYouTubeIframeAPIReady?: () => void
   }
 }
 
-/* ─── helpers ─── */
-
 function parseSummarySections(summary: string): SummarySections {
   const normalized = summary.replace(/\r\n/g, '\n')
-
-  // Try new format first
   let scriptureMatch = normalized.match(/\*\*오늘의 본문\*\*([\s\S]*?)(?=\*\*교역자 해설\*\*|$)/)
   let commentaryMatch = normalized.match(/\*\*교역자 해설\*\*([\s\S]*?)(?=\*\*.*하시조.*\*\*|$)/)
   let actionMatch = normalized.match(/\*\*.*하시조.*\*\*([\s\S]*)$/)
 
-  // Try old numbered format
   if (!scriptureMatch?.[1]?.trim() && !commentaryMatch?.[1]?.trim() && !actionMatch?.[1]?.trim()) {
     scriptureMatch = normalized.match(/1\.\s*\*\*오늘의 본문\*\*[:\s]*([\s\S]*?)(?=2\.\s*\*\*교역자 해설\*\*)/)
     commentaryMatch = normalized.match(/2\.\s*\*\*교역자 해설\*\*[:\s]*([\s\S]*?)(?=3\.\s*\*\*.*하시조.*\*\*)/)
@@ -103,8 +90,43 @@ function parseSummarySections(summary: string): SummarySections {
   return { scripture, commentary, action }
 }
 
-function renderMarkdown(value: string): string {
-  return value.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-[var(--color-text-primary)]">$1</strong>')
+function renderTextWithBoldAndBreaks(value: string): ReactNode {
+  const lines = value.split('\n')
+  let lineCursor = 0
+
+  return lines.map((line) => {
+    const pieces: ReactNode[] = []
+    const lineKey = `line-${lineCursor}-${line}`
+    const regex = /\*\*(.+?)\*\*/g
+    let lastIndex = 0
+    let match = regex.exec(line)
+
+    while (match) {
+      if (match.index > lastIndex) {
+        pieces.push(line.slice(lastIndex, match.index))
+      }
+      pieces.push(
+        <span key={`bold-${lineCursor}-${match.index}`} className="highlight-text">
+          {match[1]}
+        </span>,
+      )
+      lastIndex = match.index + match[0].length
+      match = regex.exec(line)
+    }
+
+    if (lastIndex < line.length) {
+      pieces.push(line.slice(lastIndex))
+    }
+
+    lineCursor += line.length + 1
+
+    return (
+      <Fragment key={lineKey}>
+        {pieces}
+        {lineCursor <= value.length ? <br /> : null}
+      </Fragment>
+    )
+  })
 }
 
 function parseChecklistItems(value: string): string[] {
@@ -112,6 +134,26 @@ function parseChecklistItems(value: string): string[] {
     .split('\n')
     .map((line) => line.replace(/^\s*[-*]\s*(\[\s*\])?\s*/, '').trim())
     .filter(Boolean)
+}
+
+function parseHasenaContent(html: string): ParsedBibleContent {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+
+  const title = doc.querySelector('.bible_tit')?.textContent?.trim() || '하세나하시조'
+  const verseParagraphs = Array.from(doc.querySelectorAll('.bible_contents p'))
+
+  const verses = verseParagraphs
+    .map((verse) => {
+      const number = verse.querySelector('.bullet_number')?.textContent?.trim()
+      const text = verse.querySelector('.bullet_txt')?.textContent?.trim()
+      if (!number || !text) return ''
+
+      return { number, text }
+    })
+    .filter((verse): verse is { number: string; text: string } => Boolean(verse))
+
+  return { title, verses }
 }
 
 function detectMobile(): { isMobile: boolean; isIOS: boolean; isAndroid: boolean } {
@@ -124,55 +166,107 @@ function detectMobile(): { isMobile: boolean; isIOS: boolean; isAndroid: boolean
   }
 }
 
-/* ─── component ─── */
-
 export function HasenaClient({ initialStatus, initialStats, today, isAuthenticated }: HasenaClientProps) {
+  const router = useRouter()
+  const modal = useModal()
+  const { settings } = useReadingSettings()
   const playerRef = useRef<YouTubePlayer | null>(null)
 
-  // Core state
   const [isCompleted, setIsCompleted] = useState(initialStatus.isCompleted)
-  const [stats, setStats] = useState<HasenaStats>(initialStats)
   const [isSaving, setIsSaving] = useState(false)
   const [toggleError, setToggleError] = useState<string | null>(null)
+  const [stats] = useState(initialStats)
 
-  // YouTube state
   const [currentVideoId, setCurrentVideoId] = useState('')
   const [mobileInfo] = useState(() => detectMobile())
 
-  // AI Summary state
   const [summary, setSummary] = useState('')
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
 
-  // Calendar modal state
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [bibleTitle, setBibleTitle] = useState('하세나하시조')
+  const [bibleContent, setBibleContent] = useState<Array<{ number: string; text: string }>>([])
+  const [bibleLoading, setBibleLoading] = useState(true)
+  const [bibleError, setBibleError] = useState<string | null>(null)
+  const [isReadingSettingsOpen, setIsReadingSettingsOpen] = useState(false)
 
-  /* ─── YouTube setup ─── */
+  const playlistId = process.env.NEXT_PUBLIC_HASENA_PLAYLIST_ID || 'PLMT1AJszhYtXkV936HNuExxjAmtFhp2tL'
+  const videoUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}`
+
+  const todayLabel = useMemo(
+    () =>
+      new Date(`${today}T00:00:00`).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long',
+      }),
+    [today],
+  )
+
+  const parsedSummary = useMemo(() => parseSummarySections(summary), [summary])
+
+  const verseContainerStyle = useMemo(
+    () => ({
+      fontFamily: FONT_FAMILIES[settings.fontFamily].css,
+      fontSize: `${settings.fontSize}px`,
+      fontWeight: FONT_WEIGHTS[settings.fontWeight],
+      lineHeight: settings.lineHeight,
+      textAlign: settings.textAlign,
+    }),
+    [settings],
+  )
+
   useEffect(() => {
-    const playlistId = process.env.NEXT_PUBLIC_HASENA_PLAYLIST_ID || ''
-    if (!playlistId) return
+    let cancelled = false
 
+    async function fetchHasenaBibleContent() {
+      setBibleLoading(true)
+      setBibleError(null)
+
+      try {
+        const response = await fetch(
+          `/api/bible-proxy/hasena/write.php?bo_table=hasena_record&targetDate=${encodeURIComponent(today)}&forceView=true`,
+        )
+
+        if (!response.ok) {
+          throw new Error('본문을 불러오는데 실패했습니다')
+        }
+
+        const html = await response.text()
+        const parsed = parseHasenaContent(html)
+
+        if (!cancelled) {
+          setBibleTitle(parsed.title)
+          setBibleContent(parsed.verses)
+        }
+      } catch {
+        if (!cancelled) {
+          setBibleError('오늘의 말씀을 불러올 수 없습니다')
+          setBibleContent([])
+        }
+      } finally {
+        if (!cancelled) {
+          setBibleLoading(false)
+        }
+      }
+    }
+
+    void fetchHasenaBibleContent()
+
+    return () => {
+      cancelled = true
+    }
+  }, [today])
+
+  useEffect(() => {
     const initializePlayer = () => {
       if (!window.YT?.Player) return
 
-      playerRef.current = new window.YT.Player('youtube-player', {
-        height: '315',
-        width: '100%',
-        playerVars: {
-          listType: 'playlist',
-          list: playlistId,
-          autoplay: 0,
-        },
+      playerRef.current = new window.YT.Player('hasena-youtube-player', {
         events: {
           onReady: (event) => {
-            const videoId = event.target.getVideoData().video_id
-            if (videoId) setCurrentVideoId(videoId)
-          },
-          onStateChange: (event) => {
-            const playing = window.YT?.PlayerState?.PLAYING
-            const cued = window.YT?.PlayerState?.CUED
-            if (event.data !== playing && event.data !== cued) return
             const videoId = event.target.getVideoData().video_id
             if (videoId) setCurrentVideoId(videoId)
           },
@@ -185,10 +279,10 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
     } else {
       const existingScript = document.getElementById('youtube-iframe-api')
       if (!existingScript) {
-        const tag = document.createElement('script')
-        tag.id = 'youtube-iframe-api'
-        tag.src = 'https://www.youtube.com/iframe_api'
-        document.head.appendChild(tag)
+        const script = document.createElement('script')
+        script.id = 'youtube-iframe-api'
+        script.src = 'https://www.youtube.com/iframe_api'
+        document.head.appendChild(script)
       }
       window.onYouTubeIframeAPIReady = initializePlayer
     }
@@ -196,13 +290,11 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
     return () => {
       playerRef.current?.destroy()
       playerRef.current = null
-      window.onYouTubeIframeAPIReady = undefined
     }
   }, [])
 
-  /* ─── Load AI summary ─── */
   useEffect(() => {
-    if (!currentVideoId) return
+    if (!currentVideoId || !isAuthenticated) return
     let cancelled = false
 
     const loadSummary = async () => {
@@ -212,7 +304,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
       try {
         const response = await fetch(`/api/hasena/summary?videoId=${encodeURIComponent(currentVideoId)}`)
         if (!response.ok) {
-          if (response.status === 404) {
+          if (response.status === 404 || response.status === 401) {
             if (!cancelled) setSummary('')
             return
           }
@@ -232,22 +324,54 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
     }
 
     void loadSummary()
-    return () => { cancelled = true }
-  }, [currentVideoId])
 
-  /* ─── Parsed summary ─── */
-  const parsedSummary = useMemo(() => parseSummarySections(summary), [summary])
+    return () => {
+      cancelled = true
+    }
+  }, [currentVideoId, isAuthenticated])
 
-  /* ─── Completion toggle ─── */
+  const openYouTubeApp = useCallback(() => {
+    if (!currentVideoId) return
+    const webUrl = `https://www.youtube.com/watch?v=${currentVideoId}`
+
+    if (mobileInfo.isIOS) {
+      window.location.href = `youtube://watch?v=${currentVideoId}`
+      setTimeout(() => {
+        window.open(webUrl, '_blank')
+      }, 2000)
+      return
+    }
+
+    if (mobileInfo.isAndroid) {
+      window.location.href = `intent://watch?v=${currentVideoId}#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
+      return
+    }
+
+    window.open(webUrl, '_blank')
+  }, [currentVideoId, mobileInfo])
+
   const handleToggleComplete = useCallback(async () => {
     if (isSaving) return
 
     if (!isAuthenticated) {
-      window.location.href = `/login?next=/hasena`
+      window.location.href = '/login?next=/hasena'
       return
     }
 
     const nextCompleted = !isCompleted
+
+    if (nextCompleted) {
+      const confirmed = await modal.confirm({
+        title: '오늘 하세나를 완료할까요?',
+        description: '완료하면 기록이 저장됩니다.',
+        confirmText: '완료하기',
+        cancelText: '취소',
+        icon: 'success',
+      })
+
+      if (!confirmed) return
+    }
+
     setIsSaving(true)
     setToggleError(null)
 
@@ -258,256 +382,235 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
         body: JSON.stringify({ date: today, completed: nextCompleted }),
       })
 
-      if (!response.ok) throw new Error('완료 상태를 저장하지 못했습니다')
+      if (!response.ok) {
+        throw new Error('완료 처리 실패')
+      }
 
       setIsCompleted(nextCompleted)
-      setStats((prev) => {
-        const totalCompleted = nextCompleted
-          ? prev.totalCompleted + 1
-          : Math.max(0, prev.totalCompleted - 1)
-        const currentStreak = nextCompleted
-          ? prev.currentStreak + 1
-          : Math.max(0, prev.currentStreak - 1)
-        return {
-          totalCompleted,
-          currentStreak,
-          longestStreak: Math.max(prev.longestStreak, currentStreak),
-        }
-      })
     } catch {
-      setToggleError('완료 상태를 저장하지 못했습니다')
+      setToggleError('완료 처리에 실패했습니다')
     } finally {
       setIsSaving(false)
     }
-  }, [isSaving, isAuthenticated, isCompleted, today])
+  }, [isSaving, isAuthenticated, isCompleted, modal, today])
 
-  /* ─── YouTube deep-link ─── */
-  const openYouTubeApp = useCallback(() => {
-    if (!currentVideoId) return
-    const webUrl = `https://www.youtube.com/watch?v=${currentVideoId}`
-
-    if (mobileInfo.isIOS) {
-      window.location.href = `youtube://watch?v=${currentVideoId}`
-      setTimeout(() => { window.open(webUrl, '_blank') }, 2000)
-    } else if (mobileInfo.isAndroid) {
-      window.location.href = `intent://watch?v=${currentVideoId}#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
-    } else {
-      window.open(webUrl, '_blank')
+  const handleBack = useCallback(() => {
+    if (window.history.length > 1) {
+      router.back()
+      return
     }
-  }, [currentVideoId, mobileInfo])
-
-  const playlistConfigured = Boolean(process.env.NEXT_PUBLIC_HASENA_PLAYLIST_ID)
-  const todayLabel = new Date(`${today}T00:00:00`).toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  })
+    router.push('/')
+  }, [router])
 
   return (
-    <div className="sanctuary-theme relative min-h-screen">
-      {/* Background pattern */}
+    <div className="relative min-h-screen bg-[var(--color-bg-primary)] font-[var(--font-family-ui)] text-[var(--color-text-primary)]">
       <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.07]"
+        className="pointer-events-none fixed inset-0 z-0 opacity-10"
         style={{
           backgroundImage: 'radial-gradient(var(--color-text-tertiary) 1px, transparent 1px)',
           backgroundSize: '32px 32px',
         }}
       />
 
-      <div className="relative z-[1] mx-auto max-w-[768px] pb-28">
-        {/* Main content */}
-        <main className="flex flex-col gap-5 px-4 pt-5">
-
-          {/* ─── Video Card ─── */}
-          <div className="fade-in overflow-hidden rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] shadow-[var(--shadow-md)] dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-default)]" style={{ animationDelay: '0.1s' }}>
-            {playlistConfigured ? (
-              <div className="relative w-full">
-                {/* 16:9 aspect ratio container */}
-                <div className="relative w-full bg-black" style={{ paddingBottom: '56.25%' }}>
-                  <div
-                    id="youtube-player"
-                    data-testid="youtube-player"
-                    className="absolute inset-0"
-                  />
-                </div>
-
-                {/* YouTube deep-link button */}
-                {mobileInfo.isMobile && currentVideoId ? (
-                  <button
-                    type="button"
-                    onClick={openYouTubeApp}
-                    className="flex w-full items-center justify-center gap-2 bg-[#ff0000] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#cc0000] active:bg-[#aa0000]"
-                  >
-                    <span className="text-base">▶</span>
-                    YouTube 앱으로 시청하기
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center bg-[var(--color-bg-tertiary)]" style={{ paddingBottom: '56.25%', position: 'relative' }}>
-                <span className="absolute inset-0 flex items-center justify-center text-sm text-[var(--color-text-secondary)]">
-                  재생목록 설정이 필요합니다
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* ─── AI Summary Accordion ─── */}
-          <div className="fade-in overflow-hidden rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] shadow-[var(--shadow-md)] dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-default)]" style={{ animationDelay: '0.15s' }}>
-            {/* Accordion header */}
+      <div className="relative z-[1] mx-auto min-h-screen max-w-[768px] pb-24">
+        <header className="sticky top-0 z-30 h-14 border-b border-[var(--color-border-light)] bg-[var(--color-bg-primary)]/92 px-4 backdrop-blur-[8px]">
+          <div className="mx-auto flex h-full items-center justify-between">
             <button
               type="button"
-              onClick={() => setIsSummaryExpanded((v) => !v)}
+              onClick={handleBack}
+              className="-ml-2 rounded-full p-2 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-hover)]"
+              aria-label="뒤로가기"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            <h1 className="text-[1.125rem] font-semibold tracking-[-0.02em]">하세나</h1>
+            <div className="w-8" aria-hidden="true" />
+          </div>
+        </header>
+
+        <main className="flex flex-col gap-6 px-4 py-6">
+          <section
+            className="overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-[var(--color-bg-card)] shadow-[var(--shadow-md)]"
+            style={{ animationDelay: '0.1s' }}
+          >
+            <div className="relative w-full">
+              <div className="relative h-0 w-full bg-black pb-[56.25%]">
+                <iframe
+                  id="hasena-youtube-player"
+                  src={videoUrl}
+                  title="YouTube video player"
+                  className="absolute inset-0 h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+
+              {mobileInfo.isMobile && currentVideoId ? (
+                <button
+                  type="button"
+                  onClick={openYouTubeApp}
+                  className="flex w-full items-center justify-center gap-2 bg-[#ff0000] px-4 py-3 text-[0.9rem] font-medium text-white transition-colors hover:bg-[#cc0000] active:bg-[#aa0000]"
+                >
+                  <span className="text-base">▶</span>
+                  YouTube 앱으로 시청하기
+                </button>
+              ) : null}
+            </div>
+          </section>
+
+          <section
+            className="overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-[var(--color-bg-card)] shadow-[var(--shadow-md)]"
+            style={{ animationDelay: '0.15s' }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsSummaryExpanded((value) => !value)}
               aria-expanded={isSummaryExpanded}
-              className="flex w-full items-center justify-between px-5 py-4 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+              className="flex w-full items-center justify-between bg-transparent px-5 py-4 text-left transition-colors hover:bg-[var(--color-bg-hover)]"
             >
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15 4V10M15 10V16M15 10H9M15 10H21M6 16V20M6 20V24M6 20H2M6 20H10" stroke="url(#ai-gradient)" strokeWidth="2" strokeLinecap="round"/>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M15 4V10M15 10V16M15 10H9M15 10H21M6 16V20M6 20V24M6 20H2M6 20H10" stroke="url(#ai-gradient)" strokeWidth="2" strokeLinecap="round" />
                     <defs>
                       <linearGradient id="ai-gradient" x1="2" y1="4" x2="21" y2="24" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#6366f1"/>
-                        <stop offset="1" stopColor="#a855f7"/>
+                        <stop stopColor="#6366f1" />
+                        <stop offset="1" stopColor="#a855f7" />
                       </linearGradient>
                     </defs>
                   </svg>
                   AI 요약
                 </span>
-                <span className="rounded-md border border-[rgba(99,102,241,0.2)] bg-[rgba(99,102,241,0.1)] px-1.5 py-0.5 text-[0.65rem] font-bold tracking-wide text-[var(--color-accent-primary)]">
+                <span className="rounded-md border border-[rgba(99,102,241,0.2)] bg-[rgba(99,102,241,0.1)] px-1.5 py-0.5 text-[0.65rem] font-bold tracking-[0.5px] text-[var(--color-accent-primary)]">
                   BETA
                 </span>
               </div>
+
               <ChevronDown
                 size={20}
                 className={cn(
                   'shrink-0 text-[var(--color-text-tertiary)] transition-transform duration-300',
-                  isSummaryExpanded && 'rotate-180'
+                  isSummaryExpanded && 'rotate-180',
                 )}
               />
             </button>
 
-            {/* Accordion content */}
             <div
               className={cn(
-                'overflow-hidden transition-all duration-300 ease-in-out',
-                isSummaryExpanded ? 'max-h-[2000px] pb-5' : 'max-h-0'
+                'overflow-hidden px-5 transition-all duration-300 ease-in-out',
+                isSummaryExpanded ? 'max-h-[2000px] pb-5' : 'max-h-0 px-5 pb-0',
               )}
             >
-              <div className="px-5">
-                {summaryLoading ? (
-                  <div className="flex items-center gap-3 py-4 text-sm text-[var(--color-text-secondary)]">
-                    <span className="loading-spinner" />
-                    AI가 영상을 분석하고 있습니다...
-                  </div>
-                ) : summaryError && !summary ? (
-                  <p className="rounded-lg bg-[var(--color-danger-bg)] px-4 py-3 text-sm text-[var(--color-danger)]">
-                    {summaryError}
-                  </p>
-                ) : summary ? (
-                  <div className="flex flex-col gap-5 pt-1">
-                    {/* Scripture section */}
-                    {parsedSummary.scripture ? (
-                      <div>
-                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
-                          오늘의 본문
-                        </h4>
-                        <p
-                          className="text-[0.95rem] leading-7 text-[var(--color-text-primary)]"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(parsedSummary.scripture).replace(/\n/g, '<br/>') }}
-                        />
-                      </div>
-                    ) : null}
+              {summaryLoading ? (
+                <div className="flex items-center gap-3 py-4 text-sm text-[var(--color-text-secondary)]">
+                  <span className="loading-spinner" />
+                  AI가 영상을 분석하고 있습니다...
+                </div>
+              ) : summaryError && !summary ? (
+                <p className="rounded-lg bg-[#fef2f2] px-4 py-3 text-sm text-[#dc2626]">{summaryError}</p>
+              ) : summary ? (
+                <div className="summary-content flex flex-col gap-6 py-2">
+                  {parsedSummary.scripture ? (
+                    <div>
+                      <h4 className="mb-2 text-[0.9rem] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-tertiary)]">오늘의 본문</h4>
+                      <p className="text-[0.975rem] leading-7 text-[var(--color-text-primary)]">{renderTextWithBoldAndBreaks(parsedSummary.scripture)}</p>
+                    </div>
+                  ) : null}
 
-                    {/* Commentary section */}
-                    {parsedSummary.commentary ? (
-                      <div>
-                        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
-                          교역자 해설
-                        </h4>
-                        <p
-                          className="text-[0.95rem] leading-7 text-[var(--color-text-primary)]"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(parsedSummary.commentary).replace(/\n/g, '<br/>') }}
-                        />
-                      </div>
-                    ) : null}
+                  {parsedSummary.commentary ? (
+                    <div>
+                      <h4 className="mb-2 text-[0.9rem] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-tertiary)]">교역자 해설</h4>
+                      <p className="text-[0.975rem] leading-7 text-[var(--color-text-primary)]">{renderTextWithBoldAndBreaks(parsedSummary.commentary)}</p>
+                    </div>
+                  ) : null}
 
-                    {/* Action checklist */}
-                    {parsedSummary.action ? (
-                      <>
-                        <hr className="border-[var(--color-border-light)] opacity-40" />
-                        <div>
-                          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
-                            오늘의 하시조
-                          </h4>
-                          <div className="flex flex-col gap-2">
-                            {parseChecklistItems(parsedSummary.action).map((item, i) => (
-                              <div key={i} className="flex items-start gap-3 py-0.5">
-                                <svg
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="var(--color-accent-primary)"
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="mt-1.5 shrink-0"
-                                >
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                                <span
-                                  className="flex-1 text-[0.95rem] leading-7 text-[var(--color-text-primary)]"
-                                  dangerouslySetInnerHTML={{ __html: renderMarkdown(item) }}
-                                />
-                              </div>
-                            ))}
-                          </div>
+                  {parsedSummary.action ? (
+                    <>
+                      <div className="h-px bg-[var(--color-border-light)] opacity-40" />
+                      <div>
+                        <h4 className="mb-2 text-[0.9rem] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-tertiary)]">오늘의 하시조</h4>
+                        <div className="flex flex-col gap-2">
+                          {parseChecklistItems(parsedSummary.action).map((item) => (
+                            <div key={item} className="flex items-start gap-3 py-0.5">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="mt-1.5 shrink-0" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              <span className="flex-1 text-[0.975rem] leading-7 text-[var(--color-text-primary)]">{renderTextWithBoldAndBreaks(item)}</span>
+                            </div>
+                          ))}
                         </div>
-                      </>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="py-4 text-center text-sm text-[var(--color-text-tertiary)]">
-                    오늘의 요약이 곧 준비됩니다
-                  </p>
-                )}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="py-4 text-center text-sm text-[var(--color-text-tertiary)]">오늘의 요약이 곧 준비됩니다</p>
+              )}
+            </div>
+          </section>
+
+          <section
+            className="overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-[var(--color-bg-card)] p-6 shadow-[var(--shadow-md)]"
+            style={{ animationDelay: '0.2s' }}
+          >
+            {bibleLoading ? (
+              <div className="flex flex-col items-center gap-4 py-12 text-[var(--color-text-secondary)]">
+                <span className="loading-spinner" />
+                <p className="text-sm">오늘의 말씀을 불러오고 있습니다...</p>
               </div>
-            </div>
-          </div>
+            ) : bibleError ? (
+              <div className="flex flex-col items-center gap-3 py-12 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fee2e2] text-xl font-bold text-[#ef4444]">!</div>
+                <h3 className="text-base font-semibold">말씀을 불러올 수 없습니다</h3>
+                <p className="text-sm text-[var(--color-text-secondary)]">{bibleError}</p>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-8 border-b border-dashed border-[var(--color-border-default)] pb-6 text-center">
+                  <div className="relative mb-3 flex items-center justify-center gap-3">
+                    <span className="inline-block rounded-full bg-[var(--color-accent-light)] px-3 py-1 text-sm font-semibold text-[var(--color-accent-primary)]">
+                      {todayLabel}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsReadingSettingsOpen(true)}
+                      className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] transition-all hover:border-[var(--color-accent-primary-light)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-accent-primary)] active:scale-95"
+                      aria-label="읽기 설정"
+                      title="읽기 설정"
+                    >
+                      <SlidersHorizontal size={16} />
+                    </button>
+                  </div>
 
-          {/* ─── Bible Content Card ─── */}
-          <div className="fade-in overflow-hidden rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] p-6 shadow-[var(--shadow-md)] dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-default)]" style={{ animationDelay: '0.2s' }}>
-            <div className="mb-6 border-b border-dashed border-[var(--color-border-default)] pb-5 text-center">
-              <span className="inline-block rounded-full bg-[var(--color-accent-light)] px-3 py-1 text-sm font-semibold text-[var(--color-accent-primary)]">
-                {todayLabel}
-              </span>
-              <h2 className="mt-3 text-2xl font-bold text-[var(--color-text-primary)]" style={{ fontFamily: '"Noto Serif KR", "KoPub Batang", serif' }}>
-                하세나하시조
-              </h2>
-            </div>
-            <p className="text-center text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              오늘의 하세나 본문은 영상과 AI 요약에서 함께 확인하세요.
-            </p>
-          </div>
+                  <h2 className="font-[var(--font-family-reading)] text-2xl font-bold text-[var(--color-text-primary)]">{bibleTitle}</h2>
+                </div>
 
-          {/* ─── Streak Stats + Calendar (logged-in only) ─── */}
+                <div className="verse-container" style={verseContainerStyle}>
+                  {bibleContent.map((verse) => (
+                    <div key={`${verse.number}-${verse.text}`} className="hasena-verse">
+                      <span className="hasena-verse-number">{verse.number}</span>
+                      <span className="hasena-verse-text">{verse.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
           {isAuthenticated ? (
-            <div className="fade-in overflow-hidden rounded-2xl border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] p-5 shadow-[var(--shadow-md)] dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-default)]" style={{ animationDelay: '0.25s' }}>
-              {/* Streak stats row */}
-              <div className="flex justify-around mb-4">
+            <section className="rounded-[20px] border border-[var(--color-border-light)] bg-[var(--color-bg-card)] p-5 shadow-[var(--shadow-md)]">
+              <div className="flex justify-around">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">🔥</span>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-orange-500">{stats.currentStreak}</span>
+                    <span className="text-xl font-bold text-[#f97316]">{stats.currentStreak}</span>
                     <span className="text-xs text-[var(--color-text-tertiary)]">현재 연속</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">🏆</span>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-yellow-500">{stats.longestStreak}</span>
+                    <span className="text-xl font-bold text-[#eab308]">{stats.longestStreak}</span>
                     <span className="text-xs text-[var(--color-text-tertiary)]">최장 연속</span>
                   </div>
                 </div>
@@ -519,38 +622,28 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                   </div>
                 </div>
               </div>
-
-              {/* Calendar button */}
-              <button
-                type="button"
-                onClick={() => setIsCalendarOpen(true)}
-                className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-border-light)] bg-[var(--color-bg-tertiary)] px-4 py-3.5 text-sm font-medium text-[var(--color-text-primary)] transition-all hover:bg-[var(--color-button-hover)] hover:border-[var(--color-border-default)] active:scale-[0.98]"
-              >
-                <Calendar size={20} className="shrink-0 text-[var(--color-accent-primary)]" />
-                <span className="flex-1 text-left">전체 기록 보기</span>
-                <ChevronRight size={16} className="shrink-0 text-[var(--color-text-tertiary)]" />
-              </button>
-            </div>
+            </section>
           ) : null}
         </main>
 
-        {/* ─── Floating Completion Button ─── */}
-        <div className="fade-in pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', animationDelay: '0.3s' }}>
-          <div className="flex w-full max-w-[768px] justify-end px-6 pb-4 md:justify-center md:pr-0">
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex w-full max-w-[768px] justify-end px-6 pb-4 md:justify-center md:px-0">
             <button
               type="button"
-              data-testid="hasena-complete-toggle"
               disabled={isSaving}
-              onClick={handleToggleComplete}
+              onClick={() => void handleToggleComplete()}
               className={cn(
                 'pointer-events-auto inline-flex items-center gap-2 rounded-full px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70',
                 isCompleted
                   ? 'bg-[#ef4444] shadow-[0_4px_14px_rgba(239,68,68,0.4)] hover:bg-[#dc2626]'
-                  : 'bg-[var(--color-success)] shadow-[0_4px_14px_rgba(16,185,129,0.4)] hover:bg-[var(--color-accent-hover)]'
+                  : 'bg-[var(--color-success)] shadow-[0_4px_14px_rgba(16,185,129,0.4)] hover:bg-[var(--color-success-dark)]',
               )}
             >
               {isSaving ? (
-                <span className="loading-spinner small" />
+                <span className="loading-spinner" />
               ) : (
                 <>
                   <CheckCircle size={20} />
@@ -561,60 +654,63 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
           </div>
         </div>
 
-        {/* Error toast */}
         {toggleError ? (
           <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[var(--color-danger)] px-4 py-2 text-sm text-white shadow-lg">
             {toggleError}
           </div>
         ) : null}
-
-        {/* ─── Calendar Modal ─── */}
-        {isCalendarOpen ? (
-          <CalendarModal onClose={() => setIsCalendarOpen(false)} />
-        ) : null}
       </div>
-    </div>
-  )
-}
 
-/* ─── Calendar Modal (lightweight placeholder) ─── */
-
-function CalendarModal({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    document.body.style.overflow = 'hidden'
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleEscape)
-    return () => {
-      document.body.style.overflow = ''
-      window.removeEventListener('keydown', handleEscape)
-    }
-  }, [onClose])
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close"
-        className="absolute inset-0 bg-black/55 backdrop-blur-[1px]"
-        onClick={onClose}
+      <ReadingSettingsModal
+        isOpen={isReadingSettingsOpen}
+        onClose={() => setIsReadingSettingsOpen(false)}
       />
-      <div className="relative z-10 w-full max-w-md rounded-2xl bg-[var(--color-bg-primary)] p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-[var(--color-text-primary)]">전체 기록</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-button-hover)]"
-          >
-            ✕
-          </button>
-        </div>
-        <p className="text-center text-sm text-[var(--color-text-secondary)]">
-          달력 기능은 곧 제공될 예정입니다
-        </p>
-      </div>
+
+      <style jsx global>{`
+        .hasena-verse {
+          display: flex;
+          align-items: flex-start;
+          margin-bottom: 0.75rem;
+          line-height: 1.8;
+        }
+
+        .hasena-verse-number {
+          color: var(--color-accent-primary);
+          font-weight: 600;
+          margin-right: 0.5rem;
+          min-width: 1.2rem;
+          font-size: 0.85em;
+          padding-top: 0.2em;
+          font-family: var(--font-family-ui);
+        }
+
+        .hasena-verse-text {
+          color: var(--color-text-primary);
+          flex: 1;
+          word-break: keep-all;
+          overflow-wrap: break-word;
+        }
+
+        .highlight-text {
+          font-weight: 700;
+          color: var(--color-text-primary);
+        }
+
+        .loading-spinner {
+          width: 1.5rem;
+          height: 1.5rem;
+          border: 2px solid var(--color-border-default);
+          border-top-color: var(--color-accent-primary);
+          border-radius: 50%;
+          animation: hasena-spin 1s linear infinite;
+        }
+
+        @keyframes hasena-spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   )
 }

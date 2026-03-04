@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
 import type { HasenaRecord } from '@/types'
 import { HasenaClient } from '@/components/hasena/HasenaClient'
+import { ReadingSettingsProvider } from '@/hooks/bible/ReadingSettingsContext'
 
 interface HasenaStatus {
   date: string
@@ -98,11 +99,13 @@ export default async function HasenaPage() {
   }
 
   return (
-    <HasenaClient
-      initialStatus={status}
-      initialStats={stats}
-      today={today}
-      isAuthenticated={Boolean(user)}
-    />
+    <ReadingSettingsProvider>
+      <HasenaClient
+        initialStatus={status}
+        initialStats={stats}
+        today={today}
+        isAuthenticated={Boolean(user)}
+      />
+    </ReadingSettingsProvider>
   )
 }
