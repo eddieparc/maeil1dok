@@ -16,11 +16,9 @@ interface BookSelectorProps {
   currentChapter?: number
 }
 
-type Tab = 'ot' | 'nt'
 type Step = 'book' | 'chapter'
 
 export default function BookSelector({ isOpen, onClose, onSelect, currentBook, currentChapter }: BookSelectorProps) {
-  const [tab, setTab] = useState<Tab>('ot')
   const [query, setQuery] = useState('')
   const [step, setStep] = useState<Step>('book')
   const [selectedBook, setSelectedBook] = useState<string | null>(null)
@@ -53,13 +51,8 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
       setStep('book')
       setSelectedBook(null)
       setQuery('')
-      // Determine initial tab based on current book
-      if (currentBook) {
-        const idx = BIBLE_BOOK_ORDER.indexOf(currentBook as typeof BIBLE_BOOK_ORDER[number])
-        setTab(idx >= OT_COUNT ? 'nt' : 'ot')
-      }
     }
-  }, [isOpen, currentBook])
+  }, [isOpen])
 
   // Auto-focus search on open
   useEffect(() => {
@@ -82,9 +75,19 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
   }, [step, selectedBook])
 
   const filteredBooks = useMemo(() => {
-    if (!query.trim()) return tab === 'ot' ? OT_BOOKS : NT_BOOKS
+    if (!query.trim()) return BIBLE_BOOK_ORDER
     return searchBibleBooks(query).map((r) => r.id)
-  }, [query, tab])
+  }, [query])
+
+  const visibleOldBooks = useMemo(
+    () => filteredBooks.filter((code) => OT_BOOKS.includes(code as (typeof OT_BOOKS)[number])),
+    [filteredBooks]
+  )
+
+  const visibleNewBooks = useMemo(
+    () => filteredBooks.filter((code) => NT_BOOKS.includes(code as (typeof NT_BOOKS)[number])),
+    [filteredBooks]
+  )
 
   const searchResults = useMemo(() => {
     if (!query.trim()) return []
@@ -121,6 +124,7 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
 
   const bookInfo = selectedBook ? BIBLE_BOOKS[selectedBook] : null
   const isSearching = query.trim().length > 0
+  const hasSearchResult = visibleOldBooks.length > 0 || visibleNewBooks.length > 0
 
   return (
     <>
@@ -156,7 +160,7 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
               onClick={handleBack}
               aria-label="뒤로"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 18L9 12L15 6" />
               </svg>
             </button>
@@ -170,15 +174,18 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
             onClick={handleClose}
             aria-label="닫기"
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Book Selection Step */}
-        {step === 'book' ? (
-          <>
+        <div className="relative flex-1 overflow-hidden">
+          <div
+            className={`absolute inset-0 flex flex-col transition-all duration-200 ease-in-out ${
+              step === 'book' ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0 pointer-events-none'
+            }`}
+          >
             {/* Search Bar */}
             <div className="px-4 pb-3">
               <div className="relative">
@@ -187,6 +194,7 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -205,7 +213,7 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
                     onClick={() => setQuery('')}
                     aria-label="검색어 지우기"
                   >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -217,7 +225,7 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
             {isSearching && searchResults.length > 0 ? (
               <div className="border-b border-[var(--color-border-light)] px-4 pb-3">
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-[var(--color-accent-primary)]">
-                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                     <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
                   </svg>
                   {searchResults.length}개를 찾았어요
@@ -242,106 +250,131 @@ export default function BookSelector({ isOpen, onClose, onSelect, currentBook, c
               </div>
             ) : null}
 
-            {/* OT/NT Tabs (hidden during search) */}
-            {!isSearching ? (
-              <div className="px-4 pb-2">
-                <div className="flex rounded-xl bg-[var(--color-bg-tertiary)] p-1">
-                  {(['ot', 'nt'] as Tab[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      className={`flex-1 rounded-[10px] py-2 text-sm font-semibold transition-all duration-200 ${
-                        tab === t
-                          ? 'bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] shadow-sm'
-                          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                      }`}
-                      onClick={() => setTab(t)}
-                    >
-                      {t === 'ot' ? '구약' : '신약'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
             {/* Books Grid */}
             <div
               ref={booksRef}
               className="flex-1 overflow-y-auto overscroll-contain px-4 pb-safe-bottom"
               style={{ maxHeight: 'calc(90vh - 220px)', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
             >
-              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-                {filteredBooks.map((code) => {
-                  const book = BIBLE_BOOKS[code]
-                  if (!book) return null
-                  const isActive = currentBook === code
-                  return (
-                    <button
-                      key={code}
-                      type="button"
-                      className={`group relative flex flex-col rounded-xl border px-2.5 py-2.5 text-left transition-all duration-150 active:scale-[0.97] ${
-                        isActive
-                          ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
-                          : 'border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)]/50'
-                      }`}
-                      onClick={() => handleSelectBook(code)}
-                    >
-                      <span className={`text-[13px] leading-snug ${isActive ? 'font-semibold' : 'font-medium'}`}>
-                        {book.ko}
-                      </span>
-                      <span className={`mt-0.5 text-[11px] ${isActive ? 'text-[var(--color-accent-primary)]/70' : 'text-[var(--color-text-muted)]'}`}>
-                        {book.chapters}{getChapterUnit(code)}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+              {hasSearchResult ? (
+                <>
+                  <div className="mb-4">
+                    <h4 className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-tertiary)]">구약</h4>
+                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+                      {visibleOldBooks.map((code) => {
+                        const book = BIBLE_BOOKS[code]
+                        if (!book) return null
+                        const isActive = currentBook === code
+                        return (
+                          <button
+                            key={code}
+                            type="button"
+                            data-id={code}
+                            className={`group relative flex flex-col rounded-xl border px-2.5 py-2.5 text-left transition-all duration-150 active:scale-[0.97] ${
+                              isActive
+                                ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
+                                : 'border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)]/50'
+                            }`}
+                            onClick={() => handleSelectBook(code)}
+                          >
+                            <span className={`text-[13px] leading-snug ${isActive ? 'font-semibold' : 'font-medium'}`}>{book.ko}</span>
+                            <span className={`mt-0.5 text-[11px] ${isActive ? 'text-[var(--color-accent-primary)]/70' : 'text-[var(--color-text-muted)]'}`}>
+                              {book.chapters}
+                              {getChapterUnit(code)}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-tertiary)]">신약</h4>
+                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+                      {visibleNewBooks.map((code) => {
+                        const book = BIBLE_BOOKS[code]
+                        if (!book) return null
+                        const isActive = currentBook === code
+                        return (
+                          <button
+                            key={code}
+                            type="button"
+                            data-id={code}
+                            className={`group relative flex flex-col rounded-xl border px-2.5 py-2.5 text-left transition-all duration-150 active:scale-[0.97] ${
+                              isActive
+                                ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
+                                : 'border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)]/50'
+                            }`}
+                            onClick={() => handleSelectBook(code)}
+                          >
+                            <span className={`text-[13px] leading-snug ${isActive ? 'font-semibold' : 'font-medium'}`}>{book.ko}</span>
+                            <span className={`mt-0.5 text-[11px] ${isActive ? 'text-[var(--color-accent-primary)]/70' : 'text-[var(--color-text-muted)]'}`}>
+                              {book.chapters}
+                              {getChapterUnit(code)}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">검색 결과가 없어요</p>
+              )}
             </div>
-          </>
-        ) : null}
+          </div>
 
-        {/* Chapter Selection Step */}
-        {step === 'chapter' && bookInfo && selectedBook ? (
+          <div
+            className={`absolute inset-0 flex flex-col transition-all duration-200 ease-in-out ${
+              step === 'chapter' ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0 pointer-events-none'
+            }`}
+          >
           <div
             ref={chaptersRef}
             className="flex-1 overflow-y-auto overscroll-contain px-4 pb-safe-bottom"
             style={{ maxHeight: 'calc(90vh - 140px)', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
           >
             {/* Chapter count info */}
-            <div className="mb-3 flex items-center gap-2">
-              <span className="text-xs font-medium text-[var(--color-text-muted)]">
-                총 {bookInfo.chapters}{getChapterUnit(selectedBook)}
-              </span>
-              {currentBook === selectedBook && currentChapter ? (
-                <span className="inline-flex items-center rounded-md bg-[var(--color-accent-light)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent-primary)]">
-                  현재 {currentChapter}{getChapterUnit(selectedBook)}
-                </span>
-              ) : null}
-            </div>
+            {bookInfo && selectedBook ? (
+              <>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-xs font-medium text-[var(--color-text-muted)]">
+                    총 {bookInfo.chapters}
+                    {getChapterUnit(selectedBook)}
+                  </span>
+                  {currentBook === selectedBook && currentChapter ? (
+                    <span className="inline-flex items-center rounded-md bg-[var(--color-accent-light)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent-primary)]">
+                      현재 {currentChapter}
+                      {getChapterUnit(selectedBook)}
+                    </span>
+                  ) : null}
+                </div>
 
-            {/* Chapter Number Grid */}
-            <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6 md:grid-cols-8">
-              {Array.from({ length: bookInfo.chapters }, (_, i) => i + 1).map((ch) => {
-                const isCurrent = currentBook === selectedBook && currentChapter === ch
-                return (
-                  <button
-                    key={ch}
-                    type="button"
-                    data-active={isCurrent ? 'true' : undefined}
-                    className={`relative flex items-center justify-center rounded-xl border py-3 text-sm font-medium transition-all duration-150 active:scale-95 ${
-                      isCurrent
-                        ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white shadow-md shadow-[var(--color-accent-primary)]/25'
-                        : 'border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)] hover:text-[var(--color-accent-primary)]'
-                    }`}
-                    onClick={() => handleSelectChapter(ch)}
-                  >
-                    {ch}
-                  </button>
-                )
-              })}
-            </div>
+                {/* Chapter Number Grid */}
+                <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6 md:grid-cols-8">
+                  {Array.from({ length: bookInfo.chapters }, (_, i) => i + 1).map((ch) => {
+                    const isCurrent = currentBook === selectedBook && currentChapter === ch
+                    return (
+                      <button
+                        key={ch}
+                        type="button"
+                        data-active={isCurrent ? 'true' : undefined}
+                        className={`relative flex items-center justify-center rounded-xl border py-3 text-sm font-medium transition-all duration-150 active:scale-95 ${
+                          isCurrent
+                            ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white shadow-md shadow-[var(--color-accent-primary)]/25'
+                            : 'border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)] hover:text-[var(--color-accent-primary)]'
+                        }`}
+                        onClick={() => handleSelectChapter(ch)}
+                      >
+                        {ch}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            ) : null}
           </div>
-        ) : null}
+          </div>
+        </div>
       </div>
     </>
   )
