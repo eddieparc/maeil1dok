@@ -106,6 +106,11 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
               pageState.selectChapter(chapter)
               pageState.setViewMode('reader')
             }}
+            onSelectBook={(book, chapter) => {
+              pageState.selectBook(book)
+              pageState.selectChapter(chapter)
+              pageState.setViewMode('reader')
+            }}
             onViewTOC={() => pageState.setViewMode('toc')}
           />
         )}

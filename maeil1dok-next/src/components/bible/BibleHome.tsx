@@ -1,12 +1,22 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BIBLE_BOOKS } from '@/lib/bible/books'
+import { useRouter } from 'next/navigation'
 
-// ── Types ────────────────────────────────────────────────────────────────
+import { BIBLE_BOOKS } from '@/lib/bible/books'
+import { cn } from '@/lib/utils'
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface BibleHomeProps {
+  lastPosition?: { book: string; chapter: number }
+  onContinueReading: (book: string, chapter: number) => void
+  onSelectBook: (book: string, chapter: number) => void
+  onViewTOC: () => void
+}
 
 interface TodaySchedule {
-  id: number
+  id: string
   bookCode: string
   bookName: string
   range: string
@@ -26,19 +36,80 @@ interface RecentRecord {
 }
 
 interface HomeStats {
-  bookmarks: number
-  notes: number
-  highlights: number
+  bookmarkCount: number
+  noteCount: number
+  highlightCount: number
   recentRecords: RecentRecord[]
 }
 
-interface BibleHomeProps {
-  lastPosition?: { book: string; chapter: number }
-  onContinueReading: (book: string, chapter: number) => void
-  onViewTOC: () => void
+// ─── Icons (inline SVGs) ─────────────────────────────────────────────────────
+
+function PlayIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+function CheckCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function ArrowRightIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  )
+}
+
+function BookmarkIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+    </svg>
+  )
+}
+
+function DocumentIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  )
+}
+
+function HighlightIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+    </svg>
+  )
+}
+
+function HistoryIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
+function ListIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10" />
+    </svg>
+  )
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getBookName(bookCode: string): string {
   return BIBLE_BOOKS[bookCode]?.ko ?? bookCode
@@ -51,382 +122,234 @@ function getChapterUnit(bookCode: string): string {
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   const today = new Date()
-  const diff = Math.floor(
-    (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-  )
+  const diff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+
   if (diff === 0) return '오늘'
   if (diff === 1) return '어제'
   if (diff < 7) return `${diff}일 전`
+
   return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
 }
 
 function formatTodayDate(): string {
-  return new Date().toLocaleDateString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short',
-  })
+  const today = new Date()
+  return today.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
 }
 
-// ── SVG Icons (inline) ──────────────────────────────────────────────────
-
-function PlayIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-      <path d="M8 5v14l11-7z" />
-    </svg>
-  )
-}
-
-function CheckCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
-
-function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-    </svg>
-  )
-}
-
-function ArrowRightIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-    </svg>
-  )
-}
-
-function BookmarkIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-    </svg>
-  )
-}
-
-function DocumentIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  )
-}
-
-function HighlightIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-    </svg>
-  )
-}
-
-function HistoryIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
-
-function ListIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h10" />
-    </svg>
-  )
-}
-
-// ── Feature card config ─────────────────────────────────────────────────
-
-interface FeatureCardDef {
-  key: string
-  name: string
-  icon: React.ReactNode
-  iconBg: string
-  iconColor: string
-  emptyText: string
-  countText: (n: number) => string
-  countKey: keyof HomeStats
-}
-
-const FEATURE_CARDS: FeatureCardDef[] = [
-  {
-    key: 'bookmarks',
-    name: '북마크',
-    icon: <BookmarkIcon />,
-    iconBg: 'var(--color-warning-bg)',
-    iconColor: 'var(--color-warning-text)',
-    emptyText: '자주 찾는 장을 저장하세요',
-    countText: (n: number) => `저장된 ${n}개의 장`,
-    countKey: 'bookmarks',
-  },
-  {
-    key: 'notes',
-    name: '묵상노트',
-    icon: <DocumentIcon />,
-    iconBg: 'var(--color-info-bg)',
-    iconColor: 'var(--color-info-text)',
-    emptyText: '말씀을 읽고 묵상을 기록하세요',
-    countText: (n: number) => `작성된 ${n}개의 노트`,
-    countKey: 'notes',
-  },
-  {
-    key: 'highlights',
-    name: '하이라이트',
-    icon: <HighlightIcon />,
-    iconBg: 'var(--color-danger-bg)',
-    iconColor: 'var(--color-danger-text)',
-    emptyText: '중요한 구절에 색상을 입히세요',
-    countText: (n: number) => `표시된 ${n}개의 구절`,
-    countKey: 'highlights',
-  },
-  {
-    key: 'history',
-    name: '읽기 기록',
-    icon: <HistoryIcon />,
-    iconBg: 'var(--color-success-bg)',
-    iconColor: 'var(--color-success-text)',
-    emptyText: '읽은 장과 날짜를 확인하세요',
-    countText: () => '',
-    countKey: 'bookmarks', // not used for history
-  },
-]
-
-// ═════════════════════════════════════════════════════════════════════════
-// Component
-// ═════════════════════════════════════════════════════════════════════════
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function BibleHome({
   lastPosition,
   onContinueReading,
+  onSelectBook,
   onViewTOC,
 }: BibleHomeProps) {
+  const router = useRouter()
+
+  const [todaySchedule, setTodaySchedule] = useState<TodaySchedule | null>(null)
   const [stats, setStats] = useState<HomeStats>({
-    bookmarks: 0,
-    notes: 0,
-    highlights: 0,
+    bookmarkCount: 0,
+    noteCount: 0,
+    highlightCount: 0,
     recentRecords: [],
   })
-  const [todaySchedule, setTodaySchedule] = useState<TodaySchedule | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [tipsDismissed, setTipsDismissed] = useState(false)
 
-  // ── Data fetching ───────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setTipsDismissed(
-        localStorage.getItem('bible_tips_dismissed') === 'true'
-      )
-    }
-
-    async function loadHomeStats() {
-      try {
-        const res = await fetch('/api/bible/home-stats')
-        if (!res.ok) return
-        const data = await res.json()
-        setStats({
-          bookmarks: data.bookmarks ?? 0,
-          notes: data.notes ?? 0,
-          highlights: data.highlights ?? 0,
-          recentRecords: (data.recent_records ?? []).map(
-            (r: { book: string; chapter: number; read_date: string }) => ({
-              book: r.book,
-              bookName: getBookName(r.book),
-              chapter: r.chapter,
-              readDate: r.read_date,
-            })
-          ),
-        })
-      } catch {
-        // silent
-      }
-    }
-
-    async function loadTodaySchedule() {
-      try {
-        const planId =
-          typeof window !== 'undefined'
-            ? localStorage.getItem('selectedPlanId')
-            : null
-        if (!planId) return
-
-        const res = await fetch(
-          `/api/bible/schedules/today?plan_id=${planId}`
-        )
-        if (!res.ok) return
-        const data = await res.json()
-
-        if (data.success && data.schedules?.length > 0) {
-          const schedules = data.schedules
-          const first = schedules[0]
-          const completedCount = schedules.filter(
-            (s: { is_completed: boolean }) => s.is_completed
-          ).length
-
-          const unit = getChapterUnit(first.book_code)
-          let range = `${first.start_chapter}${unit}`
-          if (
-            first.end_chapter &&
-            first.end_chapter !== first.start_chapter
-          ) {
-            range = `${first.start_chapter}-${first.end_chapter}${unit}`
-          }
-
-          setTodaySchedule({
-            id: first.id,
-            bookCode: first.book_code,
-            bookName: getBookName(first.book_code),
-            range,
-            startChapter: first.start_chapter,
-            endChapter: first.end_chapter || first.start_chapter,
-            total: schedules.length,
-            completed: completedCount,
-            isCompleted: completedCount === schedules.length,
-            planId: Number(planId),
-          })
-        }
-      } catch {
-        // silent
-      }
-    }
-
-    void loadHomeStats()
-    void loadTodaySchedule()
-  }, [])
-
-  // ── Computed values ─────────────────────────────────────────────────
+  const hasBookmarks = stats.bookmarkCount > 0
+  const hasNotes = stats.noteCount > 0
+  const hasHighlights = stats.highlightCount > 0
 
   const showWelcomeGuide = useMemo(
-    () =>
-      !lastPosition &&
-      !todaySchedule &&
-      stats.recentRecords.length === 0,
-    [lastPosition, todaySchedule, stats.recentRecords.length]
+    () => !lastPosition && !todaySchedule && stats.recentRecords.length === 0,
+    [lastPosition, todaySchedule, stats.recentRecords.length],
   )
 
   const showUsageTips = useMemo(() => {
     if (tipsDismissed) return false
-    const total = stats.bookmarks + stats.notes + stats.highlights
-    return (
-      total < 3 &&
-      (stats.bookmarks === 0 ||
-        stats.notes === 0 ||
-        stats.highlights === 0)
-    )
-  }, [tipsDismissed, stats.bookmarks, stats.notes, stats.highlights])
+    const totalActivity = stats.bookmarkCount + stats.noteCount + stats.highlightCount
+    return totalActivity < 3 && (!hasBookmarks || !hasNotes || !hasHighlights)
+  }, [tipsDismissed, stats.bookmarkCount, stats.noteCount, stats.highlightCount, hasBookmarks, hasNotes, hasHighlights])
 
-  const progressPercent = useMemo(() => {
-    if (!todaySchedule || todaySchedule.total === 0) return 0
-    return (todaySchedule.completed / todaySchedule.total) * 100
-  }, [todaySchedule])
+  const canDismissTips = stats.bookmarkCount + stats.noteCount + stats.highlightCount > 0
 
-  // ── Callbacks ───────────────────────────────────────────────────────
+  // ─── Data fetching ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setTipsDismissed(localStorage.getItem('bible_tips_dismissed') === 'true')
+    }
+
+    void loadData()
+  }, [])
+
+  async function loadData() {
+    setIsLoading(true)
+    await Promise.all([loadHomeStats(), loadTodaySchedule()])
+    setIsLoading(false)
+  }
+
+  async function loadHomeStats() {
+    try {
+      const [bookmarksRes, notesRes, highlightsRes, recordsRes] = await Promise.all([
+        fetch('/api/bible/bookmarks').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/bible/notes').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/bible/highlights').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/bible/personal-records').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      ])
+
+      const bookmarks = bookmarksRes?.data ?? []
+      const notes = notesRes?.data ?? []
+      const highlights = highlightsRes?.data ?? []
+      const records = (recordsRes?.data ?? []).slice(0, 5)
+
+      setStats({
+        bookmarkCount: bookmarks.length,
+        noteCount: notes.length,
+        highlightCount: highlights.length,
+        recentRecords: records.map((r: { book: string; chapter: number; read_date: string }) => ({
+          book: r.book,
+          bookName: getBookName(r.book),
+          chapter: r.chapter,
+          readDate: r.read_date,
+        })),
+      })
+    } catch {
+      // Silently fail - stats will remain at defaults
+    }
+  }
+
+  async function loadTodaySchedule() {
+    try {
+      const res = await fetch('/api/bible/schedules/today')
+      if (!res.ok) return
+
+      const result = await res.json()
+      const schedules = result.data
+      if (!schedules || schedules.length === 0) return
+
+      const firstSchedule = schedules[0]
+      const completedCount = schedules.filter((s: { is_completed: boolean }) => s.is_completed).length
+
+      const bookCode = firstSchedule.book_code ?? firstSchedule.book ?? ''
+      const startCh = firstSchedule.start_chapter ?? firstSchedule.startChapter ?? 1
+      const endCh = firstSchedule.end_chapter ?? firstSchedule.endChapter ?? startCh
+      const unit = getChapterUnit(bookCode)
+
+      let range = `${startCh}${unit}`
+      if (endCh && endCh !== startCh) {
+        range = `${startCh}-${endCh}${unit}`
+      }
+
+      setTodaySchedule({
+        id: firstSchedule.id,
+        bookCode,
+        bookName: getBookName(bookCode),
+        range,
+        startChapter: startCh,
+        endChapter: endCh,
+        total: schedules.length,
+        completed: completedCount,
+        isCompleted: completedCount === schedules.length,
+        planId: firstSchedule.plan_id ?? firstSchedule.planId ?? 0,
+      })
+    } catch {
+      // Silently fail
+    }
+  }
+
+  // ─── Handlers ───────────────────────────────────────────────────────────
 
   const handleStartTongdok = useCallback(() => {
     if (!todaySchedule) return
-    onContinueReading(todaySchedule.bookCode, todaySchedule.startChapter)
-  }, [todaySchedule, onContinueReading])
+    const { bookCode, startChapter, id, planId } = todaySchedule
+    router.push(
+      `/bible?book=${bookCode}&chapter=${startChapter}&tongdok=true&schedule=${id}&plan=${planId}`,
+    )
+  }, [todaySchedule, router])
 
-  const handleDismissTips = useCallback(() => {
+  const handleRecordClick = useCallback(
+    (record: RecentRecord) => {
+      onSelectBook(record.book, record.chapter)
+    },
+    [onSelectBook],
+  )
+
+  const dismissTips = useCallback(() => {
     setTipsDismissed(true)
     if (typeof window !== 'undefined') {
       localStorage.setItem('bible_tips_dismissed', 'true')
     }
   }, [])
 
-  // ── Render ──────────────────────────────────────────────────────────
+  // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-[100dvh]" style={{ background: 'var(--color-bg-primary)' }}>
+    <div className="min-h-dvh bg-[var(--color-bg-primary)]">
       {/* Header */}
       <header
-        className="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
-        style={{
-          background: 'var(--color-bg-secondary)',
-          borderBottom: '1px solid var(--color-border-default)',
-        }}
+        className={cn(
+          'sticky top-0 z-10 flex items-center justify-between',
+          'border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]',
+          'px-4 py-3',
+        )}
       >
-        <h1
-          className="text-xl font-bold"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
-          성경
-        </h1>
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">성경</h1>
       </header>
 
-      <div className="space-y-5 px-4 pb-8 pt-4">
-        {/* ──────────── Today's Tongdok Card ──────────── */}
+      <div className="space-y-6 p-4 pb-8">
+        {/* ── Today's Reading Card ─────────────────────────────────────── */}
         {todaySchedule && (
           <section>
             <div
-              className="overflow-hidden rounded-2xl p-5 text-white"
-              style={{
-                background:
-                  'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-hover) 100%)',
-                boxShadow: '0 4px 12px rgba(75, 159, 126, 0.3)',
-              }}
+              className={cn(
+                'rounded-2xl p-5 text-white shadow-lg',
+                'bg-gradient-to-br from-[var(--color-accent-primary)] to-[var(--color-accent-hover)]',
+              )}
             >
-              {/* Badge + Date */}
-              <div className="mb-3 flex items-center justify-between">
-                <span
-                  className="rounded-full px-3 py-1 text-xs font-semibold"
-                  style={{ background: 'rgba(255,255,255,0.2)' }}
-                >
+              {/* Card header */}
+              <div className="mb-4 flex items-center justify-between">
+                <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
                   오늘의 통독
                 </span>
-                <span className="text-xs opacity-90">{formatTodayDate()}</span>
+                <span className="text-[0.8125rem] opacity-90">{formatTodayDate()}</span>
               </div>
 
-              {/* Schedule */}
-              <div className="mb-3 flex items-baseline gap-2">
-                <span className="text-xl font-bold">
-                  {todaySchedule.bookName}
-                </span>
-                <span className="text-base opacity-90">
-                  {todaySchedule.range}
-                </span>
-              </div>
-
-              {/* Progress */}
-              {todaySchedule.total > 1 && (
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="shrink-0 text-xs opacity-90">
-                    {todaySchedule.completed}/{todaySchedule.total} 완료
-                  </span>
-                  <div
-                    className="h-1.5 flex-1 overflow-hidden rounded-full"
-                    style={{ background: 'rgba(255,255,255,0.3)' }}
-                  >
-                    <div
-                      className="h-full rounded-full bg-white transition-all duration-300"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
+              {/* Schedule info */}
+              <div className="mb-4">
+                <div className="mb-3 flex items-baseline gap-2">
+                  <span className="text-xl font-bold">{todaySchedule.bookName}</span>
+                  <span className="text-base opacity-90">{todaySchedule.range}</span>
                 </div>
-              )}
 
-              {/* CTA Button */}
+                {/* Progress indicator */}
+                {todaySchedule.total > 1 && (
+                  <div className="flex items-center gap-3">
+                    <span className="whitespace-nowrap text-xs opacity-90">
+                      {todaySchedule.completed}/{todaySchedule.total} 완료
+                    </span>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/30">
+                      <div
+                        className="h-full rounded-full bg-white transition-all duration-300"
+                        style={{
+                          width: `${(todaySchedule.completed / todaySchedule.total) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Start button */}
               <button
                 type="button"
-                onClick={handleStartTongdok}
-                className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all hover:-translate-y-0.5"
-                style={
+                className={cn(
+                  'flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[0.9375rem] font-semibold transition-all',
                   todaySchedule.isCompleted
-                    ? {
-                        background: 'rgba(255,255,255,0.2)',
-                        color: 'white',
-                      }
-                    : {
-                        background: 'white',
-                        color: 'var(--color-accent-primary)',
-                      }
-                }
+                    ? 'bg-white/20 text-white'
+                    : 'bg-white text-[var(--color-accent-primary)] hover:-translate-y-0.5 hover:shadow-lg',
+                )}
+                onClick={handleStartTongdok}
               >
                 {todaySchedule.isCompleted ? (
                   <>
@@ -444,82 +367,62 @@ export default function BibleHome({
           </section>
         )}
 
-        {/* ──────────── Continue Reading ──────────── */}
+        {/* ── Continue Reading ─────────────────────────────────────────── */}
         {lastPosition && (
           <section>
-            <h2
-              className="mb-2 text-sm font-semibold"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
+            <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
               계속 읽기
             </h2>
             <button
               type="button"
-              onClick={() =>
-                onContinueReading(lastPosition.book, lastPosition.chapter)
-              }
-              className="flex w-full items-center justify-between rounded-xl px-4 py-3.5 transition-all"
-              style={{
-                background: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border-default)',
-                color: 'var(--color-text-primary)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--color-bg-tertiary)'
-                e.currentTarget.style.borderColor = 'var(--color-accent-primary)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--color-bg-secondary)'
-                e.currentTarget.style.borderColor = 'var(--color-border-default)'
-              }}
+              className={cn(
+                'flex w-full items-center justify-between rounded-xl border border-[var(--color-border-default)]',
+                'bg-[var(--color-bg-secondary)] px-5 py-4 text-[var(--color-text-primary)]',
+                'transition-all hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-bg-tertiary)]',
+              )}
+              onClick={() => onContinueReading(lastPosition.book, lastPosition.chapter)}
             >
               <div className="flex items-center gap-2">
                 <span className="font-semibold">
-                  {getBookName(lastPosition.book)}
+                  {BIBLE_BOOKS[lastPosition.book]?.ko ?? lastPosition.book}
                 </span>
-                <span style={{ color: 'var(--color-text-secondary)' }}>
+                <span className="text-[0.9375rem] text-[var(--color-text-secondary)]">
                   {lastPosition.chapter}
                   {getChapterUnit(lastPosition.book)}
                 </span>
               </div>
-              <ArrowRightIcon className="shrink-0" />
+              <ArrowRightIcon className="text-[var(--color-text-muted)]" />
             </button>
           </section>
         )}
 
-        {/* ──────────── Welcome Guide ──────────── */}
-        {showWelcomeGuide && (
+        {/* ── Welcome Guide ────────────────────────────────────────────── */}
+        {showWelcomeGuide && !isLoading && (
           <section>
             <div
-              className="rounded-2xl px-6 py-8 text-center"
-              style={{
-                background: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border-default)',
-              }}
+              className={cn(
+                'rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]',
+                'px-6 py-8 text-center',
+              )}
             >
               <div className="mb-4 text-5xl">📖</div>
-              <h2
-                className="mb-2 text-lg font-bold"
-                style={{ color: 'var(--color-text-primary)' }}
-              >
+              <h2 className="mb-2 text-lg font-bold text-[var(--color-text-primary)]">
                 매일일독에 오신 것을 환영합니다!
               </h2>
-              <p
-                className="mb-6 text-sm"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
+              <p className="mb-6 text-[0.9375rem] text-[var(--color-text-secondary)]">
                 성경을 읽고, 묵상하고, 기록해보세요.
               </p>
               <div className="flex flex-col gap-3">
                 <button
                   type="button"
+                  className={cn(
+                    'flex items-center justify-center gap-2 rounded-xl px-4 py-3.5',
+                    'bg-[var(--color-accent-primary)] text-[0.9375rem] font-medium text-white',
+                    'transition-all hover:bg-[var(--color-accent-hover)]',
+                  )}
                   onClick={onViewTOC}
-                  className="flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium text-white transition-all hover:opacity-90"
-                  style={{
-                    background: 'var(--color-accent-primary)',
-                  }}
                 >
-                  <ListIcon />
+                  <ListIcon className="h-[18px] w-[18px]" />
                   성경 목차에서 시작하기
                 </button>
               </div>
@@ -527,147 +430,127 @@ export default function BibleHome({
           </section>
         )}
 
-        {/* ──────────── Feature Cards ──────────── */}
+        {/* ── Feature Cards ────────────────────────────────────────────── */}
         <section>
-          <h2
-            className="mb-2 text-sm font-semibold"
-            style={{ color: 'var(--color-text-primary)' }}
-          >
+          <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
             내 성경 활동
           </h2>
           <div className="flex flex-col gap-2">
-            {FEATURE_CARDS.map((card) => {
-              const count =
-                card.key === 'history' ? 0 : (stats[card.countKey] as number)
-              const desc =
-                card.key === 'history'
-                  ? card.emptyText
-                  : count > 0
-                    ? card.countText(count)
-                    : card.emptyText
-
-              return (
-                <button
-                  key={card.key}
-                  type="button"
-                  className="flex items-center gap-3.5 rounded-xl p-3.5 transition-all"
-                  style={{
-                    background: 'var(--color-bg-secondary)',
-                    border: '1px solid var(--color-border-default)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background =
-                      'var(--color-bg-tertiary)'
-                    e.currentTarget.style.borderColor =
-                      'var(--color-border-dark)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background =
-                      'var(--color-bg-secondary)'
-                    e.currentTarget.style.borderColor =
-                      'var(--color-border-default)'
-                  }}
-                >
-                  {/* Icon */}
-                  <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                    style={{
-                      background: card.iconBg,
-                      color: card.iconColor,
-                    }}
-                  >
-                    {card.icon}
-                  </div>
-
-                  {/* Content */}
-                  <div className="min-w-0 flex-1 text-left">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[0.9375rem] font-semibold"
-                        style={{ color: 'var(--color-text-primary)' }}
-                      >
-                        {card.name}
-                      </span>
-                      {count > 0 && (
-                        <span
-                          className="rounded-full px-2 py-0.5 text-xs font-semibold"
-                          style={{
-                            background: 'var(--color-accent-light)',
-                            color: 'var(--color-accent-primary)',
-                          }}
-                        >
-                          {count}
-                        </span>
-                      )}
-                    </div>
-                    <p
-                      className="truncate text-xs"
-                      style={{ color: 'var(--color-text-secondary)' }}
-                    >
-                      {desc}
-                    </p>
-                  </div>
-
-                  {/* Arrow */}
-                  <ChevronRightIcon
-                    className="shrink-0"
-                  />
-                </button>
-              )
-            })}
+            <FeatureCard
+              icon={<BookmarkIcon />}
+              iconBg="bg-[var(--color-warning-bg)]"
+              iconColor="text-[var(--color-warning-text)]"
+              name="북마크"
+              count={stats.bookmarkCount}
+              description={
+                stats.bookmarkCount > 0
+                  ? `저장된 ${stats.bookmarkCount}개의 장`
+                  : '자주 찾는 장을 저장하세요'
+              }
+              onClick={() => router.push('/bible/bookmarks')}
+            />
+            <FeatureCard
+              icon={<DocumentIcon />}
+              iconBg="bg-[var(--color-info-bg)]"
+              iconColor="text-[var(--color-info-text)]"
+              name="묵상노트"
+              count={stats.noteCount}
+              description={
+                stats.noteCount > 0
+                  ? `작성된 ${stats.noteCount}개의 노트`
+                  : '말씀을 읽고 묵상을 기록하세요'
+              }
+              onClick={() => router.push('/bible/notes')}
+            />
+            <FeatureCard
+              icon={<HighlightIcon />}
+              iconBg="bg-[var(--color-danger-bg)]"
+              iconColor="text-[var(--color-danger-text)]"
+              name="하이라이트"
+              count={stats.highlightCount}
+              description={
+                stats.highlightCount > 0
+                  ? `표시된 ${stats.highlightCount}개의 구절`
+                  : '중요한 구절에 색상을 입히세요'
+              }
+              onClick={() => router.push('/bible/highlights')}
+            />
+            <FeatureCard
+              icon={<HistoryIcon />}
+              iconBg="bg-[var(--color-success-bg)]"
+              iconColor="text-[var(--color-success-text)]"
+              name="읽기 기록"
+              description="읽은 장과 날짜를 확인하세요"
+              onClick={() => router.push('/bible/history')}
+            />
           </div>
         </section>
 
-        {/* ──────────── Usage Tips ──────────── */}
+        {/* ── Usage Tips ───────────────────────────────────────────────── */}
         {showUsageTips && (
           <section
-            className="rounded-xl p-4"
-            style={{
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-border-default)',
-            }}
+            className={cn(
+              'rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4',
+            )}
           >
-            <h2
-              className="mb-3 text-sm font-semibold"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
+            <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
               💡 사용 팁
             </h2>
-            <div className="flex flex-col gap-3">
-              {stats.highlights === 0 && (
+            <div className="flex flex-col gap-3.5">
+              {!hasHighlights && (
                 <TipItem
                   emoji="✨"
                   title="하이라이트 만들기"
-                  desc="성경 본문에서 텍스트를 드래그하면 하이라이트, 복사, 공유 메뉴가 나타나요"
+                  description={
+                    <>
+                      성경 본문에서 텍스트를{' '}
+                      <em className="not-italic font-medium text-[var(--color-accent-primary)]">
+                        드래그
+                      </em>
+                      하면 하이라이트, 복사, 공유 메뉴가 나타나요
+                    </>
+                  }
                 />
               )}
-              {stats.bookmarks === 0 && (
+              {!hasBookmarks && (
                 <TipItem
                   emoji="🔖"
                   title="북마크 추가하기"
-                  desc="성경 읽기 화면 상단의 북마크 아이콘을 눌러 현재 장을 저장하세요"
+                  description={
+                    <>
+                      성경 읽기 화면 상단의{' '}
+                      <em className="not-italic font-medium text-[var(--color-accent-primary)]">
+                        북마크 아이콘
+                      </em>
+                      을 눌러 현재 장을 저장하세요
+                    </>
+                  }
                 />
               )}
-              {stats.notes === 0 && (
+              {!hasNotes && (
                 <TipItem
                   emoji="📝"
                   title="묵상노트 작성하기"
-                  desc="읽기 화면의 메뉴(⋮)에서 묵상노트를 작성할 수 있어요"
+                  description={
+                    <>
+                      읽기 화면의{' '}
+                      <em className="not-italic font-medium text-[var(--color-accent-primary)]">
+                        메뉴(⋮)
+                      </em>
+                      에서 묵상노트를 작성할 수 있어요
+                    </>
+                  }
                 />
               )}
             </div>
-            {stats.bookmarks + stats.notes + stats.highlights > 0 && (
+            {canDismissTips && (
               <button
                 type="button"
-                onClick={handleDismissTips}
-                className="mt-3 w-full py-2 text-center text-xs transition-colors"
-                style={{ color: 'var(--color-text-muted)' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--color-text-secondary)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--color-text-muted)'
-                }}
+                className={cn(
+                  'mt-3 block w-full text-center text-xs text-[var(--color-text-muted)]',
+                  'transition-colors hover:text-[var(--color-text-secondary)]',
+                )}
+                onClick={dismissTips}
               >
                 다음부터 표시 안함
               </button>
@@ -675,87 +558,61 @@ export default function BibleHome({
           </section>
         )}
 
-        {/* ──────────── Recent Records ──────────── */}
+        {/* ── Recent Records ───────────────────────────────────────────── */}
         {stats.recentRecords.length > 0 && (
           <section>
-            <h2
-              className="mb-2 text-sm font-semibold"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
+            <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
               최근 읽은 성경
             </h2>
             <ul
-              className="overflow-hidden rounded-xl"
-              style={{
-                background: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border-default)',
-              }}
+              className={cn(
+                'overflow-hidden rounded-xl border border-[var(--color-border-default)]',
+                'bg-[var(--color-bg-secondary)]',
+              )}
             >
               {stats.recentRecords.map((record) => (
                 <li
-                  key={`${record.book}-${record.chapter}`}
-                  className="cursor-pointer transition-colors"
-                  style={{
-                    borderBottom: '1px solid var(--color-border-default)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background =
-                      'var(--color-bg-tertiary)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
+                  key={`${record.book}-${record.chapter}-${record.readDate}`}
+                  className={cn(
+                    'flex cursor-pointer items-center justify-between px-4 py-3.5',
+                    'border-b border-[var(--color-border-default)] last:border-b-0',
+                    'transition-colors hover:bg-[var(--color-bg-tertiary)]',
+                  )}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleRecordClick(record)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleRecordClick(record)
+                    }
                   }}
                 >
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-4 py-3"
-                    onClick={() =>
-                      onContinueReading(record.book, record.chapter)
-                    }
-                  >
-                    <span
-                      className="text-[0.9375rem]"
-                      style={{ color: 'var(--color-text-primary)' }}
-                    >
-                      {record.bookName} {record.chapter}
-                      {getChapterUnit(record.book)}
-                    </span>
-                    <span
-                      className="text-xs"
-                      style={{ color: 'var(--color-text-muted)' }}
-                    >
-                      {formatDate(record.readDate)}
-                    </span>
-                  </button>
+                  <span className="text-[0.9375rem] text-[var(--color-text-primary)]">
+                    {record.bookName} {record.chapter}
+                    {getChapterUnit(record.book)}
+                  </span>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {formatDate(record.readDate)}
+                  </span>
                 </li>
               ))}
             </ul>
           </section>
         )}
 
-        {/* ──────────── TOC Shortcut ──────────── */}
+        {/* ── TOC Shortcut ─────────────────────────────────────────────── */}
         <section>
           <button
             type="button"
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border-default)]',
+              'bg-[var(--color-bg-secondary)] py-3.5 text-[0.9375rem] text-[var(--color-text-primary)]',
+              'transition-all hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-bg-tertiary)]',
+            )}
             onClick={onViewTOC}
-            className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[0.9375rem] transition-all"
-            style={{
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-border-default)',
-              color: 'var(--color-text-primary)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--color-bg-tertiary)'
-              e.currentTarget.style.borderColor = 'var(--color-accent-primary)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--color-bg-secondary)'
-              e.currentTarget.style.borderColor = 'var(--color-border-default)'
-            }}
           >
-            <span style={{ color: 'var(--color-accent-primary)' }}>
-              <ListIcon />
-            </span>
+            <ListIcon className="text-[var(--color-accent-primary)]" />
             성경 전체 목차
           </button>
         </section>
@@ -764,35 +621,77 @@ export default function BibleHome({
   )
 }
 
-// ── Sub-components ──────────────────────────────────────────────────────
+// ─── Sub-components ────────────────────────────────────────────────────────
 
-function TipItem({
-  emoji,
-  title,
-  desc,
-}: {
+interface FeatureCardProps {
+  icon: React.ReactNode
+  iconBg: string
+  iconColor: string
+  name: string
+  count?: number
+  description: string
+  onClick: () => void
+}
+
+function FeatureCard({ icon, iconBg, iconColor, name, count, description, onClick }: FeatureCardProps) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'flex w-full items-center gap-3.5 rounded-xl border border-[var(--color-border-default)]',
+        'bg-[var(--color-bg-secondary)] p-4 text-left',
+        'transition-all hover:border-[var(--color-border-dark)] hover:bg-[var(--color-bg-tertiary)]',
+      )}
+      onClick={onClick}
+    >
+      <div
+        className={cn(
+          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+          iconBg,
+          iconColor,
+        )}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1 text-left">
+        <div className="mb-0.5 flex items-center gap-2">
+          <span className="text-[0.9375rem] font-semibold text-[var(--color-text-primary)]">
+            {name}
+          </span>
+          {count != null && count > 0 && (
+            <span
+              className={cn(
+                'rounded-lg bg-[var(--color-accent-light)] px-2 py-0.5',
+                'text-xs font-semibold text-[var(--color-accent-primary)]',
+              )}
+            >
+              {count}
+            </span>
+          )}
+        </div>
+        <p className="truncate text-[0.8125rem] text-[var(--color-text-secondary)]">
+          {description}
+        </p>
+      </div>
+      <ArrowRightIcon className="shrink-0 text-[var(--color-text-muted)]" />
+    </button>
+  )
+}
+
+interface TipItemProps {
   emoji: string
   title: string
-  desc: string
-}) {
+  description: React.ReactNode
+}
+
+function TipItem({ emoji, title, description }: TipItemProps) {
   return (
-    <div
-      className="flex gap-3 rounded-lg p-3"
-      style={{ background: 'var(--color-bg-tertiary)' }}
-    >
+    <div className="flex gap-3 rounded-lg bg-[var(--color-bg-tertiary)] p-3">
       <span className="shrink-0 text-xl">{emoji}</span>
       <div>
-        <strong
-          className="block text-sm"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
-          {title}
-        </strong>
-        <p
-          className="text-xs leading-relaxed"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          {desc}
+        <strong className="mb-1 block text-sm text-[var(--color-text-primary)]">{title}</strong>
+        <p className="text-[0.8125rem] leading-relaxed text-[var(--color-text-secondary)]">
+          {description}
         </p>
       </div>
     </div>
