@@ -51,29 +51,30 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-12"
-      style={{ backgroundColor: 'var(--sanctuary-bg)' }}
+      style={{ backgroundColor: 'var(--color-bg-base)' }}
     >
       <div className="w-full max-w-[28rem] flex flex-col gap-8 fade-in">
         {/* Back Button */}
         <button
+          type="button"
           onClick={() => router.back()}
-          className="self-start p-2 -ml-2 transition-colors duration-200"
-          style={{ color: 'var(--sanctuary-text-secondary)' }}
+          className="self-start flex items-center p-2 -m-2 transition-colors duration-200 hover:text-[var(--color-slate-800)]"
+          style={{ color: 'var(--color-slate-500)' }}
           aria-label="뒤로 가기"
         >
-          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
 
         {/* Logo */}
-        <div className="text-center mb-2">
+        <div className="text-center mb-4">
           <Image
             src="/images/로고_투명.png"
             alt="매일일독"
             width={160}
             height={32}
-            className="h-8 w-auto mx-auto dark:invert"
+            className="h-8 w-auto mx-auto"
             priority
           />
         </div>
@@ -82,6 +83,7 @@ export default function LoginPage() {
         <div className="flex flex-col gap-3">
           {/* Kakao */}
           <button
+            type="button"
             onClick={signInWithKakao}
             disabled={isLoading !== null}
             className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-md text-sm font-medium border-none cursor-pointer transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed btn-interactive"
@@ -90,26 +92,27 @@ export default function LoginPage() {
             {isLoading === 'kakao' ? (
               <span className="loading-spinner small" />
             ) : (
-              <Image src="/images/kakao.png" alt="" width={16} height={16} />
+              <Image src="/images/kakao.png" alt="카카오 로고" width={16} height={16} />
             )}
             카카오로 시작하기
           </button>
 
           {/* Google */}
           <button
+            type="button"
             onClick={signInWithGoogle}
             disabled={isLoading !== null}
             className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-md text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed btn-interactive"
             style={{
               backgroundColor: '#FFFFFF',
               color: '#1F2937',
-              border: '1px solid var(--sanctuary-border)',
+              border: '1px solid #D1D5DB',
             }}
           >
             {isLoading === 'google' ? (
               <span className="loading-spinner small" />
             ) : (
-              <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+              <svg aria-hidden="true" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                 <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
                 <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
@@ -121,6 +124,7 @@ export default function LoginPage() {
 
           {/* Apple */}
           <button
+            type="button"
             onClick={signInWithApple}
             disabled={isLoading !== null}
             className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-md text-sm font-medium border-none cursor-pointer transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed btn-interactive"
@@ -129,7 +133,7 @@ export default function LoginPage() {
             {isLoading === 'apple' ? (
               <span className="loading-spinner small" />
             ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
               </svg>
             )}
@@ -138,13 +142,13 @@ export default function LoginPage() {
         </div>
 
         {/* Divider */}
-        <div className="relative text-center my-1">
-          <div className="absolute top-1/2 left-0 right-0 h-px" style={{ backgroundColor: 'var(--sanctuary-border)' }} />
+        <div className="relative text-center my-2">
+          <div className="absolute top-1/2 left-0 right-0 h-px" style={{ backgroundColor: 'var(--color-slate-300)' }} />
           <span
             className="relative inline-block px-2 text-sm"
             style={{
-              backgroundColor: 'var(--sanctuary-bg)',
-              color: 'var(--sanctuary-text-secondary)',
+              backgroundColor: 'var(--color-bg-base)',
+              color: 'var(--color-slate-500)',
             }}
           >
             또는 이메일/아이디로 계속
@@ -160,9 +164,9 @@ export default function LoginPage() {
               disabled
               className="block w-full py-3 px-4 text-sm border-b-0 rounded-t-md appearance-none"
               style={{
-                backgroundColor: 'var(--sanctuary-card-bg)',
-                color: 'var(--sanctuary-text-main)',
-                border: '1px solid var(--sanctuary-border)',
+                backgroundColor: 'var(--color-bg-card)',
+                color: 'var(--color-slate-800)',
+                border: '1px solid var(--color-slate-300)',
                 borderBottom: 'none',
                 opacity: 0.6,
               }}
@@ -173,29 +177,30 @@ export default function LoginPage() {
               disabled
               className="block w-full py-3 px-4 text-sm rounded-b-md appearance-none"
               style={{
-                backgroundColor: 'var(--sanctuary-card-bg)',
-                color: 'var(--sanctuary-text-main)',
-                border: '1px solid var(--sanctuary-border)',
+                backgroundColor: 'var(--color-bg-card)',
+                color: 'var(--color-slate-800)',
+                border: '1px solid var(--color-slate-300)',
                 opacity: 0.6,
               }}
             />
           </div>
 
           <button
+            type="button"
             disabled
             className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white opacity-60 cursor-not-allowed"
-            style={{ backgroundColor: 'var(--sanctuary-accent)' }}
+            style={{ backgroundColor: 'var(--primary-color)' }}
           >
             로그인
           </button>
 
           <div className="flex flex-col items-center gap-2 text-sm">
-            <span style={{ color: 'var(--sanctuary-text-secondary)' }}>
+            <span style={{ color: 'var(--color-slate-500)' }}>
               비밀번호를 잊으셨나요?
             </span>
             <span
               className="inline-block px-4 py-2 rounded-md font-medium"
-              style={{ color: 'var(--sanctuary-accent)' }}
+              style={{ color: 'var(--primary-color)' }}
             >
               이메일로 회원가입
             </span>
@@ -219,16 +224,16 @@ export default function LoginPage() {
         {/* Legal Links */}
         <div
           className="flex items-center justify-center gap-2 text-xs mt-2"
-          style={{ color: 'var(--sanctuary-text-secondary)' }}
+          style={{ color: 'var(--color-slate-400)' }}
         >
           <Link href="/terms" className="hover:underline" style={{ color: 'inherit' }}>
             이용약관
           </Link>
-          <span style={{ color: 'var(--sanctuary-border)' }}>|</span>
+          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
           <Link href="/privacy" className="hover:underline" style={{ color: 'inherit' }}>
             개인정보처리방침
           </Link>
-          <span style={{ color: 'var(--sanctuary-border)' }}>|</span>
+          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
           <Link href="/company" className="hover:underline" style={{ color: 'inherit' }}>
             사업자 정보
           </Link>
