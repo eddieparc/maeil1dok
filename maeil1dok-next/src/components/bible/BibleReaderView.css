@@ -100,6 +100,34 @@
   box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
 }
 
+.tool-trigger-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border-radius: 8px;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tool-trigger-button:hover {
+  background: var(--color-button-default);
+  color: var(--color-text-primary);
+}
+
+.indicator-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+}
+
 @keyframes pulse-segment {
   0% { opacity: 1; }
   50% { opacity: 0.5; }

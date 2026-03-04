@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   Bookmark,
@@ -9,23 +9,22 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Ellipsis,
   Headphones,
   Home,
-  Settings2,
   User,
   X,
 } from 'lucide-react'
 import BibleChapterView from './BibleChapterView'
 import { VerseActionMenu } from './VerseActionMenu'
 import { useVerseSelection } from './VerseSelector'
-import { BIBLE_BOOKS, BIBLE_BOOK_KEYS, type BibleVersion } from '@/lib/bible/books'
+import { BIBLE_BOOKS, type BibleVersion } from '@/lib/bible/books'
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation'
 import { useBibleContent } from '@/hooks/bible/useBibleContent'
 import { useBookmark } from '@/hooks/bible/useBookmark'
 import { useHighlight } from '@/hooks/bible/useHighlight'
 import { useNote } from '@/hooks/bible/useNote'
 import { useReadingSettings } from '@/hooks/bible/useReadingSettings'
-import { useTongdokMode } from '@/hooks/bible/useTongdokMode'
 import { usePersonalRecord } from '@/hooks/bible/usePersonalRecord'
 import { cn } from '@/lib/utils'
 import type { HighlightColor } from '@/types'
@@ -62,31 +61,23 @@ interface BibleReaderViewProps {
   onPrevChapter: () => void
   onNextChapter: () => void
   onOpenBookSelector: () => void
-  onOpenNoteModal: () => void
   onOpenHighlightModal: () => void
   onOpenBookmarkModal: () => void
   onOpenSettingsModal: () => void
   onMarkAsRead: () => void
+  tongdokMode: boolean
+  tongdokRangeText: string
+  tongdokProgress: { completed: number; total: number }
+  onDisableTongdokMode: () => void
+  audioLink: string | null
+  guideLink: string | null
+  onAudioLinkClick: (url: string) => void
 }
 
 /* ===== Helpers ===== */
 function inferVerseNumber(text: string) {
   const match = text.match(/^\s*(\d{1,3})\b/)
   return match ? Number(match[1]) : null
-}
-
-function formatTongdokRange(
-  book: string,
-  chapter: number,
-  range: ReturnType<ReturnType<typeof useTongdokMode>['getTongdokScheduleRange']>,
-) {
-  if (!range) {
-    return `${BIBLE_BOOKS[book]?.ko ?? book} ${chapter}장`
-  }
-
-  const startBook = BIBLE_BOOKS[range.startBook]?.ko ?? range.startBook
-  const endBook = BIBLE_BOOKS[range.endBook]?.ko ?? range.endBook
-  return `${startBook} ${range.startChapter}장 - ${endBook} ${range.endChapter}장`
 }
 
 /* ===== Component ===== */
@@ -97,33 +88,30 @@ export default function BibleReaderView({
   onPrevChapter,
   onNextChapter,
   onOpenBookSelector,
-  onOpenNoteModal,
   onOpenHighlightModal,
   onOpenBookmarkModal,
   onOpenSettingsModal,
   onMarkAsRead,
+  tongdokMode,
+  tongdokRangeText,
+  tongdokProgress,
+  onDisableTongdokMode,
+  audioLink,
+  guideLink,
+  onAudioLinkClick,
 }: BibleReaderViewProps) {
   /* --- Hooks --- */
   const { settings } = useReadingSettings()
-  const { content, isLoading, error, chapterTitle } = useBibleContent(book, chapter, version, settings)
+  const { content, isLoading, error } = useBibleContent(book, chapter, version, settings)
   const {
     highlights,
     createHighlight,
     deleteHighlight,
     getVerseHighlight,
-    customColors,
   } = useHighlight(book, chapter, version)
   const { isBookmarked, toggleBookmark } = useBookmark(book, chapter)
   const { noteCount } = useNote(book, chapter)
   const { selectedVerseRange, onVerseClick, clearSelection } = useVerseSelection()
-  const {
-    tongdokMode,
-    tongdokPlanId,
-    disableTongdokMode,
-    loadReadingDetail,
-    getTongdokScheduleRange,
-    getTongdokProgress,
-  } = useTongdokMode()
   const { isChapterRead, getBookProgress } = usePersonalRecord(book)
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -133,14 +121,6 @@ export default function BibleReaderView({
   const [selectedVerseNumbers, setSelectedVerseNumbers] = useState<number[]>([])
 
   /* --- Effects --- */
-  useEffect(() => {
-    if (!tongdokMode || !tongdokPlanId) {
-      return
-    }
-
-    void loadReadingDetail(tongdokPlanId)
-  }, [loadReadingDetail, tongdokMode, tongdokPlanId])
-
   /* --- Derived state --- */
   const bookName = BIBLE_BOOKS[book]?.ko ?? book
   const shortBookName = BOOK_ABBREVIATIONS[bookName] ?? bookName.charAt(0)
@@ -187,10 +167,6 @@ export default function BibleReaderView({
     createdAt: '',
     updatedAt: '',
   }), [settings])
-
-  const tongdokRange = getTongdokScheduleRange()
-  const tongdokProgress = getTongdokProgress()
-  const tongdokRangeText = formatTongdokRange(book, chapter, tongdokRange)
 
   /* --- Event handlers --- */
   const handleVerseTap = useCallback((payload: {
@@ -322,7 +298,7 @@ export default function BibleReaderView({
             <button
               type="button"
               className="flex items-center justify-center w-6 h-6 text-[var(--color-text-tertiary)] rounded hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-button-default)] active:scale-90 transition-all shrink-0"
-              onClick={disableTongdokMode}
+              onClick={onDisableTongdokMode}
               title="통독모드 종료"
             >
               <X size={14} strokeWidth={2.5} />
@@ -352,22 +328,29 @@ export default function BibleReaderView({
         {/* Center: Tongdok action buttons (audio/guide) */}
         {tongdokMode ? (
           <div className="flex flex-1 items-center justify-end gap-0.5">
-            <button
-              type="button"
-              className="flex items-center gap-1 px-2 py-1 text-[var(--color-text-secondary)] bg-transparent border-none rounded-md text-xs font-medium transition-all hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)] active:scale-95 cursor-pointer whitespace-nowrap"
-              title="오디오"
-            >
-              <Headphones size={16} />
-              <span className="tongdok-action-text">듣기</span>
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-1 px-2 py-1 text-[var(--color-text-secondary)] bg-transparent border-none rounded-md text-xs font-medium transition-all hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)] active:scale-95 cursor-pointer whitespace-nowrap"
-              title="가이드"
-            >
-              <BookOpen size={16} />
-              <span className="tongdok-action-text">가이드</span>
-            </button>
+            {audioLink ? (
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 py-1 text-[var(--color-text-secondary)] bg-transparent border-none rounded-md text-xs font-medium transition-all hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)] active:scale-95 cursor-pointer whitespace-nowrap"
+                title="오디오"
+                onClick={() => onAudioLinkClick(audioLink)}
+              >
+                <Headphones size={16} />
+                <span className="tongdok-action-text">듣기</span>
+              </button>
+            ) : null}
+            {guideLink ? (
+              <a
+                href={guideLink}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 px-2 py-1 text-[var(--color-text-secondary)] border-none rounded-md text-xs font-medium transition-all hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)] active:scale-95 cursor-pointer whitespace-nowrap no-underline"
+                title="가이드"
+              >
+                <BookOpen size={16} />
+                <span className="tongdok-action-text">가이드</span>
+              </a>
+            ) : null}
           </div>
         ) : null}
 
@@ -398,11 +381,12 @@ export default function BibleReaderView({
           ) : null}
           <button
             type="button"
-            className="flex items-center justify-center w-9 h-9 rounded-lg text-[var(--color-text-secondary)] transition-all hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)] active:bg-[var(--color-button-active)]"
+            className="tool-trigger-button"
             onClick={onOpenSettingsModal}
             aria-label="도구"
           >
-            <Settings2 size={20} aria-hidden="true" />
+            <Ellipsis size={18} aria-hidden="true" />
+            {noteCount > 0 ? <span className="indicator-dot" /> : null}
           </button>
         </div>
       </header>

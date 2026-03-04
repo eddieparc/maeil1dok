@@ -3,9 +3,12 @@ import { useEffect, useMemo, useState } from 'react'
 interface TongdokSchedule {
   id: string
   plan_id: number
+  date?: string
   book: string
   start_chapter: number
   end_chapter: number
+  audio_link?: string | null
+  guide_link?: string | null
 }
 
 interface TongdokProgress {
@@ -33,6 +36,14 @@ interface TongdokProgressCount {
   total: number
 }
 
+interface TongdokNextSchedule {
+  id: string
+  planId: string
+  book: string
+  chapter: number
+  date: string
+}
+
 interface TongdokApiResponse<T> {
   data?: T
 }
@@ -49,6 +60,9 @@ interface UseTongdokModeResult {
   completeReading: () => Promise<boolean>
   getTongdokProgress: () => TongdokProgressCount
   isScheduleCompleted: () => boolean
+  getAudioLink: (book: string, chapter: number) => string | null
+  getGuideLink: (book: string, chapter: number) => string | null
+  getNextScheduleSuggestion: () => TongdokNextSchedule | null
 }
 
 const STORAGE_KEY = 'tongdokModeState'
@@ -195,6 +209,66 @@ export function useTongdokMode(): UseTongdokModeResult {
     return current?.is_completed ?? false
   }
 
+  const getAudioLink = (book: string, chapter: number) => {
+    const match = schedules.find((schedule) => (
+      schedule.book === book
+      && chapter >= schedule.start_chapter
+      && chapter <= schedule.end_chapter
+    ))
+
+    return match?.audio_link ?? null
+  }
+
+  const getGuideLink = (book: string, chapter: number) => {
+    const match = schedules.find((schedule) => (
+      schedule.book === book
+      && chapter >= schedule.start_chapter
+      && chapter <= schedule.end_chapter
+    ))
+
+    return match?.guide_link ?? null
+  }
+
+  const getNextScheduleSuggestion = (): TongdokNextSchedule | null => {
+    if (!tongdokScheduleId || schedules.length === 0) {
+      return null
+    }
+
+    const completedIds = new Set(
+      progressList
+        .filter((entry) => entry.is_completed)
+        .map((entry) => entry.id),
+    )
+    completedIds.add(tongdokScheduleId)
+
+    const sortedSchedules = [...schedules].sort((a, b) => {
+      const dateCompare = (a.date ?? '').localeCompare(b.date ?? '')
+      if (dateCompare !== 0) {
+        return dateCompare
+      }
+
+      return a.id.localeCompare(b.id)
+    })
+
+    const currentIndex = sortedSchedules.findIndex((schedule) => schedule.id === tongdokScheduleId)
+    const searchStart = currentIndex >= 0 ? currentIndex + 1 : 0
+
+    for (let index = searchStart; index < sortedSchedules.length; index += 1) {
+      const schedule = sortedSchedules[index]
+      if (!completedIds.has(schedule.id)) {
+        return {
+          id: schedule.id,
+          planId: String(schedule.plan_id),
+          book: schedule.book,
+          chapter: schedule.start_chapter,
+          date: schedule.date ?? '',
+        }
+      }
+    }
+
+    return null
+  }
+
   const completeReading = async () => {
     if (!tongdokScheduleId) {
       return false
@@ -230,5 +304,8 @@ export function useTongdokMode(): UseTongdokModeResult {
     completeReading,
     getTongdokProgress,
     isScheduleCompleted,
+    getAudioLink,
+    getGuideLink,
+    getNextScheduleSuggestion,
   }
 }
