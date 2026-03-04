@@ -1,4 +1,82 @@
 @import "tailwindcss";
+/* ===== Font Face Declarations ===== */
+
+/* RIDI 바탕 - 전자책 최적화 명조체 */
+@font-face {
+  font-family: 'RIDIBatang';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.0/RIDIBatang.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* KoPub 바탕 - Light (400) */
+@font-face {
+  font-family: 'KoPub Batang';
+  src: url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Light.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Light.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* KoPub 바탕 - Regular (500) */
+@font-face {
+  font-family: 'KoPub Batang';
+  src: url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Regular.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* KoPub 바탕 - Bold (600) */
+@font-face {
+  font-family: 'KoPub Batang';
+  src: url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Bold.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Bold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Pretendard - Regular (400) */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Pretendard - Medium (500) */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Pretendard - SemiBold (600) */
+@font-face {
+  font-family: 'Pretendard';
+  src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-SemiBold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+:root {
+  --font-family-ui: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-reading: "KoPub Batang", "RIDI Batang", "Noto Serif KR", serif;
+  --font-size-xs-tablet: 0.8125rem;
+  --font-size-sm-tablet: 0.9375rem;
+  --font-size-base-tablet: 1.0625rem;
+  --font-size-lg-tablet: 1.25rem;
+  --font-size-xl-tablet: 1.5rem;
+}
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -7,8 +85,8 @@
   --color-success: #10B981;
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
-  --font-family-ui: var(--font-noto-sans-kr), "Noto Sans KR", sans-serif;
-  --font-family-reading: "KoPub Batang", serif;
+  --font-family-ui: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-reading: "KoPub Batang", "RIDI Batang", "Noto Serif KR", serif;
 
   --color-bg-primary: #faf8f6;
   --color-bg-secondary: #ffffff;
@@ -51,6 +129,11 @@
   --font-size-xl: 1.25rem;
   --font-size-2xl: 1.5rem;
   --font-size-3xl: 1.875rem;
+  --font-size-xs-tablet: 0.8125rem;
+  --font-size-sm-tablet: 0.9375rem;
+  --font-size-base-tablet: 1.0625rem;
+  --font-size-lg-tablet: 1.25rem;
+  --font-size-xl-tablet: 1.5rem;
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -74,6 +157,103 @@
   --radius-full: 9999px;
 
   --color-kakao-bg: #FEE500;
+  --color-kakao-hover: #FDD835;
+  --color-kakao-text: #000000;
+
+  /* Overlay */
+  --color-modal-bg: #ffffff;
+  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-tooltip-bg: #1f2937;
+  --color-tooltip-text: #ffffff;
+
+  /* ===== Bible Content Specific ===== */
+  --bible-bg: #faf8f6;
+  --bible-text: #2a1111;
+  --verse-number-color: #999999;
+  --section-title-color: #4B9F7E;
+  --cross-ref-color: #666666;
+  --footnote-color: #3b82f6;
+  --description-color: #6b7280;
+
+  /* Highlight colors for names/places */
+  --highlight-name-color: #7c5a3c;
+  --highlight-place-color: #5a6e54;
+
+  /* ===== Schedule Status Colors ===== */
+  /* Completed (읽음) - Green tones */
+  --color-schedule-completed-bg: #f0fdf4;
+  --color-schedule-completed-border: #c3e0cd;
+  --color-schedule-completed-text: #166534;
+  --color-schedule-completed-hover: #e6f7ec;
+
+  /* Missed/Not completed (미완료) - Red tones */
+  --color-schedule-missed-bg: #fef2f2;
+  --color-schedule-missed-border: #dabbbb;
+  --color-schedule-missed-text: #991b1b;
+  --color-schedule-missed-hover: #fee8e8;
+
+  /* Current (오늘) - Blue tones */
+  --color-schedule-current-bg: #eff6ff;
+  --color-schedule-current-border: #bfdbfe;
+  --color-schedule-current-text: #546395;
+  --color-schedule-current-hover: #dbeafe;
+
+  /* Upcoming - Slate tones */
+  --color-schedule-upcoming-hover: #f1f5f9;
+
+  /* Current location (현재 위치) - Yellow tones */
+  --color-schedule-location-bg: #fefce8;
+  --color-schedule-location-border: #fef08a;
+  --color-schedule-location-border-dark: #e5d87b;
+  --color-schedule-location-bg-light: #fef9c3;
+  --color-schedule-location-text: #997b1b;
+  --color-schedule-location-hover: #fef9c3;
+
+  /* Today badge */
+  --color-schedule-today-bg: #405e9f;
+
+  /* Info indicator */
+  --color-schedule-info-bg: #eff6ff;
+  --color-schedule-info-border: #bfdbfe;
+  --color-schedule-info-text: #1e40af;
+
+  /* ===== Slate Color Palette ===== */
+  --color-slate-50: #F8FAFC;
+  --color-slate-100: #F1F5F9;
+  --color-slate-200: #E2E8F0;
+  --color-slate-300: #CBD5E1;
+  --color-slate-400: #94A3B8;
+  --color-slate-500: #64748B;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1E293B;
+  --color-slate-900: #0F172A;
+
+  /* ===== Legacy Aliases (for backward compatibility) ===== */
+  --bg-primary: var(--color-bg-primary);
+  --bg-secondary: var(--color-bg-secondary);
+  --bg-tertiary: var(--color-bg-tertiary);
+  --bg-card: var(--color-bg-card);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-muted: var(--color-text-muted);
+  --border-color: var(--color-border-default);
+  --border-light: var(--color-border-light);
+  --shadow-color: rgba(0, 0, 0, 0.08);
+  --shadow-heavy: rgba(0, 0, 0, 0.15);
+  --accent-primary: var(--color-accent-primary);
+  --accent-primary-light: var(--color-accent-primary-light);
+  --accent-secondary: var(--color-accent-secondary);
+  --modal-bg: var(--color-modal-bg);
+  --modal-overlay: var(--color-overlay);
+  --input-bg: var(--color-input-bg);
+  --input-border: var(--color-input-border);
+  --input-focus-border: var(--color-input-focus);
+  --button-bg: var(--color-button-default);
+  --button-hover-bg: var(--color-button-hover);
+  --button-active-bg: var(--color-accent-primary);
+  --button-active-text: var(--color-text-inverse);
 }
 
 /* Sanctuary Theme Variables */
@@ -98,41 +278,136 @@
   --color-warning: #fbbf24;
   --color-danger: #f87171;
 
-  --color-bg-primary: #0a0a0a;
-  --color-bg-secondary: #1a1a1a;
-  --color-bg-tertiary: #2a2a2a;
+  --color-bg-primary: #1a1a1a;
+  --color-bg-secondary: #242424;
+  --color-bg-tertiary: #2d2d2d;
 
-  --color-text-primary: #ededed;
+  --color-text-primary: #f3f4f6;
   --color-text-secondary: #d1d5db;
   --color-text-tertiary: #9ca3af;
   --color-text-muted: #6b7280;
 
-  --color-border-default: #374151;
-  --color-border-light: #4b5563;
-  --color-border-dark: #1f2937;
+  --color-border-default: #3d3d3d;
+  --color-border-light: #333333;
+  --color-border-dark: #4a4a4a;
 
   --color-accent-primary: #6bc99f;
   --color-accent-hover: #5ab88e;
   --color-accent-light: #1a2f25;
 
-  --color-success-bg: #065f46;
+  --color-success-bg: #064e3b;
   --color-success-text: #a7f3d0;
   --color-warning-bg: #78350f;
-  --color-warning-text: #fde68a;
+  --color-warning-text: #fef3c7;
   --color-danger-bg: #7f1d1d;
   --color-danger-text: #fecaca;
   --color-info: #60a5fa;
   --color-info-bg: #1e3a5f;
   --color-info-text: #bfdbfe;
 
-  --color-button-default: #1f2937;
-  --color-button-hover: #374151;
-  --color-button-active: #4b5563;
-  --color-input-bg: #111827;
-  --color-input-border: #4b5563;
+  --color-button-default: #3a3a3a;
+  --color-button-hover: #4a4a4a;
+  --color-button-active: #5a5a5a;
+  --color-input-bg: #333333;
+  --color-input-border: #4a4a4a;
   --color-input-focus: #6bc99f;
 
   --color-kakao-bg: #FEE500;
+
+  /* Overlay */
+  --color-modal-bg: #2a2a2a;
+  --color-overlay: rgba(0, 0, 0, 0.7);
+  --color-tooltip-bg: #f3f4f6;
+  --color-tooltip-text: #1f2937;
+
+  /* ===== Bible Content Specific ===== */
+  --bible-bg: #1a1a1a;
+  --bible-text: #e0e0e0;
+  --verse-number-color: #666666;
+  --section-title-color: #6bc99f;
+  --cross-ref-color: #a0a0a0;
+  --footnote-color: #60a5fa;
+  --description-color: #9ca3af;
+
+  /* Highlight colors for names/places - 다크모드용 부드러운 색상 */
+  --highlight-name-color: #c9a67a;
+  --highlight-place-color: #9cb094;
+
+  /* ===== Schedule Status Colors (Dark) ===== */
+  /* Completed (읽음) - Refined Green tones */
+  --color-schedule-completed-bg: #132e24;
+  --color-schedule-completed-border: #1f4e35;
+  --color-schedule-completed-text: #6ee7b7;
+  --color-schedule-completed-hover: #1a3b2e;
+
+  /* Missed/Not completed (미완료) - Refined Red tones */
+  --color-schedule-missed-bg: #2e1a1a;
+  --color-schedule-missed-border: #4f2222;
+  --color-schedule-missed-text: #fca5a5;
+  --color-schedule-missed-hover: #3b2020;
+
+  /* Current (오늘) - Refined Blue tones */
+  --color-schedule-current-bg: #1a2639;
+  --color-schedule-current-border: #273e63;
+  --color-schedule-current-text: #93c5fd;
+  --color-schedule-current-hover: #20304a;
+
+  /* Upcoming - Subtle hover state */
+  --color-schedule-upcoming-hover: #2d3748;
+
+  /* Current location (현재 위치) - Refined Yellow tones */
+  --color-schedule-location-bg: #2e2912;
+  --color-schedule-location-border: #4a4216;
+  --color-schedule-location-border-dark: #6a6a38;
+  --color-schedule-location-bg-light: #3a3a20;
+  --color-schedule-location-text: #fde047;
+  --color-schedule-location-hover: #3a3316;
+
+  /* Today badge */
+  --color-schedule-today-bg: #3b5998;
+
+  /* Info indicator */
+  --color-schedule-info-bg: #1a2639;
+  --color-schedule-info-border: #273e63;
+  --color-schedule-info-text: #93c5fd;
+
+  /* ===== Slate Color Palette (Dark) ===== */
+  --color-slate-50: #262626;
+  --color-slate-100: #333333;
+  --color-slate-200: #404040;
+  --color-slate-300: #525252;
+  --color-slate-400: #737373;
+  --color-slate-500: #a3a3a3;
+  --color-slate-600: #d4d4d4;
+  --color-slate-700: #e5e5e5;
+  --color-slate-800: #f5f5f5;
+  --color-slate-900: #ffffff;
+
+  /* ===== Legacy Aliases (for backward compatibility) ===== */
+  --bg-primary: var(--color-bg-primary);
+  --bg-secondary: var(--color-bg-secondary);
+  --bg-tertiary: var(--color-bg-tertiary);
+  --bg-card: var(--color-bg-card);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-muted: var(--color-text-muted);
+  --border-color: var(--color-border-default);
+  --border-light: var(--color-border-light);
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --shadow-heavy: rgba(0, 0, 0, 0.5);
+  --accent-primary: var(--color-accent-primary);
+  --accent-primary-light: var(--color-accent-primary-light);
+  --accent-secondary: var(--color-accent-secondary);
+  --modal-bg: var(--color-modal-bg);
+  --modal-overlay: var(--color-overlay);
+  --input-bg: var(--color-input-bg);
+  --input-border: var(--color-input-border);
+  --input-focus-border: var(--color-input-focus);
+  --button-bg: var(--color-button-default);
+  --button-hover-bg: var(--color-button-hover);
+  --button-active-bg: var(--color-accent-primary);
+  --button-active-text: var(--color-text-inverse);
 
   /* Sanctuary Theme Dark Mode Overrides */
   --sanctuary-bg: #222222;
@@ -146,6 +421,7 @@ body {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-family-ui);
+  letter-spacing: -0.05em;
 }
 
 /* Common Utility Styles */

@@ -3,25 +3,26 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { ToastContext } from '@/components/providers/ToastProvider'
 
-export type ToastVariant = 'success' | 'error' | 'warning' | 'info'
+export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
-export interface ToastInput {
+export interface ToastOptions {
   message: string
-  variant?: ToastVariant
+  type?: ToastType
+  variant?: ToastType // backward compatibility
   duration?: number
 }
 
 export interface ToastItem {
   id: string
   message: string
-  variant: ToastVariant
+  variant: ToastType
   duration: number
   isDismissing: boolean
 }
 
 export interface ToastContextValue {
   toasts: ToastItem[]
-  toast: (input: ToastInput) => string
+  show: (options: ToastOptions | string) => string
   dismiss: (id: string) => void
 }
 
@@ -68,8 +69,12 @@ export function useToastState(): ToastContextValue {
     [clearTimeoutById, removeToast]
   )
 
-  const toast = useCallback(
-    ({ message, variant = 'info', duration = DEFAULT_DURATION }: ToastInput) => {
+  const show = useCallback(
+    (options: ToastOptions | string) => {
+      const opts = typeof options === 'string' ? { message: options } : options
+      const { message, type, variant, duration = DEFAULT_DURATION } = opts
+      // Support both 'type' and 'variant' for backward compatibility
+      const toastType = type || variant || 'info'
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
       setToasts((prev) => [
@@ -77,7 +82,7 @@ export function useToastState(): ToastContextValue {
         {
           id,
           message,
-          variant,
+          variant: toastType,
           duration,
           isDismissing: false,
         },
@@ -105,10 +110,10 @@ export function useToastState(): ToastContextValue {
   return useMemo(
     () => ({
       toasts,
-      toast,
+      show,
       dismiss,
     }),
-    [dismiss, toast, toasts]
+    [dismiss, show, toasts]
   )
 }
 
@@ -119,8 +124,12 @@ export function useToast() {
     throw new Error('useToast must be used within ToastProvider')
   }
 
+  // Wrapper for backward compatibility: toast({ message, variant, duration })
+  const toast = (options: ToastOptions | string) => context.show(options)
+
   return {
-    toast: context.toast,
+    show: context.show,
+    toast,
     dismiss: context.dismiss,
     toasts: context.toasts,
   }

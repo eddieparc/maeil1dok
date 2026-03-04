@@ -4,21 +4,21 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ToastItem, ToastVariant } from '@/hooks/useToast'
+import type { ToastItem, ToastType } from '@/hooks/useToast'
 
 interface ToastProps {
   toasts: ToastItem[]
   dismiss: (id: string) => void
 }
 
-const variantStyles: Record<ToastVariant, string> = {
-  success: 'border-[var(--color-success)] bg-[var(--color-success-bg)] text-[var(--color-success-text)]',
-  error: 'border-[var(--color-danger)] bg-[var(--color-danger-bg)] text-[var(--color-danger-text)]',
-  warning: 'border-[var(--color-warning)] bg-[var(--color-warning-bg)] text-[var(--color-warning-text)]',
-  info: 'border-[var(--color-info)] bg-[var(--color-info-bg)] text-[var(--color-info-text)]',
+const typeStyles: Record<ToastType, string> = {
+  success: 'bg-[#059669] text-white',
+  error: 'bg-[#dc2626] text-white',
+  warning: 'bg-[#d97706] text-white',
+  info: 'bg-[#2563eb] text-white',
 }
 
-const variantIcon: Record<ToastVariant, typeof CheckCircle2> = {
+const typeIcon: Record<ToastType, typeof CheckCircle2> = {
   success: CheckCircle2,
   error: AlertCircle,
   warning: AlertTriangle,
@@ -41,20 +41,19 @@ export function Toast({ toasts, dismiss }: ToastProps) {
       <div
         aria-live="polite"
         aria-atomic="true"
-        className="pointer-events-none fixed left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 flex-col items-center gap-2"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
+        className="pointer-events-none fixed bottom-5 left-1/2 z-[9999] flex w-[calc(100%-2rem)] max-w-[400px] -translate-x-1/2 flex-col items-center gap-2"
       >
         {toasts.map((item) => {
-          const Icon = variantIcon[item.variant]
+          const Icon = typeIcon[item.variant]
           return (
             <div
               key={item.id}
               className={cn(
-                'pointer-events-auto flex w-full items-center gap-3 rounded-xl border px-4 py-3 shadow-[var(--shadow-lg)] transition-all duration-250',
-                variantStyles[item.variant],
+                'pointer-events-auto flex w-full items-center gap-3 rounded-[12px] px-4 py-3.5 shadow-lg transition-all duration-300',
+                typeStyles[item.variant],
                 item.isDismissing
                   ? 'translate-y-2 opacity-0'
-                  : 'animate-[toast-slide-up_220ms_ease-out] opacity-100'
+                  : 'animate-[toast-slide-in_300ms_cubic-bezier(0.16,1,0.3,1)] opacity-100'
               )}
             >
               <Icon className="h-5 w-5 shrink-0" />
@@ -72,10 +71,10 @@ export function Toast({ toasts, dismiss }: ToastProps) {
         })}
       </div>
       <style jsx global>{`
-        @keyframes toast-slide-up {
+        @keyframes toast-slide-in {
           from {
             opacity: 0;
-            transform: translateY(14px);
+            transform: translateY(20px);
           }
           to {
             opacity: 1;
