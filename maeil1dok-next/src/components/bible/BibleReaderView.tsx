@@ -6,9 +6,9 @@ import {
   Bookmark,
   BookOpen,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Circle,
   Headphones,
   Home,
   Settings2,
@@ -278,9 +278,10 @@ export default function BibleReaderView({
           <div className="flex flex-1 items-center gap-2 min-w-0">
             <button
               type="button"
-              className="flex items-center gap-1 min-w-0 bg-transparent border-none cursor-pointer active:opacity-70"
+              className="flex items-center gap-1 min-w-0 rounded-md bg-transparent border-none px-1 py-0.5 cursor-pointer active:opacity-70"
               style={{ WebkitTapHighlightColor: 'transparent' }}
               onClick={onOpenBookSelector}
+              aria-label="성경 책과 장 선택"
             >
               <span className="book-name-full text-[clamp(1.125rem,5vw,1.375rem)] font-bold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
                 {bookName} {chapter}장
@@ -288,29 +289,7 @@ export default function BibleReaderView({
               <span className="book-name-short text-[clamp(1.125rem,5vw,1.375rem)] font-bold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
                 {shortBookName} {chapter}장
               </span>
-              <span
-                role="button"
-                tabIndex={0}
-                className={cn(
-                  'inline-flex items-center justify-center p-0.5 rounded cursor-pointer transition-all',
-                  isBookmarked
-                    ? 'text-[var(--color-accent-primary)]'
-                    : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
-                )}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  void toggleBookmark()
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.stopPropagation()
-                    void toggleBookmark()
-                  }
-                }}
-                title={isBookmarked ? '북마크 삭제' : '북마크 추가'}
-              >
-                <Bookmark size={18} fill={isBookmarked ? 'currentColor' : 'none'} />
-              </span>
+              <ChevronDown size={16} aria-hidden="true" className="text-[var(--color-text-tertiary)]" />
             </button>
           </div>
         )}
@@ -337,15 +316,38 @@ export default function BibleReaderView({
           </div>
         ) : null}
 
-        {/* Right: Settings */}
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-2 py-1 text-xs font-semibold text-[var(--color-text-secondary)]"
+            onClick={onOpenHighlightModal}
+            aria-label="성경 번역 선택"
+          >
+            <span>{version}</span>
+            <ChevronDown size={13} aria-hidden="true" />
+          </button>
+          {!tongdokMode ? (
+            <button
+              type="button"
+              className={cn(
+                'flex items-center justify-center w-9 h-9 rounded-lg transition-all active:scale-95',
+                isBookmarked
+                  ? 'text-[var(--color-accent-primary)] bg-[var(--color-accent-light)]'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)]',
+              )}
+              onClick={() => void toggleBookmark()}
+              aria-label={isBookmarked ? '북마크 삭제' : '북마크 추가'}
+            >
+              <Bookmark size={18} aria-hidden="true" fill={isBookmarked ? 'currentColor' : 'none'} />
+            </button>
+          ) : null}
           <button
             type="button"
             className="flex items-center justify-center w-9 h-9 rounded-lg text-[var(--color-text-secondary)] transition-all hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)] active:bg-[var(--color-button-active)]"
             onClick={onOpenSettingsModal}
-            title="설정"
+            aria-label="도구"
           >
-            <Settings2 size={20} />
+            <Settings2 size={20} aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -354,13 +356,13 @@ export default function BibleReaderView({
       {tongdokMode && tongdokProgress.total > 0 ? (
         <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--color-border-default)]">
           <div className="story-progress-segments">
-            {Array.from({ length: tongdokProgress.total }, (_, i) => (
+            {Array.from({ length: tongdokProgress.total }, (_, segment) => segment + 1).map((segment) => (
               <div
-                key={i}
+                key={`progress-${segment}`}
                 className={cn(
                   'progress-segment',
-                  i < tongdokProgress.completed && 'filled',
-                  i === tongdokProgress.completed && 'current',
+                  segment <= tongdokProgress.completed && 'filled',
+                  segment === tongdokProgress.completed + 1 && 'current',
                 )}
               />
             ))}
@@ -400,10 +402,10 @@ export default function BibleReaderView({
             ) : (
               <button
                 type="button"
-                className={cn('mark-read-btn', currentChapterRead && 'is-read')}
+                className={cn('mark-read-btn w-full max-w-none', currentChapterRead && 'is-read')}
                 onClick={onMarkAsRead}
               >
-                {currentChapterRead ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                <CheckCircle2 size={18} aria-hidden="true" />
                 <span>{currentChapterRead ? '읽음 완료' : '읽음으로 표시'}</span>
               </button>
             )}
@@ -453,7 +455,7 @@ export default function BibleReaderView({
             href="/"
             className="flex items-center justify-center w-8 h-8 text-[var(--color-text-tertiary)] rounded-lg transition-all hover:text-[var(--color-accent-primary)] hover:bg-[var(--color-accent-light)] active:scale-[0.92] no-underline shrink-0"
           >
-            <Home size={16} />
+            <Home size={16} aria-hidden="true" />
           </Link>
 
           {/* Center: prev / chapter-info / next */}
@@ -469,7 +471,7 @@ export default function BibleReaderView({
               disabled={!hasPrevChapter}
               onClick={onPrevChapter}
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={20} aria-hidden="true" />
             </button>
 
             <button
@@ -493,7 +495,7 @@ export default function BibleReaderView({
               disabled={!hasNextChapter}
               onClick={onNextChapter}
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={20} aria-hidden="true" />
             </button>
           </div>
 
@@ -502,7 +504,7 @@ export default function BibleReaderView({
             href="/profile"
             className="flex items-center justify-center w-8 h-8 text-[var(--color-text-tertiary)] rounded-lg transition-all hover:text-[var(--color-accent-primary)] hover:bg-[var(--color-accent-light)] active:scale-[0.92] no-underline shrink-0"
           >
-            <User size={16} />
+            <User size={16} aria-hidden="true" />
           </Link>
         </nav>
       </div>

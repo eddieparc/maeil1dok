@@ -96,15 +96,16 @@ export default function BibleViewer({
     }
   }, [initialBook, initialVersion, onVerseClick, resetSelectionAndMenu])
 
-  if (!pathname || !searchParams) return null
+  const resolvedPathname = pathname ?? '/bible'
+  const resolvedSearchParams = searchParams ?? new URLSearchParams()
 
   useReadingPosition({
     book: currentBook,
     chapter: currentChapter,
     verse: selectedVerseRange?.start ?? null,
     version: currentVersion,
-    pathname,
-    searchParams,
+    pathname: resolvedPathname,
+    searchParams: resolvedSearchParams,
     router,
     onRestore: handleRestorePosition,
   })
@@ -171,7 +172,7 @@ export default function BibleViewer({
   }, [currentChapter, maxChapter])
 
   useEffect(() => {
-    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    const params = new URLSearchParams(resolvedSearchParams.toString())
     const nextBook = params.get('book')
     const nextChapter = params.get('chapter')
     const nextVersion = params.get('version')
@@ -187,8 +188,8 @@ export default function BibleViewer({
     params.set('book', currentBook)
     params.set('chapter', String(currentChapter))
     params.set('version', currentVersion)
-    router.push(`${pathname}?${params.toString()}`)
-  }, [currentBook, currentChapter, currentVersion, pathname, router, searchParams])
+    router.push(`${resolvedPathname}?${params.toString()}`)
+  }, [currentBook, currentChapter, currentVersion, resolvedPathname, resolvedSearchParams, router])
 
   const fetchChapterContent = useCallback(async (signal?: AbortSignal) => {
     const prefix = getProxyPrefix(currentVersion)
@@ -407,42 +408,43 @@ export default function BibleViewer({
   })
 
   return (
-    <div className="space-y-4" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <section className="rounded-2xl bg-[var(--color-bg-secondary)] p-4 shadow-sm border border-[var(--color-border-default)]">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
-            {BIBLE_BOOKS[currentBook]?.ko ?? currentBook} {currentChapter}장
-          </h1>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[var(--color-info-bg)] px-3 py-1 text-xs font-medium text-[var(--color-info-text)]">
-              {currentVersion}
-            </span>
-            <button
-              type="button"
-              className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-2 text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-tertiary)]"
-              onClick={() => setIsPanelOpen(true)}
-              aria-label="읽기 설정 열기"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <title>읽기 설정</title>
-                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </button>
-          </div>
+    <div className="space-y-4 pb-24" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-4 shadow-sm">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded-md bg-transparent px-1 py-0.5 text-left text-[clamp(1.125rem,5vw,1.375rem)] font-bold tracking-tight text-[var(--color-text-primary)]"
+          onClick={() => handleChapterChange(currentChapter)}
+          aria-label="성경 책과 장"
+        >
+          <span className="truncate">{BIBLE_BOOKS[currentBook]?.ko ?? currentBook} {currentChapter}장</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+        <div className="flex items-center gap-2">
+          <VersionSelector version={currentVersion} onVersionChange={handleVersionChange} />
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]"
+            aria-label="북마크"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]"
+            onClick={() => setIsPanelOpen(true)}
+            aria-label="도구"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
-        <VersionSelector version={currentVersion} onVersionChange={handleVersionChange} />
-      </section>
-
-      <ChapterNavigation
-        book={currentBook}
-        chapter={currentChapter}
-        bookKeys={bookKeys}
-        onBookChange={handleBookChange}
-        onChapterChange={handleChapterChange}
-        onPrevChapter={handlePrevChapter}
-        onNextChapter={handleNextChapter}
-      />
+      </header>
 
       <BibleChapterView
         book={currentBook}
@@ -457,6 +459,16 @@ export default function BibleViewer({
         onHighlightsLoaded={handleHighlightsLoaded}
         readingSettings={readingSettings}
         selectedVerseRange={selectedVerseRange}
+      />
+
+      <ChapterNavigation
+        book={currentBook}
+        chapter={currentChapter}
+        bookKeys={bookKeys}
+        onBookChange={handleBookChange}
+        onChapterChange={handleChapterChange}
+        onPrevChapter={handlePrevChapter}
+        onNextChapter={handleNextChapter}
       />
 
       {readingSettings ? (

@@ -23,7 +23,7 @@ export default function ChapterNavigation({
   const maxChapter = BIBLE_BOOKS[book]?.chapters ?? 1
 
   return (
-    <section className="rounded-2xl bg-[var(--color-bg-secondary)] p-4 shadow-sm border border-[var(--color-border-default)]">
+    <section className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 shadow-sm">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Select
           label="성경 책"
@@ -50,12 +50,12 @@ export default function ChapterNavigation({
         </Select>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <Button
           variant="secondary"
           onClick={onPrevChapter}
           disabled={chapter <= 1}
-          className="w-full"
+          className="h-11 w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] text-[var(--color-text-secondary)]"
         >
           이전 장
         </Button>
@@ -63,7 +63,7 @@ export default function ChapterNavigation({
           variant="secondary"
           onClick={onNextChapter}
           disabled={chapter >= maxChapter}
-          className="w-full"
+          className="h-11 w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] text-[var(--color-text-secondary)]"
         >
           다음 장
         </Button>

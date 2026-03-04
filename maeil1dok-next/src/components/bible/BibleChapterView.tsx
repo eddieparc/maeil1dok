@@ -25,12 +25,12 @@ function buildInteractiveSrcDoc(content: string) {
 <style>
   :root {
     --bible-bg: #ffffff;
-    --bible-text: #1f2937;
+    --bible-text: #2a1111;
     --bible-border: #e5e7eb;
-    --bible-muted: #6b7280;
+    --bible-muted: #999999;
     --bible-selection-bg: rgba(75, 159, 126, 0.18);
     --bible-selection-outline: #4b9f7e;
-    --bible-header: #4a5d53;
+    --bible-header: var(--color-accent-primary, #4b9f7e);
     --bible-highlight-alpha: 0.46;
   }
 
@@ -39,9 +39,10 @@ function buildInteractiveSrcDoc(content: string) {
     padding: 0.5rem;
     background: var(--bible-bg);
     color: var(--bible-text);
-    font-family: "KoPub Batang", "Noto Serif KR", serif;
+    font-family: var(--font-family-reading, "KoPub Batang"), "Noto Serif KR", serif;
     font-size: 1rem;
-    line-height: 1.9;
+    line-height: 1.8;
+    letter-spacing: -0.02em;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.2s ease, color 0.2s ease;
@@ -63,7 +64,7 @@ function buildInteractiveSrcDoc(content: string) {
   .ocd-verse-number {
     color: var(--bible-muted);
     opacity: 0.95;
-    font-size: 0.66em;
+    font-size: 0.75em;
     vertical-align: super;
     margin-right: 0.34rem;
     font-family: var(--font-noto-sans-kr, "Noto Sans KR"), sans-serif;
@@ -76,6 +77,7 @@ function buildInteractiveSrcDoc(content: string) {
     padding: 0.02rem 0.15rem;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
+    color: var(--bible-text);
   }
 
   .ocd-verse-node.ocd-highlight .ocd-verse-text {
@@ -244,7 +246,7 @@ function buildInteractiveSrcDoc(content: string) {
       body.classList.toggle('ocd-verse-joining', Boolean(settings.verseJoining));
       body.style.fontFamily = settings.fontFamily && settings.fontFamily !== 'system'
         ? settings.fontFamily + ', "KoPub Batang", "Noto Serif KR", serif'
-        : '"KoPub Batang", "Noto Serif KR", serif';
+        : 'var(--font-family-reading, "KoPub Batang"), "Noto Serif KR", serif';
       body.style.fontSize = settings.fontSize ? String(settings.fontSize) + 'px' : '';
       body.style.lineHeight = settings.lineHeight ? String(settings.lineHeight) : '';
       body.style.fontWeight = settings.fontWeight || '';
