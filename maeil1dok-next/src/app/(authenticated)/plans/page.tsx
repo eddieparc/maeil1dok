@@ -44,7 +44,7 @@ export default async function PlansPage() {
         <div className="fade-in">
           {/* ── 구독 중인 플랜 ── */}
           <section className="mb-8">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)] mb-3">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)] mb-4">
               <span>구독 중인 플랜</span>
               {subscribedPlans.length > 0 && (
                 <span className="text-sm font-normal text-[var(--color-text-secondary)]">
@@ -54,13 +54,13 @@ export default async function PlansPage() {
             </h2>
 
             {subscribedPlans.length === 0 ? (
-              <div className="text-center py-8 rounded-lg bg-[var(--color-bg-tertiary)] dark:bg-[var(--color-bg-secondary)]">
-                <p className="text-sm text-[var(--color-text-muted)]">
+              <div className="text-center py-8 rounded-lg bg-[var(--color-slate-100)]">
+                <p className="text-sm text-[var(--color-slate-600)]">
                   아직 구독 중인 플랜이 없습니다.
                 </p>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid gap-4">
                 {subscribedPlans.map(({ plan, subscription }) => (
                   <SubscribedPlanCard
                     key={subscription.id}
@@ -74,7 +74,7 @@ export default async function PlansPage() {
 
           {/* ── 이용 가능한 플랜 ── */}
           <section className="mb-8">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)] mb-3">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)] mb-4">
               <span>이용 가능한 플랜</span>
               {availablePlans.length > 0 && (
                 <span className="text-sm font-normal text-[var(--color-text-secondary)]">
@@ -84,13 +84,13 @@ export default async function PlansPage() {
             </h2>
 
             {availablePlans.length === 0 ? (
-              <div className="text-center py-8 rounded-lg bg-[var(--color-bg-tertiary)] dark:bg-[var(--color-bg-secondary)]">
-                <p className="text-sm text-[var(--color-text-muted)]">
+              <div className="text-center py-8 rounded-lg bg-[var(--color-slate-100)]">
+                <p className="text-sm text-[var(--color-slate-600)]">
                   현재 이용 가능한 플랜이 없습니다.
                 </p>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid gap-4">
                 {availablePlans.map((plan) => (
                   <AvailablePlanCard
                     key={plan.id}

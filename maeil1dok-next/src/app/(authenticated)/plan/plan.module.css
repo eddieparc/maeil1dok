@@ -43,10 +43,10 @@
 }
 
 .editModeButton {
-  padding: 0.3rem 0.875rem;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-default);
+  padding: 0.25rem 0.75rem;
+  background: var(--color-slate-100);
+  color: var(--color-slate-600);
+  border: 1px solid var(--color-slate-300);
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 500;
@@ -56,14 +56,14 @@
 }
 
 .editModeButton:hover {
-  background: var(--color-button-hover);
-  color: var(--color-text-primary);
+  background: var(--color-slate-200);
+  color: var(--color-slate-700);
 }
 
 .editModeButton.active {
-  background: var(--sanctuary-accent);
+  background: var(--color-accent-primary);
   color: #ffffff;
-  border-color: var(--sanctuary-accent);
+  border-color: var(--color-accent-primary);
   font-weight: 600;
 }
 

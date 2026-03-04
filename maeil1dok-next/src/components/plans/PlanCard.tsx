@@ -52,27 +52,27 @@ export function SubscribedPlanCard({ plan, subscription }: SubscribedPlanCardPro
       className={`
         relative rounded-lg border overflow-hidden transition-all duration-200
         ${isHidden
-          ? 'border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] opacity-60 dark:bg-[var(--color-bg-secondary)]'
-          : 'border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-border-dark)] hover:shadow-[var(--shadow-sm)] dark:bg-[var(--color-bg-secondary)]'
+          ? 'border-dashed border-[var(--color-slate-200)] bg-[var(--color-slate-50)] opacity-60'
+          : 'border-[var(--color-slate-200)] bg-[var(--color-bg-card)] hover:border-[var(--color-slate-300)] hover:shadow-sm'
         }
       `}
       data-testid="plan-card"
     >
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4">
           {/* Plan Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-[0.9375rem] font-semibold text-[var(--color-text-primary)] leading-snug">
+              <h3 className="text-base font-semibold text-[var(--color-text-primary)] leading-snug">
                 {plan.name}
               </h3>
               {plan.isDefault && (
-                <span className="inline-flex items-center px-2 py-0.5 text-[0.65rem] font-semibold rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] dark:bg-[var(--color-bg-tertiary)] dark:border-[var(--color-border-default)]">
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md border border-[var(--color-slate-300)] bg-[var(--color-slate-100)] text-[var(--color-slate-600)]">
                   기본 플랜
                 </span>
               )}
               {isHidden && (
-                <span className="inline-flex items-center px-2 py-0.5 text-[0.65rem] font-semibold rounded-md bg-[var(--color-text-muted)] text-white">
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-[var(--color-slate-400)] text-white">
                   숨김
                 </span>
               )}
@@ -89,12 +89,11 @@ export function SubscribedPlanCard({ plan, subscription }: SubscribedPlanCardPro
                 onClick={handleGoToReading}
                 disabled={loading}
                 className="
-                  px-3 py-1.5 text-xs font-medium rounded-lg
+                  px-4 py-1.5 text-xs font-medium rounded-lg
                   bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]
                   border border-[var(--color-accent-primary)]
                   hover:opacity-90 active:opacity-80
-                  transition-all duration-200 min-w-[72px] text-center
-                  btn-interactive
+                  transition-all duration-200 min-w-[80px] text-center
                   disabled:opacity-50 disabled:cursor-not-allowed
                 "
               >
@@ -106,13 +105,12 @@ export function SubscribedPlanCard({ plan, subscription }: SubscribedPlanCardPro
                 onClick={handleToggleHide}
                 disabled={loading}
                 className={`
-                  px-3 py-1.5 text-xs font-medium rounded-lg
-                  transition-all duration-200 min-w-[72px] text-center
-                  btn-interactive
+                  px-4 py-1.5 text-xs font-medium rounded-lg
+                  transition-all duration-200 min-w-[80px] text-center
                   disabled:opacity-50 disabled:cursor-not-allowed
                   ${subscription.isActive
-                    ? 'bg-[var(--color-button-default)] border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:bg-[var(--color-button-hover)]'
-                    : 'bg-[var(--color-accent-primary)] text-white hover:bg-[var(--color-accent-hover)]'
+                    ? 'bg-[var(--color-slate-100)] border border-[var(--color-slate-300)] text-[var(--color-slate-600)] hover:bg-[var(--color-slate-200)]'
+                    : 'bg-[var(--color-accent-primary)] text-white hover:opacity-90'
                   }
                 `}
               >
@@ -167,35 +165,34 @@ export function AvailablePlanCard({ plan, subscriberCount }: AvailablePlanCardPr
   return (
     <div
       className="
-        relative rounded-lg border border-[var(--color-border-default)]
-        bg-[var(--color-bg-secondary)] overflow-hidden
+        relative rounded-lg border border-[var(--color-slate-200)]
+        bg-[var(--color-bg-card)] overflow-hidden
         transition-all duration-200
-        hover:border-[var(--color-border-dark)] hover:shadow-[var(--shadow-sm)]
-        dark:bg-[var(--color-bg-secondary)]
+        hover:border-[var(--color-slate-300)] hover:shadow-sm
       "
       data-testid="plan-card"
     >
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4">
           {/* Plan Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-[0.9375rem] font-semibold text-[var(--color-text-primary)] leading-snug">
+              <h3 className="text-base font-semibold text-[var(--color-text-primary)] leading-snug">
                 {plan.name}
               </h3>
               {plan.isDefault && (
-                <span className="inline-flex items-center px-2 py-0.5 text-[0.65rem] font-semibold rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] dark:bg-[var(--color-bg-tertiary)] dark:border-[var(--color-border-default)]">
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md border border-[var(--color-slate-300)] bg-[var(--color-slate-100)] text-[var(--color-slate-600)]">
                   기본 플랜
                 </span>
               )}
             </div>
             {plan.description && (
-              <p className="mt-1.5 text-sm text-[var(--color-text-secondary)] break-words leading-relaxed">
+              <p className="mt-2 text-sm text-[var(--color-text-secondary)] break-words leading-relaxed">
                 {plan.description}
               </p>
             )}
             {subscriberCount !== undefined && (
-              <p className="mt-1.5 text-xs text-[var(--color-text-muted)]">
+              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
                 구독한 사람: {subscriberCount}명
               </p>
             )}
@@ -209,10 +206,9 @@ export function AvailablePlanCard({ plan, subscriberCount }: AvailablePlanCardPr
               className="
                 px-4 py-1.5 text-xs font-medium rounded-lg
                 bg-[var(--color-accent-primary)] text-white
-                hover:bg-[var(--color-accent-hover)]
+                hover:opacity-90
                 active:opacity-80
-                transition-all duration-200 min-w-[72px] text-center
-                btn-interactive
+                transition-all duration-200 min-w-[80px] text-center
                 disabled:opacity-50 disabled:cursor-not-allowed
               "
             >
@@ -228,7 +224,6 @@ export function AvailablePlanCard({ plan, subscriberCount }: AvailablePlanCardPr
     </div>
   )
 }
-
 
 /* ──────────────────────────────────────────────────────────
  * Legacy default export — kept for backwards-compatibility
