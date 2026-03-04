@@ -1,4 +1,7 @@
+'use client'
+
 import { useEffect, useMemo, useState } from 'react'
+import { Modal } from '@/components/ui'
 import type { User, UserIdentity } from '@/types'
 
 interface SecuritySectionProps {
@@ -6,90 +9,49 @@ interface SecuritySectionProps {
   identities: UserIdentity[]
 }
 
-type OAuthProvider = 'kakao' | 'google' | 'apple'
-
-const LINKABLE_PROVIDERS: OAuthProvider[] = ['kakao', 'google', 'apple']
-
-function getProviderLabel(provider: string): string {
-  if (provider === 'kakao') return '카카오'
-  if (provider === 'google') return '구글'
-  if (provider === 'apple') return '애플'
-  if (provider === 'email') return '이메일'
-  return provider
-}
-
-function formatDate(value: string): string {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return date.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-}
-
 function isPasswordValid(password: string): boolean {
   return password.length >= 8 && /[A-Za-z]/.test(password) && /\d/.test(password)
 }
 
 export default function SecuritySection({ user, identities }: SecuritySectionProps) {
-  const [linkedIdentities, setLinkedIdentities] = useState<UserIdentity[]>(identities)
+  const metadata = user.userMetadata as { has_password?: unknown } | undefined
+  const hasPassword = metadata?.has_password === true
+  const hasEmailIdentity = useMemo(
+    () => identities.some((identity) => identity.provider === 'email') || hasPassword,
+    [identities, hasPassword]
+  )
+
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [isSavingPassword, setIsSavingPassword] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
-  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false)
 
-  const [linkLoadingProvider, setLinkLoadingProvider] = useState<OAuthProvider | null>(null)
-  const [unlinkLoadingIdentityId, setUnlinkLoadingIdentityId] = useState<string | null>(null)
-  const [oauthError, setOauthError] = useState('')
-  const [oauthSuccess, setOauthSuccess] = useState('')
-
-  const [isResendingVerification, setIsResendingVerification] = useState(false)
-  const [verificationCooldown, setVerificationCooldown] = useState(0)
-  const [verificationError, setVerificationError] = useState('')
-  const [verificationSuccess, setVerificationSuccess] = useState('')
-
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
-    setLinkedIdentities(identities)
-  }, [identities])
+    if (!passwordSuccess) return
+    const timeoutId = window.setTimeout(() => setPasswordSuccess(''), 2200)
+    return () => window.clearTimeout(timeoutId)
+  }, [passwordSuccess])
 
-  useEffect(() => {
-    if (verificationCooldown <= 0) return
+  const isPasswordDirty =
+    currentPassword.length > 0 ||
+    newPassword.length > 0 ||
+    confirmPassword.length > 0
 
-    const timerId = window.setInterval(() => {
-      setVerificationCooldown((current) => {
-        if (current <= 1) {
-          window.clearInterval(timerId)
-          return 0
-        }
-        return current - 1
-      })
-    }, 1000)
+  const resetPasswordForm = () => {
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordError('')
+    setPasswordSuccess('')
+  }
 
-    return () => window.clearInterval(timerId)
-  }, [verificationCooldown])
-
-  const hasPassword = useMemo(() => {
-    const metadata = user.userMetadata as { has_password?: unknown } | undefined
-    return metadata?.has_password === true
-  }, [user.userMetadata])
-
-  const passwordTitle = hasPassword ? '비밀번호 변경' : '비밀번호 설정'
-  const totalMethods = linkedIdentities.length + (hasPassword ? 1 : 0)
-  const linkedProviders = useMemo(
-    () => new Set(linkedIdentities.map((identity) => identity.provider)),
-    [linkedIdentities]
-  )
-  const unlinkedProviders = LINKABLE_PROVIDERS.filter((provider) => !linkedProviders.has(provider))
-
-  const handlePasswordSubmit = async (event: { preventDefault: () => void }) => {
-    event.preventDefault()
+  const handleSavePassword = async () => {
     setPasswordError('')
     setPasswordSuccess('')
 
@@ -97,157 +59,88 @@ export default function SecuritySection({ user, identities }: SecuritySectionPro
       setPasswordError('비밀번호는 8자 이상이며 영문과 숫자를 모두 포함해야 합니다')
       return
     }
-
     if (newPassword !== confirmPassword) {
       setPasswordError('비밀번호 확인이 일치하지 않습니다')
       return
     }
 
-    setIsSubmittingPassword(true)
+    setIsSavingPassword(true)
     try {
       const response = await fetch('/api/auth/update-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword }),
       })
-      const data = await response.json().catch(() => null)
 
+      const data = await response.json().catch(() => null)
       if (!response.ok) {
-        setPasswordError(data?.error ?? '비밀번호 변경에 실패했습니다')
+        setPasswordError(data?.error ?? '비밀번호 저장에 실패했습니다')
         return
       }
 
+      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
       setPasswordSuccess(hasPassword ? '비밀번호가 변경되었습니다' : '비밀번호가 설정되었습니다')
     } catch {
-      setPasswordError('비밀번호 변경에 실패했습니다')
+      setPasswordError('비밀번호 저장에 실패했습니다')
     } finally {
-      setIsSubmittingPassword(false)
-    }
-  }
-
-  const handleUnlinkIdentity = async (identity: UserIdentity) => {
-    setOauthError('')
-    setOauthSuccess('')
-
-    setUnlinkLoadingIdentityId(identity.identityId)
-    try {
-      const response = await fetch('/api/auth/unlink-identity', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ identityId: identity.identityId }),
-      })
-      const data = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        setOauthError(data?.error ?? '연결 해제에 실패했습니다')
-        return
-      }
-
-      setLinkedIdentities((current) => current.filter((item) => item.identityId !== identity.identityId))
-      setOauthSuccess(`${getProviderLabel(identity.provider)} 연결이 해제되었습니다`)
-    } catch {
-      setOauthError('연결 해제에 실패했습니다')
-    } finally {
-      setUnlinkLoadingIdentityId(null)
-    }
-  }
-
-  const handleLinkIdentity = async (provider: OAuthProvider) => {
-    setOauthError('')
-    setOauthSuccess('')
-
-    setLinkLoadingProvider(provider)
-    try {
-      const response = await fetch('/api/auth/link-identity', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ provider }),
-      })
-      const data = await response.json().catch(() => null)
-
-      if (!response.ok || !data?.url) {
-        setOauthError(data?.error ?? '연결 요청에 실패했습니다')
-        return
-      }
-
-      window.location.href = data.url as string
-    } catch {
-      setOauthError('연결 요청에 실패했습니다')
-    } finally {
-      setLinkLoadingProvider(null)
-    }
-  }
-
-  const handleResendVerification = async () => {
-    if (!user.email || verificationCooldown > 0) {
-      return
-    }
-
-    setVerificationError('')
-    setVerificationSuccess('')
-    setIsResendingVerification(true)
-    try {
-      const response = await fetch('/api/auth/update-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'resend-verification' }),
-      })
-      const data = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        setVerificationError(data?.error ?? '인증 메일 재발송에 실패했습니다')
-        return
-      }
-
-      setVerificationSuccess('인증 메일을 다시 보냈습니다')
-      setVerificationCooldown(60)
-    } catch {
-      setVerificationError('인증 메일 재발송에 실패했습니다')
-    } finally {
-      setIsResendingVerification(false)
+      setIsSavingPassword(false)
     }
   }
 
   const handleDeleteAccount = async () => {
     setDeleteError('')
-    setIsDeletingAccount(true)
+    setIsDeleting(true)
 
     try {
-      const response = await fetch('/api/auth/delete-account', {
-        method: 'POST',
-      })
+      const response = await fetch('/api/auth/delete-account', { method: 'POST' })
       const data = await response.json().catch(() => null)
 
       if (!response.ok) {
         setDeleteError(data?.error ?? '계정 삭제에 실패했습니다')
+        setIsDeleting(false)
         return
       }
 
       window.location.href = '/login'
     } catch {
       setDeleteError('계정 삭제에 실패했습니다')
-    } finally {
-      setIsDeletingAccount(false)
+      setIsDeleting(false)
     }
   }
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900">{passwordTitle}</h2>
-        <form className="mt-3 space-y-3" onSubmit={handlePasswordSubmit}>
+    <section>
+      <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-[0.05em] text-[var(--color-slate-500)]">보안</h2>
+
+      <div className="rounded-xl border border-[var(--color-slate-200)] bg-[var(--color-bg-card)] p-4">
+        <div>
+          <p className="text-[0.9375rem] font-medium text-[var(--color-slate-800)]">비밀번호 {hasPassword ? '변경' : '설정'}</p>
+          <p className="mt-1 text-[0.8125rem] text-[var(--color-slate-500)]">
+            {hasEmailIdentity ? '이메일 로그인 보안을 위해 비밀번호를 관리하세요.' : '현재 소셜 로그인만 사용 중입니다.'}
+          </p>
+        </div>
+
+        <div className="mt-4 space-y-4">
+          {hasPassword && (
+            <div>
+              <label htmlFor="settings-current-password" className="text-[0.8125rem] font-medium text-[var(--color-slate-600)]">
+                현재 비밀번호
+              </label>
+              <input
+                id="settings-current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                autoComplete="current-password"
+                className="mt-1 w-full rounded-lg border border-[var(--color-slate-300)] bg-[var(--color-bg-base)] px-3 py-3 text-[0.9375rem] text-[var(--color-slate-800)] outline-none transition focus:border-[var(--primary-color)]"
+              />
+            </div>
+          )}
+
           <div>
-            <label htmlFor="settings-new-password" className="text-sm font-medium text-gray-700">
+            <label htmlFor="settings-new-password" className="text-[0.8125rem] font-medium text-[var(--color-slate-600)]">
               새 비밀번호
             </label>
             <input
@@ -255,13 +148,14 @@ export default function SecuritySection({ user, identities }: SecuritySectionPro
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none transition-colors focus:border-indigo-500"
+              autoComplete="new-password"
               placeholder="8자 이상, 영문+숫자 포함"
+              className="mt-1 w-full rounded-lg border border-[var(--color-slate-300)] bg-[var(--color-bg-base)] px-3 py-3 text-[0.9375rem] text-[var(--color-slate-800)] outline-none transition focus:border-[var(--primary-color)]"
             />
           </div>
 
           <div>
-            <label htmlFor="settings-confirm-password" className="text-sm font-medium text-gray-700">
+            <label htmlFor="settings-confirm-password" className="text-[0.8125rem] font-medium text-[var(--color-slate-600)]">
               비밀번호 확인
             </label>
             <input
@@ -269,145 +163,82 @@ export default function SecuritySection({ user, identities }: SecuritySectionPro
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none transition-colors focus:border-indigo-500"
+              autoComplete="new-password"
+              className="mt-1 w-full rounded-lg border border-[var(--color-slate-300)] bg-[var(--color-bg-base)] px-3 py-3 text-[0.9375rem] text-[var(--color-slate-800)] outline-none transition focus:border-[var(--primary-color)]"
             />
           </div>
-
-          <button
-            type="submit"
-            disabled={isSubmittingPassword}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSubmittingPassword ? '저장 중...' : hasPassword ? '변경하기' : '설정하기'}
-          </button>
-        </form>
-
-        {passwordError && <p className="mt-2 text-sm text-red-500">{passwordError}</p>}
-        {passwordSuccess && <p className="mt-2 text-sm text-green-600">{passwordSuccess}</p>}
-      </div>
-
-      <div className="mt-6 border-t border-gray-200 pt-6">
-        <h2 className="text-base font-semibold text-gray-900">OAuth 연결 관리</h2>
-
-        <div className="mt-3 space-y-2">
-          {linkedIdentities.map((identity) => {
-            const canUnlink = totalMethods > 1
-            const isUnlinking = unlinkLoadingIdentityId === identity.identityId
-
-            return (
-              <div key={identity.identityId} className="rounded-xl border border-gray-200 px-3 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{getProviderLabel(identity.provider)}</p>
-                    <p className="text-xs text-gray-600">{identity.email ?? '이메일 정보 없음'}</p>
-                    <p className="mt-1 text-xs text-gray-500">연결일 {formatDate(identity.createdAt)}</p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!canUnlink || isUnlinking}
-                    onClick={() => handleUnlinkIdentity(identity)}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isUnlinking ? '해제 중...' : '연결 해제'}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
         </div>
 
-        {unlinkedProviders.length > 0 && (
-          <div className="mt-4">
-            <p className="text-sm font-medium text-gray-700">추가로 연결하기</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {unlinkedProviders.map((provider) => {
-                const isLinking = linkLoadingProvider === provider
-                return (
-                  <button
-                    key={provider}
-                    type="button"
-                    onClick={() => handleLinkIdentity(provider)}
-                    disabled={isLinking || linkLoadingProvider !== null}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isLinking ? '연결 중...' : `${getProviderLabel(provider)} 연결하기`}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {oauthError && <p className="mt-2 text-sm text-red-500">{oauthError}</p>}
-        {oauthSuccess && <p className="mt-2 text-sm text-green-600">{oauthSuccess}</p>}
-      </div>
-
-      <div className="mt-6 border-t border-gray-200 pt-6">
-        <h2 className="text-base font-semibold text-gray-900">이메일 인증</h2>
-        <p className="mt-2 text-sm text-gray-700">{user.email ?? '등록된 이메일이 없습니다'}</p>
-        <p className={`mt-1 text-sm ${user.emailConfirmedAt ? 'text-green-600' : 'text-amber-600'}`}>
-          {user.emailConfirmedAt ? '인증 완료' : '미인증'}
-        </p>
-
-        {!user.emailConfirmedAt && user.email && (
+        <div className="mt-4 flex items-center justify-end gap-2">
           <button
             type="button"
-            onClick={handleResendVerification}
-            disabled={isResendingVerification || verificationCooldown > 0}
-            className="mt-3 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={resetPasswordForm}
+            disabled={isSavingPassword || !isPasswordDirty}
+            className="rounded-md border border-[var(--color-slate-300)] bg-[var(--color-bg-card)] px-4 py-2 text-sm font-medium text-[var(--color-slate-700)] transition hover:bg-[var(--color-slate-100)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isResendingVerification
-              ? '재발송 중...'
-              : verificationCooldown > 0
-                ? `재발송 ${verificationCooldown}s`
-                : '인증 메일 재발송'}
+            취소
           </button>
-        )}
+          <button
+            type="button"
+            onClick={handleSavePassword}
+            disabled={isSavingPassword || !isPasswordDirty}
+            className="rounded-md border border-[var(--primary-color)] bg-[var(--primary-color)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSavingPassword ? '저장 중...' : '저장'}
+          </button>
+        </div>
 
-        {verificationError && <p className="mt-2 text-sm text-red-500">{verificationError}</p>}
-        {verificationSuccess && <p className="mt-2 text-sm text-green-600">{verificationSuccess}</p>}
-      </div>
+        {passwordError && <p className="mt-3 text-sm text-red-600">{passwordError}</p>}
+        {passwordSuccess && <p className="mt-3 text-sm text-emerald-600">{passwordSuccess}</p>}
 
-      <div className="mt-6 border-t border-gray-200 pt-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <h2 className="text-base font-semibold text-red-700">계정 삭제</h2>
-          <p className="mt-1 text-sm text-red-600">계정을 삭제하시겠습니까? 삭제 후 30일 내 복구 가능합니다.</p>
+        <div className="mt-6 border-t border-[var(--color-slate-100)] pt-6">
+          <p className="text-[0.9375rem] font-medium text-red-600">계정 삭제</p>
+          <p className="mt-1 text-[0.8125rem] text-red-500">
+            삭제 요청 후 30일간 유예 기간이 있으며 이후 완전히 삭제됩니다.
+          </p>
 
-          {!isDeleteConfirmOpen ? (
-            <button
-              type="button"
-              onClick={() => setIsDeleteConfirmOpen(true)}
-              className="mt-3 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white"
-            >
-              계정 삭제
-            </button>
-          ) : (
-            <div className="mt-4 rounded-xl border border-red-200 bg-white p-3">
-              <p className="text-sm text-gray-700">계정을 삭제하시겠습니까? 삭제 후 30일 내 복구 가능합니다.</p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsDeleteConfirmOpen(false)}
-                  disabled={isDeletingAccount}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteAccount}
-                  disabled={isDeletingAccount}
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isDeletingAccount ? '삭제 중...' : '계정 삭제'}
-                </button>
-              </div>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="mt-3 rounded-md border border-red-200 bg-[var(--color-bg-card)] px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+          >
+            계정 삭제
+          </button>
 
-          {deleteError && <p className="mt-2 text-sm text-red-600">{deleteError}</p>}
+          {deleteError && <p className="mt-3 text-sm text-red-600">{deleteError}</p>}
         </div>
       </div>
+
+      <Modal isOpen={isDeleteModalOpen} onClose={() => !isDeleting && setIsDeleteModalOpen(false)} size="sm">
+        <Modal.Header>
+          <h3 className="text-base font-semibold text-[var(--color-slate-800)]">계정 삭제</h3>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-sm leading-6 text-[var(--color-slate-700)]">
+            정말 계정을 삭제하시겠습니까?
+            <br />
+            삭제 요청 후 30일 동안은 로그인으로 복구할 수 있지만, 이후에는 모든 데이터가 영구 삭제됩니다.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <button
+            type="button"
+            onClick={() => setIsDeleteModalOpen(false)}
+            disabled={isDeleting}
+            className="rounded-md border border-[var(--color-slate-300)] bg-[var(--color-bg-card)] px-4 py-2 text-sm font-medium text-[var(--color-slate-700)] transition hover:bg-[var(--color-slate-100)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            disabled={isDeleting}
+            className="rounded-md border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isDeleting ? '삭제 중...' : '계정 삭제'}
+          </button>
+        </Modal.Footer>
+      </Modal>
     </section>
   )
 }

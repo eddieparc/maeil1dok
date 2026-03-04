@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { User } from '@/types'
-import { requestNotificationPermission } from '@/lib/firebase/messaging'
 
 interface NotificationSettings {
   daily_reminder_enabled: boolean
@@ -16,15 +15,7 @@ interface NotificationsSectionProps {
   user: User
 }
 
-function Toggle({
-  checked,
-  onToggle,
-  disabled,
-}: {
-  checked: boolean
-  onToggle: () => void
-  disabled?: boolean
-}) {
+function Toggle({ checked, onToggle, disabled }: { checked: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -32,12 +23,12 @@ function Toggle({
       aria-checked={checked}
       onClick={onToggle}
       disabled={disabled}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
-        checked ? 'bg-indigo-600' : 'bg-gray-300'
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+        checked ? 'bg-[var(--primary-color)]' : 'bg-[var(--color-slate-300)]'
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
           checked ? 'translate-x-6' : 'translate-x-1'
         }`}
       />
@@ -45,29 +36,41 @@ function Toggle({
   )
 }
 
+const DEFAULT_SETTINGS: NotificationSettings = {
+  daily_reminder_enabled: false,
+  daily_reminder_time: '06:00',
+  hasena_notification_enabled: true,
+  friend_activity_enabled: true,
+  push_enabled: false,
+}
+
 export default function NotificationsSection({ user: _user }: NotificationsSectionProps) {
-  const [permission, setPermission] = useState<NotificationPermission>('default')
-  const [settings, setSettings] = useState<NotificationSettings | null>(null)
+  const [initialSettings, setInitialSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS)
+  const [draftSettings, setDraftSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [success, setSuccess] = useState('')
 
-  // Load permission state and settings on mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPermission(Notification.permission)
-    }
-
     const fetchSettings = async () => {
       try {
         const response = await fetch('/api/notifications/settings')
-        if (response.ok) {
-          const data = await response.json()
-          setSettings(data)
+        if (!response.ok) throw new Error('failed')
+
+        const data = (await response.json()) as Partial<NotificationSettings>
+        const normalized: NotificationSettings = {
+          daily_reminder_enabled: Boolean(data.daily_reminder_enabled),
+          daily_reminder_time: data.daily_reminder_time || '06:00',
+          hasena_notification_enabled: Boolean(data.hasena_notification_enabled),
+          friend_activity_enabled: Boolean(data.friend_activity_enabled),
+          push_enabled: Boolean(data.push_enabled),
         }
+
+        setInitialSettings(normalized)
+        setDraftSettings(normalized)
       } catch {
-        // Settings will stay null; UI handles this gracefully
+        setError('알림 설정을 불러오지 못했습니다.')
       } finally {
         setLoading(false)
       }
@@ -76,244 +79,169 @@ export default function NotificationsSection({ user: _user }: NotificationsSecti
     fetchSettings()
   }, [])
 
-  const patchSettings = useCallback(async (updates: Partial<NotificationSettings>) => {
+  useEffect(() => {
+    if (!success) return
+    const timeoutId = window.setTimeout(() => setSuccess(''), 2000)
+    return () => window.clearTimeout(timeoutId)
+  }, [success])
+
+  const isDirty = useMemo(
+    () => JSON.stringify(initialSettings) !== JSON.stringify(draftSettings),
+    [initialSettings, draftSettings]
+  )
+
+  const toggleField = (field: keyof NotificationSettings) => {
+    if (field === 'daily_reminder_time') return
+    setDraftSettings((current) => ({
+      ...current,
+      [field]: !current[field],
+    }))
+  }
+
+  const handleCancel = () => {
+    setDraftSettings(initialSettings)
+    setError('')
+    setSuccess('')
+  }
+
+  const handleSave = async () => {
     setSaving(true)
     setError('')
+    setSuccess('')
+
     try {
       const response = await fetch('/api/notifications/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(draftSettings),
       })
+
+      const data = await response.json().catch(() => null)
       if (!response.ok) {
-        throw new Error('저장에 실패했습니다')
+        setError(data?.error ?? '알림 설정 저장에 실패했습니다.')
+        return
       }
-      const data = await response.json()
-      setSettings(data)
+
+      const normalized: NotificationSettings = {
+        daily_reminder_enabled: Boolean(data.daily_reminder_enabled),
+        daily_reminder_time: data.daily_reminder_time || '06:00',
+        hasena_notification_enabled: Boolean(data.hasena_notification_enabled),
+        friend_activity_enabled: Boolean(data.friend_activity_enabled),
+        push_enabled: Boolean(data.push_enabled),
+      }
+
+      setInitialSettings(normalized)
+      setDraftSettings(normalized)
+      setSuccess('알림 설정이 저장되었습니다.')
     } catch {
-      setError('설정 저장에 실패했습니다. 다시 시도해주세요.')
-      // Revert: refetch current settings
-      try {
-        const response = await fetch('/api/notifications/settings')
-        if (response.ok) {
-          const data = await response.json()
-          setSettings(data)
-        }
-      } catch {
-        // silent
-      }
-    } finally {
-      setSaving(false)
-    }
-  }, [])
-
-  const handleRequestPermission = async () => {
-    setError('')
-    setSaving(true)
-    try {
-      const token = await requestNotificationPermission()
-
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        setPermission(Notification.permission)
-      }
-
-      if (token) {
-        // Save token to server
-        await fetch('/api/notifications/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token,
-            deviceInfo: { browser: navigator.userAgent },
-          }),
-        })
-
-        // Enable push notifications in settings
-        await fetch('/api/notifications/settings', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ push_enabled: true }),
-        })
-
-        // Fetch updated settings
-        const response = await fetch('/api/notifications/settings')
-        if (response.ok) {
-          const data = await response.json()
-          setSettings(data)
-        }
-      }
-    } catch {
-      setError('알림 권한 요청 중 오류가 발생했습니다')
+      setError('알림 설정 저장에 실패했습니다.')
     } finally {
       setSaving(false)
     }
   }
-
-  const handleToggle = (field: keyof NotificationSettings, currentValue: boolean) => {
-    if (!settings) return
-
-    // Optimistic update
-    const newValue = !currentValue
-    setSettings({ ...settings, [field]: newValue })
-    patchSettings({ [field]: newValue })
-  }
-
-  const handleTimeChange = (value: string) => {
-    if (!settings) return
-
-    // Optimistic update
-    setSettings({ ...settings, daily_reminder_time: value })
-
-    // Debounce the API call
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current)
-    }
-    debounceRef.current = setTimeout(() => {
-      patchSettings({ daily_reminder_time: value })
-    }, 500)
-  }
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
-      }
-    }
-  }, [])
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="mb-1">
-        <h2 className="text-base font-semibold text-gray-900">알림 설정</h2>
-        <p className="mt-1 text-sm text-gray-500">푸시 알림을 통해 성경 읽기 리마인더를 받을 수 있습니다.</p>
+    <section>
+      <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-[0.05em] text-[var(--color-slate-500)]">알림</h2>
+
+      <div className="overflow-hidden rounded-xl border border-[var(--color-slate-200)] bg-[var(--color-bg-card)]">
+        {loading ? (
+          <div className="space-y-3 p-4">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="h-12 animate-pulse rounded-lg bg-[var(--color-slate-100)]" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-slate-100)] p-4">
+              <div>
+                <p className="text-[0.9375rem] font-medium text-[var(--color-slate-800)]">푸시 알림</p>
+                <p className="text-[0.8125rem] text-[var(--color-slate-500)]">앱 푸시 알림 수신 여부</p>
+              </div>
+              <Toggle checked={draftSettings.push_enabled} onToggle={() => toggleField('push_enabled')} disabled={saving} />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-slate-100)] p-4">
+              <div>
+                <p className="text-[0.9375rem] font-medium text-[var(--color-slate-800)]">매일 읽기 리마인더</p>
+                <p className="text-[0.8125rem] text-[var(--color-slate-500)]">매일 정해진 시간에 알림</p>
+              </div>
+              <Toggle
+                checked={draftSettings.daily_reminder_enabled}
+                onToggle={() => toggleField('daily_reminder_enabled')}
+                disabled={saving}
+              />
+            </div>
+
+            {draftSettings.daily_reminder_enabled && (
+              <div className="border-b border-[var(--color-slate-100)] bg-[var(--color-slate-50)] px-4 py-3">
+                <label htmlFor="daily-reminder-time" className="text-[0.8125rem] text-[var(--color-slate-600)]">
+                  알림 시간
+                </label>
+                <input
+                  id="daily-reminder-time"
+                  type="time"
+                  value={draftSettings.daily_reminder_time || '06:00'}
+                  disabled={saving}
+                  onChange={(event) =>
+                    setDraftSettings((current) => ({
+                      ...current,
+                      daily_reminder_time: event.target.value,
+                    }))
+                  }
+                  className="mt-1 block rounded-lg border border-[var(--color-slate-300)] bg-[var(--color-bg-card)] px-3 py-2 text-sm text-[var(--color-slate-800)] outline-none transition focus:border-[var(--primary-color)]"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-slate-100)] p-4">
+              <div>
+                <p className="text-[0.9375rem] font-medium text-[var(--color-slate-800)]">하세나 새 영상 알림</p>
+                <p className="text-[0.8125rem] text-[var(--color-slate-500)]">새 영상 업로드 시 알림</p>
+              </div>
+              <Toggle
+                checked={draftSettings.hasena_notification_enabled}
+                onToggle={() => toggleField('hasena_notification_enabled')}
+                disabled={saving}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 p-4">
+              <div>
+                <p className="text-[0.9375rem] font-medium text-[var(--color-slate-800)]">친구 활동 알림</p>
+                <p className="text-[0.8125rem] text-[var(--color-slate-500)]">친구의 읽기 활동 소식</p>
+              </div>
+              <Toggle
+                checked={draftSettings.friend_activity_enabled}
+                onToggle={() => toggleField('friend_activity_enabled')}
+                disabled={saving}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-[var(--color-slate-100)] px-4 py-3">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={saving || !isDirty}
+                className="rounded-md border border-[var(--color-slate-300)] bg-[var(--color-bg-card)] px-4 py-2 text-sm font-medium text-[var(--color-slate-700)] transition hover:bg-[var(--color-slate-100)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !isDirty}
+                className="rounded-md border border-[var(--primary-color)] bg-[var(--primary-color)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Error message */}
-      {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-
-      {/* Push Permission */}
-      <div className="mt-5">
-        {permission === 'default' && (
-          <button
-            type="button"
-            onClick={handleRequestPermission}
-            disabled={saving}
-            className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {saving ? '권한 요청 중...' : '알림 허용하기'}
-          </button>
-        )}
-
-        {permission === 'granted' && (
-          <div className="flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3">
-            <svg
-              className="h-5 w-5 shrink-0 text-green-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
-            <span className="text-sm font-medium text-green-700">알림이 허용되었습니다</span>
-          </div>
-        )}
-
-        {permission === 'denied' && (
-          <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3">
-            <svg
-              className="h-5 w-5 shrink-0 text-amber-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-            </svg>
-            <span className="text-sm text-amber-700">브라우저 설정에서 알림을 허용해주세요</span>
-          </div>
-        )}
-      </div>
-
-      {/* Notification Settings Toggles — only when granted */}
-      {permission === 'granted' && (
-        <div className="mt-6">
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
-                  <div className="h-6 w-11 animate-pulse rounded-full bg-gray-200" />
-                </div>
-              ))}
-            </div>
-          ) : settings ? (
-            <div className="space-y-1">
-              {/* Daily reminder */}
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">매일 읽기 리마인더</p>
-                  <p className="text-xs text-gray-500">매일 정해진 시간에 알림을 받습니다</p>
-                </div>
-                <Toggle
-                  checked={settings.daily_reminder_enabled}
-                  onToggle={() => handleToggle('daily_reminder_enabled', settings.daily_reminder_enabled)}
-                  disabled={saving}
-                />
-              </div>
-
-              {/* Time picker — shown only when daily reminder enabled */}
-              {settings.daily_reminder_enabled && (
-                <div className="mb-2 ml-1 flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
-                  <label htmlFor="reminder-time" className="text-sm text-gray-600">
-                    알림 시간
-                  </label>
-                  <input
-                    id="reminder-time"
-                    type="time"
-                    value={settings.daily_reminder_time || '06:00'}
-                    onChange={(e) => handleTimeChange(e.target.value)}
-                    className="rounded-lg border border-gray-300 px-2 py-1 text-sm outline-none transition-colors focus:border-indigo-500"
-                  />
-                </div>
-              )}
-
-              <div className="border-t border-gray-100" />
-
-              {/* Hasena notification */}
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">하세나 새 영상 알림</p>
-                  <p className="text-xs text-gray-500">새로운 하세나 영상이 등록되면 알려드립니다</p>
-                </div>
-                <Toggle
-                  checked={settings.hasena_notification_enabled}
-                  onToggle={() => handleToggle('hasena_notification_enabled', settings.hasena_notification_enabled)}
-                  disabled={saving}
-                />
-              </div>
-
-              <div className="border-t border-gray-100" />
-
-              {/* Friend activity */}
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">친구 활동 알림</p>
-                  <p className="text-xs text-gray-500">친구의 읽기 활동 소식을 받습니다</p>
-                </div>
-                <Toggle
-                  checked={settings.friend_activity_enabled}
-                  onToggle={() => handleToggle('friend_activity_enabled', settings.friend_activity_enabled)}
-                  disabled={saving}
-                />
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">설정을 불러오는데 실패했습니다.</p>
-          )}
-        </div>
-      )}
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {success && <p className="mt-3 text-sm text-emerald-600">{success}</p>}
     </section>
   )
 }
