@@ -28,8 +28,10 @@ export default function AuthenticatedShell({
         avatarUrl={avatarUrl}
         onHamburgerClick={() => setIsMenuOpen(true)}
       />
-      <main className="flex-1 pb-20">
-        {children}
+      <main className="flex-1 bg-[var(--color-bg-primary)] px-4 pb-[calc(60px+env(safe-area-inset-bottom))] md:px-6 lg:px-8">
+        <div className="mx-auto w-full md:max-w-[900px] lg:max-w-[1200px]">
+          {children}
+        </div>
       </main>
       <BottomNavigation userId={userId} />
       <Menu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
