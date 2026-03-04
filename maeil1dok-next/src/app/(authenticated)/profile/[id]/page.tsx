@@ -52,6 +52,7 @@ export default async function ProfileRoutePage({ params }: Props) {
 
   const followCounts = await repositories.profile.getFollowCounts(id)
   const isFollowing = isOwnProfile ? false : await repositories.profile.isFollowing(id)
+  const publicProfiles = await repositories.profile.getPublicProfiles(500)
 
   return (
     <ProfilePage
@@ -60,6 +61,7 @@ export default async function ProfileRoutePage({ params }: Props) {
       isFollowing={isFollowing}
       isOwnProfile={isOwnProfile}
       currentUserId={user.id}
+      profileDirectory={publicProfiles}
     />
   )
 }

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
-    const { nickname, bio } = await request.json()
+    const { nickname, bio, isPublic } = await request.json()
 
     // Validation
     if (!nickname || !nickname.trim()) {
@@ -21,6 +21,7 @@ export async function POST(request: Request) {
     const updatedProfile = await repositories.profile.updateProfile({
       nickname: nickname.trim(),
       bio: bio?.trim() || '',
+      isPublic: typeof isPublic === 'boolean' ? isPublic : undefined,
     })
 
     return NextResponse.json(updatedProfile)

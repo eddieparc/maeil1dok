@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { User } from 'lucide-react'
 import type { FollowCounts, UserProfile } from '@/types'
-import Avatar from '@/components/ui/Avatar'
 import Container from '@/components/ui/Container'
 import Button from '@/components/ui/Button'
 import FollowersModal from './FollowersModal'
@@ -16,15 +16,45 @@ interface ProfilePageProps {
   isFollowing: boolean
   isOwnProfile: boolean
   currentUserId: string
+  profileDirectory: UserProfile[]
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone: 'primary' | 'success' | 'violet' | 'orange'
+}) {
+  const toneClass = {
+    primary: 'text-[var(--color-text-primary)]',
+    success: 'text-[#059669]',
+    violet: 'text-[#7C3AED]',
+    orange: 'text-[#EA580C]',
+  }[tone]
+
   return (
-    <div className="rounded-2xl bg-[var(--color-bg-secondary)] p-4 text-center shadow-sm">
-      <p className="text-2xl font-bold text-[var(--color-text-primary)]">{value}</p>
-      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{label}</p>
+    <div className="flex flex-col items-center gap-1 rounded-xl bg-[var(--color-bg-tertiary)] px-2 py-3">
+      <p className={`text-lg font-bold ${toneClass}`}>{value}</p>
+      <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">{label}</p>
     </div>
   )
+}
+
+function formatDate(value: string) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '-'
+  return parsed.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+function getCompletionRate(days: number) {
+  return Math.min(100, (days / 365) * 100)
 }
 
 export default function ProfilePage({
@@ -33,6 +63,7 @@ export default function ProfilePage({
   isFollowing,
   isOwnProfile,
   currentUserId,
+  profileDirectory,
 }: ProfilePageProps) {
   const router = useRouter()
   const [localProfile, setLocalProfile] = useState(profile)
@@ -46,6 +77,10 @@ export default function ProfilePage({
   const [isEditModalOpen, setEditModalOpen] = useState(false)
 
   const profileBio = useMemo(() => localProfile.bio?.trim() || '', [localProfile.bio])
+  const completionRate = useMemo(
+    () => getCompletionRate(localProfile.totalCompletedDays || 0),
+    [localProfile.totalCompletedDays],
+  )
 
   const handleFollowToggle = async () => {
     const wasFollowing = isFollowingState
@@ -76,66 +111,89 @@ export default function ProfilePage({
     }
   }
 
-  const handleSaveProfile = (nickname: string, bio: string) => {
+  const handleSaveProfile = (nextProfile: UserProfile) => {
     setLocalProfile((prev) => ({
       ...prev,
-      nickname,
-      bio,
+      ...nextProfile,
     }))
     router.refresh()
   }
 
   return (
-    <Container fullHeight className="pb-20 pt-6">
-      <div data-testid="profile-header" className="mb-4 rounded-2xl bg-[var(--color-bg-secondary)] p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <Avatar url={localProfile.avatarUrl} name={localProfile.nickname} size="lg" />
-            <div>
-            <h1 data-testid="profile-nickname" className="text-xl font-bold text-[var(--color-text-primary)]">
-              {localProfile.nickname}
-            </h1>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{profileBio}</p>
-            <div className="mt-3 flex gap-4 text-sm text-[var(--color-text-primary)]">
-              <button type="button" onClick={() => setShowFollowers(true)}>
-                <span className="font-bold">{localFollowCounts.followerCount}</span> 팔로워
-              </button>
-              <button type="button" onClick={() => setShowFollowing(true)}>
-                <span className="font-bold">{localFollowCounts.followingCount}</span> 팔로잉
-              </button>
+    <Container fullHeight className="pb-20 pt-4">
+      <div className="mx-auto flex w-full max-w-[768px] flex-col gap-4 px-4">
+        <section
+          data-testid="profile-header"
+          className="rounded-[20px] border border-black/[0.02] bg-[var(--color-bg-card)] p-6 shadow-[0_4px_20px_rgba(44,51,51,0.04)]"
+        >
+          <div className="mb-5 flex flex-col gap-4 min-[480px]:flex-row min-[480px]:items-start min-[480px]:justify-between">
+            <div className="flex items-center gap-4">
+              {localProfile.avatarUrl ? (
+                <img
+                  src={localProfile.avatarUrl}
+                  alt={localProfile.nickname}
+                  className="h-[72px] w-[72px] shrink-0 rounded-full border-2 border-[var(--color-bg-card)] object-cover shadow-[0_2px_8px_rgba(0,0,0,0.1)] min-[480px]:h-20 min-[480px]:w-20"
+                />
+              ) : (
+                <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[#6B8F71] text-white shadow-[0_2px_8px_rgba(0,0,0,0.1)] min-[480px]:h-20 min-[480px]:w-20">
+                  <User size={32} aria-hidden="true" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <h1 data-testid="profile-nickname" className="text-xl font-bold tracking-[-0.02em] text-[var(--color-text-primary)]">
+                  {localProfile.nickname}
+                </h1>
+                <p className="text-[13px] text-[var(--color-text-secondary)]">
+                  가입일: {formatDate(localProfile.createdAt)}
+                </p>
+                {profileBio ? <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{profileBio}</p> : null}
+              </div>
             </div>
+
+            <div className="flex gap-2">
+              {isOwnProfile ? (
+                <Button
+                  data-testid="profile-edit-button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setEditModalOpen(true)}
+                  aria-expanded={isEditModalOpen}
+                  className="h-10 min-w-[112px] rounded-xl border border-[var(--color-border-default)] px-4 text-sm"
+                >
+                  프로필 편집
+                </Button>
+              ) : (
+                <Button
+                  data-testid="follow-button"
+                  variant={isFollowingState ? 'secondary' : 'primary'}
+                  size="sm"
+                  onClick={handleFollowToggle}
+                  className="h-10 min-w-[96px] rounded-xl px-4 text-sm"
+                >
+                  {isFollowingState ? '언팔로우' : '팔로우'}
+                </Button>
+              )}
             </div>
           </div>
 
-          {isOwnProfile ? (
-            <Button
-              data-testid="profile-edit-button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setEditModalOpen(true)}
-              aria-expanded={isEditModalOpen}
-              className="text-[var(--color-primary)]"
-            >
-              편집
-            </Button>
-          ) : (
-            <Button
-              data-testid="follow-button"
-              variant={isFollowingState ? 'secondary' : 'primary'}
-              size="sm"
-              onClick={handleFollowToggle}
-              className="rounded-full"
-            >
-              {isFollowingState ? '팔로잉' : '팔로우'}
-            </Button>
-          )}
-        </div>
-      </div>
+          <div className="mb-5 flex flex-wrap items-center gap-4 border-y border-[var(--color-border-light)] py-4 text-sm text-[var(--color-text-secondary)]">
+            <button type="button" onClick={() => setShowFollowers(true)} className="transition-colors hover:text-[var(--color-text-primary)]">
+              <span className="mr-1 font-bold text-[var(--color-text-primary)]">{localFollowCounts.followerCount}</span>
+              팔로워
+            </button>
+            <button type="button" onClick={() => setShowFollowing(true)} className="transition-colors hover:text-[var(--color-text-primary)]">
+              <span className="mr-1 font-bold text-[var(--color-text-primary)]">{localFollowCounts.followingCount}</span>
+              팔로잉
+            </button>
+          </div>
 
-      <div data-testid="profile-stats" className="mb-4 grid grid-cols-3 gap-2">
-        <StatCard label="현재 연속" value={localProfile.currentStreak || 0} />
-        <StatCard label="총 완료일" value={localProfile.totalCompletedDays || 0} />
-        <StatCard label="최장 연속" value={localProfile.longestStreak || 0} />
+          <div data-testid="profile-stats" className="grid grid-cols-4 gap-2 max-[360px]:grid-cols-2">
+            <StatCard label="완료한 일수" value={`${localProfile.totalCompletedDays || 0}일`} tone="primary" />
+            <StatCard label="현재 연속" value={`${localProfile.currentStreak || 0}일`} tone="success" />
+            <StatCard label="최장 연속" value={`${localProfile.longestStreak || 0}일`} tone="violet" />
+            <StatCard label="완료율" value={`${completionRate.toFixed(1)}%`} tone="orange" />
+          </div>
+        </section>
       </div>
 
       <FollowersModal
@@ -143,18 +201,19 @@ export default function ProfilePage({
         onClose={() => setShowFollowers(false)}
         userId={localProfile.userId}
         currentUserId={currentUserId}
+        profileDirectory={profileDirectory}
       />
       <FollowingModal
         isOpen={showFollowing}
         onClose={() => setShowFollowing(false)}
         userId={localProfile.userId}
         currentUserId={currentUserId}
+        profileDirectory={profileDirectory}
       />
       <ProfileEditModal
         isOpen={isEditModalOpen}
         onClose={() => setEditModalOpen(false)}
-        initialNickname={localProfile.nickname}
-        initialBio={localProfile.bio || ''}
+        profile={localProfile}
         onSave={handleSaveProfile}
       />
     </Container>
