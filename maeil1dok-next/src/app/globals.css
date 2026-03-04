@@ -91,6 +91,8 @@
   --color-bg-primary: #faf8f6;
   --color-bg-secondary: #ffffff;
   --color-bg-tertiary: #f5f3f0;
+  --color-bg-card: #ffffff;
+  --color-bg-hover: #e5e7eb;
 
   --color-text-primary: #1f2937;
   --color-text-secondary: #4b5563;
@@ -281,6 +283,8 @@
   --color-bg-primary: #1a1a1a;
   --color-bg-secondary: #242424;
   --color-bg-tertiary: #2d2d2d;
+  --color-bg-card: #242424;
+  --color-bg-hover: #3d3d3d;
 
   --color-text-primary: #f3f4f6;
   --color-text-secondary: #d1d5db;
@@ -539,4 +543,22 @@ body {
   background: var(--color-accent-primary);
   cursor: pointer;
   border: none;
+}
+
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  opacity: 0;
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
