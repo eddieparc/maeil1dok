@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import IntroClient from '@/components/intro/IntroClient'
 import type { VideoBibleIntro, VideoIntroProgress } from '@/types'
-import { Container, PageHeader } from '@/components/ui'
+import { PageHeader } from '@/components/ui'
 
 interface PlanInfo {
   id: number
@@ -31,14 +31,18 @@ export default async function IntroPage() {
 
     if (planIds.length === 0) {
       return (
-        <Container maxWidth="md" className="pb-20">
-          <PageHeader title="성경 개론" />
-          <div className="px-4 py-6">
-            <p className="text-center text-sm text-[var(--color-text-secondary)]">
-              구독 중인 플랜이 없습니다. 플랜을 먼저 구독해주세요.
-            </p>
+        <div className="sanctuary-theme relative min-h-screen">
+          <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(var(--color-text-tertiary) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+          <div className="relative z-[1] mx-auto max-w-[768px]">
+            <PageHeader title="성경 개론" />
+            <div className="flex flex-col items-center justify-center px-4 py-12">
+              <div className="mb-3 text-4xl">📖</div>
+              <p className="text-center text-sm text-[var(--color-text-secondary)]">
+                구독 중인 플랜이 없습니다. 플랜을 먼저 구독해주세요.
+              </p>
+            </div>
           </div>
-        </Container>
+        </div>
       )
     }
 
@@ -91,25 +95,34 @@ export default async function IntroPage() {
     }
 
     return (
-      <Container maxWidth="md" className="pb-20">
-        <PageHeader title="성경 개론" />
+      <div className="pb-0">
+        <div className="mx-auto max-w-[768px]">
+          <PageHeader title="성경 개론" />
+        </div>
         <IntroClient
           plans={planList}
           videoIntros={videoIntros}
           progressList={progressList}
         />
-      </Container>
+      </div>
     )
   } catch {
     return (
-      <Container maxWidth="md">
-        <PageHeader title="성경 개론" />
-        <div className="flex min-h-[50vh] items-center justify-center px-4">
-          <p className="text-center text-sm text-red-600">
-            개론 목록을 불러오는 중 오류가 발생했습니다
-          </p>
+      <div className="sanctuary-theme relative min-h-screen">
+        <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(var(--color-text-tertiary) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        <div className="relative z-[1] mx-auto max-w-[768px]">
+          <PageHeader title="성경 개론" />
+          <div className="flex min-h-[50vh] flex-col items-center justify-center px-4">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-danger-bg)]">
+              <span className="text-lg font-bold text-[var(--color-danger)]">!</span>
+            </div>
+            <h3 className="mb-1 text-base font-semibold text-[var(--color-text-primary)]">정보를 불러올 수 없습니다</h3>
+            <p className="text-center text-sm text-[var(--color-text-secondary)]">
+              개론 목록을 불러오는 중 오류가 발생했습니다
+            </p>
+          </div>
         </div>
-      </Container>
+      </div>
     )
   }
 }
