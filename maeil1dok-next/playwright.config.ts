@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const playwrightPort = Number(process.env.PLAYWRIGHT_PORT ?? '3000')
+const usePlaywrightWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER !== '1'
+
 export default defineConfig({
   testDir: './tests/e2e',
   snapshotPathTemplate: '{testDir}/{testFilePath}-snapshots/{arg}{ext}',
@@ -9,7 +12,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: `http://localhost:${playwrightPort}`,
     trace: 'on-first-retry',
   },
   projects: [
@@ -43,9 +46,13 @@ export default defineConfig({
       dependencies: ['setup']
     }
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-  },
+  ...(usePlaywrightWebServer
+    ? {
+        webServer: {
+          command: `npm run dev -- --port ${playwrightPort}`,
+          url: `http://localhost:${playwrightPort}`,
+          reuseExistingServer: !process.env.CI,
+        },
+      }
+    : {}),
 })
