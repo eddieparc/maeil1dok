@@ -46,7 +46,7 @@ interface HomeStats {
 
 function PlayIcon({ className }: { className?: string }) {
   return (
-    <svg className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
@@ -55,7 +55,7 @@ function PlayIcon({ className }: { className?: string }) {
 
 function CheckCircleIcon({ className }: { className?: string }) {
   return (
-    <svg className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
@@ -63,15 +63,37 @@ function CheckCircleIcon({ className }: { className?: string }) {
 
 function ArrowRightIcon({ className }: { className?: string }) {
   return (
-    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  )
+}
+
+function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  )
+}
+
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M11.049 2.927c.3-1.14 1.603-1.14 1.902 0a1 1 0 00.95.69 1 1 0 011.12.743 1 1 0 001.341.667c1.004-.468 1.926.454 1.458 1.458a1 1 0 00.667 1.34 1 1 0 01.743 1.121 1 1 0 00.69.95c1.14.3 1.14 1.603 0 1.902a1 1 0 00-.69.95 1 1 0 01-.743 1.12 1 1 0 00-.667 1.341c.468 1.004-.454 1.926-1.458 1.458a1 1 0 00-1.34.667 1 1 0 01-1.121.743 1 1 0 00-.95.69c-.3 1.14-1.603 1.14-1.902 0a1 1 0 00-.95-.69 1 1 0 01-1.12-.743 1 1 0 00-1.341-.667c-1.004.468-1.926-.454-1.458-1.458a1 1 0 00-.667-1.34 1 1 0 01-.743-1.121 1 1 0 00-.69-.95c-1.14-.3-1.14-1.603 0-1.902a1 1 0 00.69-.95 1 1 0 01.743-1.12 1 1 0 00.667-1.341c-.468-1.004.454-1.926 1.458-1.458a1 1 0 001.34-.667 1 1 0 011.121-.743 1 1 0 00.95-.69z"
+      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   )
 }
 
 function BookmarkIcon({ className }: { className?: string }) {
   return (
-    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
     </svg>
   )
@@ -79,7 +101,7 @@ function BookmarkIcon({ className }: { className?: string }) {
 
 function DocumentIcon({ className }: { className?: string }) {
   return (
-    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   )
@@ -87,15 +109,20 @@ function DocumentIcon({ className }: { className?: string }) {
 
 function HighlightIcon({ className }: { className?: string }) {
   return (
-    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 7h16M4 12h16M4 17h16"
+      />
     </svg>
   )
 }
 
 function HistoryIcon({ className }: { className?: string }) {
   return (
-    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
@@ -103,8 +130,25 @@ function HistoryIcon({ className }: { className?: string }) {
 
 function ListIcon({ className }: { className?: string }) {
   return (
-    <svg className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10" />
+    </svg>
+  )
+}
+
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={cn('h-4 w-4', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 22a10 10 0 100-20 10 10 0 000 20z" />
+    </svg>
+  )
+}
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   )
 }
@@ -154,6 +198,8 @@ export default function BibleHome({
     recentRecords: [],
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [hasPlan, setHasPlan] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(true)
   const [tipsDismissed, setTipsDismissed] = useState(false)
 
   const hasBookmarks = stats.bookmarkCount > 0
@@ -175,21 +221,7 @@ export default function BibleHome({
 
   // ─── Data fetching ──────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setTipsDismissed(localStorage.getItem('bible_tips_dismissed') === 'true')
-    }
-
-    void loadData()
-  }, [])
-
-  async function loadData() {
-    setIsLoading(true)
-    await Promise.all([loadHomeStats(), loadTodaySchedule()])
-    setIsLoading(false)
-  }
-
-  async function loadHomeStats() {
+  const loadHomeStats = useCallback(async () => {
     try {
       const [bookmarksRes, notesRes, highlightsRes, recordsRes] = await Promise.all([
         fetch('/api/bible/bookmarks').then((r) => (r.ok ? r.json() : null)).catch(() => null),
@@ -214,19 +246,34 @@ export default function BibleHome({
           readDate: r.read_date,
         })),
       })
+
+      if (!bookmarksRes && !notesRes && !highlightsRes && !recordsRes) {
+        setIsAuthenticated(false)
+      }
     } catch {
       // Silently fail - stats will remain at defaults
     }
-  }
+  }, [])
 
-  async function loadTodaySchedule() {
+  const loadTodaySchedule = useCallback(async () => {
     try {
       const res = await fetch('/api/bible/schedules/today')
+      if (res.status === 401) {
+        setIsAuthenticated(false)
+        return
+      }
+
       if (!res.ok) return
 
       const result = await res.json()
       const schedules = result.data
-      if (!schedules || schedules.length === 0) return
+      if (!schedules || schedules.length === 0) {
+        setHasPlan(false)
+        setTodaySchedule(null)
+        return
+      }
+
+      setHasPlan(true)
 
       const firstSchedule = schedules[0]
       const completedCount = schedules.filter((s: { is_completed: boolean }) => s.is_completed).length
@@ -256,7 +303,18 @@ export default function BibleHome({
     } catch {
       // Silently fail
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setTipsDismissed(localStorage.getItem('bible_tips_dismissed') === 'true')
+    }
+
+    setIsLoading(true)
+    void Promise.all([loadHomeStats(), loadTodaySchedule()]).finally(() => {
+      setIsLoading(false)
+    })
+  }, [loadHomeStats, loadTodaySchedule])
 
   // ─── Handlers ───────────────────────────────────────────────────────────
 
@@ -295,6 +353,17 @@ export default function BibleHome({
         )}
       >
         <h1 className="text-xl font-bold text-[var(--color-text-primary)]">성경</h1>
+        <button
+          type="button"
+          className={cn(
+            'rounded-lg p-2 text-[var(--color-text-secondary)] transition-all',
+            'hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]',
+          )}
+          onClick={() => router.push('/bible/settings')}
+          aria-label="성경 설정"
+        >
+          <SettingsIcon />
+        </button>
       </header>
 
       <div className="space-y-6 p-4 pb-8">
@@ -367,6 +436,27 @@ export default function BibleHome({
           </section>
         )}
 
+        {!hasPlan && isAuthenticated && !isLoading && (
+          <section>
+            <div
+              className={cn(
+                'flex items-center gap-2 rounded-[10px] bg-[var(--color-bg-tertiary)] p-3',
+                'text-[0.8125rem] text-[var(--color-text-secondary)]',
+              )}
+            >
+              <InfoIcon />
+              <span>플랜을 구독하면 매일 통독 일정을 받을 수 있어요</span>
+              <button
+                type="button"
+                className="ml-auto font-medium text-[var(--color-accent-primary)]"
+                onClick={() => router.push('/plan')}
+              >
+                플랜 보기
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* ── Continue Reading ─────────────────────────────────────────── */}
         {lastPosition && (
           <section>
@@ -425,6 +515,20 @@ export default function BibleHome({
                   <ListIcon className="h-[18px] w-[18px]" />
                   성경 목차에서 시작하기
                 </button>
+                {isAuthenticated && (
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex items-center justify-center gap-2 rounded-[10px] border border-[var(--color-border-default)] px-4 py-3.5',
+                      'bg-[var(--color-bg-tertiary)] text-[0.9375rem] font-medium text-[var(--color-text-primary)]',
+                      'transition-all hover:bg-[var(--color-bg-primary)]',
+                    )}
+                    onClick={() => router.push('/plan')}
+                  >
+                    <CalendarIcon />
+                    통독 플랜 구독하기
+                  </button>
+                )}
               </div>
             </div>
           </section>
@@ -573,28 +677,24 @@ export default function BibleHome({
               {stats.recentRecords.map((record) => (
                 <li
                   key={`${record.book}-${record.chapter}-${record.readDate}`}
-                  className={cn(
-                    'flex cursor-pointer items-center justify-between px-4 py-3.5',
-                    'border-b border-[var(--color-border-default)] last:border-b-0',
-                    'transition-colors hover:bg-[var(--color-bg-tertiary)]',
-                  )}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleRecordClick(record)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      handleRecordClick(record)
-                    }
-                  }}
+                  className="border-b border-[var(--color-border-default)] last:border-b-0"
                 >
-                  <span className="text-[0.9375rem] text-[var(--color-text-primary)]">
-                    {record.bookName} {record.chapter}
-                    {getChapterUnit(record.book)}
-                  </span>
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    {formatDate(record.readDate)}
-                  </span>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex w-full items-center justify-between px-4 py-3.5 text-left',
+                      'transition-colors hover:bg-[var(--color-bg-tertiary)]',
+                    )}
+                    onClick={() => handleRecordClick(record)}
+                  >
+                    <span className="text-[0.9375rem] text-[var(--color-text-primary)]">
+                      {record.bookName} {record.chapter}
+                      {getChapterUnit(record.book)}
+                    </span>
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      {formatDate(record.readDate)}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -673,7 +773,7 @@ function FeatureCard({ icon, iconBg, iconColor, name, count, description, onClic
           {description}
         </p>
       </div>
-      <ArrowRightIcon className="shrink-0 text-[var(--color-text-muted)]" />
+      <ChevronRightIcon className="shrink-0 text-[var(--color-text-muted)]" />
     </button>
   )
 }
