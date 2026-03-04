@@ -1,8 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Modal } from '@/components/ui/Modal'
+import { cn } from '@/lib/utils'
 
-const DEFAULT_COLORS = ['#FFEB3B', '#A5D6A7', '#90CAF9', '#F48FB1', '#FFCC80', '#CE93D8']
+const DEFAULT_COLORS = [
+  '#FEF3C7', '#FDE68A', '#FFEB3B',
+  '#D1FAE5', '#A5D6A7', '#6EE7B7',
+  '#DBEAFE', '#90CAF9', '#93C5FD',
+  '#FCE7F3', '#F48FB1', '#F9A8D4',
+  '#FED7AA', '#FFCC80', '#FDBA74',
+  '#E9D5FF', '#CE93D8', '#C4B5FD',
+]
 
 interface HighlightModalProps {
   isOpen: boolean
@@ -23,10 +32,19 @@ export default function HighlightModal({
 }: HighlightModalProps) {
   const [color, setColor] = useState(selectedColor ?? DEFAULT_COLORS[0])
   const [memo, setMemo] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  if (!isOpen) return null
+  useEffect(() => {
+    if (isOpen) {
+      setColor(selectedColor ?? DEFAULT_COLORS[0])
+      setMemo('')
+      // Focus textarea after animation
+      const timer = setTimeout(() => textareaRef.current?.focus(), 250)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen, selectedColor])
 
-  const allColors = [...new Set([...customColors, ...DEFAULT_COLORS])]
+  const allColors = [...new Set([...DEFAULT_COLORS, ...customColors])]
 
   function handleSave() {
     onSave(color, memo.trim() || undefined)
@@ -34,67 +52,121 @@ export default function HighlightModal({
     onClose()
   }
 
+  function handleDelete() {
+    onDelete?.()
+    onClose()
+  }
+
   return (
-    <>
-      <button type="button" className="fixed inset-0 z-40 bg-black/40" aria-label="닫기" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-white px-4 pb-8 pt-4">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-200" />
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">하이라이트</h3>
-          <button type="button" className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" onClick={onClose} aria-label="닫기">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <div className="px-5 pt-5 pb-1">
+        <h2 className="text-center text-lg font-semibold text-[var(--color-text-primary)]">
+          하이라이트
+        </h2>
+      </div>
+
+      <div className="px-5 py-4">
+        {/* Color palette */}
+        <div className="mb-4">
+          <label className="mb-2 block text-xs font-medium text-[var(--color-text-tertiary)]">
+            색상 선택
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {allColors.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={cn(
+                  'h-8 w-8 rounded-full border-2 transition-all duration-200 hover:scale-110',
+                  color === c
+                    ? 'border-[var(--color-accent-primary)] shadow-[0_0_0_2px_var(--color-bg-primary),0_0_0_4px_var(--color-accent-primary)]'
+                    : 'border-transparent dark:border-white/20'
+                )}
+                style={{ backgroundColor: c }}
+                aria-label={`색상 ${c}`}
+                onClick={() => setColor(c)}
+              />
+            ))}
+          </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-3">
-          {allColors.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`h-9 w-9 rounded-full border-2 transition ${color === c ? 'border-gray-700 scale-110' : 'border-transparent'}`}
-              style={{ backgroundColor: c }}
-              aria-label={`색상 ${c}`}
-              onClick={() => setColor(c)}
-            />
-          ))}
+        {/* Preview strip */}
+        <div
+          className="mb-4 rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)]"
+          style={{ backgroundColor: color + '40' }}
+        >
+          <span className="font-medium" style={{ color }}>●</span>
+          <span className="ml-2">선택한 색상 미리보기</span>
         </div>
 
-        <input
-          type="text"
-          className="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:bg-white"
-          placeholder="메모 (선택사항)"
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-        />
+        {/* Memo */}
+        <div className="mb-2">
+          <label className="mb-2 block text-xs font-medium text-[var(--color-text-tertiary)]">
+            메모 (선택)
+          </label>
+          <textarea
+            ref={textareaRef}
+            className={cn(
+              'w-full resize-none rounded-xl border px-3 py-2.5 text-sm leading-relaxed outline-none transition-colors',
+              'border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)]',
+              'text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]',
+              'focus:border-[var(--color-accent-primary)] focus:bg-[var(--color-bg-secondary)]',
+              'focus:ring-2 focus:ring-[var(--color-accent-primary)]/10'
+            )}
+            rows={2}
+            maxLength={500}
+            placeholder="하이라이트에 메모를 추가하세요..."
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+          />
+        </div>
+      </div>
 
-        <div className="mt-4 flex gap-2">
-          {onDelete ? (
-            <button
-              type="button"
-              className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
-              onClick={() => { onDelete(); onClose() }}
-            >
-              삭제
-            </button>
-          ) : null}
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-[var(--color-border-default)] px-5 py-4">
+        {onDelete ? (
           <button
             type="button"
-            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+              'border-[var(--color-danger)]/30 text-[var(--color-danger)]',
+              'hover:bg-[var(--color-danger)]/10'
+            )}
+            onClick={handleDelete}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+            </svg>
+            삭제
+          </button>
+        ) : (
+          <div />
+        )}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={cn(
+              'rounded-xl px-4 py-2.5 text-sm font-medium transition-colors',
+              'bg-[var(--color-button-default)] text-[var(--color-text-primary)]',
+              'hover:bg-[var(--color-button-hover)]'
+            )}
             onClick={onClose}
           >
             취소
           </button>
           <button
             type="button"
-            className="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+            className={cn(
+              'rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-colors',
+              'bg-[var(--color-accent-primary)] hover:bg-[var(--color-accent-hover)]'
+            )}
             onClick={handleSave}
           >
-            적용
+            {onDelete ? '수정' : '저장'}
           </button>
         </div>
       </div>
-    </>
+    </Modal>
   )
 }

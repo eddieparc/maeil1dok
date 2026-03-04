@@ -235,3 +235,31 @@ body {
 .btn-interactive:active {
   transform: scale(0.95);
 }
+
+/* Reading Settings Slider */
+.reading-settings-slider {
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-border-default);
+  border-radius: 2px;
+  outline: none;
+}
+
+.reading-settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  cursor: pointer;
+}
+
+.reading-settings-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  cursor: pointer;
+  border: none;
+}
