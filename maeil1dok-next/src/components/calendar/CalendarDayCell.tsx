@@ -1,5 +1,4 @@
 import type { CalendarDate } from './generateCalendarDates'
-import Badge from '@/components/ui/Badge'
 export interface CalendarDot {
   subscriptionId: string
   color: string
@@ -13,42 +12,36 @@ interface CalendarDayCellProps {
 }
 
 export default function CalendarDayCell({ date, dots }: CalendarDayCellProps) {
-  const hasDots = dots.length > 0
-  const allCompleted = hasDots && dots.every(d => d.isCompleted)
-  const anyCompleted = hasDots && dots.some(d => d.isCompleted)
-  
-  let bgClass = 'bg-[var(--color-bg-primary)]'
-  if (hasDots) {
-    if (allCompleted) bgClass = 'bg-[var(--color-success-bg)]'
-    else if (anyCompleted) bgClass = 'bg-[var(--color-primary-bg)]'
-    else bgClass = 'bg-[var(--color-bg-secondary)]'
-  }
+  const completedDots = dots.filter((dot) => dot.isCompleted)
+  const hasReading = completedDots.length > 0
+  const isSunday = date.date.getDay() === 0
 
   return (
-    <div className={`min-h-20 rounded-lg border border-[var(--color-border-default)] p-2 ${bgClass} ${date.isCurrentMonth ? '' : 'opacity-40'}`}>
-      <div className="flex items-center justify-between">
-        <span
-          className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-            date.isToday ? 'bg-[var(--color-primary)] text-white ring-2 ring-[var(--color-primary-bg)]' : 'text-[var(--color-text-primary)]'
-          }`}
-        >
-          {date.date.getDate()}
-        </span>
-      </div>
+    <div
+      className={[
+        'relative flex aspect-square flex-col items-center justify-center rounded-lg',
+        !date.isCurrentMonth ? 'opacity-30' : '',
+        hasReading ? 'bg-[var(--color-success-bg)]' : '',
+        date.isToday ? 'ring-1 ring-[var(--color-primary)]' : '',
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'text-[0.8125rem] text-[var(--color-text-primary)]',
+          isSunday ? 'text-[var(--color-danger)]' : '',
+          date.isToday ? 'font-semibold text-[var(--color-primary)]' : '',
+        ].join(' ')}
+      >
+        {date.date.getDate()}
+      </span>
 
-      <div className="mt-2 flex flex-col gap-1">
-        {dots.map((dot) => (
-          <div key={dot.subscriptionId} title={`${dot.planName} ${dot.isCompleted ? '완료' : '예정'}`}>
-            <Badge
-              variant={dot.isCompleted ? 'success' : 'default'}
-              size="sm"
-              className="w-full justify-center truncate"
-            >
-              {dot.planName}
-            </Badge>
-          </div>
-        ))}
-      </div>
+      {hasReading ? (
+        <div className="absolute bottom-1 flex items-center gap-1" aria-label="읽기 완료" role="img">
+          {completedDots.slice(0, 4).map((dot) => (
+            <span key={dot.subscriptionId} className="h-[5px] w-[5px] rounded-full" style={{ backgroundColor: dot.color }} title={`${dot.planName} 완료`} />
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

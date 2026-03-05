@@ -92,26 +92,30 @@ export default function MultiPlanCalendar({ year, month, plans }: MultiPlanCalen
 
   return (
     <div data-testid="calendar-page" className="flex flex-col gap-4 px-4 py-4">
-      <CalendarHeader year={year} month={month} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} onToday={handleToday} />
-
       {plans.length > 1 && <PlanTogglePanel plans={toggleItems} visiblePlanIds={visiblePlanIds} onToggle={handleToggle} />}
 
-      <div>
-        <div className="mb-1 grid grid-cols-7 gap-1">
+      <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-card)] p-4 shadow-sm">
+        <CalendarHeader year={year} month={month} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} onToday={handleToday} />
+        <div className="mb-2 grid grid-cols-7">
           {weekDays.map((day) => (
-            <div key={day} className="py-1 text-center text-xs font-semibold text-[var(--color-text-secondary)]">
+            <div
+              key={day}
+              className={`py-1 text-center text-xs font-medium ${day === '일' ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}`}
+            >
               {day}
             </div>
           ))}
         </div>
-        <div data-testid="calendar-grid" className="grid grid-cols-7 gap-1">
+        <div data-testid="calendar-grid" className="grid grid-cols-7 gap-[2px]">
           {calendarDates.map((calDate) => (
             <CalendarDayCell key={calDate.dateStr} date={calDate} dots={dotsMap.get(calDate.dateStr) ?? []} />
           ))}
         </div>
-      </div>
 
-      <CalendarLegend visiblePlans={visiblePlans} />
+        <div className="mt-3 border-t border-[var(--color-border-default)] pt-3">
+          <CalendarLegend visiblePlans={visiblePlans} />
+        </div>
+      </div>
     </div>
   )
 }
