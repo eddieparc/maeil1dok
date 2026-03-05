@@ -22,77 +22,108 @@ export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChan
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <Modal.Header>
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">캐치업 설정</h2>
+        <h2 className="text-lg font-semibold text-gray-900">따라잡기 계획 세우기</h2>
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+          aria-label="닫기"
+        >
+          ✕
+        </button>
       </Modal.Header>
+
       <Modal.Body>
-        <div className="space-y-3">
+        <div className="space-y-5">
+          {/* Strategy Selection */}
           <div>
-            <p className="mb-2 text-sm font-medium text-[var(--color-text-primary)]">전략</p>
-            <label className="mb-2 block rounded-xl border border-[var(--color-border-default)] px-3 py-2 cursor-pointer hover:bg-[var(--color-bg-tertiary)]">
-              <input
-                type="radio"
-                name="strategy"
-                checked={value.strategy === 'parallel'}
-                onChange={() => onChange({ ...value, strategy: 'parallel' })}
-              />
-              <span className="ml-2 text-sm text-[var(--color-text-primary)]">병렬 (각 플랜을 균등하게 분배)</span>
-            </label>
-            <label className="block rounded-xl border border-[var(--color-border-default)] px-3 py-2 cursor-pointer hover:bg-[var(--color-bg-tertiary)]">
-              <input
-                type="radio"
-                name="strategy"
-                checked={value.strategy === 'sequential'}
-                onChange={() => onChange({ ...value, strategy: 'sequential' })}
-              />
-              <span className="ml-2 text-sm text-[var(--color-text-primary)]">순차 (앞선 날짜부터 순서대로)</span>
-            </label>
+            <label className="mb-3 block text-sm font-semibold text-gray-900">진행 방식</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => onChange({ ...value, strategy: 'parallel' })}
+                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all ${
+                  value.strategy === 'parallel'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <span className="text-2xl">↔️</span>
+                <span className={`text-sm font-medium ${value.strategy === 'parallel' ? 'text-blue-600' : 'text-gray-900'}`}>
+                  동시 진행
+                </span>
+              </button>
+              <button
+                onClick={() => onChange({ ...value, strategy: 'sequential' })}
+                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all ${
+                  value.strategy === 'sequential'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <span className="text-2xl">→</span>
+                <span className={`text-sm font-medium ${value.strategy === 'sequential' ? 'text-blue-600' : 'text-gray-900'}`}>
+                  순차 복귀
+                </span>
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-gray-600">
+              {value.strategy === 'parallel'
+                ? '오늘 읽기와 밀린 읽기를 동시에 진행'
+                : '밀린 것부터 순서대로 읽고 원래 위치로 복귀'}
+            </p>
           </div>
 
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">재합류 목표일</span>
+          {/* Target Date */}
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-900">목표 복귀일</label>
             <input
               type="date"
               value={value.targetDate}
-              onChange={(event) => onChange({ ...value, targetDate: event.target.value })}
-              className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+              onChange={(e) => onChange({ ...value, targetDate: e.target.value })}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">일일 최대 읽기 수</span>
-            <input
-              type="number"
-              min={1}
-              value={value.maxDailyReadings}
-              onChange={(event) => onChange({ ...value, maxDailyReadings: Number(event.target.value) || 1 })}
-              className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
-            />
-          </label>
+          {/* Daily Readings */}
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-900">하루 최대 읽기량</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={value.maxDailyReadings}
+                onChange={(e) => onChange({ ...value, maxDailyReadings: Number(e.target.value) || 1 })}
+                className="w-20 rounded-xl border border-gray-300 bg-white px-3 py-2 text-center text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+              <span className="text-sm text-gray-600">회</span>
+              <span className="text-xs text-gray-500">또는</span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={value.maxDailyChapters}
+                onChange={(e) => onChange({ ...value, maxDailyChapters: Number(e.target.value) || 1 })}
+                className="w-20 rounded-xl border border-gray-300 bg-white px-3 py-2 text-center text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+              <span className="text-sm text-gray-600">장</span>
+            </div>
+          </div>
 
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">일일 최대 장 수</span>
-            <input
-              type="number"
-              min={1}
-              value={value.maxDailyChapters}
-              onChange={(event) => onChange({ ...value, maxDailyChapters: Number(event.target.value) || 1 })}
-              className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">주말 배수</span>
+          {/* Weekend Multiplier */}
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-900">주말 배수</label>
             <input
               type="number"
               min={0.5}
               step={0.5}
               value={value.weekendMultiplier}
-              onChange={(event) => onChange({ ...value, weekendMultiplier: Number(event.target.value) || 1 })}
-              className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+              onChange={(e) => onChange({ ...value, weekendMultiplier: Number(e.target.value) || 1 })}
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
-          </label>
+          </div>
         </div>
       </Modal.Body>
+
       <Modal.Footer>
         <div className="flex w-full gap-2">
           <Button variant="secondary" onClick={onClose} className="flex-1">

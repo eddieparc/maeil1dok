@@ -52,38 +52,47 @@ export function TodayCatchupList({ items, onItemCompleted }: TodayCatchupListPro
     }
   }
 
+  const completedCount = sortedItems.filter(item => item.isCompleted).length
+
   return (
-    <section data-testid="catchup-today-list" className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <h3 className="text-base font-semibold text-gray-900">오늘의 캐치업</h3>
-      {sortedItems.length === 0 ? <p className="mt-2 text-sm text-gray-500">오늘 배정된 캐치업 일정이 없습니다.</p> : null}
+    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2 border-b border-gray-100 pb-3">
+        <span className="text-base">📚</span>
+        <h3 className="text-sm font-semibold text-gray-900">따라잡기</h3>
+        <span className="text-xs text-gray-600">({completedCount}/{sortedItems.length})</span>
+      </div>
 
-      <ul className="mt-3 space-y-2">
-        {sortedItems.map((item) => (
-          <li
-            key={item.id}
-            data-testid="catchup-reading-item"
-            className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2"
-          >
-            <div>
-              <p className="text-sm font-medium text-gray-900">{item.book}</p>
-              <p className="text-xs text-gray-500">
-                {item.startChapter}장 - {item.endChapter}장
-              </p>
+      <div className="space-y-2">
+        {sortedItems.length === 0 ? (
+          <p className="py-4 text-center text-sm text-gray-600">오늘 예정된 따라잡기 스케줄이 없습니다.</p>
+        ) : (
+          sortedItems.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-gray-50"
+            >
+              <input
+                type="checkbox"
+                checked={item.isCompleted}
+                disabled={item.isCompleted || pendingId === item.id}
+                onChange={() => handleComplete(item)}
+                className="h-5 w-5 rounded border-gray-300 text-blue-600 disabled:opacity-60"
+                aria-label={`${item.book} ${item.startChapter}-${item.endChapter} 완료`}
+              />
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${item.isCompleted ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                  {item.book}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {item.startChapter}장{item.startChapter !== item.endChapter ? `-${item.endChapter}장` : ''}
+                </p>
+              </div>
             </div>
-
-            <input
-              type="checkbox"
-              checked={item.isCompleted}
-              disabled={item.isCompleted || pendingId === item.id}
-              onChange={() => handleComplete(item)}
-              className="h-4 w-4 rounded border-gray-300 text-emerald-600 disabled:opacity-70"
-              aria-label={`${item.book} ${item.startChapter}-${item.endChapter} 완료`}
-            />
-          </li>
-        ))}
-      </ul>
+          ))
+        )}
+      </div>
 
       {error ? <p className="mt-3 text-xs text-red-600">{error}</p> : null}
-    </section>
+    </div>
   )
 }
