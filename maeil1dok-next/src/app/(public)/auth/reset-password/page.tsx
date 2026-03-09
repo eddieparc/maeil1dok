@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-12"
-      style={{ backgroundColor: 'var(--color-bg-base)' }}
+      style={{ backgroundColor: 'var(--color-bg-primary)' }}
     >
       <div className="w-full max-w-[28rem] flex flex-col gap-6 fade-in">
         <button
@@ -93,97 +93,97 @@ export default function ResetPasswordPage() {
 
         {!isSuccess ? (
           <>
-            <div className="text-center flex flex-col gap-2">
-              <h1 className="text-xl font-semibold m-0" style={{ color: 'var(--color-slate-800)' }}>
-                새 비밀번호 설정
-              </h1>
-              <p className="text-sm m-0 leading-relaxed" style={{ color: 'var(--color-slate-600)' }}>
-                새로운 비밀번호를 입력해주세요.
-              </p>
-            </div>
+             <div className="text-center flex flex-col gap-2">
+               <h1 className="text-xl font-semibold m-0" style={{ color: 'var(--color-text-primary)' }}>
+                 새 비밀번호 설정
+               </h1>
+               <p className="text-sm m-0 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                 새로운 비밀번호를 입력해주세요.
+               </p>
+             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="rounded-md overflow-hidden" style={{ boxShadow: 'var(--shadow-sm)' }}>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  onBlur={() => setPasswordTouched(true)}
-                  autoComplete="new-password"
-                  placeholder="새 비밀번호 (8자 이상)"
-                  className="block w-full py-3 px-4 text-sm border-b-0 rounded-t-md appearance-none"
-                  style={{
-                    backgroundColor: 'var(--color-bg-card)',
-                    color: 'var(--color-slate-800)',
-                    border: passwordTouched && passwordError
-                      ? '1px solid #ef4444'
-                      : '1px solid var(--color-slate-300)',
-                    borderBottom: 'none',
-                  }}
-                />
-                <input
-                  id="passwordConfirm"
-                  type="password"
-                  value={passwordConfirm}
-                  onChange={(event) => setPasswordConfirm(event.target.value)}
-                  onBlur={() => setPasswordConfirmTouched(true)}
-                  autoComplete="new-password"
-                  placeholder="비밀번호 확인"
-                  className="block w-full py-3 px-4 text-sm rounded-b-md appearance-none"
-                  style={{
-                    backgroundColor: 'var(--color-bg-card)',
-                    color: 'var(--color-slate-800)',
-                    border: passwordConfirmTouched && passwordConfirmError
-                      ? '1px solid #ef4444'
-                      : '1px solid var(--color-slate-300)',
-                  }}
-                />
+                 <input
+                   id="password"
+                   type="password"
+                   value={password}
+                   onChange={(event) => setPassword(event.target.value)}
+                   onBlur={() => setPasswordTouched(true)}
+                   autoComplete="new-password"
+                   placeholder="새 비밀번호 (8자 이상)"
+                   className="block w-full py-3 px-4 text-sm border-b-0 rounded-t-md appearance-none"
+                   style={{
+                     backgroundColor: 'var(--color-bg-card)',
+                     color: 'var(--color-text-primary)',
+                     border: passwordTouched && passwordError
+                       ? '1px solid var(--color-danger)'
+                       : '1px solid var(--color-border-subtle)',
+                     borderBottom: 'none',
+                   }}
+                 />
+                 <input
+                   id="passwordConfirm"
+                   type="password"
+                   value={passwordConfirm}
+                   onChange={(event) => setPasswordConfirm(event.target.value)}
+                   onBlur={() => setPasswordConfirmTouched(true)}
+                   autoComplete="new-password"
+                   placeholder="비밀번호 확인"
+                   className="block w-full py-3 px-4 text-sm rounded-b-md appearance-none"
+                   style={{
+                     backgroundColor: 'var(--color-bg-card)',
+                     color: 'var(--color-text-primary)',
+                     border: passwordConfirmTouched && passwordConfirmError
+                       ? '1px solid var(--color-danger)'
+                       : '1px solid var(--color-border-subtle)',
+                   }}
+                 />
               </div>
 
-              {(passwordTouched && passwordError) || (passwordConfirmTouched && passwordConfirmError) ? (
-                <p className="text-xs m-0" style={{ color: '#ef4444' }}>
-                  {passwordTouched && passwordError ? passwordError : passwordConfirmError}
-                </p>
-              ) : null}
+               {(passwordTouched && passwordError) || (passwordConfirmTouched && passwordConfirmError) ? (
+                 <p className="text-xs m-0" style={{ color: 'var(--color-danger)' }}>
+                   {passwordTouched && passwordError ? passwordError : passwordConfirmError}
+                 </p>
+               ) : null}
 
-              <button
-                type="submit"
-                disabled={isLoading || !isFormValid}
-                className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
-                style={{
-                  backgroundColor: 'var(--primary-color)',
-                  cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
-                  opacity: isLoading || !isFormValid ? 0.7 : 1,
-                }}
-              >
-                {isLoading ? '변경 중...' : '비밀번호 변경'}
-              </button>
+               <button
+                 type="submit"
+                 disabled={isLoading || !isFormValid}
+                 className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
+                 style={{
+                   backgroundColor: 'var(--color-primary)',
+                   cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
+                   opacity: isLoading || !isFormValid ? 0.7 : 1,
+                 }}
+               >
+                 {isLoading ? '변경 중...' : '비밀번호 변경'}
+               </button>
             </form>
           </>
         ) : (
-          <div
-            className="p-6 rounded-xl text-center flex flex-col gap-3"
-            style={{
-              backgroundColor: 'var(--color-bg-card)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <h2 className="text-xl font-semibold m-0" style={{ color: 'var(--color-slate-800)' }}>
-              비밀번호 변경 완료!
-            </h2>
-            <p className="text-sm m-0 leading-relaxed" style={{ color: 'var(--color-slate-600)' }}>
-              새 비밀번호로 로그인할 수 있습니다.
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push('/login')}
-              className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
-              style={{ backgroundColor: 'var(--primary-color)' }}
-            >
-              로그인으로 이동
-            </button>
-          </div>
+           <div
+             className="p-6 rounded-xl text-center flex flex-col gap-3"
+             style={{
+               backgroundColor: 'var(--color-bg-card)',
+               boxShadow: 'var(--shadow-sm)',
+             }}
+           >
+             <h2 className="text-xl font-semibold m-0" style={{ color: 'var(--color-text-primary)' }}>
+               비밀번호 변경 완료!
+             </h2>
+             <p className="text-sm m-0 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+               새 비밀번호로 로그인할 수 있습니다.
+             </p>
+             <button
+               type="button"
+               onClick={() => router.push('/login')}
+               className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
+               style={{ backgroundColor: 'var(--color-primary)' }}
+             >
+               로그인으로 이동
+             </button>
+           </div>
         )}
 
         {submitError && (
@@ -199,25 +199,25 @@ export default function ResetPasswordPage() {
           </div>
         )}
 
-        <div className="text-center text-sm">
-          <Link href="/auth/forgot-password" className="hover:underline" style={{ color: 'var(--color-slate-600)' }}>
-            링크가 만료되었나요? 다시 요청하기
-          </Link>
-        </div>
+         <div className="text-center text-sm">
+           <Link href="/auth/forgot-password" className="hover:underline" style={{ color: 'var(--color-text-secondary)' }}>
+             링크가 만료되었나요? 다시 요청하기
+           </Link>
+         </div>
 
-        <div className="flex items-center justify-center gap-2 text-xs mt-2" style={{ color: 'var(--color-slate-400)' }}>
-          <Link href="/terms" className="hover:underline" style={{ color: 'inherit' }}>
-            이용약관
-          </Link>
-          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
-          <Link href="/privacy" className="hover:underline" style={{ color: 'inherit' }}>
-            개인정보처리방침
-          </Link>
-          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
-          <Link href="/company" className="hover:underline" style={{ color: 'inherit' }}>
-            사업자 정보
-          </Link>
-        </div>
+         <div className="flex items-center justify-center gap-2 text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
+           <Link href="/terms" className="hover:underline" style={{ color: 'inherit' }}>
+             이용약관
+           </Link>
+           <span style={{ color: 'var(--color-border-subtle)' }}>|</span>
+           <Link href="/privacy" className="hover:underline" style={{ color: 'inherit' }}>
+             개인정보처리방침
+           </Link>
+           <span style={{ color: 'var(--color-border-subtle)' }}>|</span>
+           <Link href="/company" className="hover:underline" style={{ color: 'inherit' }}>
+             사업자 정보
+           </Link>
+         </div>
       </div>
     </div>
   )

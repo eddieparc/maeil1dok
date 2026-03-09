@@ -116,7 +116,7 @@ export default function RegisterEmailPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-12"
-      style={{ backgroundColor: 'var(--color-bg-base)' }}
+      style={{ backgroundColor: 'var(--color-bg-primary)' }}
     >
       <div className="w-full max-w-[28rem] flex flex-col gap-6 fade-in">
         <button
@@ -142,146 +142,146 @@ export default function RegisterEmailPage() {
           />
         </div>
 
-        <h1 className="text-center text-xl font-semibold m-0" style={{ color: 'var(--color-slate-800)' }}>
+        <h1 className="text-center text-xl font-semibold m-0" style={{ color: 'var(--color-text-primary)' }}>
           이메일로 회원가입
         </h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-sm font-medium" style={{ color: 'var(--color-slate-700)' }}>
-              이메일
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              onBlur={() => setEmailTouched(true)}
-              autoComplete="email"
-              placeholder="example@email.com"
-              className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
-              style={{
-                backgroundColor: 'var(--color-bg-card)',
-                color: 'var(--color-slate-800)',
-                border: emailTouched && emailError
-                  ? '1px solid #ef4444'
-                  : emailSuccess
-                    ? '1px solid #22c55e'
-                    : '1px solid var(--color-slate-300)',
-              }}
-            />
-            {emailTouched && emailError && <p className="text-xs m-0" style={{ color: '#ef4444' }}>{emailError}</p>}
-          </div>
+             <label htmlFor="email" className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+               이메일
+             </label>
+             <input
+               id="email"
+               type="email"
+               value={email}
+               onChange={(event) => setEmail(event.target.value)}
+               onBlur={() => setEmailTouched(true)}
+               autoComplete="email"
+               placeholder="example@email.com"
+               className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
+               style={{
+                 backgroundColor: 'var(--color-bg-card)',
+                 color: 'var(--color-text-primary)',
+                 border: emailTouched && emailError
+                   ? '1px solid var(--color-danger)'
+                   : emailSuccess
+                     ? '1px solid var(--color-success)'
+                     : '1px solid var(--color-border-subtle)',
+               }}
+             />
+             {emailTouched && emailError && <p className="text-xs m-0" style={{ color: 'var(--color-danger)' }}>{emailError}</p>}
+           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="nickname" className="text-sm font-medium" style={{ color: 'var(--color-slate-700)' }}>
-              닉네임
-            </label>
-            <input
-              id="nickname"
-              type="text"
-              value={nickname}
-              onChange={(event) => {
-                setNickname(event.target.value)
-                setNicknameTouched(true)
-              }}
-              onBlur={() => setNicknameTouched(true)}
-              autoComplete="nickname"
-              placeholder="2자 이상 닉네임"
-              className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
-              style={{
-                backgroundColor: 'var(--color-bg-card)',
-                color: 'var(--color-slate-800)',
-                border: nicknameTouched && nicknameError
-                  ? '1px solid #ef4444'
-                  : nicknameSuccess
-                    ? '1px solid #22c55e'
-                    : '1px solid var(--color-slate-300)',
-              }}
-            />
-            {nicknameTouched && nicknameError && (
-              <p className="text-xs m-0" style={{ color: '#ef4444' }}>{nicknameError}</p>
-            )}
-          </div>
+           <div className="flex flex-col gap-1.5">
+             <label htmlFor="nickname" className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+               닉네임
+             </label>
+             <input
+               id="nickname"
+               type="text"
+               value={nickname}
+               onChange={(event) => {
+                 setNickname(event.target.value)
+                 setNicknameTouched(true)
+               }}
+               onBlur={() => setNicknameTouched(true)}
+               autoComplete="nickname"
+               placeholder="2자 이상 닉네임"
+               className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
+               style={{
+                 backgroundColor: 'var(--color-bg-card)',
+                 color: 'var(--color-text-primary)',
+                 border: nicknameTouched && nicknameError
+                   ? '1px solid var(--color-danger)'
+                   : nicknameSuccess
+                     ? '1px solid var(--color-success)'
+                     : '1px solid var(--color-border-subtle)',
+               }}
+             />
+             {nicknameTouched && nicknameError && (
+               <p className="text-xs m-0" style={{ color: 'var(--color-danger)' }}>{nicknameError}</p>
+             )}
+           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium" style={{ color: 'var(--color-slate-700)' }}>
-              비밀번호
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value)
-                setPasswordTouched(true)
-              }}
-              onBlur={() => setPasswordTouched(true)}
-              autoComplete="new-password"
-              placeholder="8자 이상 (문자+숫자 포함)"
-              className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
-              style={{
-                backgroundColor: 'var(--color-bg-card)',
-                color: 'var(--color-slate-800)',
-                border: passwordTouched && passwordError
-                  ? '1px solid #ef4444'
-                  : '1px solid var(--color-slate-300)',
-              }}
-            />
-            {passwordTouched && passwordError && (
-              <p className="text-xs m-0" style={{ color: '#ef4444' }}>{passwordError}</p>
-            )}
-          </div>
+           <div className="flex flex-col gap-1.5">
+             <label htmlFor="password" className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+               비밀번호
+             </label>
+             <input
+               id="password"
+               type="password"
+               value={password}
+               onChange={(event) => {
+                 setPassword(event.target.value)
+                 setPasswordTouched(true)
+               }}
+               onBlur={() => setPasswordTouched(true)}
+               autoComplete="new-password"
+               placeholder="8자 이상 (문자+숫자 포함)"
+               className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
+               style={{
+                 backgroundColor: 'var(--color-bg-card)',
+                 color: 'var(--color-text-primary)',
+                 border: passwordTouched && passwordError
+                   ? '1px solid var(--color-danger)'
+                   : '1px solid var(--color-border-subtle)',
+               }}
+             />
+             {passwordTouched && passwordError && (
+               <p className="text-xs m-0" style={{ color: 'var(--color-danger)' }}>{passwordError}</p>
+             )}
+           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="passwordConfirm" className="text-sm font-medium" style={{ color: 'var(--color-slate-700)' }}>
-              비밀번호 확인
-            </label>
-            <input
-              id="passwordConfirm"
-              type="password"
-              value={passwordConfirm}
-              onChange={(event) => {
-                setPasswordConfirm(event.target.value)
-                setPasswordConfirmTouched(true)
-              }}
-              onBlur={() => setPasswordConfirmTouched(true)}
-              autoComplete="new-password"
-              placeholder="비밀번호 재입력"
-              className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
-              style={{
-                backgroundColor: 'var(--color-bg-card)',
-                color: 'var(--color-slate-800)',
-                border: passwordConfirmTouched && passwordConfirmError
-                  ? '1px solid #ef4444'
-                  : passwordConfirmSuccess
-                    ? '1px solid #22c55e'
-                    : '1px solid var(--color-slate-300)',
-              }}
-            />
-            {passwordConfirmTouched && passwordConfirmError && (
-              <p className="text-xs m-0" style={{ color: '#ef4444' }}>{passwordConfirmError}</p>
-            )}
-          </div>
+           <div className="flex flex-col gap-1.5">
+             <label htmlFor="passwordConfirm" className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+               비밀번호 확인
+             </label>
+             <input
+               id="passwordConfirm"
+               type="password"
+               value={passwordConfirm}
+               onChange={(event) => {
+                 setPasswordConfirm(event.target.value)
+                 setPasswordConfirmTouched(true)
+               }}
+               onBlur={() => setPasswordConfirmTouched(true)}
+               autoComplete="new-password"
+               placeholder="비밀번호 재입력"
+               className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
+               style={{
+                 backgroundColor: 'var(--color-bg-card)',
+                 color: 'var(--color-text-primary)',
+                 border: passwordConfirmTouched && passwordConfirmError
+                   ? '1px solid var(--color-danger)'
+                   : passwordConfirmSuccess
+                     ? '1px solid var(--color-success)'
+                     : '1px solid var(--color-border-subtle)',
+               }}
+             />
+             {passwordConfirmTouched && passwordConfirmError && (
+               <p className="text-xs m-0" style={{ color: 'var(--color-danger)' }}>{passwordConfirmError}</p>
+             )}
+           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading || !isFormValid}
-            className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200 mt-2"
-            style={{
-              backgroundColor: 'var(--primary-color)',
-              cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
-              opacity: isLoading || !isFormValid ? 0.7 : 1,
-            }}
-          >
-            {isLoading ? '가입 중...' : '회원가입'}
-          </button>
+           <button
+             type="submit"
+             disabled={isLoading || !isFormValid}
+             className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200 mt-2"
+             style={{
+               backgroundColor: 'var(--color-primary)',
+               cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
+               opacity: isLoading || !isFormValid ? 0.7 : 1,
+             }}
+           >
+             {isLoading ? '가입 중...' : '회원가입'}
+           </button>
 
-          <div className="text-center text-sm">
-            <Link href="/login" className="inline-block px-4 py-2 rounded-md font-medium" style={{ color: 'var(--primary-color)' }}>
-              이미 계정이 있으신가요? 로그인하기
-            </Link>
-          </div>
+           <div className="text-center text-sm">
+             <Link href="/login" className="inline-block px-4 py-2 rounded-md font-medium" style={{ color: 'var(--color-primary)' }}>
+               이미 계정이 있으신가요? 로그인하기
+             </Link>
+           </div>
         </form>
 
         {submitError && (
@@ -297,15 +297,15 @@ export default function RegisterEmailPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-center gap-2 text-xs mt-2" style={{ color: 'var(--color-slate-400)' }}>
+        <div className="flex items-center justify-center gap-2 text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
           <Link href="/terms" className="hover:underline" style={{ color: 'inherit' }}>
             이용약관
           </Link>
-          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
+          <span style={{ color: 'var(--color-border-subtle)' }}>|</span>
           <Link href="/privacy" className="hover:underline" style={{ color: 'inherit' }}>
             개인정보처리방침
           </Link>
-          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
+          <span style={{ color: 'var(--color-border-subtle)' }}>|</span>
           <Link href="/company" className="hover:underline" style={{ color: 'inherit' }}>
             사업자 정보
           </Link>

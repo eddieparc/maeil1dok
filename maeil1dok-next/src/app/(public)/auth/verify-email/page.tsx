@@ -80,7 +80,7 @@ export default function VerifyEmailPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-12"
-      style={{ backgroundColor: 'var(--color-bg-base)' }}
+      style={{ backgroundColor: 'var(--color-bg-primary)' }}
     >
       <div className="w-full max-w-[28rem] flex flex-col gap-6 fade-in">
         <button
@@ -113,90 +113,90 @@ export default function VerifyEmailPage() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <h1 className="text-xl font-semibold m-0" style={{ color: 'var(--color-slate-800)' }}>
+          <h1 className="text-xl font-semibold m-0" style={{ color: 'var(--color-text-primary)' }}>
             {status === 'success' ? '이메일 인증 완료!' : '이메일 인증 확인'}
           </h1>
 
           <p
             className="text-sm m-0 leading-relaxed"
             style={{
-              color: status === 'error' ? 'var(--color-danger-text)' : 'var(--color-slate-600)',
+              color: status === 'error' ? 'var(--color-danger-text)' : 'var(--color-text-secondary)',
             }}
           >
             {message}
           </p>
 
-          {status !== 'success' && (
-            <div className="flex flex-col gap-2 text-left">
-              <label htmlFor="verify-email" className="text-sm font-medium" style={{ color: 'var(--color-slate-700)' }}>
-                이메일
-              </label>
-              <input
-                id="verify-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                onBlur={() => setEmailTouched(true)}
-                autoComplete="email"
-                placeholder="example@email.com"
-                className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
-                style={{
-                  backgroundColor: 'var(--color-bg-card)',
-                  color: 'var(--color-slate-800)',
-                  border: emailTouched && emailError
-                    ? '1px solid #ef4444'
-                    : '1px solid var(--color-slate-300)',
-                }}
-              />
-              {emailTouched && emailError && <p className="text-xs m-0" style={{ color: '#ef4444' }}>{emailError}</p>}
-            </div>
-          )}
+           {status !== 'success' && (
+             <div className="flex flex-col gap-2 text-left">
+               <label htmlFor="verify-email" className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+                 이메일
+               </label>
+               <input
+                 id="verify-email"
+                 type="email"
+                 value={email}
+                 onChange={(event) => setEmail(event.target.value)}
+                 onBlur={() => setEmailTouched(true)}
+                 autoComplete="email"
+                 placeholder="example@email.com"
+                 className="appearance-none block w-full py-3 px-4 text-sm rounded-md transition-all duration-200"
+                 style={{
+                   backgroundColor: 'var(--color-bg-card)',
+                   color: 'var(--color-text-primary)',
+                   border: emailTouched && emailError
+                     ? '1px solid var(--color-danger)'
+                     : '1px solid var(--color-border-subtle)',
+                 }}
+               />
+               {emailTouched && emailError && <p className="text-xs m-0" style={{ color: 'var(--color-danger)' }}>{emailError}</p>}
+             </div>
+           )}
 
-          {status === 'success' ? (
-            <button
-              type="button"
-              onClick={() => router.push('/login')}
-              className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
-              style={{ backgroundColor: 'var(--primary-color)' }}
-            >
-              로그인으로 이동
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={isLoading || !canResend}
-              className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
-              style={{
-                backgroundColor: 'var(--primary-color)',
-                cursor: isLoading || !canResend ? 'not-allowed' : 'pointer',
-                opacity: isLoading || !canResend ? 0.7 : 1,
-              }}
-            >
-              {isLoading ? '발송 중...' : '인증 메일 재발송'}
-            </button>
-          )}
+           {status === 'success' ? (
+             <button
+               type="button"
+               onClick={() => router.push('/login')}
+               className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
+               style={{ backgroundColor: 'var(--color-primary)' }}
+             >
+               로그인으로 이동
+             </button>
+           ) : (
+             <button
+               type="button"
+               onClick={handleResend}
+               disabled={isLoading || !canResend}
+               className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
+               style={{
+                 backgroundColor: 'var(--color-primary)',
+                 cursor: isLoading || !canResend ? 'not-allowed' : 'pointer',
+                 opacity: isLoading || !canResend ? 0.7 : 1,
+               }}
+             >
+               {isLoading ? '발송 중...' : '인증 메일 재발송'}
+             </button>
+           )}
         </div>
 
-        <div className="text-center text-sm">
-          <Link href="/login" className="hover:underline" style={{ color: 'var(--color-slate-600)' }}>
-            로그인으로 돌아가기
-          </Link>
-        </div>
+         <div className="text-center text-sm">
+           <Link href="/login" className="hover:underline" style={{ color: 'var(--color-text-secondary)' }}>
+             로그인으로 돌아가기
+           </Link>
+         </div>
 
-        <div className="flex items-center justify-center gap-2 text-xs mt-2" style={{ color: 'var(--color-slate-400)' }}>
-          <Link href="/terms" className="hover:underline" style={{ color: 'inherit' }}>
-            이용약관
-          </Link>
-          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
-          <Link href="/privacy" className="hover:underline" style={{ color: 'inherit' }}>
-            개인정보처리방침
-          </Link>
-          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
-          <Link href="/company" className="hover:underline" style={{ color: 'inherit' }}>
-            사업자 정보
-          </Link>
-        </div>
+         <div className="flex items-center justify-center gap-2 text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
+           <Link href="/terms" className="hover:underline" style={{ color: 'inherit' }}>
+             이용약관
+           </Link>
+           <span style={{ color: 'var(--color-border-subtle)' }}>|</span>
+           <Link href="/privacy" className="hover:underline" style={{ color: 'inherit' }}>
+             개인정보처리방침
+           </Link>
+           <span style={{ color: 'var(--color-border-subtle)' }}>|</span>
+           <Link href="/company" className="hover:underline" style={{ color: 'inherit' }}>
+             사업자 정보
+           </Link>
+         </div>
       </div>
     </div>
   )

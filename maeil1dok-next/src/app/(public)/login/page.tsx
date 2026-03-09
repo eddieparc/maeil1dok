@@ -70,7 +70,7 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 py-12"
-      style={{ backgroundColor: 'var(--color-bg-base)' }}
+      style={{ backgroundColor: 'var(--color-bg-primary)' }}
     >
       <div className="w-full max-w-[28rem] flex flex-col gap-8 fade-in">
         {/* Back Button */}
@@ -116,18 +116,18 @@ export default function LoginPage() {
             카카오로 시작하기
           </button>
 
-          {/* Google */}
-          <button
-            type="button"
-            onClick={signInWithGoogle}
-            disabled={isLoading !== null}
-            className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-md text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed btn-interactive"
-            style={{
-              backgroundColor: '#FFFFFF',
-              color: '#1F2937',
-              border: '1px solid #D1D5DB',
-            }}
-          >
+           {/* Google */}
+           <button
+             type="button"
+             onClick={signInWithGoogle}
+             disabled={isLoading !== null}
+             className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-md text-sm font-medium cursor-pointer transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed btn-interactive"
+             style={{
+               backgroundColor: 'var(--color-bg-secondary)',
+               color: 'var(--color-text-primary)',
+               border: '1px solid var(--color-border-dark)',
+             }}
+           >
             {isLoading === 'google' ? (
               <span className="loading-spinner small" />
             ) : (
@@ -141,14 +141,14 @@ export default function LoginPage() {
             구글로 시작하기
           </button>
 
-          {/* Apple */}
-          <button
-            type="button"
-            onClick={signInWithApple}
-            disabled={isLoading !== null}
-            className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-md text-sm font-medium border-none cursor-pointer transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed btn-interactive"
-            style={{ backgroundColor: '#000000', color: '#FFFFFF' }}
-          >
+           {/* Apple */}
+           <button
+             type="button"
+             onClick={signInWithApple}
+             disabled={isLoading !== null}
+             className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-md text-sm font-medium border-none cursor-pointer transition-all duration-200 hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed btn-interactive"
+             style={{ backgroundColor: 'var(--color-text-primary)', color: 'var(--color-bg-primary)' }}
+           >
             {isLoading === 'apple' ? (
               <span className="loading-spinner small" />
             ) : (
@@ -162,12 +162,12 @@ export default function LoginPage() {
 
         {/* Divider */}
         <div className="relative text-center my-2">
-          <div className="absolute top-1/2 left-0 right-0 h-px" style={{ backgroundColor: 'var(--color-slate-300)' }} />
+          <div className="absolute top-1/2 left-0 right-0 h-px" style={{ backgroundColor: 'var(--color-border-subtle)' }} />
           <span
             className="relative inline-block px-2 text-sm"
             style={{
-              backgroundColor: 'var(--color-bg-base)',
-              color: 'var(--color-slate-500)',
+              backgroundColor: 'var(--color-bg-primary)',
+              color: 'var(--color-text-muted)',
             }}
           >
             또는 이메일/아이디로 계속
@@ -177,36 +177,36 @@ export default function LoginPage() {
          {/* Email/Password Form */}
          <div className="flex flex-col gap-6">
            <div className="rounded-md overflow-hidden" style={{ boxShadow: 'var(--shadow-sm)' }}>
-             <input
-               type="text"
-               placeholder="이메일 또는 아이디"
-               value={email}
-               onChange={e => setEmail(e.target.value)}
-               disabled={isLoading !== null}
-               className="block w-full py-3 px-4 text-sm border-b-0 rounded-t-md appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
-               style={{
-                 backgroundColor: 'var(--color-bg-card)',
-                 color: 'var(--color-slate-800)',
-                 border: '1px solid var(--color-slate-300)',
-                 borderBottom: 'none',
-               }}
-             />
-             <input
-               type="password"
-               placeholder="비밀번호"
-               value={password}
-               onChange={e => setPassword(e.target.value)}
-               onKeyDown={e => {
-                 if (e.key === 'Enter') signInWithEmail()
-               }}
-               disabled={isLoading !== null}
-               className="block w-full py-3 px-4 text-sm rounded-b-md appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
-               style={{
-                 backgroundColor: 'var(--color-bg-card)',
-                 color: 'var(--color-slate-800)',
-                 border: '1px solid var(--color-slate-300)',
-               }}
-             />
+              <input
+                type="text"
+                placeholder="이메일 또는 아이디"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                disabled={isLoading !== null}
+                className="block w-full py-3 px-4 text-sm border-b-0 rounded-t-md appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: 'var(--color-bg-card)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border-subtle)',
+                  borderBottom: 'none',
+                }}
+              />
+              <input
+                type="password"
+                placeholder="비밀번호"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') signInWithEmail()
+                }}
+                disabled={isLoading !== null}
+                className="block w-full py-3 px-4 text-sm rounded-b-md appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: 'var(--color-bg-card)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border-subtle)',
+                }}
+              />
            </div>
 
            <button
@@ -219,18 +219,18 @@ export default function LoginPage() {
              {isLoading === 'email' ? '로그인 중...' : '로그인'}
            </button>
 
-           <div className="flex flex-col items-center gap-2 text-sm">
-             <span style={{ color: 'var(--color-slate-500)' }}>
-               비밀번호를 잊으셨나요?
-             </span>
-             <Link
-               href="/register-email"
-               className="inline-block px-4 py-2 rounded-md font-medium hover:underline"
-               style={{ color: 'var(--primary-color)' }}
-             >
-               이메일로 회원가입
-             </Link>
-           </div>
+            <div className="flex flex-col items-center gap-2 text-sm">
+              <span style={{ color: 'var(--color-text-muted)' }}>
+                비밀번호를 잊으셨나요?
+              </span>
+              <Link
+                href="/register-email"
+                className="inline-block px-4 py-2 rounded-md font-medium hover:underline"
+                style={{ color: 'var(--color-primary)' }}
+              >
+                이메일로 회원가입
+              </Link>
+            </div>
          </div>
 
         {/* Error Message */}
@@ -247,23 +247,23 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Legal Links */}
-        <div
-          className="flex items-center justify-center gap-2 text-xs mt-2"
-          style={{ color: 'var(--color-slate-400)' }}
-        >
-          <Link href="/terms" className="hover:underline" style={{ color: 'inherit' }}>
-            이용약관
-          </Link>
-          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
-          <Link href="/privacy" className="hover:underline" style={{ color: 'inherit' }}>
-            개인정보처리방침
-          </Link>
-          <span style={{ color: 'var(--color-slate-300)' }}>|</span>
-          <Link href="/company" className="hover:underline" style={{ color: 'inherit' }}>
-            사업자 정보
-          </Link>
-        </div>
+         {/* Legal Links */}
+         <div
+           className="flex items-center justify-center gap-2 text-xs mt-2"
+           style={{ color: 'var(--color-text-muted)' }}
+         >
+           <Link href="/terms" className="hover:underline" style={{ color: 'inherit' }}>
+             이용약관
+           </Link>
+           <span style={{ color: 'var(--color-border-subtle)' }}>|</span>
+           <Link href="/privacy" className="hover:underline" style={{ color: 'inherit' }}>
+             개인정보처리방침
+           </Link>
+           <span style={{ color: 'var(--color-border-subtle)' }}>|</span>
+           <Link href="/company" className="hover:underline" style={{ color: 'inherit' }}>
+             사업자 정보
+           </Link>
+         </div>
       </div>
     </div>
   )
