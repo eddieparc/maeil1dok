@@ -324,7 +324,7 @@ export function parseKntContent(payload: unknown, options?: ParseOptions): Parse
       })
       .join('')
 
-    rendered.push({ order: verseData.order, html: `<div class="verse verse-group">${linesHtml}</div>` })
+    rendered.push({ order: verseData.order, html: `<div class="verse verse-group" data-verse-number="${verseNum}">${linesHtml}</div>` })
   })
 
   rendered.sort((a, b) => a.order - b.order)

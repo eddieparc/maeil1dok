@@ -25,13 +25,15 @@ export default function AuthenticatedShell({
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--color-bg-primary)]">
-      <HeaderClient
-        displayName={displayName}
-        userId={userId}
-        avatarUrl={avatarUrl}
-        onHamburgerClick={() => setIsMenuOpen(true)}
-      />
-      <main className={`flex-1 bg-[var(--color-bg-primary)] px-4 md:px-6 lg:px-8 ${isBibleRoute ? 'pb-0' : 'pb-[calc(80px+env(safe-area-inset-bottom))]'}`}>
+      {!isBibleRoute && (
+        <HeaderClient
+          displayName={displayName}
+          userId={userId}
+          avatarUrl={avatarUrl}
+          onHamburgerClick={() => setIsMenuOpen(true)}
+        />
+      )}
+      <main className={`flex-1 bg-[var(--color-bg-primary)] ${isBibleRoute ? 'px-0 pb-0' : 'px-4 md:px-6 lg:px-8 pb-[calc(80px+env(safe-area-inset-bottom))]'}`}>
         <div className="mx-auto w-full md:max-w-[900px] lg:max-w-[1200px]">
           {children}
         </div>

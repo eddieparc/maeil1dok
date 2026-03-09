@@ -21,7 +21,7 @@ export function parseWooriContent(payload: unknown): ParseResult {
     .filter((verse) => typeof verse?.verse === 'number' && typeof verse?.text === 'string' && verse.text.trim())
     .map(
       (verse) =>
-        `<div class="verse"><span class="verse-number">${verse.verse}</span><span class="verse-text">${verse.text}</span></div>`
+        `<div class="verse" data-verse-number="${verse.verse}"><span class="verse-number">${verse.verse}</span><span class="verse-text">${verse.text}</span></div>`
     )
     .join('')
 

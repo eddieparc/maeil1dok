@@ -215,7 +215,7 @@ export function parseStandardContent(htmlText: string): ParseResult {
         return `<h3 class="section-title">${entry.title}</h3>`
       }
 
-      return `<div class="verse"><span class="verse-number">${entry.number}</span><span class="verse-text">${entry.text}</span></div>`
+      return `<div class="verse" data-verse-number="${entry.number}"><span class="verse-number">${entry.number}</span><span class="verse-text">${entry.text}</span></div>`
     })
     .join('')
 
