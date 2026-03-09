@@ -12,10 +12,10 @@ interface ToastProps {
 }
 
 const typeStyles: Record<ToastType, string> = {
-  success: 'bg-[#059669] text-white',
-  error: 'bg-[#dc2626] text-white',
-  warning: 'bg-[#d97706] text-white',
-  info: 'bg-[#2563eb] text-white',
+  success: 'bg-[var(--color-success-bg)] text-[var(--color-success-text)] border border-[var(--color-success)]',
+  error: 'bg-[var(--color-danger-bg)] text-[var(--color-danger-text)] border border-[var(--color-danger)]',
+  warning: 'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] border border-[var(--color-warning)]',
+  info: 'bg-[var(--color-info-bg)] text-[var(--color-info-text)] border border-[var(--color-info)]',
 }
 
 const typeIcon: Record<ToastType, typeof CheckCircle2> = {
