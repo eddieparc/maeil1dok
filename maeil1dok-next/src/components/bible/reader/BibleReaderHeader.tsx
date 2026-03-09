@@ -51,10 +51,10 @@ export default function BibleReaderHeader({
             onClick={onOpenBookSelector}
           >
             <span className="tongdok-dot" />
-            <span className="book-name-full text-[clamp(1.125rem,5vw,1.375rem)] font-bold text-[var(--color-success)] whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
+            <span className="book-name-full text-[15px] font-medium text-[var(--color-success)] whitespace-nowrap overflow-hidden text-ellipsis tracking-normal leading-tight">
               {bookName} {chapter}장
             </span>
-            <span className="book-name-short text-[clamp(1.125rem,5vw,1.375rem)] font-bold text-[var(--color-success)] whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
+            <span className="book-name-short text-[15px] font-medium text-[var(--color-success)] whitespace-nowrap overflow-hidden text-ellipsis tracking-normal leading-tight">
               {shortBookName} {chapter}장
             </span>
           </button>
@@ -78,10 +78,10 @@ export default function BibleReaderHeader({
             onClick={onOpenBookSelector}
             aria-label="성경 책과 장 선택"
           >
-            <span className="book-name-full text-[clamp(1.125rem,5vw,1.375rem)] font-bold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
+            <span className="book-name-full text-base font-semibold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis tracking-[-0.01em] leading-tight">
               {bookName} {chapter}장
             </span>
-            <span className="book-name-short text-[clamp(1.125rem,5vw,1.375rem)] font-bold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
+            <span className="book-name-short text-base font-semibold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis tracking-[-0.01em] leading-tight">
               {shortBookName} {chapter}장
             </span>
           </button>
