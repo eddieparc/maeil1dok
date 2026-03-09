@@ -9,6 +9,7 @@ import { usePersonalRecord } from '@/hooks/bible/usePersonalRecord'
 import BibleHome from './BibleHome'
 import BibleTOC from './BibleTOC'
 import BibleReaderView from './BibleReaderView'
+import ReadingSettingsModal from './ReadingSettingsModal'
 import Container from '@/components/ui/Container'
 
 interface BiblePageClientProps {
@@ -46,6 +47,7 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
 
   const { markAsRead } = usePersonalRecord(currentBook)
   const [lastPosition, setLastPosition] = useState<{ book: string; chapter: number } | null>(null)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const initialized = useRef(false)
 
   useEffect(() => {
@@ -97,6 +99,39 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
     setViewMode('reader')
   }, [selectBook, selectChapter, setViewMode])
 
+  if (viewMode === 'reader') {
+    return (
+      <div className="flex flex-col mx-auto max-w-2xl" style={{ minHeight: '100dvh' }}>
+        <BibleReaderView
+          book={currentBook}
+          chapter={currentChapter}
+          version={currentVersion}
+          userId={userId}
+          onPrevChapter={goToPrevChapter}
+          onNextChapter={goToNextChapter}
+          onOpenBookSelector={() => setViewMode('toc')}
+          onOpenBookmarkModal={() => {
+            // TODO: 통합 모달 시스템으로 북마크 모달 연결
+          }}
+          onOpenSettingsModal={() => setIsSettingsOpen(true)}
+          onMarkAsRead={() => void handleMarkAsRead()}
+          tongdokMode={false}
+          tongdokRangeText=""
+          tongdokProgress={{ completed: 0, total: 0 }}
+          onDisableTongdokMode={() => {
+            // TODO: 통독 모드 비활성화 액션 연결
+          }}
+          audioLink={null}
+          guideLink={null}
+          onAudioLinkClick={(url) => {
+            window.open(url, '_blank', 'noopener,noreferrer')
+          }}
+        />
+        <ReadingSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      </div>
+    )
+  }
+
   return (
     <Container fullHeight className="max-w-2xl pb-24">
       {viewMode === 'home' ? (
@@ -113,36 +148,6 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
           currentBook={currentBook}
           onSelectBook={handleTOCSelectBook}
           onBack={() => setViewMode('home')}
-        />
-      ) : null}
-
-      {viewMode === 'reader' ? (
-        <BibleReaderView
-          book={currentBook}
-          chapter={currentChapter}
-          version={currentVersion}
-          userId={userId}
-          onPrevChapter={goToPrevChapter}
-          onNextChapter={goToNextChapter}
-          onOpenBookSelector={() => setViewMode('toc')}
-          onOpenBookmarkModal={() => {
-            // TODO: 통합 모달 시스템으로 북마크 모달 연결
-          }}
-          onOpenSettingsModal={() => {
-            // TODO: 통합 모달 시스템으로 설정 모달 연결
-          }}
-          onMarkAsRead={() => void handleMarkAsRead()}
-          tongdokMode={false}
-          tongdokRangeText=""
-          tongdokProgress={{ completed: 0, total: 0 }}
-          onDisableTongdokMode={() => {
-            // TODO: 통독 모드 비활성화 액션 연결
-          }}
-          audioLink={null}
-          guideLink={null}
-          onAudioLinkClick={(url) => {
-            window.open(url, '_blank', 'noopener,noreferrer')
-          }}
         />
       ) : null}
     </Container>

@@ -1,4 +1,5 @@
 import { BiblePageStateProvider, createBiblePageStateStore } from '@/stores/bible/biblePageState'
+import { ReadingSettingsProvider } from '@/hooks/bible/ReadingSettingsContext'
 import BiblePageClient from '@/components/bible/BiblePageClient'
 import { createClient } from '@/lib/supabase/server'
 
@@ -16,13 +17,15 @@ export default async function BiblePage({ searchParams }: BiblePageProps) {
   const { data: { user } } = await supabase.auth.getUser()
 
   return (
-    <BiblePageStateProvider createStoreFn={createBiblePageStateStore}>
-      <BiblePageClient
-        initialBook={initialBook}
-        initialChapter={initialChapter}
-        initialVersion={initialVersion}
-        userId={user?.id}
-      />
-    </BiblePageStateProvider>
+    <ReadingSettingsProvider>
+      <BiblePageStateProvider createStoreFn={createBiblePageStateStore}>
+        <BiblePageClient
+          initialBook={initialBook}
+          initialChapter={initialChapter}
+          initialVersion={initialVersion}
+          userId={user?.id}
+        />
+      </BiblePageStateProvider>
+    </ReadingSettingsProvider>
   )
 }

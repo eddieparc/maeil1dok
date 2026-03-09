@@ -85,6 +85,10 @@ export default function BibleChapterView({
           textAlign: readingSettings.textAlign,
           showVerseNumbers: readingSettings.showVerseNumbers,
           verseJoining: readingSettings.verseJoining,
+          showDescription: readingSettings.showDescription,
+          showCrossRef: readingSettings.showCrossRef,
+          highlightNames: readingSettings.highlightNames,
+          showFootnotes: readingSettings.showFootnotes,
         },
       },
       '*'
