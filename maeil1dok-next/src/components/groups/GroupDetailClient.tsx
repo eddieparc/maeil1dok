@@ -59,7 +59,7 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
               <span className="text-[0.875rem] text-[var(--color-text-tertiary)]">{group.memberCount}/{group.maxMembers}명</span>
             </div>
 
-            <h2 className="mb-2 text-[1.5rem] font-bold leading-[1.3] tracking-[-0.02em] text-[var(--color-text-primary)]">{group.name}</h2>
+            <h2 className="mb-2 text-2xl font-bold leading-[1.3] tracking-[-0.02em] text-[var(--color-text-primary)]">{group.name}</h2>
             <p className="mb-5 text-[0.9375rem] leading-[1.6] text-[var(--color-text-secondary)]">{group.description || '설명이 없습니다.'}</p>
 
             <div className="space-y-2 border-t border-[var(--color-surface-secondary)] pt-4 text-[0.875rem]">
@@ -81,7 +81,7 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
 
         <article className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-6 shadow-[var(--shadow-card)]">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-[1.125rem] font-semibold text-[var(--color-text-primary)]">멤버 목록</h3>
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">멤버 목록</h3>
             <span className="rounded-full bg-[var(--color-surface-secondary)] px-2 py-0.5 text-[0.75rem] font-medium text-[var(--color-text-tertiary)]">{group.members.length}명</span>
           </div>
           <ul className="space-y-3">
@@ -110,7 +110,7 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
         </article>
 
         <article className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-6 shadow-[var(--shadow-card)]">
-          <h3 className="mb-4 text-[1.125rem] font-semibold text-[var(--color-text-primary)]">최근 활동</h3>
+          <h3 className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">최근 활동</h3>
           <ul className="space-y-3">
             {group.activities.map((activity) => (
               <li key={activity.id} className="rounded-xl border border-[var(--color-surface-secondary)] bg-[var(--color-surface-secondary)] px-4 py-3">

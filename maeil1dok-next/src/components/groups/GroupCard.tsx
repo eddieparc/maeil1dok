@@ -41,7 +41,7 @@ export default function GroupCard({ group }: GroupCardProps) {
         </span>
       </div>
 
-      <h3 className="mb-2 text-[1.125rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[var(--color-text-primary)]">
+      <h3 className="mb-2 text-lg font-semibold leading-[1.4] tracking-[-0.02em] text-[var(--color-text-primary)]">
         {group.name}
       </h3>
 

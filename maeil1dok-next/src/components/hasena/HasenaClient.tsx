@@ -423,7 +423,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
             >
               <ChevronLeft size={24} />
             </button>
-            <h1 className="text-[1.125rem] font-semibold tracking-[-0.02em]">하세나</h1>
+            <h1 className="text-lg font-semibold tracking-[-0.02em]">하세나</h1>
             <div className="w-8" aria-hidden="true" />
           </div>
         </header>
