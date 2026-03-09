@@ -43,10 +43,13 @@ yarn-error.log*
 .output/
 dist/
 
-# Testing
+# Testing & QA
 test-results/
 playwright-report/
 coverage/
+screenshots/
+*-snapshot.md
+prod-*.md
 
 # IDE
 .idea/
