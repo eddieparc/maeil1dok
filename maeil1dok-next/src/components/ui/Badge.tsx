@@ -11,11 +11,11 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variants = {
-  default: 'bg-gray-200 text-gray-800',
-  primary: 'bg-blue-100 text-blue-800',
-  success: 'bg-green-100 text-green-800',
-  warning: 'bg-amber-100 text-amber-800',
-  danger: 'bg-red-100 text-red-800',
+  default: 'bg-[var(--color-surface-secondary)] text-[var(--color-text-secondary)]',
+  primary: 'bg-[var(--color-accent-light)] text-[var(--color-primary)]',
+  success: 'bg-[var(--color-success-bg)] text-[var(--color-success-text)]',
+  warning: 'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)]',
+  danger: 'bg-[var(--color-danger-bg)] text-[var(--color-danger-text)]',
 }
 
 const sizes = {

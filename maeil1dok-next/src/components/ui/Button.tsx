@@ -12,10 +12,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants = {
-  primary: 'bg-[var(--color-primary)] text-white hover:opacity-90 active:opacity-80',
-  secondary: 'border border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:bg-[var(--color-button-hover)] active:bg-[var(--color-button-active)]',
-  danger: 'bg-[var(--color-danger)] text-white hover:opacity-90 active:opacity-80',
-  ghost: 'text-[var(--color-text-primary)] hover:bg-[var(--color-button-default)] active:bg-[var(--color-button-hover)]',
+  primary: 'bg-[var(--color-primary)] text-white hover:opacity-90 active:opacity-80 active:scale-[0.98] transition-all',
+  secondary: 'border border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:bg-[var(--color-button-hover)] active:bg-[var(--color-button-active)] active:scale-[0.98] transition-all',
+  danger: 'bg-[var(--color-danger)] text-white hover:opacity-90 active:opacity-80 active:scale-[0.98] transition-all',
+  ghost: 'text-[var(--color-text-primary)] hover:bg-[var(--color-button-default)] active:bg-[var(--color-button-hover)] active:scale-[0.98] transition-all',
 }
 
 const sizes = {
