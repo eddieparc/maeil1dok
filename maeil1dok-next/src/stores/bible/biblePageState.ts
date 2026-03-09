@@ -189,8 +189,7 @@ export const createBiblePageStateStore = createStoreFactory<BiblePageState>(
 // Context
 // ============================================
 
-export const {
-  StoreProvider: BiblePageStateProvider,
-  useStoreContext: useBiblePageState,
-  useStoreApi: useBiblePageStateApi,
-} = createStoreContext<BiblePageState>()
+const _biblePageStateContext = createStoreContext<BiblePageState>()
+export const BiblePageStateProvider = _biblePageStateContext.StoreProvider
+export const useBiblePageState = _biblePageStateContext.useStoreContext
+export const useBiblePageStateApi = _biblePageStateContext.useStoreApi
