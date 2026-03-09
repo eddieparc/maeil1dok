@@ -21,7 +21,7 @@ function Toggle({ checked, onToggle, disabled, ariaLabel }: { checked: boolean; 
       type="button"
       role="switch"
       aria-checked={checked}
-      aria-label={ariaLabel}
+      aria-label={`${ariaLabel} ${checked ? '끄기' : '켜기'}`}
       onClick={onToggle}
       disabled={disabled}
       className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 disabled:cursor-not-allowed disabled:opacity-50 ${

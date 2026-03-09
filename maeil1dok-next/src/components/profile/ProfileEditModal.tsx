@@ -110,7 +110,7 @@ export function ProfileEditModal({
               rows={4}
               maxLength={500}
               placeholder="자신을 소개해주세요 (최대 500자)"
-              className="min-h-[100px] w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-3 py-2 text-[15px] text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
+              className="min-h-[100px] w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-3 py-2 text-[15px] text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-secondary)] focus-visible:border-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
             />
             <p className="text-right text-[13px] text-[var(--color-text-secondary)]">{bio.length}/500</p>
           </div>

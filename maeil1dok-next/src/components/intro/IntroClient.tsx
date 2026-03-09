@@ -324,7 +324,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
                           disabled={isToggling[video.id]}
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => handleToggleComplete(video.id, e.target.checked)}
-                          className="h-5 w-5 cursor-pointer rounded border-[var(--color-border-default)] text-[var(--color-accent-primary)] focus:ring-[var(--color-accent-primary)]"
+                          className="h-5 w-5 cursor-pointer rounded border-[var(--color-border-default)] text-[var(--color-accent-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
                           aria-label={`${video.book} 완료 여부`}
                         />
                       </div>
