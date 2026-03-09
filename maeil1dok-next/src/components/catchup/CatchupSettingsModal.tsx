@@ -32,7 +32,7 @@ export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChan
         <button
           type="button"
           onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)]"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-secondary)]"
           aria-label="닫기"
         >
           ✕
@@ -51,7 +51,7 @@ export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChan
                  className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all ${
                    value.strategy === 'parallel'
                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] hover:border-[var(--color-border)]'
+                      : 'border-[var(--color-border-subtle)] bg-[var(--color-surface)] hover:border-[var(--color-border)]'
                  }`}
                >
                  <span className="text-2xl">↔️</span>
@@ -65,7 +65,7 @@ export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChan
                  className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all ${
                    value.strategy === 'sequential'
                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] hover:border-[var(--color-border)]'
+                      : 'border-[var(--color-border-subtle)] bg-[var(--color-surface)] hover:border-[var(--color-border)]'
                  }`}
                >
                  <span className="text-2xl">→</span>
@@ -89,7 +89,7 @@ export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChan
                type="date"
                value={value.targetDate}
                onChange={(e) => onChange({ ...value, targetDate: e.target.value })}
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/10"
              />
            </div>
 
@@ -105,10 +105,10 @@ export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChan
                  max={10}
                  value={value.maxDailyReadings}
                  onChange={(e) => onChange({ ...value, maxDailyReadings: Number(e.target.value) || 1 })}
-                  className="w-20 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-center text-sm text-[var(--color-text-primary)] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-20 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-center text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/10"
                />
                 <span className="text-sm text-[var(--color-text-secondary)]">회</span>
-                <span className="text-xs text-[var(--color-text-secondary)]">또는</span>
+                <span className="text-xs text-[var(--color-text-muted)]">또는</span>
                <label htmlFor={maxDailyChaptersId} className="sr-only">최대 읽기 장수</label>
                <input
                  id={maxDailyChaptersId}
@@ -117,7 +117,7 @@ export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChan
                  max={50}
                  value={value.maxDailyChapters}
                  onChange={(e) => onChange({ ...value, maxDailyChapters: Number(e.target.value) || 1 })}
-                  className="w-20 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-center text-sm text-[var(--color-text-primary)] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-20 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-center text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/10"
                />
                 <span className="text-sm text-[var(--color-text-secondary)]">장</span>
              </div>
@@ -133,7 +133,7 @@ export function CatchupSettingsModal({ isOpen, onClose, onPreview, value, onChan
                step={0.5}
                value={value.weekendMultiplier}
                onChange={(e) => onChange({ ...value, weekendMultiplier: Number(e.target.value) || 1 })}
-                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/10"
              />
            </div>
         </div>

@@ -38,7 +38,7 @@ export function CatchupPreviewModal({ isOpen, onClose, schedule, onConfirm, isSu
          <button
            type="button"
            onClick={onClose}
-           className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-secondary)]"
+           className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-secondary)]"
            aria-label="닫기"
          >
            ✕
@@ -91,7 +91,7 @@ export function CatchupPreviewModal({ isOpen, onClose, schedule, onConfirm, isSu
                          <span className="text-sm font-medium text-[var(--color-text-primary)]">{formatDayDate(day.date.toISOString())}</span>
                          <span className="text-xs text-[var(--color-text-secondary)]">{day.schedules.length}회</span>
                       </div>
-                       <span className="text-xs text-[var(--color-text-secondary)]">{expandedDays.has(day.date.toISOString()) ? '▼' : '▶'}</span>
+                       <span className="text-xs text-[var(--color-text-muted)]">{expandedDays.has(day.date.toISOString()) ? '▼' : '▶'}</span>
                     </button>
                     {expandedDays.has(day.date.toISOString()) && (
                        <div className="bg-[var(--color-surface-secondary)] px-4 py-2 space-y-1 border-t border-[var(--color-border-subtle)]">

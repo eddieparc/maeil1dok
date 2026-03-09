@@ -55,7 +55,7 @@ export function TodayCatchupList({ items, onItemCompleted }: TodayCatchupListPro
   const completedCount = sortedItems.filter(item => item.isCompleted).length
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] p-4 shadow-sm">
+    <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2 border-b border-[var(--color-border-subtle)] pb-3">
         <span className="text-base">📚</span>
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">따라잡기</h3>
@@ -80,7 +80,7 @@ export function TodayCatchupList({ items, onItemCompleted }: TodayCatchupListPro
                 aria-label={`${item.book} ${item.startChapter}-${item.endChapter} 완료`}
               />
               <div className="flex-1">
-                <p className={`text-sm font-medium ${item.isCompleted ? 'line-through text-[var(--color-text-secondary)]' : 'text-[var(--color-text-primary)]'}`}>
+                <p className={`text-sm font-medium ${item.isCompleted ? 'line-through text-[var(--color-text-muted)]' : 'text-[var(--color-text-primary)]'}`}>
                   {item.book}
                 </p>
                 <p className="text-xs text-[var(--color-text-secondary)]">

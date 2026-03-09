@@ -43,7 +43,7 @@ export default function ScoreboardClient({ scoreboard }: ScoreboardClientProps) 
       </header>
 
       <section className="space-y-4 px-4 py-4">
-        <div className="rounded-[12px] border border-[var(--color-slate-200)] bg-[var(--color-bg-primary)] p-3">
+        <div className="rounded-[12px] border border-[var(--color-slate-200)] bg-[var(--color-surface)] p-3">
           <p className="mb-2 text-[0.75rem] font-medium text-[var(--color-slate-500)]">기간</p>
           <div className="grid grid-cols-4 gap-2">
             {PERIOD_OPTIONS.map((period) => {
@@ -57,7 +57,7 @@ export default function ScoreboardClient({ scoreboard }: ScoreboardClientProps) 
                     'h-9 rounded-[10px] border text-[0.8125rem] font-medium transition-colors',
                     active
                       ? 'border-[var(--color-slate-800)] bg-[var(--color-slate-800)] text-white'
-                      : 'border-[var(--color-slate-200)] bg-[var(--color-bg-primary)] text-[var(--color-slate-600)] hover:bg-[var(--color-slate-50)]',
+                      : 'border-[var(--color-slate-200)] bg-[var(--color-surface)] text-[var(--color-slate-600)] hover:bg-[var(--color-slate-50)]',
                   ].join(' ')}
                 >
                   {period.label}
@@ -92,7 +92,7 @@ export default function ScoreboardClient({ scoreboard }: ScoreboardClientProps) 
       </section>
 
       <section className="px-4 pb-6">
-        <div className="rounded-[12px] border border-[var(--color-slate-200)] bg-[var(--color-bg-primary)] p-3 shadow-[var(--shadow-sm)]">
+        <div className="rounded-[12px] border border-[var(--color-slate-200)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-sm)]">
           {entries.length > 0 ? (
             <ol className="space-y-2">
               {entries.map((entry, index) => (
