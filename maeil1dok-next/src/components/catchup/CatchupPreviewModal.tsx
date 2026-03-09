@@ -12,14 +12,6 @@ interface CatchupPreviewModalProps {
   isSubmitting: boolean
 }
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('ko-KR', {
-    month: 'short',
-    day: 'numeric',
-    weekday: 'short',
-  })
-}
-
 function formatDayDate(dateStr: string): string {
   const date = new Date(dateStr)
   const days = ['일', '월', '화', '수', '목', '금', '토']
@@ -42,15 +34,16 @@ export function CatchupPreviewModal({ isOpen, onClose, schedule, onConfirm, isSu
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <Modal.Header>
-        <h2 className="text-lg font-semibold text-gray-900">미리보기</h2>
-        <button
-          onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
-          aria-label="닫기"
-        >
-          ✕
-        </button>
-      </Modal.Header>
+         <h2 className="text-lg font-semibold text-gray-900">미리보기</h2>
+         <button
+           type="button"
+           onClick={onClose}
+           className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+           aria-label="닫기"
+         >
+           ✕
+         </button>
+       </Modal.Header>
 
       <Modal.Body>
         {schedule ? (
@@ -88,11 +81,12 @@ export function CatchupPreviewModal({ isOpen, onClose, schedule, onConfirm, isSu
               <h4 className="mb-3 text-sm font-semibold text-gray-900">📅 일자별 계획</h4>
               <div className="space-y-1 border border-gray-100 rounded-xl overflow-hidden">
                 {schedule.days.map((day, idx) => (
-                  <div key={day.date.toISOString()} className={idx !== schedule.days.length - 1 ? 'border-b border-gray-100' : ''}>
-                    <button
-                      onClick={() => toggleDay(day.date.toISOString())}
-                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                    >
+                   <div key={day.date.toISOString()} className={idx !== schedule.days.length - 1 ? 'border-b border-gray-100' : ''}>
+                     <button
+                       type="button"
+                       onClick={() => toggleDay(day.date.toISOString())}
+                       className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-900">{formatDayDate(day.date.toISOString())}</span>
                         <span className="text-xs text-gray-600">{day.schedules.length}회</span>
