@@ -110,7 +110,7 @@ export function ProfileEditModal({
               rows={4}
               maxLength={500}
               placeholder="자신을 소개해주세요 (최대 500자)"
-              className="min-h-[100px] w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-3 py-2 text-[15px] text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-primary)] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)]"
+              className="min-h-[100px] w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-3 py-2 text-[15px] text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
             />
             <p className="text-right text-[13px] text-[var(--color-text-secondary)]">{bio.length}/500</p>
           </div>
@@ -130,9 +130,9 @@ export function ProfileEditModal({
             </p>
           </div>
 
-          {error ? (
-            <p className="rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-3 py-2 text-[13px] text-[#B91C1C]">{error}</p>
-          ) : null}
+           {error ? (
+             <p className="rounded-lg border border-[var(--color-error-border)] bg-[var(--color-error-bg)] px-3 py-2 text-[13px] text-[var(--color-error-text)]">{error}</p>
+           ) : null}
         </div>
       </Modal.Body>
       <Modal.Footer>

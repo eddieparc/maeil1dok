@@ -30,9 +30,9 @@ function StatCard({
 }) {
   const toneClass = {
     primary: 'text-[var(--color-text-primary)]',
-    success: 'text-[#059669]',
-    violet: 'text-[#7C3AED]',
-    orange: 'text-[#EA580C]',
+    success: 'text-[var(--color-stat-success)]',
+    violet: 'text-[var(--color-stat-violet)]',
+    orange: 'text-[var(--color-stat-orange)]',
   }[tone]
 
   return (
@@ -134,11 +134,11 @@ export default function ProfilePage({
                   alt={localProfile.nickname}
                   className="h-[72px] w-[72px] shrink-0 rounded-full border-2 border-[var(--color-bg-card)] object-cover shadow-[0_2px_8px_rgba(0,0,0,0.1)] min-[480px]:h-20 min-[480px]:w-20"
                 />
-              ) : (
-                <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[#6B8F71] text-white shadow-[0_2px_8px_rgba(0,0,0,0.1)] min-[480px]:h-20 min-[480px]:w-20">
-                  <User size={32} aria-hidden="true" />
-                </div>
-              )}
+               ) : (
+                 <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white shadow-[0_2px_8px_rgba(0,0,0,0.1)] min-[480px]:h-20 min-[480px]:w-20">
+                   <User size={32} aria-hidden="true" />
+                 </div>
+               )}
               <div className="min-w-0">
                 <h1 data-testid="profile-nickname" className="text-xl font-bold tracking-[-0.02em] text-[var(--color-text-primary)]">
                   {localProfile.nickname}
