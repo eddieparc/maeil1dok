@@ -449,7 +449,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                 <button
                   type="button"
                   onClick={openYouTubeApp}
-                  className="flex w-full items-center justify-center gap-2 bg-[#ff0000] px-4 py-3 text-[0.9rem] font-medium text-white transition-colors hover:bg-[#cc0000] active:bg-[#aa0000]"
+                  className="flex w-full items-center justify-center gap-2 bg-[var(--color-danger)] px-4 py-3 text-[0.9rem] font-medium text-white transition-opacity hover:opacity-90 active:opacity-80"
                 >
                   <span className="text-base">▶</span>
                   YouTube 앱으로 시청하기
@@ -474,14 +474,14 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                     <path d="M15 4V10M15 10V16M15 10H9M15 10H21M6 16V20M6 20V24M6 20H2M6 20H10" stroke="url(#ai-gradient)" strokeWidth="2" strokeLinecap="round" />
                     <defs>
                       <linearGradient id="ai-gradient" x1="2" y1="4" x2="21" y2="24" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#6366f1" />
-                        <stop offset="1" stopColor="#a855f7" />
+                        <stop stopColor="var(--color-primary)" />
+                        <stop offset="1" stopColor="var(--color-accent-hover)" />
                       </linearGradient>
                     </defs>
                   </svg>
                   AI 요약
                 </span>
-                <span className="rounded-md border border-[rgba(99,102,241,0.2)] bg-[rgba(99,102,241,0.1)] px-1.5 py-0.5 text-[0.65rem] font-bold tracking-[0.5px] text-[var(--color-accent-primary)]">
+                <span className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-accent-light)] px-1.5 py-0.5 text-[0.65rem] font-bold tracking-[0.5px] text-[var(--color-accent-primary)]">
                   BETA
                 </span>
               </div>
@@ -507,7 +507,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                   AI가 영상을 분석하고 있습니다...
                 </div>
               ) : summaryError && !summary ? (
-                <p className="rounded-lg bg-[#fef2f2] px-4 py-3 text-sm text-[#dc2626]">{summaryError}</p>
+                <p className="rounded-lg bg-[var(--color-danger-bg)] px-4 py-3 text-sm text-[var(--color-danger-text)]">{summaryError}</p>
               ) : summary ? (
                 <div className="summary-content flex flex-col gap-6 py-2">
                   {parsedSummary.scripture ? (
@@ -560,7 +560,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
               </div>
             ) : bibleError ? (
               <div className="flex flex-col items-center gap-3 py-12 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fee2e2] text-xl font-bold text-[#ef4444]">!</div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-danger-bg)] text-xl font-bold text-[var(--color-danger)]">!</div>
                 <h3 className="text-base font-semibold">말씀을 불러올 수 없습니다</h3>
                 <p className="text-sm text-[var(--color-text-secondary)]">{bibleError}</p>
               </div>
@@ -603,14 +603,14 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">🔥</span>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-[#f97316]">{stats.currentStreak}</span>
+                    <span className="text-xl font-bold text-[var(--color-warning)]">{stats.currentStreak}</span>
                     <span className="text-xs text-[var(--color-text-tertiary)]">현재 연속</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">🏆</span>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-[#eab308]">{stats.longestStreak}</span>
+                    <span className="text-xl font-bold text-[var(--color-primary)]">{stats.longestStreak}</span>
                     <span className="text-xs text-[var(--color-text-tertiary)]">최장 연속</span>
                   </div>
                 </div>
@@ -638,8 +638,8 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
               className={cn(
                 'pointer-events-auto inline-flex items-center gap-2 rounded-full px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70',
                 isCompleted
-                  ? 'bg-[#ef4444] shadow-[0_4px_14px_rgba(239,68,68,0.4)] hover:bg-[#dc2626]'
-                  : 'bg-[var(--color-success)] shadow-[0_4px_14px_rgba(16,185,129,0.4)] hover:bg-[var(--color-success-dark)]',
+                  ? 'bg-[var(--color-danger)] hover:opacity-90'
+                  : 'bg-[var(--color-success)] hover:opacity-90',
               )}
             >
               {isSaving ? (
