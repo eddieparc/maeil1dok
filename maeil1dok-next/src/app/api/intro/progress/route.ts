@@ -32,8 +32,8 @@ export async function POST(request: Request) {
     }
 
     // Upsert progress
-    const { data, error } = await (supabase
-      .from('user_video_intro_progress') as any)
+    const { data, error } = await supabase
+      .from('user_video_intro_progress')
       .upsert(
         {
           user_id: user.id,

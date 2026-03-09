@@ -7,7 +7,12 @@ function getFirebaseAdmin() {
     if (!serviceAccountKey) {
       throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set')
     }
-    const serviceAccount = JSON.parse(serviceAccountKey) as object
+    let serviceAccount: object
+    try {
+      serviceAccount = JSON.parse(serviceAccountKey) as object
+    } catch {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY contains invalid JSON')
+    }
     initializeApp({ credential: cert(serviceAccount as Parameters<typeof cert>[0]) })
   }
   return getMessaging()

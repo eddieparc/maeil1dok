@@ -22,8 +22,9 @@ export class SupabaseAuthRepository implements IAuthRepository {
 
   async getUser(): Promise<User | null> {
     const { data: { user }, error } = await this.supabase.auth.getUser()
-    if (error) throw new AuthError(error.message, error)
+    // "Auth session missing" = unauthenticated user, not an error
     if (!user) return null
+    if (error) throw new AuthError(error.message, error)
 
     return {
       id: user.id,

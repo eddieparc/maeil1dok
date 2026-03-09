@@ -20,8 +20,7 @@ export async function GET(request: Request) {
     const following = await repositories.profile.getFollowing(userId, limit, offset)
 
     return NextResponse.json(following)
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch following'
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch following' }, { status: 500 })
   }
 }
