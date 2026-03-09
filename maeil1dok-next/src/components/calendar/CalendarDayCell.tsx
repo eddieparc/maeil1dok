@@ -22,14 +22,14 @@ export default function CalendarDayCell({ date, dots }: CalendarDayCellProps) {
         'relative flex aspect-square flex-col items-center justify-center rounded-lg',
         !date.isCurrentMonth ? 'opacity-30' : '',
         hasReading ? 'bg-[var(--color-success-bg)]' : '',
-        date.isToday ? 'ring-1 ring-[var(--color-primary)]' : '',
+        date.isToday ? 'ring-1 ring-[var(--color-info)]' : '',
       ].join(' ')}
     >
       <span
         className={[
           'text-[0.8125rem] text-[var(--color-text-primary)]',
           isSunday ? 'text-[var(--color-danger)]' : '',
-          date.isToday ? 'font-semibold text-[var(--color-primary)]' : '',
+          date.isToday ? 'font-semibold text-[var(--color-info)]' : '',
         ].join(' ')}
       >
         {date.date.getDate()}
