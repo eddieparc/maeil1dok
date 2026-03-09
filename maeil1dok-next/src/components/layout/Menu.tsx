@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 interface MenuProps {
   isOpen: boolean
   onClose: () => void
+  userId?: string
 }
 
 interface ActiveMenuItem {
@@ -16,22 +17,17 @@ interface ActiveMenuItem {
   icon: React.ReactNode
 }
 
-interface DisabledMenuItem {
-  label: string
-  icon: React.ReactNode
-}
-const activeMenuItems: ActiveMenuItem[] = [
+const menuItems: ActiveMenuItem[] = [
   { href: '/reading', label: '오늘일독', icon: <BookOpen size={22} /> },
   { href: '/plan', label: '성경통독표', icon: <ClipboardList size={22} /> },
   { href: '/plans', label: '플랜 관리', icon: <Calendar size={22} /> },
   { href: '/settings', label: '계정 설정', icon: <Settings size={22} /> },
 ]
 
-const disabledMenuItems: DisabledMenuItem[] = [
-  { label: '내 프로필', icon: <User size={22} /> },
-]
-
-export default function Menu({ isOpen, onClose }: MenuProps) {
+export default function Menu({ isOpen, onClose, userId }: MenuProps) {
+  const activeMenuItems = userId
+    ? [{ href: `/profile/${userId}`, label: '내 프로필', icon: <User size={22} /> }, ...menuItems]
+    : menuItems
   // ESC key handler
   useEffect(() => {
     if (!isOpen) return
@@ -109,23 +105,7 @@ export default function Menu({ isOpen, onClose }: MenuProps) {
             ))}
           </div>
 
-          {/* Divider */}
-          <div className="my-3 border-t border-[var(--color-border-default)]" />
-
-          {/* Disabled items */}
-          <div className="space-y-1">
-            {disabledMenuItems.map((item) => (
-              <div
-                key={item.label}
-                className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-[var(--color-text-muted)] opacity-50"
-                aria-disabled="true"
-              >
-                {item.icon}
-                <span>{item.label}</span>
-                <span className="ml-auto text-xs text-[var(--color-text-muted)]">준비 중</span>
-              </div>
-            ))}
-          </div>
+          
         </nav>
 
         {/* Footer - legal links */}

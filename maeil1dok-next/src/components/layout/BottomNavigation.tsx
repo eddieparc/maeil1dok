@@ -75,7 +75,7 @@ export default function BottomNavigation({ userId }: BottomNavigationProps) {
     : pathname.startsWith('/login')
 
   return (
-    <div className="fixed right-0 bottom-0 left-0 z-[100] block border-t border-[var(--color-slate-200)] bg-[var(--color-bg-card)] pb-[env(safe-area-inset-bottom)] min-[1368px]:hidden">
+    <div className="fixed right-0 bottom-0 left-0 z-[100] block border-t border-[var(--color-slate-200)] bg-[var(--color-bg-card)] pb-[env(safe-area-inset-bottom)]">
       <nav className="mx-auto flex h-[60px] w-full max-w-full items-center justify-around px-2 md:h-[70px] md:max-w-[900px] md:px-4 lg:h-[80px] lg:max-w-[1200px] lg:px-6">
         {navItems.map((item) => {
           const active = item.isActive(pathname ?? '/')

@@ -5,37 +5,37 @@ import { usePathname } from 'next/navigation'
 import { Home, BookOpen, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const navItems = [
-  {
-    href: '/',
-    label: '홈',
-    testId: 'nav-home',
-    isActive: (pathname: string) => pathname === '/',
-    icon: <Home size={20} />,
-  },
-  {
-    href: '/bible',
-    label: '성경',
-    testId: 'nav-bible',
-    isActive: (pathname: string) => pathname.startsWith('/bible'),
-    icon: <BookOpen size={20} />,
-  },
-  {
-    href: '/plan',
-    label: '스케줄',
-    testId: 'nav-schedule',
-    isActive: (pathname: string) => pathname.startsWith('/plan') && !pathname.startsWith('/plans'),
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-    ),
-  },
-]
+interface FloatingNavProps {
+  userId?: string
+}
 
-export default function FloatingNav() {
+export default function FloatingNav({ userId }: FloatingNavProps) {
   const pathname = usePathname() ?? '/'
+  const profileHref = userId ? `/profile/${userId}` : '/login'
+
+  const navItems = [
+    {
+      href: '/',
+      label: '홈',
+      testId: 'nav-home',
+      isActive: (p: string) => p === '/',
+      icon: <Home size={20} aria-hidden="true" />,
+    },
+    {
+      href: '/bible',
+      label: '성경',
+      testId: 'nav-bible',
+      isActive: (p: string) => p.startsWith('/bible'),
+      icon: <BookOpen size={20} aria-hidden="true" />,
+    },
+    {
+      href: profileHref,
+      label: '프로필',
+      testId: 'nav-profile',
+      isActive: (p: string) => userId ? p.startsWith('/profile') : p.startsWith('/login'),
+      icon: <User size={20} aria-hidden="true" />,
+    },
+  ]
 
   return (
     <nav
@@ -58,7 +58,7 @@ export default function FloatingNav() {
           const active = item.isActive(pathname)
           return (
             <Link
-              key={item.href}
+              key={item.testId}
               href={item.href}
               data-testid={item.testId}
               className={cn(
