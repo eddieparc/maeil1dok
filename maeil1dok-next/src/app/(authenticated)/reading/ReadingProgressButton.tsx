@@ -81,7 +81,7 @@ export default function ReadingProgressButton({
             ? 'scale-105 bg-emerald-400/30 text-white backdrop-blur-sm'
             : isCompleted
               ? 'bg-white/25 text-white backdrop-blur-sm hover:bg-white/30'
-              : 'bg-[var(--color-bg-primary)] text-indigo-900 hover:bg-white/90'
+              : 'bg-white text-indigo-900 hover:bg-white/90'
         }`}
       >
         {isLoading ? (
