@@ -62,9 +62,9 @@ export default async function ReadingPage() {
                    </strong>
                  </h2>
                 <p className="mt-1 text-sm opacity-75">{schedule.date}</p>
-                <p className="mt-5 rounded-xl bg-white/20 px-4 py-2.5 text-sm text-white/90 backdrop-blur-sm">
-                  통독 계획을 구독해주세요
-                </p>
+                 <p className="mt-5 rounded-xl bg-[color-mix(in_srgb,var(--color-bg-secondary)_32%,transparent)] px-4 py-2.5 text-sm text-white/90 backdrop-blur-sm">
+                   통독 계획을 구독해주세요
+                 </p>
               </div>
             </div>
             <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">

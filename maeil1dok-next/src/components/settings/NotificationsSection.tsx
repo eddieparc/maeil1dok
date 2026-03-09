@@ -15,20 +15,21 @@ interface NotificationsSectionProps {
   user: User
 }
 
-function Toggle({ checked, onToggle, disabled }: { checked: boolean; onToggle: () => void; disabled?: boolean }) {
+function Toggle({ checked, onToggle, disabled, ariaLabel }: { checked: boolean; onToggle: () => void; disabled?: boolean; ariaLabel: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       onClick={onToggle}
       disabled={disabled}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 disabled:cursor-not-allowed disabled:opacity-50 ${
         checked ? 'bg-[var(--primary-color)]' : 'bg-[var(--color-slate-300)]'
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+        className={`inline-block h-4 w-4 transform rounded-full bg-[var(--color-slate-900)] shadow transition ${
           checked ? 'translate-x-6' : 'translate-x-1'
         }`}
       />
@@ -158,7 +159,7 @@ export default function NotificationsSection({ user: _user }: NotificationsSecti
                 <p className="text-[0.9375rem] font-medium text-[var(--color-slate-800)]">푸시 알림</p>
                 <p className="text-[0.8125rem] text-[var(--color-slate-500)]">앱 푸시 알림 수신 여부</p>
               </div>
-              <Toggle checked={draftSettings.push_enabled} onToggle={() => toggleField('push_enabled')} disabled={saving} />
+              <Toggle checked={draftSettings.push_enabled} onToggle={() => toggleField('push_enabled')} disabled={saving} ariaLabel="푸시 알림" />
             </div>
 
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-slate-100)] p-4">
@@ -170,6 +171,7 @@ export default function NotificationsSection({ user: _user }: NotificationsSecti
                 checked={draftSettings.daily_reminder_enabled}
                 onToggle={() => toggleField('daily_reminder_enabled')}
                 disabled={saving}
+                ariaLabel="매일 읽기 리마인더"
               />
             </div>
 
@@ -203,6 +205,7 @@ export default function NotificationsSection({ user: _user }: NotificationsSecti
                 checked={draftSettings.hasena_notification_enabled}
                 onToggle={() => toggleField('hasena_notification_enabled')}
                 disabled={saving}
+                ariaLabel="하세나 새 영상 알림"
               />
             </div>
 
@@ -215,6 +218,7 @@ export default function NotificationsSection({ user: _user }: NotificationsSecti
                 checked={draftSettings.friend_activity_enabled}
                 onToggle={() => toggleField('friend_activity_enabled')}
                 disabled={saving}
+                ariaLabel="친구 활동 알림"
               />
             </div>
 
