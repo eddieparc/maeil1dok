@@ -161,7 +161,7 @@ export default function FollowingModal({
           <p className="text-sm text-[var(--color-text-secondary)]">불러오는 중...</p>
         ) : following.length === 0 ? (
           <div className="py-6 text-center">
-            <p className="text-[15px] text-[var(--color-text-primary)]">팔로잉이 없습니다</p>
+            <p className="text-sm text-[var(--color-text-primary)]">팔로잉이 없습니다</p>
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">다른 사용자를 팔로우해보세요!</p>
           </div>
         ) : (

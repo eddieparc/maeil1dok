@@ -70,7 +70,7 @@ function CardLabel({ label, tone = 'default' }: { label: string; tone?: 'default
   return (
     <span
       className={cn(
-        'inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]',
+        'inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em]',
         toneClassName,
       )}
       style={{ fontFamily: 'var(--font-family-ui)' }}

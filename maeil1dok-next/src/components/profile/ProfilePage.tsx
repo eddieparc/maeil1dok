@@ -38,7 +38,7 @@ function StatCard({
   return (
     <div className="flex flex-col items-center gap-1 rounded-xl bg-[var(--color-bg-tertiary)] px-2 py-3">
       <p className={`text-lg font-bold ${toneClass}`}>{value}</p>
-      <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">{label}</p>
+      <p className="text-xs font-medium text-[var(--color-text-secondary)]">{label}</p>
     </div>
   )
 }
@@ -143,7 +143,7 @@ export default function ProfilePage({
                 <h1 data-testid="profile-nickname" className="text-xl font-bold tracking-[-0.02em] text-[var(--color-text-primary)]">
                   {localProfile.nickname}
                 </h1>
-                <p className="text-[13px] text-[var(--color-text-secondary)]">
+                <p className="text-sm text-[var(--color-text-secondary)]">
                   가입일: {formatDate(localProfile.createdAt)}
                 </p>
                 {profileBio ? <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{profileBio}</p> : null}

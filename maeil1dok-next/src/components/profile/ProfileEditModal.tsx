@@ -82,7 +82,7 @@ export function ProfileEditModal({
                   <User size={28} aria-hidden="true" />
                 </div>
               )}
-              <p className="text-[13px] text-[var(--color-text-secondary)]">소셜 로그인 계정에서 가져옵니다.</p>
+              <p className="text-sm text-[var(--color-text-secondary)]">소셜 로그인 계정에서 가져옵니다.</p>
             </div>
           </div>
 
@@ -95,7 +95,7 @@ export function ProfileEditModal({
               type="text"
               value={profile.nickname}
               disabled
-              className="h-10 w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 text-[15px] text-[var(--color-text-secondary)]"
+              className="h-10 w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 text-sm text-[var(--color-text-secondary)]"
             />
           </div>
 
@@ -110,13 +110,13 @@ export function ProfileEditModal({
               rows={4}
               maxLength={500}
               placeholder="자신을 소개해주세요 (최대 500자)"
-              className="min-h-[100px] w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-3 py-2 text-[15px] text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-secondary)] focus-visible:border-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
+              className="min-h-[100px] w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-secondary)] focus-visible:border-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
             />
-            <p className="text-right text-[13px] text-[var(--color-text-secondary)]">{bio.length}/500</p>
+            <p className="text-right text-sm text-[var(--color-text-secondary)]">{bio.length}/500</p>
           </div>
 
           <div>
-            <label className="flex cursor-pointer items-center gap-2.5 text-[15px] text-[var(--color-text-primary)]">
+            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[var(--color-text-primary)]">
               <input
                 type="checkbox"
                 checked={isPublic}
@@ -125,13 +125,13 @@ export function ProfileEditModal({
               />
               프로필 공개
             </label>
-            <p className="ml-7 mt-1 text-[13px] text-[var(--color-text-secondary)]">
+            <p className="ml-7 mt-1 text-sm text-[var(--color-text-secondary)]">
               비공개로 설정하면 팔로워만 프로필을 볼 수 있습니다.
             </p>
           </div>
 
            {error ? (
-             <p className="rounded-lg border border-[var(--color-error-border)] bg-[var(--color-error-bg)] px-3 py-2 text-[13px] text-[var(--color-error-text)]">{error}</p>
+             <p className="rounded-lg border border-[var(--color-error-border)] bg-[var(--color-error-bg)] px-3 py-2 text-sm text-[var(--color-error-text)]">{error}</p>
            ) : null}
         </div>
       </Modal.Body>

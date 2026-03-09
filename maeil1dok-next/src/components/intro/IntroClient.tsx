@@ -342,7 +342,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
                           <span className="text-xs text-[var(--color-text-tertiary)]">
                             {formatDate(video.startDate)} ~ {formatDate(video.endDate)}
                           </span>
-                          <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
+                          <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-tertiary)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
                             성경개론
                           </span>
                         </div>
@@ -350,7 +350,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
                       </div>
 
                       <div className="ml-2 flex shrink-0 items-center gap-1.5 pt-0.5">
-                        <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', statusClass)}>
+                        <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', statusClass)}>
                           {statusText}
                         </span>
                         <ChevronRight className="h-4 w-4 text-[var(--color-slate-400)]" />
