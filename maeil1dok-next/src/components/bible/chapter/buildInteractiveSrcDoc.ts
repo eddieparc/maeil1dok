@@ -1,6 +1,60 @@
 export function buildInteractiveSrcDoc(content: string) {
   const interactionScript = `
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400;500;600&display=swap">
 <style>
+  @font-face {
+    font-family: 'RIDIBatang';
+    src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.0/RIDIBatang.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'KoPub Batang';
+    src: url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Light.woff2') format('woff2'),
+         url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Light.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'KoPub Batang';
+    src: url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Regular.woff2') format('woff2'),
+         url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Regular.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'KoPub Batang';
+    src: url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Bold.woff2') format('woff2'),
+         url('https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Bold.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-SemiBold.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+
   :root {
     --bible-bg: #f9fafb;
     --bible-text: #1f2937;
