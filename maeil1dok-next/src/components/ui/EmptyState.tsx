@@ -6,11 +6,14 @@ import { cn } from '@/lib/utils'
 interface EmptyStateProps {
   icon?: ReactNode
   title: string
-  description: string
+  description?: string
+  variant?: 'default' | 'empty' | 'error'
   action?: {
     label: string
     onClick: () => void
   }
+  actionLabel?: string
+  onAction?: () => void
   className?: string
 }
 
@@ -23,9 +26,32 @@ export default function EmptyState({
   icon,
   title,
   description,
+  variant = 'default',
   action,
+  actionLabel,
+  onAction,
   className,
 }: EmptyStateProps) {
+  // Determine icon styling based on variant
+  const getIconStyles = () => {
+    const baseStyles = 'mb-4 text-4xl'
+    
+    if (variant === 'error') {
+      return cn(
+        baseStyles,
+        'text-[var(--color-danger)]',
+        'bg-[var(--color-danger-bg)] rounded-full p-3'
+      )
+    }
+    
+    return cn(baseStyles, 'text-[var(--color-text-secondary)]')
+  }
+
+  // Determine button to render (prefer new props over legacy action)
+  const buttonLabel = actionLabel || action?.label
+  const buttonHandler = onAction || action?.onClick
+  const showButton = !!(buttonLabel && buttonHandler)
+
   return (
     <div
       className={cn(
@@ -34,7 +60,7 @@ export default function EmptyState({
       )}
     >
       {icon && (
-        <div className="mb-4 text-[var(--color-text-secondary)] text-4xl">
+        <div className={getIconStyles()}>
           {icon}
         </div>
       )}
@@ -43,13 +69,16 @@ export default function EmptyState({
         {title}
       </h3>
 
-      <p className="text-sm text-[var(--color-text-secondary)] mb-6 max-w-sm">
-        {description}
-      </p>
+      {description && (
+        <p className="text-sm text-[var(--color-text-secondary)] mb-6 max-w-sm">
+          {description}
+        </p>
+      )}
 
-      {action && (
+      {showButton && (
         <button
-          onClick={action.onClick}
+          type="button"
+          onClick={buttonHandler}
           className={cn(
             'px-4 py-2 text-sm font-medium rounded-lg',
             'bg-[var(--color-primary)] text-white',
@@ -57,7 +86,7 @@ export default function EmptyState({
             'transition-all duration-200'
           )}
         >
-          {action.label}
+          {buttonLabel}
         </button>
       )}
     </div>
