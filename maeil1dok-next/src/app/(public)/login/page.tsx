@@ -10,6 +10,8 @@ import { createClientRepositories } from '@/repositories/factory'
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const router = useRouter()
 
   const supabase = createClient()
@@ -42,6 +44,23 @@ export default function LoginPage() {
     setError(null)
     try {
       await auth.signInWithOAuth('apple', `${window.location.origin}/auth/callback`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다')
+      setIsLoading(null)
+    }
+  }
+
+  async function signInWithEmail() {
+    if (!email || !password) return
+    setIsLoading('email')
+    setError(null)
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+      if (signInError) throw signInError
+      router.push('/bible')
     } catch (err) {
       setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다')
       setIsLoading(null)
@@ -155,57 +174,64 @@ export default function LoginPage() {
           </span>
         </div>
 
-        {/* Email/Password Form (decorative — disabled) */}
-        <div className="flex flex-col gap-6">
-          <div className="rounded-md overflow-hidden" style={{ boxShadow: 'var(--shadow-sm)' }}>
-            <input
-              type="text"
-              placeholder="이메일 또는 아이디"
-              disabled
-              className="block w-full py-3 px-4 text-sm border-b-0 rounded-t-md appearance-none"
-              style={{
-                backgroundColor: 'var(--color-bg-card)',
-                color: 'var(--color-slate-800)',
-                border: '1px solid var(--color-slate-300)',
-                borderBottom: 'none',
-                opacity: 0.6,
-              }}
-            />
-            <input
-              type="password"
-              placeholder="비밀번호"
-              disabled
-              className="block w-full py-3 px-4 text-sm rounded-b-md appearance-none"
-              style={{
-                backgroundColor: 'var(--color-bg-card)',
-                color: 'var(--color-slate-800)',
-                border: '1px solid var(--color-slate-300)',
-                opacity: 0.6,
-              }}
-            />
-          </div>
+         {/* Email/Password Form */}
+         <div className="flex flex-col gap-6">
+           <div className="rounded-md overflow-hidden" style={{ boxShadow: 'var(--shadow-sm)' }}>
+             <input
+               type="text"
+               placeholder="이메일 또는 아이디"
+               value={email}
+               onChange={e => setEmail(e.target.value)}
+               disabled={isLoading !== null}
+               className="block w-full py-3 px-4 text-sm border-b-0 rounded-t-md appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
+               style={{
+                 backgroundColor: 'var(--color-bg-card)',
+                 color: 'var(--color-slate-800)',
+                 border: '1px solid var(--color-slate-300)',
+                 borderBottom: 'none',
+               }}
+             />
+             <input
+               type="password"
+               placeholder="비밀번호"
+               value={password}
+               onChange={e => setPassword(e.target.value)}
+               onKeyDown={e => {
+                 if (e.key === 'Enter') signInWithEmail()
+               }}
+               disabled={isLoading !== null}
+               className="block w-full py-3 px-4 text-sm rounded-b-md appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
+               style={{
+                 backgroundColor: 'var(--color-bg-card)',
+                 color: 'var(--color-slate-800)',
+                 border: '1px solid var(--color-slate-300)',
+               }}
+             />
+           </div>
 
-          <button
-            type="button"
-            disabled
-            className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white opacity-60 cursor-not-allowed"
-            style={{ backgroundColor: 'var(--primary-color)' }}
-          >
-            로그인
-          </button>
+           <button
+             type="button"
+             onClick={signInWithEmail}
+             disabled={isLoading !== null || !email || !password}
+             className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer transition-all duration-200 hover:-translate-y-px active:translate-y-0 btn-interactive"
+             style={{ backgroundColor: 'var(--primary-color)' }}
+           >
+             {isLoading === 'email' ? '로그인 중...' : '로그인'}
+           </button>
 
-          <div className="flex flex-col items-center gap-2 text-sm">
-            <span style={{ color: 'var(--color-slate-500)' }}>
-              비밀번호를 잊으셨나요?
-            </span>
-            <span
-              className="inline-block px-4 py-2 rounded-md font-medium"
-              style={{ color: 'var(--primary-color)' }}
-            >
-              이메일로 회원가입
-            </span>
-          </div>
-        </div>
+           <div className="flex flex-col items-center gap-2 text-sm">
+             <span style={{ color: 'var(--color-slate-500)' }}>
+               비밀번호를 잊으셨나요?
+             </span>
+             <Link
+               href="/register-email"
+               className="inline-block px-4 py-2 rounded-md font-medium hover:underline"
+               style={{ color: 'var(--primary-color)' }}
+             >
+               이메일로 회원가입
+             </Link>
+           </div>
+         </div>
 
         {/* Error Message */}
         {error && (
