@@ -38,7 +38,6 @@ export default defineConfig({
     {
       name: 'visual-regression-dark',
       testMatch: /visual-regression-dark\.spec\.ts/,
-      testIgnore: /visual-regression-dark\.spec\.ts/,
       use: {
         viewport: { width: 390, height: 844 },
         colorScheme: 'dark'
