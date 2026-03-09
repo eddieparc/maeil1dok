@@ -25,7 +25,7 @@ export default function LeaderboardCard({ rank, entry }: LeaderboardCardProps) {
       className={[
         'flex items-center gap-3 rounded-[12px] border px-3 py-3 transition-colors',
         entry.isCurrentUser
-          ? 'border-[#BFDBFE] bg-[#EFF6FF]'
+          ? 'border-[var(--color-schedule-current-border)] bg-[var(--color-schedule-current-bg)]'
           : 'border-[var(--color-slate-200)] bg-white hover:bg-[var(--color-slate-50)]',
       ].join(' ')}
     >
@@ -40,7 +40,7 @@ export default function LeaderboardCard({ rank, entry }: LeaderboardCardProps) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-[0.9375rem] font-semibold text-[var(--color-slate-800)]">
           {entry.nickname}
-          {entry.isCurrentUser ? <span className="ml-1 text-[0.8125rem] text-[#2563EB]">(나)</span> : null}
+          {entry.isCurrentUser ? <span className="ml-1 text-[0.8125rem] text-[var(--color-info)]">(나)</span> : null}
         </p>
         <p className="text-[0.8125rem] text-[var(--color-slate-500)]">
           완료 {entry.completedDays}일 · {entry.progressRate}%

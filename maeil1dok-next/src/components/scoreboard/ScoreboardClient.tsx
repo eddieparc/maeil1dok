@@ -56,7 +56,7 @@ export default function ScoreboardClient({ scoreboard }: ScoreboardClientProps) 
                   className={[
                     'h-9 rounded-[10px] border text-[0.8125rem] font-medium transition-colors',
                     active
-                      ? 'border-[#1E293B] bg-[#1E293B] text-white'
+                      ? 'border-[var(--color-slate-800)] bg-[var(--color-slate-800)] text-white'
                       : 'border-[var(--color-slate-200)] bg-white text-[var(--color-slate-600)] hover:bg-[var(--color-slate-50)]',
                   ].join(' ')}
                 >
@@ -79,8 +79,8 @@ export default function ScoreboardClient({ scoreboard }: ScoreboardClientProps) 
                   className={[
                     'rounded-[20px] border px-4 py-2 text-[0.875rem] font-medium whitespace-nowrap transition-colors',
                     active
-                      ? 'border-[#1E293B] bg-[#1E293B] text-white'
-                      : 'border-transparent bg-[#F8FAFC] text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#475569]',
+                      ? 'border-[var(--color-slate-800)] bg-[var(--color-slate-800)] text-white'
+                      : 'border-transparent bg-[var(--color-slate-50)] text-[var(--color-slate-500)] hover:bg-[var(--color-slate-100)] hover:text-[var(--color-slate-600)]',
                   ].join(' ')}
                 >
                   {plan.name}
