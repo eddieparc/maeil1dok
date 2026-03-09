@@ -129,7 +129,7 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
       {/* Bottom sheet */}
       <div
         className={cn(
-          'relative z-10 flex max-h-[85vh] flex-col overflow-hidden rounded-t-2xl',
+          'relative z-10 mx-auto w-full max-w-lg flex max-h-[85vh] flex-col overflow-hidden rounded-t-2xl',
           'bg-[var(--color-bg-primary)] shadow-xl',
           'transition-transform duration-300 ease-out',
           isVisible ? 'translate-y-0' : 'translate-y-full',
