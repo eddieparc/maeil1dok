@@ -41,10 +41,10 @@ export default function Select({
             'bg-[var(--color-input-bg)] border border-[var(--color-input-border)]',
             'text-[var(--color-text-primary)]',
             'transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 focus-visible:border-[var(--color-primary)]',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             'pr-10',
-            error && 'border-[var(--color-danger)] focus:ring-[var(--color-danger)]/30 focus:border-[var(--color-danger)]',
+            error && 'border-[var(--color-danger)] focus-visible:ring-[var(--color-danger)]/30 focus-visible:border-[var(--color-danger)]',
             className
           )}
           {...props}
