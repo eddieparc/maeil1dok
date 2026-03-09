@@ -84,7 +84,8 @@
   --color-primary: #4B9F7E;
   --color-success: #10B981;
   --color-warning: #F59E0B;
-  --color-danger: #EF4444;
+   --color-danger: #EF4444;
+   --color-danger-hover: #DC2626;
   --font-family-ui: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-family-reading: "KoPub Batang", "RIDI Batang", "Noto Serif KR", serif;
 
@@ -265,7 +266,8 @@
   --color-primary: #6bc99f;
   --color-success: #34d399;
   --color-warning: #fbbf24;
-  --color-danger: #f87171;
+   --color-danger: #f87171;
+   --color-danger-hover: #f05252;
 
   --color-bg-primary: #1a1a1a;
   --color-bg-secondary: #242424;

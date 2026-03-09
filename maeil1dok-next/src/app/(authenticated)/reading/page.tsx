@@ -54,13 +54,13 @@ export default async function ReadingPage() {
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_58%)]" />
               <div className="relative">
                 <span className="text-xs font-semibold tracking-[0.18em] text-white/65 uppercase">TODAY&apos;S READING</span>
-                <h2 className="mt-2 text-2xl leading-tight font-light" style={{ fontFamily: 'Georgia, "KoPub Batang", serif' }}>
-                  {schedule.book}
-                  <br />
-                  <strong className="font-bold">
-                    {schedule.startChapter}-{schedule.endChapter}장
-                  </strong>
-                </h2>
+               <h2 className="mt-2 text-2xl leading-tight font-light" style={{ fontFamily: 'var(--font-family-reading)' }}>
+                   {schedule.book}
+                   <br />
+                   <strong className="font-bold">
+                     {schedule.startChapter}-{schedule.endChapter}장
+                   </strong>
+                 </h2>
                 <p className="mt-1 text-sm opacity-75">{schedule.date}</p>
                 <p className="mt-5 rounded-xl bg-white/20 px-4 py-2.5 text-sm text-white/90 backdrop-blur-sm">
                   통독 계획을 구독해주세요
@@ -88,13 +88,13 @@ export default async function ReadingPage() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_58%)]" />
             <div className="relative">
               <span className="text-xs font-semibold tracking-[0.18em] text-white/65 uppercase">TODAY&apos;S READING</span>
-              <h2 className="mt-2 text-2xl leading-tight font-light" style={{ fontFamily: 'Georgia, "KoPub Batang", serif' }}>
-                {schedule.book}
-                <br />
-                <strong className="font-bold">
-                  {schedule.startChapter}-{schedule.endChapter}장
-                </strong>
-              </h2>
+              <h2 className="mt-2 text-2xl leading-tight font-light" style={{ fontFamily: 'var(--font-family-reading)' }}>
+                 {schedule.book}
+                 <br />
+                 <strong className="font-bold">
+                   {schedule.startChapter}-{schedule.endChapter}장
+                 </strong>
+               </h2>
               <p className="mt-1 text-sm opacity-75">{schedule.date}</p>
               <div className="mt-5">
                 <ReadingProgressButton

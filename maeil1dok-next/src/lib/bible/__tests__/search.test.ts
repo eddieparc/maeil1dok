@@ -71,8 +71,8 @@ describe('searchBibleBooks', () => {
     const result = searchBibleBooks('사무')
     expect(result.length).toBeGreaterThan(0)
     const ids = result.map(b => b.id)
-    expect(ids).toContain('sa1')
-    expect(ids).toContain('sa2')
+    expect(ids).toContain('1sa')
+    expect(ids).toContain('2sa')
   })
 
   it('returns results in canonical order', () => {
@@ -119,7 +119,7 @@ describe('searchBibleBooks', () => {
     // Should find 요엘, 요나, 요한복음, 요한계시록
     expect(result.length).toBeGreaterThanOrEqual(4)
     const ids = result.map(b => b.id)
-    expect(ids).toContain('joe')
+    expect(ids).toContain('jol')
     expect(ids).toContain('jon')
     expect(ids).toContain('jhn')
     expect(ids).toContain('rev')
@@ -136,8 +136,8 @@ describe('searchBibleBooks', () => {
     const result = searchBibleBooks('데')
     expect(result.length).toBeGreaterThan(0)
     const ids = result.map(b => b.id)
-    expect(ids).toContain('th1')
-    expect(ids).toContain('th2')
+    expect(ids).toContain('1th')
+    expect(ids).toContain('2th')
   })
 
   it('handles whitespace in query', () => {

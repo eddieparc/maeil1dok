@@ -197,18 +197,18 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
             >
               <div className="mb-6 border-b border-dashed border-[var(--color-border-default)] pb-6 text-center">
                 <h2
-                  className="text-2xl font-bold text-[var(--color-text-primary)]"
-                  style={{ fontFamily: '"Noto Serif KR", "KoPub Batang", serif' }}
-                >
-                  {selectedVideo.book} 개론
-                </h2>
+                   className="text-2xl font-bold text-[var(--color-text-primary)]"
+                   style={{ fontFamily: 'var(--font-family-reading)' }}
+                 >
+                   {selectedVideo.book} 개론
+                 </h2>
               </div>
-              <p
-                className="text-center text-[var(--color-text-secondary)] leading-relaxed"
-                style={{ fontFamily: '"Noto Serif KR", "KoPub Batang", serif', fontSize: '1.05rem', lineHeight: '1.8', wordBreak: 'keep-all' }}
-              >
-                {selectedVideo.book}의 전체적인 흐름과 주제를 이해하고 깊이 있게 말씀을 묵상해보세요.
-              </p>
+               <p
+                 className="text-center text-[var(--color-text-secondary)] leading-relaxed"
+                 style={{ fontFamily: 'var(--font-family-reading)', fontSize: '1.05rem', lineHeight: '1.8', wordBreak: 'keep-all' }}
+               >
+                 {selectedVideo.book}의 전체적인 흐름과 주제를 이해하고 깊이 있게 말씀을 묵상해보세요.
+               </p>
             </div>
           </main>
 
@@ -226,7 +226,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
                 className={cn(
                   'pointer-events-auto inline-flex items-center gap-2 rounded-full px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70',
                   completed
-                    ? 'bg-[#ef4444] shadow-[0_4px_14px_rgba(239,68,68,0.4)] hover:bg-[#dc2626]'
+                    ? 'bg-[var(--color-danger)] shadow-[0_4px_14px_rgba(239,68,68,0.4)] hover:bg-[var(--color-danger-hover)]'
                     : 'bg-[var(--color-success)] shadow-[0_4px_14px_rgba(16,185,129,0.4)] hover:bg-[var(--color-accent-hover)]',
                 )}
               >

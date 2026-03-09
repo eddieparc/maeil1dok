@@ -17,7 +17,7 @@ export interface BibleBook {
 
 /**
  * 구약 성경 (39권)
- * ID 체계: books.ts 기준 (sa1, ki1, ch1, co1, th1, ti1, pe1, jo1, eze, joe)
+ * ID 체계: bskorea.or.kr API 기준 (1sa, 1ki, 1ch, 1co, 1th, 1ti, 1pe, 1jn, ezk, jol)
  */
 export const OLD_TESTAMENT: BibleBook[] = [
   { id: 'gen', name: '창세기', abbreviation: '창', chapters: 50 },
@@ -28,12 +28,12 @@ export const OLD_TESTAMENT: BibleBook[] = [
   { id: 'jos', name: '여호수아', abbreviation: '수', chapters: 24 },
   { id: 'jdg', name: '사사기', abbreviation: '삿', chapters: 21 },
   { id: 'rut', name: '룻기', abbreviation: '룻', chapters: 4 },
-  { id: 'sa1', name: '사무엘상', abbreviation: '삼상', chapters: 31 },
-  { id: 'sa2', name: '사무엘하', abbreviation: '삼하', chapters: 24 },
-  { id: 'ki1', name: '열왕기상', abbreviation: '왕상', chapters: 22 },
-  { id: 'ki2', name: '열왕기하', abbreviation: '왕하', chapters: 25 },
-  { id: 'ch1', name: '역대상', abbreviation: '대상', chapters: 29 },
-  { id: 'ch2', name: '역대하', abbreviation: '대하', chapters: 36 },
+  { id: '1sa', name: '사무엘상', abbreviation: '삼상', chapters: 31 },
+  { id: '2sa', name: '사무엘하', abbreviation: '삼하', chapters: 24 },
+  { id: '1ki', name: '열왕기상', abbreviation: '왕상', chapters: 22 },
+  { id: '2ki', name: '열왕기하', abbreviation: '왕하', chapters: 25 },
+  { id: '1ch', name: '역대상', abbreviation: '대상', chapters: 29 },
+  { id: '2ch', name: '역대하', abbreviation: '대하', chapters: 36 },
   { id: 'ezr', name: '에스라', abbreviation: '스', chapters: 10 },
   { id: 'neh', name: '느헤미야', abbreviation: '느', chapters: 13 },
   { id: 'est', name: '에스더', abbreviation: '에', chapters: 10 },
@@ -45,15 +45,15 @@ export const OLD_TESTAMENT: BibleBook[] = [
   { id: 'isa', name: '이사야', abbreviation: '사', chapters: 66 },
   { id: 'jer', name: '예레미야', abbreviation: '렘', chapters: 52 },
   { id: 'lam', name: '예레미야애가', abbreviation: '애', chapters: 5 },
-  { id: 'eze', name: '에스겔', abbreviation: '겔', chapters: 48 },
+  { id: 'ezk', name: '에스겔', abbreviation: '겔', chapters: 48 },
   { id: 'dan', name: '다니엘', abbreviation: '단', chapters: 12 },
   { id: 'hos', name: '호세아', abbreviation: '호', chapters: 14 },
-  { id: 'joe', name: '요엘', abbreviation: '욜', chapters: 3 },
+  { id: 'jol', name: '요엘', abbreviation: '욜', chapters: 3 },
   { id: 'amo', name: '아모스', abbreviation: '암', chapters: 9 },
   { id: 'oba', name: '오바댜', abbreviation: '옵', chapters: 1 },
   { id: 'jon', name: '요나', abbreviation: '욘', chapters: 4 },
   { id: 'mic', name: '미가', abbreviation: '미', chapters: 7 },
-  { id: 'nah', name: '나훔', abbreviation: '나', chapters: 3 },
+  { id: 'nam', name: '나훔', abbreviation: '나', chapters: 3 },
   { id: 'hab', name: '하박국', abbreviation: '합', chapters: 3 },
   { id: 'zep', name: '스바냐', abbreviation: '습', chapters: 3 },
   { id: 'hag', name: '학개', abbreviation: '학', chapters: 2 },
@@ -63,7 +63,7 @@ export const OLD_TESTAMENT: BibleBook[] = [
 
 /**
  * 신약 성경 (27권)
- * ID 체계: books.ts 기준 (co1, co2, th1, th2, ti1, ti2, pe1, pe2, jo1, jo2, jo3, jam)
+ * ID 체계: bskorea.or.kr API 기준 (1co, 2co, 1th, 2th, 1ti, 2ti, 1pe, 2pe, 1jn, 2jn, 3jn, jas)
  */
 export const NEW_TESTAMENT: BibleBook[] = [
   { id: 'mat', name: '마태복음', abbreviation: '마', chapters: 28 },
@@ -72,25 +72,25 @@ export const NEW_TESTAMENT: BibleBook[] = [
   { id: 'jhn', name: '요한복음', abbreviation: '요', chapters: 21 },
   { id: 'act', name: '사도행전', abbreviation: '행', chapters: 28 },
   { id: 'rom', name: '로마서', abbreviation: '롬', chapters: 16 },
-  { id: 'co1', name: '고린도전서', abbreviation: '고전', chapters: 16 },
-  { id: 'co2', name: '고린도후서', abbreviation: '고후', chapters: 13 },
+  { id: '1co', name: '고린도전서', abbreviation: '고전', chapters: 16 },
+  { id: '2co', name: '고린도후서', abbreviation: '고후', chapters: 13 },
   { id: 'gal', name: '갈라디아서', abbreviation: '갈', chapters: 6 },
   { id: 'eph', name: '에베소서', abbreviation: '엡', chapters: 6 },
   { id: 'php', name: '빌립보서', abbreviation: '빌', chapters: 4 },
   { id: 'col', name: '골로새서', abbreviation: '골', chapters: 4 },
-  { id: 'th1', name: '데살로니가전서', abbreviation: '살전', chapters: 5 },
-  { id: 'th2', name: '데살로니가후서', abbreviation: '살후', chapters: 3 },
-  { id: 'ti1', name: '디모데전서', abbreviation: '딤전', chapters: 6 },
-  { id: 'ti2', name: '디모데후서', abbreviation: '딤후', chapters: 4 },
+  { id: '1th', name: '데살로니가전서', abbreviation: '살전', chapters: 5 },
+  { id: '2th', name: '데살로니가후서', abbreviation: '살후', chapters: 3 },
+  { id: '1ti', name: '디모데전서', abbreviation: '딤전', chapters: 6 },
+  { id: '2ti', name: '디모데후서', abbreviation: '딤후', chapters: 4 },
   { id: 'tit', name: '디도서', abbreviation: '딛', chapters: 3 },
   { id: 'phm', name: '빌레몬서', abbreviation: '몬', chapters: 1 },
   { id: 'heb', name: '히브리서', abbreviation: '히', chapters: 13 },
-  { id: 'jam', name: '야고보서', abbreviation: '약', chapters: 5 },
-  { id: 'pe1', name: '베드로전서', abbreviation: '벧전', chapters: 5 },
-  { id: 'pe2', name: '베드로후서', abbreviation: '벧후', chapters: 3 },
-  { id: 'jo1', name: '요한1서', abbreviation: '요일', chapters: 5 },
-  { id: 'jo2', name: '요한2서', abbreviation: '요이', chapters: 1 },
-  { id: 'jo3', name: '요한3서', abbreviation: '요삼', chapters: 1 },
+  { id: 'jas', name: '야고보서', abbreviation: '약', chapters: 5 },
+  { id: '1pe', name: '베드로전서', abbreviation: '벧전', chapters: 5 },
+  { id: '2pe', name: '베드로후서', abbreviation: '벧후', chapters: 3 },
+  { id: '1jn', name: '요한1서', abbreviation: '요일', chapters: 5 },
+  { id: '2jn', name: '요한2서', abbreviation: '요이', chapters: 1 },
+  { id: '3jn', name: '요한3서', abbreviation: '요삼', chapters: 1 },
   { id: 'jud', name: '유다서', abbreviation: '유', chapters: 1 },
   { id: 'rev', name: '요한계시록', abbreviation: '계', chapters: 22 },
 ];
