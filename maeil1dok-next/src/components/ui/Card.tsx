@@ -17,9 +17,9 @@ interface CardSubComponentProps {
 }
 
 const variantStyles: Record<CardVariant, string> = {
-  default: 'bg-white border border-[var(--color-border-default)] dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-default)]',
-  elevated: 'bg-white shadow-[var(--shadow-md)] dark:bg-[var(--color-bg-secondary)] dark:shadow-[var(--shadow-md)]',
-  bordered: 'bg-white border-2 border-[var(--color-border-dark)] dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-dark)]',
+  default: 'bg-[var(--color-bg-card)] border border-[var(--color-border-default)] dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-default)]',
+  elevated: 'bg-[var(--color-bg-card)] shadow-[var(--shadow-card)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] dark:bg-[var(--color-bg-secondary)] dark:shadow-[var(--shadow-card)]',
+  bordered: 'bg-[var(--color-bg-card)] border-2 border-[var(--color-border-dark)] dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-dark)]',
 }
 
 /**
@@ -30,7 +30,7 @@ export function Card({ children, variant = 'default', className, ...props }: Car
   return (
     <div
       className={cn(
-        'rounded-lg overflow-hidden',
+        'rounded-xl overflow-hidden transition-[transform,shadow] duration-[var(--duration-fade)]',
         variantStyles[variant],
         className
       )}
@@ -66,7 +66,7 @@ export function CardBody({ children, className }: CardSubComponentProps) {
   return (
     <div
       className={cn(
-        'px-6 py-4',
+        'p-5',
         className
       )}
     >
