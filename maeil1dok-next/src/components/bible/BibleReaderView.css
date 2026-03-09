@@ -13,15 +13,13 @@
   gap: 0.25rem;
   padding: 0.75rem 1rem;
   height: 50px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background: rgba(250, 248, 246, 0.85);
-  box-shadow: var(--shadow-sm);
+  background: var(--color-bg-card, #fff);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
   transition: all 0.15s ease;
 }
 
 .dark .bible-reader-header {
-  background: rgba(26, 26, 26, 0.85);
+  background: var(--color-bg-card, #1a1a1a);
 }
 
 @media (max-width: 768px) {
