@@ -46,7 +46,7 @@ const notices: Notice[] = [
 
 export default function NoticePage() {
   return (
-    <div className="max-w-2xl mx-auto bg-[#f5f5f5] min-h-screen">
+    <div className="max-w-2xl mx-auto bg-[var(--color-bg-tertiary)] min-h-screen">
       <div className="px-3 py-6">
         <PageHeader title="공지사항" />
       </div>
@@ -63,7 +63,7 @@ export default function NoticePage() {
             {/* Header with NEW badge */}
             <div className="flex items-center gap-2 mb-2">
               {notice.isNew && (
-                <span className="bg-[#FF4B4B] text-white text-xs font-semibold px-1.5 py-0.5 rounded">
+                <span className="bg-[var(--color-danger)] text-white text-xs font-semibold px-1.5 py-0.5 rounded">
                   NEW
                 </span>
               )}
@@ -73,15 +73,15 @@ export default function NoticePage() {
             </div>
 
             {/* Content */}
-            <div className="text-sm leading-relaxed text-[#4B5563] mb-4">
+            <div className="text-sm leading-relaxed text-[var(--color-text-secondary)] mb-4">
               {notice.content}
             </div>
 
             {/* Highlights */}
             {notice.highlights && notice.highlights.length > 0 && (
-              <div className="bg-[#f8f9fa] rounded-xl p-3 mb-4">
+              <div className="bg-[var(--color-surface-secondary)] rounded-xl p-3 mb-4">
                 {notice.highlights.map((highlight, idx) => (
-                  <div key={idx} className="flex items-start gap-3 py-2 text-sm text-[#4B5563]">
+                  <div key={idx} className="flex items-start gap-3 py-2 text-sm text-[var(--color-text-secondary)]">
                     <svg
                       className="w-5 h-5 flex-shrink-0 text-[var(--color-accent-primary)] mt-0.5"
                       xmlns="http://www.w3.org/2000/svg"
