@@ -160,43 +160,43 @@ export default function FriendsClient({ profiles }: FriendsClientProps) {
         </div>
       </header>
 
-      <section className="space-y-4 px-4 py-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-[#94A3B8]" aria-hidden="true" />
-          <input
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="친구 검색"
-            className="h-12 w-full rounded-[12px] border border-[#E2E8F0] bg-white pr-4 pl-11 text-[0.9375rem] text-[#1E293B] outline-none transition-all placeholder:text-[#94A3B8] focus:border-[#94A3B8] focus:shadow-[0_0_0_3px_rgba(148,163,184,0.1)]"
-          />
-        </div>
+       <section className="space-y-4 px-4 py-4">
+         <div className="relative">
+           <Search className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-[var(--color-text-tertiary)]" aria-hidden="true" />
+           <input
+             type="text"
+             value={query}
+             onChange={(event) => setQuery(event.target.value)}
+             placeholder="친구 검색"
+             className="h-12 w-full rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-card)] pr-4 pl-11 text-[0.9375rem] text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-text-tertiary)] focus:shadow-[0_0_0_3px_rgba(107,114,128,0.1)]"
+           />
+         </div>
 
-        {isLoading ? (
-          <div className="rounded-[12px] border border-[#E2E8F0] bg-white px-5 py-10 text-center text-[0.9375rem] text-[#64748B]">
-            친구 목록을 불러오는 중입니다...
-          </div>
-        ) : error ? (
-          <div className="rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] px-5 py-10 text-center">
-            <p className="text-[0.9375rem] text-[#B91C1C]">{error}</p>
-            <button
-              type="button"
-              onClick={() => void loadFriends()}
-              className="mt-3 inline-flex h-9 items-center justify-center rounded-[8px] border border-[#FCA5A5] bg-white px-3 text-[0.8125rem] font-medium text-[#B91C1C]"
-            >
-              다시 시도
-            </button>
-          </div>
-        ) : filteredFriends.length === 0 ? (
-          <div className="rounded-[12px] border border-[#E2E8F0] bg-white px-5 py-10 text-center">
-            <p className="text-[0.9375rem] text-[#475569]">
-              {query.trim() ? '검색 결과가 없습니다' : '아직 친구가 없습니다'}
-            </p>
-            <p className="mt-1 text-[0.8125rem] text-[#94A3B8]">
-              {query.trim() ? '다른 이름으로 검색해보세요.' : '팔로우한 사용자가 여기에 표시됩니다.'}
-            </p>
-          </div>
-        ) : (
+         {isLoading ? (
+           <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-5 py-10 text-center text-[0.9375rem] text-[var(--color-text-secondary)]">
+             친구 목록을 불러오는 중입니다...
+           </div>
+         ) : error ? (
+           <div className="rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] px-5 py-10 text-center">
+             <p className="text-[0.9375rem] text-[#B91C1C]">{error}</p>
+             <button
+               type="button"
+               onClick={() => void loadFriends()}
+               className="mt-3 inline-flex h-9 items-center justify-center rounded-[8px] border border-[#FCA5A5] bg-white px-3 text-[0.8125rem] font-medium text-[#B91C1C]"
+             >
+               다시 시도
+             </button>
+           </div>
+         ) : filteredFriends.length === 0 ? (
+           <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-5 py-10 text-center">
+             <p className="text-[0.9375rem] text-[var(--color-text-primary)]">
+               {query.trim() ? '검색 결과가 없습니다' : '아직 친구가 없습니다'}
+             </p>
+             <p className="mt-1 text-[0.8125rem] text-[var(--color-text-tertiary)]">
+               {query.trim() ? '다른 이름으로 검색해보세요.' : '팔로우한 사용자가 여기에 표시됩니다.'}
+             </p>
+           </div>
+         ) : (
           <div className="space-y-3">
             {filteredFriends.map((friend) => (
               <FriendCard
