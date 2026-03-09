@@ -98,7 +98,7 @@ export default function HomeShell({ children, userId }: HomeShellProps) {
         style={{ padding: '0 1rem calc(max(3rem, 6vh) + env(safe-area-inset-bottom))' }}
       >
         {/* Sticky Header */}
-        <header className="sticky-header sticky top-0 z-30 flex items-center justify-between py-2">
+        <header className="sticky-header sticky top-0 z-30 mt-2 mb-1 flex items-center justify-between rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] px-3 py-2 shadow-[var(--shadow-card)] backdrop-blur-sm">
           <Link href="/" className="block h-6">
             <Image
               src="/images/로고_투명.png"
@@ -128,7 +128,7 @@ export default function HomeShell({ children, userId }: HomeShellProps) {
         </header>
 
         {/* Main content */}
-        <main className="flex flex-col gap-4">
+        <main className="flex flex-col gap-4 pt-2">
           {children}
         </main>
       </div>

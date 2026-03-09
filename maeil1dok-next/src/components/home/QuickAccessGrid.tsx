@@ -136,18 +136,16 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
             >
               <div
                 className={cn(
-                  'rounded-[20px] border border-black/[0.02] p-4 transition-all duration-200',
-                  'bg-[var(--sanctuary-card-bg)] shadow-[0_4px_20px_rgba(44,51,51,0.04)]',
-                  'group-hover:-translate-y-0.5 group-hover:shadow-[0_8px_20px_rgba(44,51,51,0.06)]',
-                  'dark:border-white/10 dark:bg-[var(--sanctuary-card-bg-dark)] dark:shadow-none',
+                  'rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-4 shadow-[var(--shadow-card)] transition-all duration-200',
+                  'group-hover:-translate-y-0.5 group-hover:border-[var(--color-primary)] group-hover:shadow-[var(--shadow-card-hover)]',
                 )}
               >
                 <div className={cn('mb-2', card.id === 'plan' && 'mb-3 flex items-start justify-between gap-2')}>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-surface-secondary)] text-[var(--color-text-primary)] transition-colors group-hover:bg-[var(--color-accent-light)] group-hover:text-[var(--color-primary)]">
                     {card.icon}
                   </div>
                   {card.id === 'plan' && (
-                    <span className="inline-flex shrink-0 rounded-full border border-black/5 bg-[var(--color-bg-primary)] px-2 py-1 text-[0.75rem] font-semibold text-[var(--color-text-secondary)] dark:border-white/10 dark:bg-[var(--color-bg-tertiary)]">
+                    <span className="inline-flex shrink-0 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] px-2 py-1 text-[0.75rem] font-semibold text-[var(--color-text-secondary)]">
                       플랜 관리
                     </span>
                   )}

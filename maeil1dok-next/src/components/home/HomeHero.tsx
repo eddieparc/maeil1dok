@@ -20,8 +20,11 @@ export default function HomeHero({ displayName = '방문자', isAuthenticated = 
   const greetingMessage = isAuthenticated ? `${displayName}님, 안녕하세요` : '방문자님, 환영합니다'
 
   return (
-    <section className="mt-4 mb-2" data-testid="home-hero">
-      <p className="mb-1 text-sm text-[var(--color-text-tertiary)]" style={{ fontSize: 'min(0.875rem, 14px)' }}>
+    <section className="mt-4 mb-3" data-testid="home-hero">
+      <p
+        className="mb-2 inline-flex rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] px-3 py-1 text-sm text-[var(--color-text-secondary)] shadow-[var(--shadow-card)]"
+        style={{ fontSize: 'min(0.875rem, 14px)' }}
+      >
         {greetingMessage}
       </p>
       <h1
@@ -34,7 +37,9 @@ export default function HomeHero({ displayName = '방문자', isAuthenticated = 
       >
         {timeGreeting}
         <br />
-        <strong className="relative font-bold">말씀과 동행하세요</strong>
+        <strong className="relative inline-block font-bold text-[var(--color-text-primary)] after:absolute after:right-0 after:bottom-0 after:left-0 after:-z-10 after:h-3 after:rounded-full after:bg-[var(--color-accent-light)] after:content-['']">
+          말씀과 동행하세요
+        </strong>
       </h1>
     </section>
   )

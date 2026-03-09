@@ -22,7 +22,7 @@ function CheckItem({
       className={cn(
         'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium',
         completed
-          ? 'bg-[var(--color-accent-primary-light)] text-[var(--color-accent-primary)]'
+          ? 'bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
           : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]',
       )}
     >
@@ -38,9 +38,7 @@ function SkeletonLoader() {
   return (
     <div
       className={cn(
-        'mb-4 rounded-2xl border border-black/[0.02] p-4',
-        'bg-[var(--sanctuary-card-bg)] shadow-[0_4px_20px_rgba(44,51,51,0.04)]',
-        'dark:border-white/10 dark:bg-[var(--sanctuary-card-bg-dark)] dark:shadow-none',
+        'mb-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-4 shadow-[var(--shadow-card)]',
       )}
     >
       {/* Profile Stats Row */}
@@ -87,23 +85,21 @@ export function DailyStatus({ data }: DailyStatusProps) {
   return (
     <div
       className={cn(
-        'mb-4 rounded-2xl border border-black/[0.02] p-4',
-        'bg-[var(--sanctuary-card-bg)] shadow-[0_4px_20px_rgba(44,51,51,0.04)]',
-        'dark:border-white/10 dark:bg-[var(--sanctuary-card-bg-dark)] dark:shadow-none',
+        'mb-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-4 shadow-[var(--shadow-card)]',
       )}
     >
       <div data-testid="daily-status">
         {/* Profile Stats Row */}
-        <div className="mb-3 flex justify-around">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-500">🔥 {status.currentStreak}</div>
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-[var(--color-surface-secondary)] px-3 py-3 text-center">
+            <div className="text-2xl font-bold text-[var(--color-warning)]">🔥 {status.currentStreak}</div>
             <div className="text-xs text-[var(--color-text-tertiary)]">현재 연속</div>
           </div>
-          <div className="text-center">
+          <div className="rounded-xl bg-[var(--color-surface-secondary)] px-3 py-3 text-center">
             <div className="text-2xl font-bold text-[var(--color-info)]">{status.totalCompletedDays}</div>
             <div className="text-xs text-[var(--color-text-tertiary)]">총 완료일</div>
           </div>
-          <div className="text-center">
+          <div className="rounded-xl bg-[var(--color-surface-secondary)] px-3 py-3 text-center">
             <div className="text-2xl font-bold text-[var(--color-accent-primary)]">{status.longestStreak}</div>
             <div className="text-xs text-[var(--color-text-tertiary)]">최장 연속</div>
           </div>
