@@ -30,7 +30,7 @@ export function CatchupProgressCard({
     <div className="rounded-2xl border border-[var(--color-surface-secondary)] bg-[var(--color-bg-card)] p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-3">
         <span className="text-2xl">🏃</span>
-        <h3 className="text-lg font-semibold text-gray-900">{session.name}</h3>
+        <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{session.name}</h3>
       </div>
 
       <div className="mb-4">
@@ -42,19 +42,19 @@ export function CatchupProgressCard({
         </div>
         <div className="flex items-center gap-2 text-sm">
           <span className="font-semibold text-[var(--color-info)]">{percentage}%</span>
-          <span className="text-gray-600">({completedCount}/{totalCount})</span>
+          <span className="text-[var(--color-text-secondary)]">({completedCount}/{totalCount})</span>
         </div>
       </div>
 
       <div className="mb-4 flex items-center gap-2 rounded-lg bg-[var(--color-surface-secondary)] px-4 py-3 text-sm">
         <span className="text-base">📅</span>
-        <span className="text-gray-900">
+        <span className="text-[var(--color-text-primary)]">
           예상 완료일: <strong className="font-semibold">{formatDate(estimatedCompletionDate)}</strong>
         </span>
       </div>
 
       <div className="flex gap-3">
-        <button type="button" className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-[var(--color-surface-secondary)] px-3 py-3 font-semibold text-gray-900 transition-colors hover:bg-gray-100">
+        <button type="button" className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-3 py-3 font-semibold text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-secondary)]">
           <span>⚙️</span>
           계획수정
         </button>

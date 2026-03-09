@@ -182,7 +182,7 @@ export default function FriendsClient({ profiles }: FriendsClientProps) {
              <button
                type="button"
                onClick={() => void loadFriends()}
-               className="mt-3 inline-flex h-9 items-center justify-center rounded-[8px] border border-[#FCA5A5] bg-white px-3 text-[0.8125rem] font-medium text-[#B91C1C]"
+                className="mt-3 inline-flex h-9 items-center justify-center rounded-[8px] border border-[#FCA5A5] bg-[var(--color-bg-primary)] px-3 text-[0.8125rem] font-medium text-[#B91C1C]"
              >
                다시 시도
              </button>

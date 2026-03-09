@@ -27,13 +27,13 @@ export default async function ReadingPage() {
       return (
         <Container fullHeight className="py-8">
           <div className="mx-auto max-w-md">
-            <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
               ← 홈으로
             </Link>
             <EmptyCard>
               <p className="text-center text-base text-white/90">오늘의 통독 일정이 없습니다</p>
             </EmptyCard>
-            <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
               📅 통독표 보기
             </Link>
           </div>
@@ -47,7 +47,7 @@ export default async function ReadingPage() {
       return (
         <Container fullHeight className="py-8">
           <div className="mx-auto max-w-md">
-            <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
               ← 홈으로
             </Link>
             <div className="relative w-full overflow-hidden rounded-3xl border border-white/20 p-6 shadow-[0_12px_26px_rgba(0,0,0,0.14)] bg-gradient-to-br from-sky-600 to-indigo-900 text-white">
@@ -67,7 +67,7 @@ export default async function ReadingPage() {
                 </p>
               </div>
             </div>
-            <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
               📅 통독표 보기
             </Link>
           </div>
@@ -81,7 +81,7 @@ export default async function ReadingPage() {
     return (
       <Container fullHeight className="py-8">
         <div className="mx-auto max-w-md">
-          <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+          <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
             ← 홈으로
           </Link>
           <div className="relative w-full overflow-hidden rounded-3xl border border-white/20 p-6 shadow-[0_12px_26px_rgba(0,0,0,0.14)] bg-gradient-to-br from-sky-600 to-indigo-900 text-white">
@@ -105,7 +105,7 @@ export default async function ReadingPage() {
               </div>
             </div>
           </div>
-          <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+          <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
             📅 통독표 보기
           </Link>
         </div>
@@ -115,7 +115,7 @@ export default async function ReadingPage() {
     return (
       <Container fullHeight className="py-8">
         <div className="mx-auto max-w-md">
-          <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+          <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
             ← 홈으로
           </Link>
           <EmptyCard>

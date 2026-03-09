@@ -13,12 +13,12 @@ export default function Error({ error, reset }: ErrorProps) {
   }, [error])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-surface-secondary)]">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="text-4xl font-bold text-[var(--color-text-primary)] mb-4">
           오류가 발생했습니다
         </h1>
-        <p className="text-gray-600 mb-8">
+        <p className="text-[var(--color-text-secondary)] mb-8">
           문제가 발생했습니다. 다시 시도해주세요.
         </p>
         <button

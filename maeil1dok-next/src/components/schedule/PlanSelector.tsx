@@ -19,7 +19,7 @@ export default function PlanSelector({ subscriptions, plans, selectedSubscriptio
     if (!plan) return null
     return (
       <div data-testid="plan-selector" className="mb-4 px-1">
-        <h2 className="text-base font-semibold text-gray-800">{plan.name}</h2>
+        <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{plan.name}</h2>
       </div>
     )
   }
@@ -43,8 +43,8 @@ export default function PlanSelector({ subscriptions, plans, selectedSubscriptio
             onClick={() => handleChange(sub.id)}
             className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
               isSelected
-                ? 'bg-gray-900 text-white shadow-sm'
-                : 'bg-white text-gray-600 shadow-sm hover:bg-gray-50'
+                ? 'bg-[var(--color-text-primary)] text-white shadow-sm'
+                : 'bg-[var(--color-bg-primary)] text-[var(--color-text-secondary)] shadow-sm hover:bg-[var(--color-surface-secondary)]'
             }`}
           >
             {plan?.name ?? '플랜'}

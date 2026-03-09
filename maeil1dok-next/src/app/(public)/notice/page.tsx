@@ -55,10 +55,10 @@ export default function NoticePage() {
         {notices.map((notice) => (
           <div
             key={notice.id}
-            className="bg-white rounded-2xl p-6 mb-4 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+            className="bg-[var(--color-bg-primary)] rounded-2xl p-6 mb-4 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
           >
             {/* Date */}
-            <div className="text-xs text-gray-600 mb-3">{notice.date}</div>
+            <div className="text-xs text-[var(--color-text-secondary)] mb-3">{notice.date}</div>
 
             {/* Header with NEW badge */}
             <div className="flex items-center gap-2 mb-2">

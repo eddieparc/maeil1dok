@@ -26,7 +26,7 @@ export default function LeaderboardCard({ rank, entry }: LeaderboardCardProps) {
         'flex items-center gap-3 rounded-[12px] border px-3 py-3 transition-colors',
         entry.isCurrentUser
           ? 'border-[var(--color-schedule-current-border)] bg-[var(--color-schedule-current-bg)]'
-          : 'border-[var(--color-slate-200)] bg-white hover:bg-[var(--color-slate-50)]',
+          : 'border-[var(--color-slate-200)] bg-[var(--color-bg-primary)] hover:bg-[var(--color-slate-50)]',
       ].join(' ')}
     >
       <div className="flex h-8 w-8 items-center justify-center text-[1rem] font-semibold text-[var(--color-slate-700)]">
