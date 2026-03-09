@@ -22,9 +22,9 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
         </header>
 
         <div className="px-4 py-8">
-          <div className="rounded-[12px] border border-[#E2E8F0] bg-white px-5 py-10 text-center">
-            <p className="text-[0.9375rem] text-[#475569]">그룹을 찾을 수 없습니다.</p>
-            <Link href="/groups" className="mt-4 inline-flex h-9 items-center justify-center rounded-[6px] bg-[#1E293B] px-4 text-[0.8125rem] font-medium text-white">
+          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] px-5 py-10 text-center shadow-[var(--shadow-card)]">
+            <p className="text-[0.9375rem] text-[var(--color-text-secondary)]">그룹을 찾을 수 없습니다.</p>
+            <Link href="/groups" className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 text-[0.8125rem] font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]">
               그룹 목록으로 돌아가기
             </Link>
           </div>
@@ -49,58 +49,58 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
       </header>
 
       <section className="space-y-6 px-4 py-4">
-        <article className="overflow-hidden rounded-[12px] border border-[#E2E8F0] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-          <div className="h-28 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#334155]" />
+        <article className="overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] shadow-[var(--shadow-card)]">
+          <div className="h-28 bg-gradient-to-r from-[var(--color-bg-secondary)] via-[var(--color-bg-tertiary)] to-[var(--color-surface-hover)]" />
           <div className="p-6">
             <div className="mb-3 flex items-center justify-between">
-              <span className="inline-flex rounded-[4px] border border-[#E2E8F0] bg-[#F8FAFC] px-2 py-0.5 text-[0.75rem] font-medium text-[#64748B]">
+              <span className="inline-flex rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] px-2 py-0.5 text-[0.75rem] font-medium text-[var(--color-text-tertiary)]">
                 {group.isPublic ? '공개' : '비공개'}
               </span>
-              <span className="text-[0.875rem] text-[#64748B]">{group.memberCount}/{group.maxMembers}명</span>
+              <span className="text-[0.875rem] text-[var(--color-text-tertiary)]">{group.memberCount}/{group.maxMembers}명</span>
             </div>
 
-            <h2 className="mb-2 text-[1.5rem] font-bold leading-[1.3] tracking-[-0.02em] text-[#1E293B]">{group.name}</h2>
-            <p className="mb-5 text-[0.9375rem] leading-[1.6] text-[#475569]">{group.description || '설명이 없습니다.'}</p>
+            <h2 className="mb-2 text-[1.5rem] font-bold leading-[1.3] tracking-[-0.02em] text-[var(--color-text-primary)]">{group.name}</h2>
+            <p className="mb-5 text-[0.9375rem] leading-[1.6] text-[var(--color-text-secondary)]">{group.description || '설명이 없습니다.'}</p>
 
-            <div className="space-y-2 border-t border-[#F1F5F9] pt-4 text-[0.875rem]">
+            <div className="space-y-2 border-t border-[var(--color-surface-secondary)] pt-4 text-[0.875rem]">
               <div className="flex items-center gap-4">
-                <span className="min-w-12 text-[#94A3B8]">리더</span>
-                <span className="font-medium text-[#334155]">{group.leader.nickname}</span>
+                <span className="min-w-12 text-[var(--color-text-tertiary)]">리더</span>
+                <span className="font-medium text-[var(--color-text-primary)]">{group.leader.nickname}</span>
               </div>
               <div className="flex items-center gap-4">
-                <span className="min-w-12 text-[#94A3B8]">읽기표</span>
-                <span className="font-medium text-[#334155]">{planText}</span>
+                <span className="min-w-12 text-[var(--color-text-tertiary)]">읽기표</span>
+                <span className="font-medium text-[var(--color-text-primary)]">{planText}</span>
               </div>
             </div>
 
-            <button type="button" className="mt-6 h-11 w-full rounded-[8px] bg-[#1E293B] text-[0.9375rem] font-semibold text-white transition-colors hover:bg-[#334155]">
+            <button type="button" className="mt-6 h-11 w-full rounded-lg bg-[var(--color-primary)] text-[0.9375rem] font-semibold text-white transition-colors hover:bg-[var(--color-accent-hover)]">
               그룹 가입하기
             </button>
           </div>
         </article>
 
-        <article className="rounded-[12px] border border-[#E2E8F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <article className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-6 shadow-[var(--shadow-card)]">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-[1.125rem] font-semibold text-[#1E293B]">멤버 목록</h3>
-            <span className="rounded-full bg-[#F1F5F9] px-2 py-0.5 text-[0.75rem] font-medium text-[#64748B]">{group.members.length}명</span>
+            <h3 className="text-[1.125rem] font-semibold text-[var(--color-text-primary)]">멤버 목록</h3>
+            <span className="rounded-full bg-[var(--color-surface-secondary)] px-2 py-0.5 text-[0.75rem] font-medium text-[var(--color-text-tertiary)]">{group.members.length}명</span>
           </div>
           <ul className="space-y-3">
             {group.members.map((member) => (
-              <li key={member.id} className="flex items-center justify-between rounded-[8px] border border-[#F1F5F9] bg-[#F8FAFC] px-3 py-3">
+              <li key={member.id} className="flex items-center justify-between rounded-xl border border-[var(--color-surface-secondary)] bg-[var(--color-surface-secondary)] px-3 py-3">
                 <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#E2E8F0] bg-[#F1F5F9] text-sm font-semibold text-[#64748B]">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] text-sm font-semibold text-[var(--color-text-tertiary)]">
                     {(member.nickname || '?').charAt(0)}
                   </span>
                   <div>
-                    <p className="text-[0.9375rem] font-medium text-[#1E293B]">{member.nickname}</p>
-                    <p className="text-[0.75rem] text-[#94A3B8]">{new Date(member.joinedAt).toLocaleDateString('ko-KR')} 가입</p>
+                    <p className="text-[0.9375rem] font-medium text-[var(--color-text-primary)]">{member.nickname}</p>
+                    <p className="text-[0.75rem] text-[var(--color-text-tertiary)]">{new Date(member.joinedAt).toLocaleDateString('ko-KR')} 가입</p>
                   </div>
                 </div>
                 <span className={[
-                  'rounded-[4px] border px-2 py-1 text-[0.75rem] font-medium',
+                  'rounded-md border px-2 py-1 text-[0.75rem] font-medium',
                   member.role === '관리자'
-                    ? 'border-[#FEF3C7] bg-[#FFFBEB] text-[#B45309]'
-                    : 'border-[#E2E8F0] bg-white text-[#64748B]',
+                    ? 'border-[var(--color-warning-bg)] bg-[var(--color-warning-bg)] text-[var(--color-warning-text)]'
+                    : 'border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] text-[var(--color-text-tertiary)]',
                 ].join(' ')}>
                   {member.role}
                 </span>
@@ -109,13 +109,13 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
           </ul>
         </article>
 
-        <article className="rounded-[12px] border border-[#E2E8F0] bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-          <h3 className="mb-4 text-[1.125rem] font-semibold text-[#1E293B]">최근 활동</h3>
+        <article className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-6 shadow-[var(--shadow-card)]">
+          <h3 className="mb-4 text-[1.125rem] font-semibold text-[var(--color-text-primary)]">최근 활동</h3>
           <ul className="space-y-3">
             {group.activities.map((activity) => (
-              <li key={activity.id} className="rounded-[8px] border border-[#F1F5F9] bg-[#F8FAFC] px-4 py-3">
-                <p className="text-[0.875rem] text-[#334155]">{activity.message}</p>
-                <p className="mt-1 text-[0.75rem] text-[#94A3B8]">{new Date(activity.createdAt).toLocaleString('ko-KR')}</p>
+              <li key={activity.id} className="rounded-xl border border-[var(--color-surface-secondary)] bg-[var(--color-surface-secondary)] px-4 py-3">
+                <p className="text-[0.875rem] text-[var(--color-text-primary)]">{activity.message}</p>
+                <p className="mt-1 text-[0.75rem] text-[var(--color-text-tertiary)]">{new Date(activity.createdAt).toLocaleString('ko-KR')}</p>
               </li>
             ))}
           </ul>
