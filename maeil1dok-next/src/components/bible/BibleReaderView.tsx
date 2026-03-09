@@ -10,8 +10,8 @@ import { useBibleContent } from '@/hooks/bible/useBibleContent'
 import { useBookmark } from '@/hooks/bible/useBookmark'
 import { useHighlight } from '@/hooks/bible/useHighlight'
 import { useNote } from '@/hooks/bible/useNote'
-import { useReadingSettings } from '@/hooks/bible/useReadingSettings'
 import { usePersonalRecord } from '@/hooks/bible/usePersonalRecord'
+import { DEFAULT_SETTINGS, type ReadingSettings } from '@/stores/bible/readingSettings'
 import type { UserReadingSettings } from '@/types/profile'
 import BibleReaderHeader from './reader/BibleReaderHeader'
 import TongdokProgressBar from './reader/TongdokProgressBar'
@@ -60,7 +60,7 @@ export default function BibleReaderView({
   guideLink,
   onAudioLinkClick,
 }: BibleReaderViewProps) {
-  const { settings } = useReadingSettings()
+  const settings: ReadingSettings = DEFAULT_SETTINGS
   const { content, isLoading, error } = useBibleContent(book, chapter, version, settings)
   const {
     highlights,
@@ -117,7 +117,7 @@ export default function BibleReaderView({
     tongdokAutoComplete: settings.tongdokAutoComplete,
     createdAt: '',
     updatedAt: '',
-  }), [settings])
+  }), [])
 
   const {
     isMenuOpen,
