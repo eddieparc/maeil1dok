@@ -5,8 +5,13 @@ import { useRouter } from 'next/navigation'
 
 import { BIBLE_BOOKS } from '@/lib/bible/books'
 import { cn } from '@/lib/utils'
-
-// ─── Types ───────────────────────────────────────────────────────────────────
+import { SettingsIcon, ListIcon } from './home/Icons'
+import TodayTongdokCard from './home/TodayTongdokCard'
+import ContinueReadingCard from './home/ContinueReadingCard'
+import WelcomeGuide from './home/WelcomeGuide'
+import FeatureCards from './home/FeatureCards'
+import UsageTips from './home/UsageTips'
+import RecentRecords from './home/RecentRecords'
 
 interface BibleHomeProps {
   lastPosition?: { book: string; chapter: number }
@@ -42,119 +47,6 @@ interface HomeStats {
   recentRecords: RecentRecord[]
 }
 
-// ─── Icons (inline SVGs) ─────────────────────────────────────────────────────
-
-function PlayIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
-
-function CheckCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
-
-function ArrowRightIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-  )
-}
-
-function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-  )
-}
-
-function SettingsIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M11.049 2.927c.3-1.14 1.603-1.14 1.902 0a1 1 0 00.95.69 1 1 0 011.12.743 1 1 0 001.341.667c1.004-.468 1.926.454 1.458 1.458a1 1 0 00.667 1.34 1 1 0 01.743 1.121 1 1 0 00.69.95c1.14.3 1.14 1.603 0 1.902a1 1 0 00-.69.95 1 1 0 01-.743 1.12 1 1 0 00-.667 1.341c.468 1.004-.454 1.926-1.458 1.458a1 1 0 00-1.34.667 1 1 0 01-1.121.743 1 1 0 00-.95.69c-.3 1.14-1.603 1.14-1.902 0a1 1 0 00-.95-.69 1 1 0 01-1.12-.743 1 1 0 00-1.341-.667c-1.004.468-1.926-.454-1.458-1.458a1 1 0 00-.667-1.34 1 1 0 01-.743-1.121 1 1 0 00-.69-.95c-1.14-.3-1.14-1.603 0-1.902a1 1 0 00.69-.95 1 1 0 01.743-1.12 1 1 0 00.667-1.341c-.468-1.004.454-1.926 1.458-1.458a1 1 0 001.34-.667 1 1 0 011.121-.743 1 1 0 00.95-.69z"
-      />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  )
-}
-
-function BookmarkIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-    </svg>
-  )
-}
-
-function DocumentIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  )
-}
-
-function HighlightIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M4 7h16M4 12h16M4 17h16"
-      />
-    </svg>
-  )
-}
-
-function HistoryIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  )
-}
-
-function ListIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-5 w-5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h10" />
-    </svg>
-  )
-}
-
-function InfoIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-4 w-4', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 22a10 10 0 100-20 10 10 0 000 20z" />
-    </svg>
-  )
-}
-
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={cn('h-[18px] w-[18px]', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  )
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function getBookName(bookCode: string): string {
   return BIBLE_BOOKS[bookCode]?.ko ?? bookCode
 }
@@ -162,25 +54,6 @@ function getBookName(bookCode: string): string {
 function getChapterUnit(bookCode: string): string {
   return bookCode === 'psa' ? '편' : '장'
 }
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  const today = new Date()
-  const diff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (diff === 0) return '오늘'
-  if (diff === 1) return '어제'
-  if (diff < 7) return `${diff}일 전`
-
-  return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
-}
-
-function formatTodayDate(): string {
-  const today = new Date()
-  return today.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
-}
-
-// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function BibleHome({
   lastPosition,
@@ -219,8 +92,6 @@ export default function BibleHome({
 
   const canDismissTips = stats.bookmarkCount + stats.noteCount + stats.highlightCount > 0
 
-  // ─── Data fetching ──────────────────────────────────────────────────────
-
   const loadHomeStats = useCallback(async () => {
     try {
       const [bookmarksRes, notesRes, highlightsRes, recordsRes] = await Promise.all([
@@ -249,11 +120,11 @@ export default function BibleHome({
 
       if (!bookmarksRes && !notesRes && !highlightsRes && !recordsRes) {
         setIsAuthenticated(false)
-      }
-    } catch {
-      // Silently fail - stats will remain at defaults
-    }
-  }, [])
+       }
+     } catch {
+       // Silently fail
+     }
+   }, [])
 
   const loadTodaySchedule = useCallback(async () => {
     try {
@@ -326,13 +197,6 @@ export default function BibleHome({
     )
   }, [todaySchedule, router])
 
-  const handleRecordClick = useCallback(
-    (record: RecentRecord) => {
-      onSelectBook(record.book, record.chapter)
-    },
-    [onSelectBook],
-  )
-
   const dismissTips = useCallback(() => {
     setTipsDismissed(true)
     if (typeof window !== 'undefined') {
@@ -340,11 +204,8 @@ export default function BibleHome({
     }
   }, [])
 
-  // ─── Render ─────────────────────────────────────────────────────────────
-
   return (
     <div className="min-h-dvh bg-[var(--color-bg-primary)]">
-      {/* Header */}
       <header
         className={cn(
           'sticky top-0 z-10 flex items-center justify-between',
@@ -367,341 +228,60 @@ export default function BibleHome({
       </header>
 
       <div className="space-y-6 p-4 pb-8">
-        {/* ── Today's Reading Card ─────────────────────────────────────── */}
-        {todaySchedule && (
-          <section>
-            <div
-              className={cn(
-                'rounded-2xl p-5 text-white shadow-lg',
-                'bg-gradient-to-br from-[var(--color-accent-primary)] to-[var(--color-accent-hover)]',
-              )}
-            >
-              {/* Card header */}
-              <div className="mb-4 flex items-center justify-between">
-                <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
-                  오늘의 통독
-                </span>
-                <span className="text-[0.8125rem] opacity-90">{formatTodayDate()}</span>
-              </div>
+        <TodayTongdokCard
+          schedule={todaySchedule}
+          hasPlan={hasPlan}
+          isAuthenticated={isAuthenticated}
+          isLoading={isLoading}
+          onStart={handleStartTongdok}
+          onPlanClick={() => router.push('/plan')}
+        />
 
-              {/* Schedule info */}
-              <div className="mb-4">
-                <div className="mb-3 flex items-baseline gap-2">
-                  <span className="text-xl font-bold">{todaySchedule.bookName}</span>
-                  <span className="text-base opacity-90">{todaySchedule.range}</span>
-                </div>
-
-                {/* Progress indicator */}
-                {todaySchedule.total > 1 && (
-                  <div className="flex items-center gap-3">
-                    <span className="whitespace-nowrap text-xs opacity-90">
-                      {todaySchedule.completed}/{todaySchedule.total} 완료
-                    </span>
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/30">
-                      <div
-                        className="h-full rounded-full bg-white transition-all duration-300"
-                        style={{
-                          width: `${(todaySchedule.completed / todaySchedule.total) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Start button */}
-              <button
-                type="button"
-                className={cn(
-                  'flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[0.9375rem] font-semibold transition-all',
-                  todaySchedule.isCompleted
-                    ? 'bg-white/20 text-white'
-                    : 'bg-white text-[var(--color-accent-primary)] hover:-translate-y-0.5 hover:shadow-lg',
-                )}
-                onClick={handleStartTongdok}
-              >
-                {todaySchedule.isCompleted ? (
-                  <>
-                    <CheckCircleIcon />
-                    <span>완료됨</span>
-                  </>
-                ) : (
-                  <>
-                    <PlayIcon />
-                    <span>통독 시작</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </section>
-        )}
-
-        {!hasPlan && isAuthenticated && !isLoading && (
-          <section>
-            <div
-              className={cn(
-                'flex items-center gap-2 rounded-[10px] bg-[var(--color-bg-tertiary)] p-3',
-                'text-[0.8125rem] text-[var(--color-text-secondary)]',
-              )}
-            >
-              <InfoIcon />
-              <span>플랜을 구독하면 매일 통독 일정을 받을 수 있어요</span>
-              <button
-                type="button"
-                className="ml-auto font-medium text-[var(--color-accent-primary)]"
-                onClick={() => router.push('/plan')}
-              >
-                플랜 보기
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* ── Continue Reading ─────────────────────────────────────────── */}
         {lastPosition && (
-          <section>
-            <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
-              계속 읽기
-            </h2>
-            <button
-              type="button"
-              className={cn(
-                'flex w-full items-center justify-between rounded-xl border border-[var(--color-border-default)]',
-                'bg-[var(--color-bg-secondary)] px-5 py-4 text-[var(--color-text-primary)]',
-                'transition-all hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-bg-tertiary)]',
-              )}
-              onClick={() => onContinueReading(lastPosition.book, lastPosition.chapter)}
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">
-                  {BIBLE_BOOKS[lastPosition.book]?.ko ?? lastPosition.book}
-                </span>
-                <span className="text-[0.9375rem] text-[var(--color-text-secondary)]">
-                  {lastPosition.chapter}
-                  {getChapterUnit(lastPosition.book)}
-                </span>
-              </div>
-              <ArrowRightIcon className="text-[var(--color-text-muted)]" />
-            </button>
-          </section>
+          <ContinueReadingCard
+            book={lastPosition.book}
+            chapter={lastPosition.chapter}
+            bookName={getBookName(lastPosition.book)}
+            chapterUnit={getChapterUnit(lastPosition.book)}
+            onClick={() => onContinueReading(lastPosition.book, lastPosition.chapter)}
+          />
         )}
 
-        {/* ── Welcome Guide ────────────────────────────────────────────── */}
         {showWelcomeGuide && !isLoading && (
-          <section>
-            <div
-              className={cn(
-                'rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]',
-                'px-6 py-8 text-center',
-              )}
-            >
-              <div className="mb-4 text-5xl">📖</div>
-              <h2 className="mb-2 text-lg font-bold text-[var(--color-text-primary)]">
-                매일일독에 오신 것을 환영합니다!
-              </h2>
-              <p className="mb-6 text-[0.9375rem] text-[var(--color-text-secondary)]">
-                성경을 읽고, 묵상하고, 기록해보세요.
-              </p>
-              <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  className={cn(
-                    'flex items-center justify-center gap-2 rounded-xl px-4 py-3.5',
-                    'bg-[var(--color-accent-primary)] text-[0.9375rem] font-medium text-white',
-                    'transition-all hover:bg-[var(--color-accent-hover)]',
-                  )}
-                  onClick={onViewTOC}
-                >
-                  <ListIcon className="h-[18px] w-[18px]" />
-                  성경 목차에서 시작하기
-                </button>
-                {isAuthenticated && (
-                  <button
-                    type="button"
-                    className={cn(
-                      'flex items-center justify-center gap-2 rounded-[10px] border border-[var(--color-border-default)] px-4 py-3.5',
-                      'bg-[var(--color-bg-tertiary)] text-[0.9375rem] font-medium text-[var(--color-text-primary)]',
-                      'transition-all hover:bg-[var(--color-bg-primary)]',
-                    )}
-                    onClick={() => router.push('/plan')}
-                  >
-                    <CalendarIcon />
-                    통독 플랜 구독하기
-                  </button>
-                )}
-              </div>
-            </div>
-          </section>
+          <WelcomeGuide
+            isAuthenticated={isAuthenticated}
+            onViewTOC={onViewTOC}
+            onPlanClick={() => router.push('/plan')}
+          />
         )}
 
-        {/* ── Feature Cards ────────────────────────────────────────────── */}
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
-            내 성경 활동
-          </h2>
-          <div className="flex flex-col gap-2">
-            <FeatureCard
-              icon={<BookmarkIcon />}
-              iconBg="bg-[var(--color-warning-bg)]"
-              iconColor="text-[var(--color-warning-text)]"
-              name="북마크"
-              count={stats.bookmarkCount}
-              description={
-                stats.bookmarkCount > 0
-                  ? `저장된 ${stats.bookmarkCount}개의 장`
-                  : '자주 찾는 장을 저장하세요'
-              }
-              onClick={() => router.push('/bible/bookmarks')}
-            />
-            <FeatureCard
-              icon={<DocumentIcon />}
-              iconBg="bg-[var(--color-info-bg)]"
-              iconColor="text-[var(--color-info-text)]"
-              name="묵상노트"
-              count={stats.noteCount}
-              description={
-                stats.noteCount > 0
-                  ? `작성된 ${stats.noteCount}개의 노트`
-                  : '말씀을 읽고 묵상을 기록하세요'
-              }
-              onClick={() => router.push('/bible/notes')}
-            />
-            <FeatureCard
-              icon={<HighlightIcon />}
-              iconBg="bg-[var(--color-danger-bg)]"
-              iconColor="text-[var(--color-danger-text)]"
-              name="하이라이트"
-              count={stats.highlightCount}
-              description={
-                stats.highlightCount > 0
-                  ? `표시된 ${stats.highlightCount}개의 구절`
-                  : '중요한 구절에 색상을 입히세요'
-              }
-              onClick={() => router.push('/bible/highlights')}
-            />
-            <FeatureCard
-              icon={<HistoryIcon />}
-              iconBg="bg-[var(--color-success-bg)]"
-              iconColor="text-[var(--color-success-text)]"
-              name="읽기 기록"
-              description="읽은 장과 날짜를 확인하세요"
-              onClick={() => router.push('/bible/history')}
-            />
-          </div>
-        </section>
+        <FeatureCards
+          bookmarkCount={stats.bookmarkCount}
+          noteCount={stats.noteCount}
+          highlightCount={stats.highlightCount}
+          onBookmarks={() => router.push('/bible/bookmarks')}
+          onNotes={() => router.push('/bible/notes')}
+          onHighlights={() => router.push('/bible/highlights')}
+          onHistory={() => router.push('/bible/history')}
+        />
 
-        {/* ── Usage Tips ───────────────────────────────────────────────── */}
         {showUsageTips && (
-          <section
-            className={cn(
-              'rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4',
-            )}
-          >
-            <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
-              💡 사용 팁
-            </h2>
-            <div className="flex flex-col gap-3.5">
-              {!hasHighlights && (
-                <TipItem
-                  emoji="✨"
-                  title="하이라이트 만들기"
-                  description={
-                    <>
-                      성경 본문에서 텍스트를{' '}
-                      <em className="not-italic font-medium text-[var(--color-accent-primary)]">
-                        드래그
-                      </em>
-                      하면 하이라이트, 복사, 공유 메뉴가 나타나요
-                    </>
-                  }
-                />
-              )}
-              {!hasBookmarks && (
-                <TipItem
-                  emoji="🔖"
-                  title="북마크 추가하기"
-                  description={
-                    <>
-                      성경 읽기 화면 상단의{' '}
-                      <em className="not-italic font-medium text-[var(--color-accent-primary)]">
-                        북마크 아이콘
-                      </em>
-                      을 눌러 현재 장을 저장하세요
-                    </>
-                  }
-                />
-              )}
-              {!hasNotes && (
-                <TipItem
-                  emoji="📝"
-                  title="묵상노트 작성하기"
-                  description={
-                    <>
-                      읽기 화면의{' '}
-                      <em className="not-italic font-medium text-[var(--color-accent-primary)]">
-                        메뉴(⋮)
-                      </em>
-                      에서 묵상노트를 작성할 수 있어요
-                    </>
-                  }
-                />
-              )}
-            </div>
-            {canDismissTips && (
-              <button
-                type="button"
-                className={cn(
-                  'mt-3 block w-full text-center text-xs text-[var(--color-text-muted)]',
-                  'transition-colors hover:text-[var(--color-text-secondary)]',
-                )}
-                onClick={dismissTips}
-              >
-                다음부터 표시 안함
-              </button>
-            )}
-          </section>
+          <UsageTips
+            hasBookmarks={hasBookmarks}
+            hasNotes={hasNotes}
+            hasHighlights={hasHighlights}
+            canDismiss={canDismissTips}
+            onDismiss={dismissTips}
+          />
         )}
 
-        {/* ── Recent Records ───────────────────────────────────────────── */}
         {stats.recentRecords.length > 0 && (
-          <section>
-            <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
-              최근 읽은 성경
-            </h2>
-            <ul
-              className={cn(
-                'overflow-hidden rounded-xl border border-[var(--color-border-default)]',
-                'bg-[var(--color-bg-secondary)]',
-              )}
-            >
-              {stats.recentRecords.map((record) => (
-                <li
-                  key={`${record.book}-${record.chapter}-${record.readDate}`}
-                  className="border-b border-[var(--color-border-default)] last:border-b-0"
-                >
-                  <button
-                    type="button"
-                    className={cn(
-                      'flex w-full items-center justify-between px-4 py-3.5 text-left',
-                      'transition-colors hover:bg-[var(--color-bg-tertiary)]',
-                    )}
-                    onClick={() => handleRecordClick(record)}
-                  >
-                    <span className="text-[0.9375rem] text-[var(--color-text-primary)]">
-                      {record.bookName} {record.chapter}
-                      {getChapterUnit(record.book)}
-                    </span>
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      {formatDate(record.readDate)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <RecentRecords
+            records={stats.recentRecords}
+            onRecordClick={(book, chapter) => onSelectBook(book, chapter)}
+          />
         )}
 
-        {/* ── TOC Shortcut ─────────────────────────────────────────────── */}
         <section>
           <button
             type="button"
@@ -716,83 +296,6 @@ export default function BibleHome({
             성경 전체 목차
           </button>
         </section>
-      </div>
-    </div>
-  )
-}
-
-// ─── Sub-components ────────────────────────────────────────────────────────
-
-interface FeatureCardProps {
-  icon: React.ReactNode
-  iconBg: string
-  iconColor: string
-  name: string
-  count?: number
-  description: string
-  onClick: () => void
-}
-
-function FeatureCard({ icon, iconBg, iconColor, name, count, description, onClick }: FeatureCardProps) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        'flex w-full items-center gap-3.5 rounded-xl border border-[var(--color-border-default)]',
-        'bg-[var(--color-bg-secondary)] p-4 text-left',
-        'transition-all hover:border-[var(--color-border-dark)] hover:bg-[var(--color-bg-tertiary)]',
-      )}
-      onClick={onClick}
-    >
-      <div
-        className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-          iconBg,
-          iconColor,
-        )}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1 text-left">
-        <div className="mb-0.5 flex items-center gap-2">
-          <span className="text-[0.9375rem] font-semibold text-[var(--color-text-primary)]">
-            {name}
-          </span>
-          {count != null && count > 0 && (
-            <span
-              className={cn(
-                'rounded-lg bg-[var(--color-accent-light)] px-2 py-0.5',
-                'text-xs font-semibold text-[var(--color-accent-primary)]',
-              )}
-            >
-              {count}
-            </span>
-          )}
-        </div>
-        <p className="truncate text-[0.8125rem] text-[var(--color-text-secondary)]">
-          {description}
-        </p>
-      </div>
-      <ChevronRightIcon className="shrink-0 text-[var(--color-text-muted)]" />
-    </button>
-  )
-}
-
-interface TipItemProps {
-  emoji: string
-  title: string
-  description: React.ReactNode
-}
-
-function TipItem({ emoji, title, description }: TipItemProps) {
-  return (
-    <div className="flex gap-3 rounded-lg bg-[var(--color-bg-tertiary)] p-3">
-      <span className="shrink-0 text-xl">{emoji}</span>
-      <div>
-        <strong className="mb-1 block text-sm text-[var(--color-text-primary)]">{title}</strong>
-        <p className="text-[0.8125rem] leading-relaxed text-[var(--color-text-secondary)]">
-          {description}
-        </p>
       </div>
     </div>
   )
