@@ -95,7 +95,7 @@ function ModalRoot({ isOpen, onClose, children, size = 'md', closeOnOverlayClick
       <button
         type="button"
         aria-label="Close modal overlay"
-        className="absolute inset-0 bg-black/55 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         onClick={() => {
           if (closeOnOverlayClick) {
             onClose()
