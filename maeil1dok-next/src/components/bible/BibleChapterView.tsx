@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { VerseRange } from './VerseSelector'
 import type { VerseHighlight } from '@/types'
 import type { UserReadingSettings } from '@/types/profile'
@@ -45,7 +45,11 @@ export default function BibleChapterView({
   selectedVerseRange,
 }: BibleChapterViewProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
-  const interactiveContent = useMemo(() => buildInteractiveSrcDoc(content), [content])
+  const [iframeHeight, setIframeHeight] = useState(0)
+  const interactiveContent = useMemo(() => {
+    setIframeHeight(0)
+    return buildInteractiveSrcDoc(content)
+  }, [content])
 
   const syncHighlightsToIframe = useCallback(() => {
     const frame = iframeRef.current?.contentWindow
@@ -172,6 +176,14 @@ export default function BibleChapterView({
         y?: number
       }
 
+      if (payload.type === 'bible-content-height') {
+        const height = (event.data as { height?: number }).height
+        if (typeof height === 'number' && height > 0) {
+          setIframeHeight(height)
+        }
+        return
+      }
+
       if (payload.type === 'bible-highlights-ready') {
         syncHighlightsToIframe()
         syncReadingSettingsToIframe()
@@ -239,7 +251,8 @@ export default function BibleChapterView({
       data-testid="bible-chapter-content"
       title="bible-chapter-content"
       srcDoc={interactiveContent}
-      className="w-full flex-1 min-h-0"
+      className="w-full border-0 overflow-hidden"
+      style={iframeHeight > 0 ? { height: `${iframeHeight}px` } : { minHeight: '60vh' }}
       sandbox="allow-same-origin allow-scripts"
       onLoad={syncHighlightsToIframe}
     />

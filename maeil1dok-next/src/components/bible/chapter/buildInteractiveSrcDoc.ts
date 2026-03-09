@@ -67,6 +67,11 @@ export function buildInteractiveSrcDoc(content: string) {
     --section-title-color: #4a5d4a;
   }
 
+  html, body {
+    height: auto;
+    overflow: hidden;
+  }
+
   body {
     margin: 0;
     padding: 1rem;
@@ -687,6 +692,7 @@ export function buildInteractiveSrcDoc(content: string) {
 
       if (event.data.type === 'bible-reading-settings') {
         applyReadingSettings(event.data.settings || {});
+        setTimeout(sendContentHeight, 50);
         return;
       }
 
@@ -695,8 +701,18 @@ export function buildInteractiveSrcDoc(content: string) {
       }
     });
 
+    function sendContentHeight() {
+      var h = document.documentElement.scrollHeight;
+      window.parent.postMessage({ type: 'bible-content-height', height: h }, '*');
+    }
+
     applyReadingSettings({});
+    sendContentHeight();
     window.parent.postMessage({ type: 'bible-highlights-ready' }, '*');
+
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(sendContentHeight).observe(document.body);
+    }
   })();
 </script>
 `
