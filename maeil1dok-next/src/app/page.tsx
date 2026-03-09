@@ -94,7 +94,7 @@ export default async function HomePage() {
     }
 
     return (
-      <HomeShell>
+      <HomeShell userId={user.id}>
         <HomeHero displayName={displayName} />
         <DailyStatus data={dailyStatusData} />
         <ReadingCardStack
@@ -108,7 +108,7 @@ export default async function HomePage() {
     )
   } catch {
     return (
-      <HomeShell>
+      <HomeShell userId={user.id}>
         <div className="flex min-h-[50vh] items-center justify-center">
           <p className="text-center text-sm text-[var(--color-status-error)]">
             페이지를 불러오는 중 오류가 발생했습니다

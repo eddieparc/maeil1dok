@@ -11,6 +11,7 @@ import MenuPanel from '@/components/layout/Menu'
 
 interface HomeShellProps {
   children: React.ReactNode
+  userId?: string
 }
 
 function HomeThemeToggle() {
@@ -68,7 +69,7 @@ function HomeThemeToggle() {
   )
 }
 
-export default function HomeShell({ children }: HomeShellProps) {
+export default function HomeShell({ children, userId }: HomeShellProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   // Prevent body scroll when menu is open
   useEffect(() => {
@@ -132,10 +133,10 @@ export default function HomeShell({ children }: HomeShellProps) {
         </main>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation userId={userId} />
 
       {/* Menu Panel */}
-      <MenuPanel isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+      <MenuPanel isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} userId={userId} />
     </div>
   )
 }

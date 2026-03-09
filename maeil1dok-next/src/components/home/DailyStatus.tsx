@@ -72,10 +72,17 @@ function SkeletonLoader() {
   )
 }
 
+const EMPTY_STATUS: DailyStatusData = {
+  currentStreak: 0,
+  totalCompletedDays: 0,
+  longestStreak: 0,
+  readingCompleted: false,
+  hasenaCompleted: false,
+  introCompleted: false,
+}
+
 export function DailyStatus({ data }: DailyStatusProps) {
-  if (!data) {
-    return <SkeletonLoader />
-  }
+  const status = data ?? EMPTY_STATUS
 
   return (
     <div
@@ -89,15 +96,15 @@ export function DailyStatus({ data }: DailyStatusProps) {
         {/* Profile Stats Row */}
         <div className="mb-3 flex justify-around">
           <div className="text-center">
-            <div className="text-2xl font-bold text-orange-500">🔥 {data.currentStreak}</div>
+            <div className="text-2xl font-bold text-orange-500">🔥 {status.currentStreak}</div>
             <div className="text-xs text-[var(--color-text-tertiary)]">현재 연속</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-[var(--color-info)]">{data.totalCompletedDays}</div>
+            <div className="text-2xl font-bold text-[var(--color-info)]">{status.totalCompletedDays}</div>
             <div className="text-xs text-[var(--color-text-tertiary)]">총 완료일</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-[var(--color-accent-primary)]">{data.longestStreak}</div>
+            <div className="text-2xl font-bold text-[var(--color-accent-primary)]">{status.longestStreak}</div>
             <div className="text-xs text-[var(--color-text-tertiary)]">최장 연속</div>
           </div>
         </div>
@@ -106,9 +113,9 @@ export function DailyStatus({ data }: DailyStatusProps) {
         <div className="border-t border-[var(--color-border-default)] pt-3">
           <div className="mb-2 text-xs font-medium text-[var(--color-text-tertiary)]">오늘의 진행</div>
           <div className="flex flex-wrap gap-2">
-            <CheckItem data-testid="checklist-reading" label="성경읽기" completed={data.readingCompleted} />
-            <CheckItem data-testid="checklist-hasena" label="하세나" completed={data.hasenaCompleted} />
-            <CheckItem data-testid="checklist-intro" label="성경개론" completed={data.introCompleted} />
+            <CheckItem data-testid="checklist-reading" label="성경읽기" completed={status.readingCompleted} />
+            <CheckItem data-testid="checklist-hasena" label="하세나" completed={status.hasenaCompleted} />
+            <CheckItem data-testid="checklist-intro" label="성경개론" completed={status.introCompleted} />
           </div>
         </div>
       </div>
