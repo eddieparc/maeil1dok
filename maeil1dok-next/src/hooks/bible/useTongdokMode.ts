@@ -1,3 +1,7 @@
+/**
+ * @deprecated Zustand store 사용. stores/bible/tongdokMode.ts 참조. 후속 PR에서 제거 예정.
+ */
+
 import { useEffect, useMemo, useState } from 'react'
 
 interface TongdokSchedule {
