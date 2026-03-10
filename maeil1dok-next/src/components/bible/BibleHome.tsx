@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { BIBLE_BOOKS } from '@/lib/bible/books'
+import { BIBLE_BOOKS, type BibleVersion } from '@/lib/bible/books'
 import { cn } from '@/lib/utils'
 import { SettingsIcon, ListIcon } from './home/Icons'
 import TodayTongdokCard from './home/TodayTongdokCard'
@@ -12,12 +12,10 @@ import WelcomeGuide from './home/WelcomeGuide'
 import FeatureCards from './home/FeatureCards'
 import UsageTips from './home/UsageTips'
 import RecentRecords from './home/RecentRecords'
+import BookSelector from './BookSelector'
 
 interface BibleHomeProps {
   lastPosition?: { book: string; chapter: number }
-  onContinueReading: (book: string, chapter: number) => void
-  onSelectBook: (book: string, chapter: number) => void
-  onViewTOC: () => void
 }
 
 interface TodaySchedule {
@@ -57,11 +55,9 @@ function getChapterUnit(bookCode: string): string {
 
 export default function BibleHome({
   lastPosition,
-  onContinueReading,
-  onSelectBook,
-  onViewTOC,
 }: BibleHomeProps) {
   const router = useRouter()
+  const [isBookSelectorOpen, setIsBookSelectorOpen] = useState(false)
 
   const [todaySchedule, setTodaySchedule] = useState<TodaySchedule | null>(null)
   const [stats, setStats] = useState<HomeStats>({
@@ -237,20 +233,20 @@ export default function BibleHome({
           onPlanClick={() => router.push('/plan')}
         />
 
-        {lastPosition && (
-          <ContinueReadingCard
-            book={lastPosition.book}
-            chapter={lastPosition.chapter}
-            bookName={getBookName(lastPosition.book)}
-            chapterUnit={getChapterUnit(lastPosition.book)}
-            onClick={() => onContinueReading(lastPosition.book, lastPosition.chapter)}
-          />
-        )}
+         {lastPosition && (
+           <ContinueReadingCard
+             book={lastPosition.book}
+             chapter={lastPosition.chapter}
+             bookName={getBookName(lastPosition.book)}
+             chapterUnit={getChapterUnit(lastPosition.book)}
+             onClick={() => router.push(`/bible?book=${lastPosition.book}&chapter=${lastPosition.chapter}`)}
+           />
+         )}
 
         {showWelcomeGuide && !isLoading && (
           <WelcomeGuide
             isAuthenticated={isAuthenticated}
-            onViewTOC={onViewTOC}
+            onViewTOC={() => setIsBookSelectorOpen(true)}
             onPlanClick={() => router.push('/plan')}
           />
         )}
@@ -278,7 +274,7 @@ export default function BibleHome({
         {stats.recentRecords.length > 0 && (
           <RecentRecords
             records={stats.recentRecords}
-            onRecordClick={(book, chapter) => onSelectBook(book, chapter)}
+            onRecordClick={(book, chapter) => router.push(`/bible?book=${book}&chapter=${chapter}`)}
           />
         )}
 
@@ -290,13 +286,25 @@ export default function BibleHome({
               'bg-[var(--color-bg-secondary)] py-3.5 text-[0.9375rem] text-[var(--color-text-primary)]',
               'transition-all hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-bg-tertiary)]',
             )}
-            onClick={onViewTOC}
+            onClick={() => setIsBookSelectorOpen(true)}
           >
             <ListIcon className="text-[var(--color-accent-primary)]" />
             성경 전체 목차
           </button>
         </section>
       </div>
+      <BookSelector
+        isOpen={isBookSelectorOpen}
+        onClose={() => setIsBookSelectorOpen(false)}
+        onSelect={(book, chapter) => {
+          router.push(`/bible?book=${book}&chapter=${chapter}`)
+          setIsBookSelectorOpen(false)
+        }}
+        onVersionSelect={() => {}}
+        currentBook="gen"
+        currentChapter={1}
+        currentVersion="GAE"
+      />
     </div>
   )
 }
