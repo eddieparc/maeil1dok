@@ -16,7 +16,7 @@ describe('BiblePageState Store', () => {
     expect(state.currentBook).toBe('gen')
     expect(state.currentChapter).toBe(1)
     expect(state.currentVersion).toBe('GAE')
-    expect(state.viewMode).toBe('home')
+    expect(state.viewMode).toBe('reader')
   })
 
   it("returns '편' suffix for Psalms", () => {
@@ -74,5 +74,53 @@ describe('BiblePageState Store', () => {
 
     store.getState().setViewMode('toc')
     expect(store.getState().viewMode).toBe('toc')
+  })
+
+  it('parses tongdok params from query', () => {
+    store.getState().initFromQuery({
+      tongdok: 'true',
+      schedule: '123',
+      plan: '1',
+      book: 'gen',
+      chapter: '2',
+    })
+
+    const state = store.getState()
+    expect(state.currentBook).toBe('gen')
+    expect(state.currentChapter).toBe(2)
+    expect(state.pendingTongdokParams).toEqual({
+      tongdok: true,
+      scheduleId: '123',
+      planId: 1,
+    })
+  })
+
+  it('parses plan param without tongdok flag', () => {
+    store.getState().initFromQuery({
+      plan: '5',
+      book: 'exo',
+      chapter: '3',
+    })
+
+    const state = store.getState()
+    expect(state.currentBook).toBe('exo')
+    expect(state.currentChapter).toBe(3)
+    expect(state.pendingTongdokParams).toEqual({
+      tongdok: false,
+      scheduleId: null,
+      planId: 5,
+    })
+  })
+
+  it('does not set pendingTongdokParams when no tongdok or plan param', () => {
+    store.getState().initFromQuery({
+      book: 'mat',
+      chapter: '5',
+    })
+
+    const state = store.getState()
+    expect(state.currentBook).toBe('mat')
+    expect(state.currentChapter).toBe(5)
+    expect(state.pendingTongdokParams).toBeNull()
   })
 })

@@ -21,6 +21,11 @@ interface BiblePageStateData {
   currentChapter: number
   currentVersion: BibleVersion
   viewMode: ViewMode
+  pendingTongdokParams: {
+    tongdok: boolean
+    scheduleId: string | null
+    planId: number | null
+  } | null
 }
 
 interface BiblePageStateActions {
@@ -39,7 +44,7 @@ export type BiblePageState = BiblePageStateData & BiblePageStateActions
 const DEFAULT_BOOK = 'gen'
 const DEFAULT_CHAPTER = 1
 const DEFAULT_VERSION: BibleVersion = 'GAE'
-const DEFAULT_VIEW_MODE: ViewMode = 'home'
+const DEFAULT_VIEW_MODE: ViewMode = 'reader'
 
 function isValidBook(book: string): book is keyof typeof BIBLE_BOOKS {
   return book in BIBLE_BOOKS
@@ -91,6 +96,7 @@ export const createBiblePageStateStore = createStoreFactory<BiblePageState>(
       currentChapter: DEFAULT_CHAPTER,
       currentVersion: DEFAULT_VERSION,
       viewMode: DEFAULT_VIEW_MODE,
+      pendingTongdokParams: null,
 
       selectBook: (book: string) => {
         if (!isValidBook(book)) return
@@ -146,7 +152,7 @@ export const createBiblePageStateStore = createStoreFactory<BiblePageState>(
       },
 
       initFromQuery: (params: Record<string, string>) => {
-        const { book, chapter, version } = params
+        const { book, chapter, version, tongdok, schedule, plan } = params
         if (book && isValidBook(book)) {
           set({ currentBook: book })
 
@@ -167,6 +173,19 @@ export const createBiblePageStateStore = createStoreFactory<BiblePageState>(
         if (version && isBibleVersion(version)) {
           set({ currentVersion: version })
         }
+
+        // Handle tongdok, schedule, plan parameters
+        if (tongdok === 'true' || plan) {
+          const planId = plan ? Number.parseInt(plan, 10) : null
+          const scheduleId = schedule ?? null
+          set({
+            pendingTongdokParams: {
+              tongdok: tongdok === 'true',
+              scheduleId,
+              planId: typeof planId === 'number' && planId > 0 ? planId : null,
+            },
+          })
+        }
       },
 
       generateShareUrl: () => {
@@ -180,6 +199,7 @@ export const createBiblePageStateStore = createStoreFactory<BiblePageState>(
         currentBook: state.currentBook,
         currentChapter: state.currentChapter,
         currentVersion: state.currentVersion,
+        // pendingTongdokParams is intentionally excluded from persistence
       }),
     }
   ) as StateCreator<BiblePageState>
