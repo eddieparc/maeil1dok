@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useToast } from '@/hooks/useToast'
+import { buildBibleNavigationUrl } from '@/lib/bible/navigation'
 import type { DailySchedule, BibleReadingPlan, PlanSubscription } from '@/types'
 import styles from './plan.module.css'
 
@@ -416,7 +417,26 @@ export default function PlanPageClient({
                   </div>
 
                   {/* Content: date + reading */}
-                  <div className={styles.scheduleInfo}>
+                  <div
+                    className={`${styles.scheduleInfo} cursor-pointer`}
+                    onClick={() => {
+                      if (isBulkEditMode) return
+                      const url = buildBibleNavigationUrl({
+                        book: item.book,
+                        startChapter: item.startChapter,
+                        id: item.id,
+                        planId: item.planId,
+                      })
+                      if (!url) {
+                        toast('알 수 없는 성경 책입니다', { type: 'error' })
+                        return
+                      }
+                      router.push(url)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click()
+                    }}
+                  >
                     <div className={styles.scheduleDate}>
                       {todayDate && <span className={styles.todayBadge}>오늘</span>}
                       {formatDateFull(item.date)}
