@@ -1,4 +1,5 @@
 import { BiblePageStateProvider, createBiblePageStateStore } from '@/stores/bible/biblePageState'
+import { TongdokModeProvider, createTongdokModeStore } from '@/stores/bible/tongdokMode'
 import { ReadingSettingsProvider } from '@/hooks/bible/ReadingSettingsContext'
 import BiblePageClient from '@/components/bible/BiblePageClient'
 import { createClient } from '@/lib/supabase/server'
@@ -12,6 +13,9 @@ export default async function BiblePage({ searchParams }: BiblePageProps) {
   const initialBook = typeof params.book === 'string' ? params.book : undefined
   const initialChapter = typeof params.chapter === 'string' ? Number.parseInt(params.chapter, 10) || undefined : undefined
   const initialVersion = typeof params.version === 'string' ? params.version : undefined
+  const initialTongdok = typeof params.tongdok === 'string' ? params.tongdok : undefined
+  const initialSchedule = typeof params.schedule === 'string' ? params.schedule : undefined
+  const initialPlan = typeof params.plan === 'string' ? params.plan : undefined
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -19,12 +23,17 @@ export default async function BiblePage({ searchParams }: BiblePageProps) {
   return (
     <ReadingSettingsProvider>
       <BiblePageStateProvider createStoreFn={createBiblePageStateStore}>
-        <BiblePageClient
-          initialBook={initialBook}
-          initialChapter={initialChapter}
-          initialVersion={initialVersion}
-          userId={user?.id}
-        />
+        <TongdokModeProvider createStoreFn={createTongdokModeStore}>
+          <BiblePageClient
+            initialBook={initialBook}
+            initialChapter={initialChapter}
+            initialVersion={initialVersion}
+            initialTongdok={initialTongdok}
+            initialSchedule={initialSchedule}
+            initialPlan={initialPlan}
+            userId={user?.id}
+          />
+        </TongdokModeProvider>
       </BiblePageStateProvider>
     </ReadingSettingsProvider>
   )

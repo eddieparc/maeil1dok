@@ -1,14 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useBiblePageState } from '@/stores/bible/biblePageState'
+import { useTongdokMode, type TongdokRange } from '@/stores/bible/tongdokMode'
 import { usePersonalRecord } from '@/hooks/bible/usePersonalRecord'
+import { BIBLE_BOOKS, type BibleVersion } from '@/lib/bible/books'
 
-import BibleHome from './BibleHome'
-import BibleTOC from './BibleTOC'
 import BibleReaderView from './BibleReaderView'
+import BookSelector from './BookSelector'
 import ReadingSettingsModal from './ReadingSettingsModal'
 import Container from '@/components/ui/Container'
 
@@ -16,23 +17,33 @@ interface BiblePageClientProps {
   initialBook?: string
   initialChapter?: number
   initialVersion?: string
+  initialTongdok?: string
+  initialSchedule?: string
+  initialPlan?: string
   userId?: string
 }
 
-function loadLastPosition(): { book: string; chapter: number } | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const stored = localStorage.getItem('lastReadingPosition')
-    if (!stored) return null
-    const parsed = JSON.parse(stored) as { book?: string; chapter?: number }
-    if (!parsed.book || !parsed.chapter) return null
-    return { book: parsed.book, chapter: parsed.chapter }
-  } catch {
-    return null
+function formatTongdokRangeText(range: TongdokRange | null): string {
+  if (!range) return ''
+  const startName = BIBLE_BOOKS[range.startBook]?.ko ?? range.startBook
+  const endName = BIBLE_BOOKS[range.endBook]?.ko ?? range.endBook
+  const unit = range.startBook === 'psa' ? '편' : '장'
+  const endUnit = range.endBook === 'psa' ? '편' : '장'
+  if (range.startBook === range.endBook) {
+    return `${startName} ${range.startChapter}-${range.endChapter}${unit}`
   }
+  return `${startName} ${range.startChapter}${unit} ~ ${endName} ${range.endChapter}${endUnit}`
 }
 
-export default function BiblePageClient({ initialBook, initialChapter, initialVersion, userId }: BiblePageClientProps) {
+export default function BiblePageClient({
+  initialBook,
+  initialChapter,
+  initialVersion,
+  initialTongdok,
+  initialSchedule,
+  initialPlan,
+  userId,
+}: BiblePageClientProps) {
   const router = useRouter()
   const viewMode = useBiblePageState((state) => state.viewMode)
   const currentBook = useBiblePageState((state) => state.currentBook)
@@ -40,68 +51,100 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
   const currentVersion = useBiblePageState((state) => state.currentVersion)
   const selectBook = useBiblePageState((state) => state.selectBook)
   const selectChapter = useBiblePageState((state) => state.selectChapter)
+  const selectVersion = useBiblePageState((state) => state.selectVersion)
   const setViewMode = useBiblePageState((state) => state.setViewMode)
   const initFromQuery = useBiblePageState((state) => state.initFromQuery)
+  const pendingTongdokParams = useBiblePageState((state) => state.pendingTongdokParams)
   const goToPrevChapter = useBiblePageState((state) => state.goToPrevChapter)
   const goToNextChapter = useBiblePageState((state) => state.goToNextChapter)
 
+  const tongdokMode = useTongdokMode((state) => state.tongdokMode)
+  const enableTongdokMode = useTongdokMode((state) => state.enableTongdokMode)
+  const loadReadingDetail = useTongdokMode((state) => state.loadReadingDetail)
+  const tongdokProgress = useTongdokMode((state) => state.getTongdokProgress())
+  const disableTongdokMode = useTongdokMode((state) => state.disableTongdokMode)
+  const getTongdokScheduleRange = useTongdokMode((state) => state.getTongdokScheduleRange)
+
   const { markAsRead } = usePersonalRecord(currentBook)
-  const [lastPosition, setLastPosition] = useState<{ book: string; chapter: number } | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isBookSelectorOpen, setIsBookSelectorOpen] = useState(false)
   const initialized = useRef(false)
+  const tongdokRangeText = useMemo(
+    () => formatTongdokRangeText(getTongdokScheduleRange()),
+    [getTongdokScheduleRange]
+  )
 
   useEffect(() => {
     if (initialized.current) return
     initialized.current = true
 
-    const pos = loadLastPosition()
-    setLastPosition(pos)
+    void pendingTongdokParams
 
-    if (initialBook ?? initialChapter ?? initialVersion) {
+    const hasParams = !!(
+      initialBook ??
+      initialChapter ??
+      initialVersion ??
+      initialTongdok ??
+      initialSchedule ??
+      initialPlan
+    )
+
+    if (hasParams) {
       const params: Record<string, string> = {}
       if (initialBook) params.book = initialBook
       if (initialChapter) params.chapter = String(initialChapter)
       if (initialVersion) params.version = initialVersion
+      if (initialTongdok) params.tongdok = initialTongdok
+      if (initialSchedule) params.schedule = initialSchedule
+      if (initialPlan) params.plan = initialPlan
       initFromQuery(params)
       setViewMode('reader')
-    }
-  }, [initialBook, initialChapter, initialVersion, initFromQuery, setViewMode])
 
-  useEffect(() => {
-    if (!initialized.current || viewMode !== 'reader' || typeof window === 'undefined') {
-      return
-    }
-    const params = new URLSearchParams()
-    params.set('book', currentBook)
-    params.set('chapter', String(currentChapter))
-    params.set('version', currentVersion)
-    const nextUrl = `/bible?${params.toString()}`
-    const currentUrl = `${window.location.pathname}${window.location.search}`
-    if (currentUrl !== nextUrl) {
-      router.replace(nextUrl, { scroll: false })
-    }
-  }, [currentBook, currentChapter, currentVersion, viewMode, router])
+      if (initialTongdok === 'true' && initialSchedule) {
+        const planIdStr = initialPlan ?? ''
+        enableTongdokMode(initialSchedule, planIdStr)
+        if (planIdStr) void loadReadingDetail(planIdStr)
+      }
 
-  const handleSelectBookChapter = useCallback((book: string, chapter: number) => {
+      router.replace('/bible', { scroll: false })
+    }
+  }, [
+    initialBook,
+    initialChapter,
+    initialVersion,
+    initialTongdok,
+    initialSchedule,
+    initialPlan,
+    initFromQuery,
+    setViewMode,
+    enableTongdokMode,
+    loadReadingDetail,
+    pendingTongdokParams,
+    router,
+  ])
+
+  const handleBookSelectorSelect = useCallback((book: string, chapter: number) => {
     selectBook(book)
     selectChapter(chapter)
     setViewMode('reader')
   }, [selectBook, selectChapter, setViewMode])
+
+  const handleVersionSelect = useCallback((version: BibleVersion) => {
+    selectVersion(version)
+  }, [selectVersion])
 
   const handleMarkAsRead = useCallback(async () => {
     await markAsRead(currentChapter)
     goToNextChapter()
   }, [markAsRead, currentChapter, goToNextChapter])
 
-  const handleTOCSelectBook = useCallback((book: string) => {
-    selectBook(book)
-    selectChapter(1)
-    setViewMode('reader')
-  }, [selectBook, selectChapter, setViewMode])
+  const openBookSelector = useCallback(() => {
+    setIsBookSelectorOpen(true)
+  }, [])
 
   if (viewMode === 'reader') {
     return (
-      <div className="flex flex-col mx-auto max-w-2xl" style={{ minHeight: '100dvh' }}>
+      <div className="flex flex-col mx-auto max-w-3xl" style={{ minHeight: '100dvh' }}>
         <BibleReaderView
           book={currentBook}
           chapter={currentChapter}
@@ -109,18 +152,14 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
           userId={userId}
           onPrevChapter={goToPrevChapter}
           onNextChapter={goToNextChapter}
-          onOpenBookSelector={() => setViewMode('toc')}
-          onOpenBookmarkModal={() => {
-            // TODO: 통합 모달 시스템으로 북마크 모달 연결
-          }}
+          onOpenBookSelector={openBookSelector}
+          onOpenBookmarkModal={() => {}}
           onOpenSettingsModal={() => setIsSettingsOpen(true)}
           onMarkAsRead={() => void handleMarkAsRead()}
-          tongdokMode={false}
-          tongdokRangeText=""
-          tongdokProgress={{ completed: 0, total: 0 }}
-          onDisableTongdokMode={() => {
-            // TODO: 통독 모드 비활성화 액션 연결
-          }}
+          tongdokMode={tongdokMode}
+          tongdokRangeText={tongdokRangeText}
+          tongdokProgress={tongdokProgress}
+          onDisableTongdokMode={disableTongdokMode}
           audioLink={null}
           guideLink={null}
           onAudioLinkClick={(url) => {
@@ -128,28 +167,30 @@ export default function BiblePageClient({ initialBook, initialChapter, initialVe
           }}
         />
         <ReadingSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+        <BookSelector
+          isOpen={isBookSelectorOpen}
+          onClose={() => setIsBookSelectorOpen(false)}
+          onSelect={handleBookSelectorSelect}
+          onVersionSelect={handleVersionSelect}
+          currentBook={currentBook}
+          currentChapter={currentChapter}
+          currentVersion={currentVersion}
+        />
       </div>
     )
   }
 
   return (
     <Container fullHeight className="max-w-2xl pb-24">
-      {viewMode === 'home' ? (
-        <BibleHome
-          lastPosition={lastPosition ?? undefined}
-          onContinueReading={handleSelectBookChapter}
-          onSelectBook={handleSelectBookChapter}
-          onViewTOC={() => setViewMode('toc')}
-        />
-      ) : null}
-
-      {viewMode === 'toc' ? (
-        <BibleTOC
-          currentBook={currentBook}
-          onSelectBook={handleTOCSelectBook}
-          onBack={() => setViewMode('home')}
-        />
-      ) : null}
+      <BookSelector
+        isOpen={isBookSelectorOpen}
+        onClose={() => setIsBookSelectorOpen(false)}
+        onSelect={handleBookSelectorSelect}
+        onVersionSelect={handleVersionSelect}
+        currentBook={currentBook}
+        currentChapter={currentChapter}
+        currentVersion={currentVersion}
+      />
     </Container>
   )
 }
