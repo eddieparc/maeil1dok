@@ -15,6 +15,11 @@ function getChapterTitle(sourceHtml: string): string | undefined {
 function cleanVerseText(html: string): string {
   const placeholders: string[] = []
   let text = html
+    // Strip hidden footnote popups (e.g. <div class="D2" style="display:none">...</div>)
+    .replace(/<div[^>]*style="[^"]*display\s*:\s*none[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+    // Strip footnote/comment anchor links (e.g. <a class="comment">1)</a>)
+    .replace(/<a[^>]*>[\s\S]*?<\/a>/gi, '')
+    // Font tag processing
     .replace(/<font\s+class="name">([^<]*)<\/font>/gi, '<span class="bible-name">$1</span>')
     .replace(/<font\s+class="area">([^<]*)<\/font>/gi, '<span class="bible-area">$1</span>')
     .replace(/<font\s+class="orgin">([^<]*)<\/font>/gi, '$1')

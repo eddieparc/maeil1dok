@@ -1,381 +1,254 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { BIBLE_BOOKS, BIBLE_BOOK_ORDER } from '@/lib/bible/books'
+import { X, Search } from 'lucide-react'
+import { BIBLE_BOOKS, BIBLE_BOOK_ORDER, type BibleVersion } from '@/lib/bible/books'
 import { searchBibleBooks } from '@/lib/bible/search'
+import { cn } from '@/lib/utils'
 
 const OT_COUNT = 39
 const OT_BOOKS = BIBLE_BOOK_ORDER.slice(0, OT_COUNT)
 const NT_BOOKS = BIBLE_BOOK_ORDER.slice(OT_COUNT)
 
+const VERSION_TABS: { code: BibleVersion; name: string; isNew?: boolean }[] = [
+  { code: 'GAE', name: '개역개정' },
+  { code: 'KNT', name: '새한글', isNew: true },
+  { code: 'WOORI', name: '우리말성경', isNew: true },
+  { code: 'SAENEW', name: '새번역' },
+  { code: 'HAN', name: '개역한글' },
+  { code: 'SAE', name: '표준새번역' },
+  { code: 'COG', name: '공동번역' },
+  { code: 'COGNEW', name: '공동번역개정' },
+]
+
 interface BookSelectorProps {
   isOpen: boolean
   onClose: () => void
-  onSelect: (book: string, chapter: number, verse?: number) => void
-  currentBook?: string
-  currentChapter?: number
+  onSelect: (book: string, chapter: number) => void
+  onVersionSelect: (version: BibleVersion) => void
+  currentBook: string
+  currentChapter: number
+  currentVersion: BibleVersion
 }
 
-type Step = 'book' | 'chapter'
-
-export default function BookSelector({ isOpen, onClose, onSelect, currentBook, currentChapter }: BookSelectorProps) {
+export default function BookSelector({
+  isOpen,
+  onClose,
+  onSelect,
+  onVersionSelect,
+  currentBook,
+  currentChapter,
+  currentVersion,
+}: BookSelectorProps) {
   const [query, setQuery] = useState('')
-  const [step, setStep] = useState<Step>('book')
-  const [selectedBook, setSelectedBook] = useState<string | null>(null)
-  const [visible, setVisible] = useState(false)
-  const [animating, setAnimating] = useState(false)
-  const searchRef = useRef<HTMLInputElement>(null)
-  const chaptersRef = useRef<HTMLDivElement>(null)
+  const [selectedBookId, setSelectedBookId] = useState(currentBook)
   const booksRef = useRef<HTMLDivElement>(null)
+  const chaptersRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
-  // Determine if selected book is Psalms (편 vs 장)
-  const getChapterUnit = useCallback((bookId: string) => bookId === 'psa' ? '편' : '장', [])
+  const getChapterUnit = useCallback((bookId: string) => (bookId === 'psa' ? '편' : '장'), [])
 
-  // Open/close animation
-  useEffect(() => {
-    if (isOpen) {
-      setVisible(true)
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setAnimating(true))
-      })
-    } else {
-      setAnimating(false)
-      const timer = setTimeout(() => setVisible(false), 300)
-      return () => clearTimeout(timer)
-    }
-  }, [isOpen])
+  const chaptersArray = useMemo(() => {
+    const book = BIBLE_BOOKS[selectedBookId]
+    if (!book) return []
+    return Array.from({ length: book.chapters }, (_, i) => i + 1)
+  }, [selectedBookId])
 
-  // Reset state on open
-  useEffect(() => {
-    if (isOpen) {
-      setStep('book')
-      setSelectedBook(null)
-      setQuery('')
-    }
-  }, [isOpen])
-
-  // Auto-focus search on open
-  useEffect(() => {
-    if (isOpen && step === 'book') {
-      const timer = setTimeout(() => searchRef.current?.focus(), 350)
-      return () => clearTimeout(timer)
-    }
-  }, [isOpen, step])
-
-  // Scroll to current chapter when entering chapter step
-  useEffect(() => {
-    if (step === 'chapter' && selectedBook && chaptersRef.current) {
-      const timer = setTimeout(() => {
-        if (!chaptersRef.current) return
-        const activeBtn = chaptersRef.current.querySelector('[data-active="true"]')
-        activeBtn?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
-      return () => clearTimeout(timer)
-    }
-  }, [step, selectedBook])
-
-  const filteredBooks = useMemo(() => {
-    if (!query.trim()) return BIBLE_BOOK_ORDER
-    return searchBibleBooks(query).map((r) => r.id)
+  const searchResultIds = useMemo(() => {
+    if (!query.trim()) return null
+    return new Set(searchBibleBooks(query).map((r) => r.id))
   }, [query])
 
-  const visibleOldBooks = useMemo(
-    () => filteredBooks.filter((code) => OT_BOOKS.includes(code as (typeof OT_BOOKS)[number])),
-    [filteredBooks]
-  )
+  const filteredOT = useMemo(() => {
+    if (!searchResultIds) return OT_BOOKS as readonly string[]
+    return (OT_BOOKS as readonly string[]).filter((id) => searchResultIds.has(id))
+  }, [searchResultIds])
 
-  const visibleNewBooks = useMemo(
-    () => filteredBooks.filter((code) => NT_BOOKS.includes(code as (typeof NT_BOOKS)[number])),
-    [filteredBooks]
-  )
+  const filteredNT = useMemo(() => {
+    if (!searchResultIds) return NT_BOOKS as readonly string[]
+    return (NT_BOOKS as readonly string[]).filter((id) => searchResultIds.has(id))
+  }, [searchResultIds])
 
-  const searchResults = useMemo(() => {
-    if (!query.trim()) return []
-    return searchBibleBooks(query)
-  }, [query])
+  useEffect(() => {
+    if (!isOpen) return
+    setQuery('')
+    setSelectedBookId(currentBook)
+    const timer = setTimeout(() => {
+      booksRef.current?.querySelector(`[data-id="${currentBook}"]`)?.scrollIntoView({ block: 'center' })
+      chaptersRef.current?.querySelector(`[data-chapter="${currentChapter}"]`)?.scrollIntoView({ block: 'center' })
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [isOpen, currentBook, currentChapter])
 
-  function handleSelectBook(code: string) {
-    setSelectedBook(code)
-    setStep('chapter')
+  function handleSelectBook(bookId: string) {
+    setSelectedBookId(bookId)
+    setTimeout(() => {
+      chaptersRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 0)
   }
 
   function handleSelectChapter(chapter: number) {
-    if (!selectedBook) return
-    onSelect(selectedBook, chapter)
-    handleClose()
-  }
-
-  function handleBack() {
-    setStep('book')
-    setSelectedBook(null)
-  }
-
-  function handleClose() {
+    onSelect(selectedBookId, chapter)
     onClose()
-    // Delay state reset until animation completes
-    setTimeout(() => {
-      setStep('book')
-      setSelectedBook(null)
-      setQuery('')
-    }, 300)
   }
 
-  if (!visible) return null
-
-  const bookInfo = selectedBook ? BIBLE_BOOKS[selectedBook] : null
-  const isSearching = query.trim().length > 0
-  const hasSearchResult = visibleOldBooks.length > 0 || visibleNewBooks.length > 0
+  if (!isOpen) return null
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${
-          animating ? 'opacity-100' : 'opacity-0'
-        }`}
-        onClick={handleClose}
-        aria-hidden="true"
-      />
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
 
-      {/* Bottom Sheet */}
-      <div
-        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[90vh] flex-col rounded-t-[20px] bg-[var(--color-bg-secondary)] shadow-2xl transition-transform duration-300 ease-out ${
-          animating ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="성경 선택"
-      >
-        {/* Drag Handle */}
-        <div className="flex justify-center pb-1 pt-3">
-          <div className="h-1 w-10 rounded-full bg-[var(--color-border-default)] dark:bg-white/20" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center gap-2 px-4 pb-3">
-          {step === 'chapter' ? (
-            <button
-              type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
-              onClick={handleBack}
-              aria-label="뒤로"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 18L9 12L15 6" />
-              </svg>
-            </button>
-          ) : null}
-          <h3 className="text-[17px] font-bold text-[var(--color-text-primary)]">
-            {step === 'book' ? '성경 선택' : `${bookInfo?.ko ?? ''} — ${getChapterUnit(selectedBook ?? '')} 선택`}
-          </h3>
+      <div className="relative z-10 flex max-h-[85vh] w-full max-w-[500px] flex-col overflow-hidden rounded-2xl bg-[var(--color-bg-card)] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
+        <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-5 py-4">
+          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">성경 선택</h2>
           <button
             type="button"
-            className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
-            onClick={handleClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-tertiary)]"
+            onClick={onClose}
             aria-label="닫기"
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={20} />
           </button>
         </div>
 
-        <div className="relative flex-1 overflow-hidden">
-          <div
-            className={`absolute inset-0 flex flex-col transition-all duration-200 ease-in-out ${
-              step === 'book' ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0 pointer-events-none'
-            }`}
-          >
-            {/* Search Bar */}
-            <div className="px-4 pb-3">
-              <div className="relative">
-                <svg
-                  className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[var(--color-text-muted)]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  ref={searchRef}
-                  type="search"
-                  placeholder="책 이름 또는 초성 (예: 창, ㅊㅅㄱ)"
-                  className="w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] py-2.5 pl-10 pr-10 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-all duration-200 focus:border-[var(--color-accent-primary)] focus:bg-[var(--color-bg-secondary)] focus:ring-2 focus:ring-[var(--color-accent-primary)]/20"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-                {query ? (
-                  <button
-                    type="button"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)]"
-                    onClick={() => setQuery('')}
-                    aria-label="검색어 지우기"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Search Results */}
-            {isSearching && searchResults.length > 0 ? (
-              <div className="border-b border-[var(--color-border-light)] px-4 pb-3">
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-[var(--color-accent-primary)]">
-                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                    <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
-                  </svg>
-                  {searchResults.length}개를 찾았어요
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {searchResults.map((result) => (
-                    <button
-                      key={result.id}
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-2.5 py-1.5 text-[13px] font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-light)] hover:text-[var(--color-accent-primary)]"
-                      onClick={() => handleSelectBook(result.id)}
+        <div className="border-b border-[var(--color-border-default)] px-0 py-3">
+          <div className="flex gap-2 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {VERSION_TABS.map(({ code, name, isNew }) => (
+              <button
+                key={code}
+                type="button"
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-all',
+                  code === currentVersion
+                    ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white shadow-[0_2px_4px_rgba(99,102,241,0.2)]'
+                    : 'border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-default)] hover:bg-[var(--color-bg-tertiary)]'
+                )}
+                onClick={() => onVersionSelect(code)}
+              >
+                {name}
+                {isNew ? (
+                    <span
+                      className={cn(
+                        'rounded-[3px] px-[3.2px] py-[1px] text-[8px] font-semibold',
+                        code === currentVersion ? 'bg-white/30 text-white' : 'bg-[#dc6b6b] text-white'
+                      )}
                     >
-                      <span>{result.ko}</span>
-                      <span className="text-[var(--color-text-muted)]">{result.chapters}{getChapterUnit(result.id)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : isSearching && searchResults.length === 0 ? (
-              <div className="border-b border-[var(--color-border-light)] px-4 pb-3">
-                <p className="text-center text-sm text-[var(--color-text-muted)]">검색 결과가 없어요</p>
-              </div>
-            ) : null}
-
-            {/* Books Grid */}
-            <div
-              ref={booksRef}
-              className="flex-1 overflow-y-auto overscroll-contain px-4 pb-safe-bottom"
-              style={{ maxHeight: 'calc(90vh - 220px)', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
-            >
-              {hasSearchResult ? (
-                <>
-                  <div className="mb-4">
-                    <h4 className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-tertiary)]">구약</h4>
-                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-                      {visibleOldBooks.map((code) => {
-                        const book = BIBLE_BOOKS[code]
-                        if (!book) return null
-                        const isActive = currentBook === code
-                        return (
-                          <button
-                            key={code}
-                            type="button"
-                            data-id={code}
-                            className={`group relative flex flex-col rounded-xl border px-2.5 py-2.5 text-left transition-all duration-150 active:scale-[0.97] ${
-                              isActive
-                                ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
-                                : 'border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)]/50'
-                            }`}
-                            onClick={() => handleSelectBook(code)}
-                          >
-                            <span className={`text-[13px] leading-snug ${isActive ? 'font-semibold' : 'font-medium'}`}>{book.ko}</span>
-                            <span className={`mt-0.5 text-[11px] ${isActive ? 'text-[var(--color-accent-primary)]/70' : 'text-[var(--color-text-muted)]'}`}>
-                              {book.chapters}
-                              {getChapterUnit(code)}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-tertiary)]">신약</h4>
-                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-                      {visibleNewBooks.map((code) => {
-                        const book = BIBLE_BOOKS[code]
-                        if (!book) return null
-                        const isActive = currentBook === code
-                        return (
-                          <button
-                            key={code}
-                            type="button"
-                            data-id={code}
-                            className={`group relative flex flex-col rounded-xl border px-2.5 py-2.5 text-left transition-all duration-150 active:scale-[0.97] ${
-                              isActive
-                                ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
-                                : 'border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)]/50'
-                            }`}
-                            onClick={() => handleSelectBook(code)}
-                          >
-                            <span className={`text-[13px] leading-snug ${isActive ? 'font-semibold' : 'font-medium'}`}>{book.ko}</span>
-                            <span className={`mt-0.5 text-[11px] ${isActive ? 'text-[var(--color-accent-primary)]/70' : 'text-[var(--color-text-muted)]'}`}>
-                              {book.chapters}
-                              {getChapterUnit(code)}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">검색 결과가 없어요</p>
-              )}
-            </div>
-          </div>
-
-          <div
-            className={`absolute inset-0 flex flex-col transition-all duration-200 ease-in-out ${
-              step === 'chapter' ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0 pointer-events-none'
-            }`}
-          >
-          <div
-            ref={chaptersRef}
-            className="flex-1 overflow-y-auto overscroll-contain px-4 pb-safe-bottom"
-            style={{ maxHeight: 'calc(90vh - 140px)', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
-          >
-            {/* Chapter count info */}
-            {bookInfo && selectedBook ? (
-              <>
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="text-xs font-medium text-[var(--color-text-muted)]">
-                    총 {bookInfo.chapters}
-                    {getChapterUnit(selectedBook)}
+                    N
                   </span>
-                  {currentBook === selectedBook && currentChapter ? (
-                    <span className="inline-flex items-center rounded-md bg-[var(--color-accent-light)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent-primary)]">
-                      현재 {currentChapter}
-                      {getChapterUnit(selectedBook)}
-                    </span>
-                  ) : null}
-                </div>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                {/* Chapter Number Grid */}
-                <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6 md:grid-cols-8">
-                  {Array.from({ length: bookInfo.chapters }, (_, i) => i + 1).map((ch) => {
-                    const isCurrent = currentBook === selectedBook && currentChapter === ch
-                    return (
-                      <button
-                        key={ch}
-                        type="button"
-                        data-active={isCurrent ? 'true' : undefined}
-                        className={`relative flex items-center justify-center rounded-xl border py-3 text-sm font-medium transition-all duration-150 active:scale-95 ${
-                          isCurrent
-                            ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white shadow-md shadow-[var(--color-accent-primary)]/25'
-                            : 'border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)] hover:text-[var(--color-accent-primary)]'
-                        }`}
-                        onClick={() => handleSelectChapter(ch)}
-                      >
-                        {ch}
-                      </button>
-                    )
-                  })}
+        <div className="border-b border-[var(--color-border-default)] px-4 py-3">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+              size={18}
+            />
+            <input
+              ref={searchRef}
+              type="search"
+              placeholder="예: 창1:3, ㅊㅅㄱ, 요한 3:16"
+              className="w-full rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] py-2.5 pl-10 pr-9 text-[15px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent-primary)] focus:bg-[var(--color-bg-primary)] focus:ring-2 focus:ring-[var(--color-accent-primary)]/20"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query ? (
+              <button
+                type="button"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)]"
+                onClick={() => setQuery('')}
+                aria-label="검색어 지우기"
+              >
+                <X size={16} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex min-h-[300px] flex-1 overflow-hidden">
+          <div ref={booksRef} className="flex-[7] overflow-y-auto border-r border-[var(--color-border-default)]">
+            {filteredOT.length > 0 ? (
+              <>
+                <div className="sticky top-0 z-10 border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-4 py-[10px] text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+                  구약
                 </div>
+                {filteredOT.map((code) => (
+                  <BookItem
+                    key={code}
+                    code={code}
+                    isActive={selectedBookId === code}
+                    onSelect={handleSelectBook}
+                  />
+                ))}
               </>
             ) : null}
+            {filteredNT.length > 0 ? (
+              <>
+                <div className="sticky top-0 z-10 border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-4 py-[10px] text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+                  신약
+                </div>
+                {filteredNT.map((code) => (
+                  <BookItem
+                    key={code}
+                    code={code}
+                    isActive={selectedBookId === code}
+                    onSelect={handleSelectBook}
+                  />
+                ))}
+              </>
+            ) : null}
+            {filteredOT.length === 0 && filteredNT.length === 0 ? (
+              <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">검색 결과가 없어요</p>
+            ) : null}
           </div>
+
+          <div ref={chaptersRef} className="flex-[3] overflow-y-auto bg-[var(--color-bg-secondary)]">
+            {chaptersArray.map((ch) => {
+              const isActive = ch === currentChapter && selectedBookId === currentBook
+              return (
+                <button
+                  key={ch}
+                  type="button"
+                  data-chapter={ch}
+                  className={cn(
+                    'flex w-full items-center justify-center border-b border-[var(--color-border-default)] py-3 text-sm transition-colors',
+                    isActive
+                      ? 'bg-[var(--color-accent-primary)] font-medium text-white'
+                      : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]'
+                  )}
+                  onClick={() => handleSelectChapter(ch)}
+                >
+                  {ch}{getChapterUnit(selectedBookId)}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
-    </>
+    </div>
+  )
+}
+
+function BookItem({ code, isActive, onSelect }: { code: string; isActive: boolean; onSelect: (code: string) => void }) {
+  const book = BIBLE_BOOKS[code]
+  if (!book) return null
+
+  return (
+    <button
+      type="button"
+      data-id={code}
+      className={cn(
+        'flex w-full items-center border-b border-[var(--color-border-light)] px-4 py-3 text-left text-[15px] transition-colors',
+        isActive
+          ? 'bg-[var(--color-accent-light)] font-medium text-[var(--color-accent-primary)]'
+          : 'text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
+      )}
+      onClick={() => onSelect(code)}
+    >
+      {book.ko}
+    </button>
   )
 }

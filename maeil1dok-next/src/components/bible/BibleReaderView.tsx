@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import BibleChapterView from './BibleChapterView'
 import { VerseActionMenu } from './VerseActionMenu'
 import { useVerseSelection } from './VerseSelector'
@@ -50,7 +51,7 @@ export default function BibleReaderView({
   onNextChapter,
   onOpenBookSelector,
   onOpenBookmarkModal,
-  onOpenSettingsModal,
+  onOpenSettingsModal: _onOpenSettingsModal,
   onMarkAsRead,
   tongdokMode,
   tongdokRangeText,
@@ -60,6 +61,7 @@ export default function BibleReaderView({
   guideLink,
   onAudioLinkClick,
 }: BibleReaderViewProps) {
+  const router = useRouter()
   const { settings } = useReadingSettings()
   const { content, isLoading, error } = useBibleContent(book, chapter, version, settings)
   const {
@@ -227,7 +229,7 @@ export default function BibleReaderView({
         onDisableTongdokMode={onDisableTongdokMode}
         onToggleBookmark={() => void toggleBookmark()}
         onOpenBookmarkModal={onOpenBookmarkModal}
-        onOpenSettingsModal={onOpenSettingsModal}
+        onOpenSettingsModal={() => router.push('/bible/settings')}
         onAudioLinkClick={onAudioLinkClick}
       />
 

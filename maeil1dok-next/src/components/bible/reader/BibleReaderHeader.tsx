@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { Bookmark, BookOpen, Ellipsis, Headphones, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -70,27 +69,30 @@ export default function BibleReaderHeader({
         </div>
       ) : (
         /* Normal mode: [book chapter] [bookmark] */
-        <div className="flex flex-1 items-center gap-1 min-w-0">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <button
             type="button"
-            className="flex items-center gap-1 min-w-0 rounded-md bg-transparent border-none px-1 py-0.5 cursor-pointer active:opacity-70"
+            className="flex min-h-11 min-w-0 flex-1 items-center rounded-lg border-none bg-transparent px-0.5 text-left transition-colors duration-200 ease-out hover:bg-[var(--color-button-default)]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]/20 active:opacity-70"
             style={{ WebkitTapHighlightColor: 'transparent' }}
             onClick={onOpenBookSelector}
-            aria-label="성경 책과 장 선택"
+            aria-label={`${bookName} ${chapter}장 선택`}
           >
-            <span className="book-name-full text-base font-semibold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis tracking-[-0.01em] leading-tight">
+            <span className="book-name-full subpixel-antialiased block truncate text-base font-semibold leading-tight tracking-[-0.01em] text-[var(--color-text-primary)]">
               {bookName} {chapter}장
             </span>
-            <span className="book-name-short text-base font-semibold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis tracking-[-0.01em] leading-tight">
+            <span className="book-name-short subpixel-antialiased block truncate text-base font-semibold leading-tight tracking-[-0.01em] text-[var(--color-text-primary)]">
               {shortBookName} {chapter}장
             </span>
           </button>
           <button
             type="button"
             className={cn(
-              'flex items-center justify-center transition-colors bg-transparent border-none p-1 cursor-pointer active:scale-95',
-              isBookmarked ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-text-tertiary)]'
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-none bg-transparent transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]/20 active:scale-95',
+              isBookmarked
+                ? 'text-[var(--color-accent-primary)] hover:bg-[var(--color-button-default)]'
+                : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)]'
             )}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
             onClick={(e) => {
               e.stopPropagation()
               if (isBookmarked) {
@@ -100,6 +102,7 @@ export default function BibleReaderHeader({
               }
             }}
             aria-label={isBookmarked ? '북마크 삭제' : '북마크 추가'}
+            aria-pressed={isBookmarked}
           >
             <Bookmark size={18} aria-hidden="true" fill={isBookmarked ? 'currentColor' : 'none'} />
           </button>

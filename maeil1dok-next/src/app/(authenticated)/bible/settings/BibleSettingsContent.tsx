@@ -109,11 +109,11 @@ function BibleSettingsInner() {
   return (
     <>
       {/* Preview */}
-      <section className="overflow-hidden rounded-xl bg-[var(--color-bg-card,#fff)] shadow-sm">
-        <div className="border-b border-[var(--color-border-default,#e5e0d8)] bg-[var(--color-bg-secondary,#f9f7f4)] px-4 py-2">
+       <section className="overflow-hidden rounded-xl bg-[var(--color-bg-card,#fff)] shadow-sm">
+         <div className="border-b border-[var(--color-border-default,#e5e7eb)] bg-[var(--color-bg-secondary,#f5f3f0)] px-4 py-2">
           <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted,#9ca3af)]">미리보기</span>
         </div>
-        <div className="min-h-[80px] p-4 text-[var(--color-text-primary,#111)]" style={previewStyle}>
+        <div className="min-h-[80px] p-4 text-[var(--color-text-primary,#111)] subpixel-antialiased" style={previewStyle}>
           {settings.verseJoining ? (
             <p className="m-0">
               <sup className="mr-0.5 font-sans text-[0.6em] text-[var(--color-text-muted,#9ca3af)]" style={{ verticalAlign: 'super' }}>1</sup>
@@ -140,22 +140,22 @@ function BibleSettingsInner() {
         </div>
       </section>
 
-      {/* Theme */}
-      <section className="rounded-xl bg-[var(--color-bg-card,#fff)] p-4 shadow-sm">
-        <h2 className="mb-4 text-sm font-semibold text-[var(--color-text-primary,#111)]">테마</h2>
-        <div className="flex gap-2">
-          {themeOptions.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => updateSetting('theme', opt.value)}
-              className={[
-                'flex flex-1 items-center justify-center gap-1.5 rounded-xl border-[1.5px] px-3 py-3 text-sm font-medium transition-all',
-                settings.theme === opt.value
-                  ? 'border-[var(--color-accent-primary,#7c6a5a)] bg-[var(--color-accent-primary-light,#f5f0eb)] text-[var(--color-accent-primary,#7c6a5a)]'
-                  : 'border-[var(--color-border-default,#e5e0d8)] bg-[var(--color-bg-card,#fff)] text-[var(--color-text-primary,#111)] hover:border-[var(--color-accent-primary,#7c6a5a)]',
-              ].join(' ')}
-            >
+       {/* Theme */}
+       <section className="rounded-xl bg-[var(--color-bg-card,#fff)] p-4 shadow-sm">
+         <h2 className="mb-4 text-sm font-semibold text-[var(--color-text-primary,#111)]">테마</h2>
+         <div className="flex gap-2">
+           {themeOptions.map((opt) => (
+             <button
+               key={opt.value}
+               type="button"
+               onClick={() => updateSetting('theme', opt.value)}
+               className={[
+                  'flex flex-1 items-center justify-center gap-1.5 rounded-[10px] border-[1.5px] py-3 px-4 text-sm font-medium transition-all',
+                 settings.theme === opt.value
+                   ? 'border-[var(--color-accent-primary,#4B9F7E)] bg-[var(--color-accent-light,#e9f5f0)] text-[var(--color-accent-primary,#4B9F7E)]'
+                   : 'border-[var(--color-border-default,#e5e7eb)] bg-[var(--color-bg-card,#fff)] text-[var(--color-text-primary,#111)] hover:border-[var(--color-accent-primary,#4B9F7E)]',
+               ].join(' ')}
+             >
               <span className="flex items-center">{opt.icon}</span>
               <span>{opt.label}</span>
             </button>
@@ -192,21 +192,21 @@ function BibleSettingsInner() {
       </section>
 
       {/* Toast */}
-      {toast ? (
-        <div className={[
-          'fixed bottom-24 left-1/2 -translate-x-1/2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-lg',
-          toast.type === 'error' ? 'bg-red-500' : toast.type === 'info' ? 'bg-blue-500' : 'bg-[var(--color-accent-primary,#7c6a5a)]',
-        ].join(' ')}>
-          {toast.message}
-        </div>
-      ) : null}
+       {toast ? (
+         <div className={[
+           'fixed bottom-24 left-1/2 -translate-x-1/2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-lg',
+           toast.type === 'error' ? 'bg-red-500' : toast.type === 'info' ? 'bg-blue-500' : 'bg-[var(--color-accent-primary,#4B9F7E)]',
+         ].join(' ')}>
+           {toast.message}
+         </div>
+       ) : null}
 
-      {/* Slider CSS */}
-      <style>{`
-        .slider { flex: 1; height: 4px; -webkit-appearance: none; appearance: none; background-color: var(--color-border-default, #e5e0d8); border-radius: 2px; outline: none; }
-        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background-color: var(--color-accent-primary, #7c6a5a); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-        .slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background-color: var(--color-accent-primary, #7c6a5a); cursor: pointer; border: none; }
-      `}</style>
+       {/* Slider CSS */}
+       <style>{`
+         .slider { flex: 1; height: 4px; -webkit-appearance: none; appearance: none; background-color: var(--color-border-default, #e5e7eb); border-radius: 2px; outline: none; }
+         .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background-color: var(--color-accent-primary, #4B9F7E); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+         .slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background-color: var(--color-accent-primary, #4B9F7E); cursor: pointer; border: none; }
+       `}</style>
 
       {isSyncing ? <span className="sr-only">저장 중...</span> : null}
     </>

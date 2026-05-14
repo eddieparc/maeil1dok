@@ -72,6 +72,7 @@ urlpatterns = [
     path('groups/<int:group_id>/join/', group_views.join_group, name='join-group'),
     path('groups/<int:group_id>/leave/', group_views.leave_group, name='leave-group'),
     path('groups/<int:group_id>/members/', group_views.get_group_members, name='group-members'),
+    path('groups/<int:group_id>/member-progress/', group_views.get_group_member_progress, name='group-member-progress'),
     path('groups/<int:group_id>/invite/', group_views.invite_to_group, name='invite-to-group'),
     path('groups/<int:group_id>/visibility/', group_views.update_group_visibility, name='group-visibility'),
     path('users/<int:user_id>/groups/', group_views.get_user_public_groups, name='user-public-groups'),

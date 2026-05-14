@@ -24,7 +24,7 @@
 
       <!-- 그룹 정보 -->
       <template v-else-if="currentGroup">
-        <!-- 그룹 기본 정보 -->
+        <!-- 그룹 기본 정보 (항상 표시) -->
         <div class="group-info-card fade-in">
           <div class="group-header">
             <div class="header-top">
@@ -96,103 +96,141 @@
           </div>
         </div>
 
-        <!-- 플랜 선택 및 일정 캘린더 -->
-        <div v-if="currentGroup.plans && currentGroup.plans.length > 0" class="section-card fade-in delay-100">
-          <div class="section-header">
-            <h3 class="section-title">읽기 계획 일정</h3>
+        <!-- 탭 네비게이션 -->
+        <div class="tab-navigation fade-in delay-100">
+          <button
+            v-for="tab in tabs"
+            :key="tab.value"
+            @click="activeTab = tab.value"
+            :class="['tab-button', { active: activeTab === tab.value }]"
+          >
+            <component :is="tab.icon" class="tab-icon" />
+            {{ tab.label }}
+          </button>
+        </div>
+
+        <!-- 탭 콘텐츠: 정보 -->
+        <template v-if="activeTab === 'info'">
+          <!-- 플랜 선택 및 일정 캘린더 -->
+          <div v-if="currentGroup.plans && currentGroup.plans.length > 0" class="section-card fade-in">
+            <div class="section-header">
+              <h3 class="section-title">읽기 계획 일정</h3>
+            </div>
+
+            <!-- 플랜 선택 탭 -->
+            <div v-if="currentGroup.plans.length > 1" class="plan-tabs">
+              <button
+                v-for="plan in currentGroup.plans"
+                :key="plan.id"
+                @click="selectedPlanId = plan.id"
+                :class="['plan-tab', { 'active': selectedPlanId === plan.id }]"
+              >
+                {{ plan.name }}
+              </button>
+            </div>
+
+            <!-- 단일 플랜일 경우 이름만 표시 -->
+            <div v-else class="single-plan-name">
+              {{ currentGroup.plans[0].name }}
+            </div>
+
+            <!-- 캘린더 -->
+            <GroupPlanCalendar
+              v-if="selectedPlanId"
+              :plan-id="selectedPlanId"
+              class="mt-4"
+            />
           </div>
 
-          <!-- 플랜 선택 탭 -->
-          <div v-if="currentGroup.plans.length > 1" class="plan-tabs">
-            <button
-              v-for="plan in currentGroup.plans"
-              :key="plan.id"
-              @click="selectedPlanId = plan.id"
-              :class="['plan-tab', { 'active': selectedPlanId === plan.id }]"
+          <!-- 멤버 목록 -->
+          <div class="section-card fade-in">
+            <div class="section-header">
+              <h3 class="section-title">멤버 목록</h3>
+              <span class="member-count-badge">{{ currentGroupMembers.length }}명</span>
+            </div>
+
+            <LoadingState v-if="isMembersLoading" message="멤버 목록을 불러오는 중..." />
+
+            <div v-else-if="currentGroupMembers.length > 0" class="members-list">
+              <div
+                v-for="member in currentGroupMembers"
+                :key="member.user.id"
+                class="member-item"
+              >
+                <div class="member-info">
+                  <div class="member-avatar">
+                    <NuxtImg
+                      v-if="member.user.profile_image"
+                      :src="member.user.profile_image"
+                      :alt="member.user.nickname"
+                      class="avatar-image"
+                      loading="lazy"
+                    />
+                    <div v-else class="avatar-placeholder">
+                      {{ member.user.nickname?.charAt(0) || '?' }}
+                    </div>
+                  </div>
+
+                  <div class="member-details">
+                    <div class="member-name">{{ member.user.nickname }}</div>
+                    <div class="member-joined">
+                      {{ formatDate(member.joined_at) }} 가입
+                    </div>
+                  </div>
+                </div>
+
+                <span
+                  v-if="member.role === '관리자'"
+                  class="role-badge role-admin"
+                >
+                  관리자
+                </span>
+                <span
+                  v-else
+                  class="role-badge role-member"
+                >
+                  멤버
+                </span>
+              </div>
+            </div>
+
+            <EmptyState
+              v-else
+              title="멤버가 없습니다"
+              description="아직 가입한 멤버가 없습니다."
             >
-              {{ plan.name }}
-            </button>
+              <template #icon>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </template>
+            </EmptyState>
           </div>
+        </template>
 
-          <!-- 단일 플랜일 경우 이름만 표시 -->
-          <div v-else class="single-plan-name">
-            {{ currentGroup.plans[0].name }}
+        <!-- 탭 콘텐츠: 랭킹 -->
+        <div v-else-if="activeTab === 'ranking'" class="section-card fade-in">
+          <div class="section-header">
+            <h3 class="section-title">그룹 랭킹</h3>
           </div>
-
-          <!-- 캘린더 -->
-          <GroupPlanCalendar
-            v-if="selectedPlanId"
-            :plan-id="selectedPlanId"
-            class="mt-4"
+          <GroupLeaderboard
+            :group-id="groupId"
+            :plan-id="selectedPlanId || undefined"
           />
         </div>
 
-        <!-- 멤버 목록 -->
-        <div class="section-card fade-in delay-200">
+        <!-- 탭 콘텐츠: 달력 -->
+        <div v-else-if="activeTab === 'calendar'" class="section-card fade-in">
           <div class="section-header">
-            <h3 class="section-title">멤버 목록</h3>
-            <span class="member-count-badge">{{ currentGroupMembers.length }}명</span>
+            <h3 class="section-title">멤버 진도 달력</h3>
           </div>
-
-          <LoadingState v-if="isMembersLoading" message="멤버 목록을 불러오는 중..." />
-
-          <div v-else-if="currentGroupMembers.length > 0" class="members-list">
-            <div
-              v-for="member in currentGroupMembers"
-              :key="member.user.id"
-              class="member-item"
-            >
-              <div class="member-info">
-                <div class="member-avatar">
-                  <NuxtImg
-                    v-if="member.user.profile_image"
-                    :src="member.user.profile_image"
-                    :alt="member.user.nickname"
-                    class="avatar-image"
-                    loading="lazy"
-                  />
-                  <div v-else class="avatar-placeholder">
-                    {{ member.user.nickname?.charAt(0) || '?' }}
-                  </div>
-                </div>
-
-                <div class="member-details">
-                  <div class="member-name">{{ member.user.nickname }}</div>
-                  <div class="member-joined">
-                    {{ formatDate(member.joined_at) }} 가입
-                  </div>
-                </div>
-              </div>
-
-              <span
-                v-if="member.role === '관리자'"
-                class="role-badge role-admin"
-              >
-                관리자
-              </span>
-              <span
-                v-else
-                class="role-badge role-member"
-              >
-                멤버
-              </span>
-            </div>
-          </div>
-
-          <EmptyState
-            v-else
-            title="멤버가 없습니다"
-            description="아직 가입한 멤버가 없습니다."
-          >
-            <template #icon>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </template>
-          </EmptyState>
+          <GroupMemberCalendar
+            :group-id="groupId"
+            :plans="currentGroup.plans || []"
+          />
         </div>
       </template>
     </div>
@@ -207,7 +245,39 @@ import Card from '~/components/common/Card.vue'
 import LoadingState from '~/components/LoadingState.vue'
 import EmptyState from '~/components/common/EmptyState.vue'
 import GroupPlanCalendar from '~/components/groups/GroupPlanCalendar.vue'
+import GroupLeaderboard from '~/components/groups/GroupLeaderboard.vue'
+import GroupMemberCalendar from '~/components/groups/GroupMemberCalendar.vue'
 import { useModal } from '~/composables/useModal'
+
+// 탭 아이콘 컴포넌트
+const IconInfo = defineComponent({
+  render() {
+    return h('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [
+      h('circle', { cx: 12, cy: 12, r: 10 }),
+      h('line', { x1: 12, y1: 16, x2: 12, y2: 12 }),
+      h('line', { x1: 12, y1: 8, x2: 12.01, y2: 8 })
+    ])
+  }
+})
+
+const IconRanking = defineComponent({
+  render() {
+    return h('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [
+      h('path', { d: 'M12 15l-2 5l9-11h-5l2-5l-9 11h5z' })
+    ])
+  }
+})
+
+const IconCalendar = defineComponent({
+  render() {
+    return h('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [
+      h('rect', { x: 3, y: 4, width: 18, height: 18, rx: 2, ry: 2 }),
+      h('line', { x1: 16, y1: 2, x2: 16, y2: 6 }),
+      h('line', { x1: 8, y1: 2, x2: 8, y2: 6 }),
+      h('line', { x1: 3, y1: 10, x2: 21, y2: 10 })
+    ])
+  }
+})
 
 const route = useRoute()
 const groupsStore = useGroupsStore()
@@ -224,6 +294,13 @@ const isMembersLoading = ref(true)
 const isActionLoading = ref(false)
 const error = ref<string | null>(null)
 const selectedPlanId = ref<number | null>(null)
+const activeTab = ref<'info' | 'ranking' | 'calendar'>('info')
+
+const tabs = [
+  { value: 'info' as const, label: '정보', icon: IconInfo },
+  { value: 'ranking' as const, label: '랭킹', icon: IconRanking },
+  { value: 'calendar' as const, label: '달력', icon: IconCalendar }
+]
 
 // 그룹 정보 로드
 onMounted(async () => {
@@ -346,8 +423,6 @@ const formatDate = (dateString: string) => {
 
 // 페이지 떠날 때 정리
 onUnmounted(() => {
-  // currentGroup과 currentGroupMembers는 유지할 수도 있지만,
-  // 메모리 효율을 위해 정리
   groupsStore.currentGroup = null
   groupsStore.currentGroupMembers = []
 })
@@ -360,7 +435,7 @@ onUnmounted(() => {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 /* 카드 공통 스타일 */
@@ -557,6 +632,50 @@ onUnmounted(() => {
   background: #F1F5F9;
   color: #64748B;
   border: 1px solid #E2E8F0;
+}
+
+/* 탭 네비게이션 */
+.tab-navigation {
+  display: flex;
+  background: white;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 0.25rem;
+  gap: 0.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tab-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #64748B;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Pretendard', sans-serif;
+}
+
+.tab-button:hover {
+  background: #F8FAFC;
+  color: #475569;
+}
+
+.tab-button.active {
+  background: #1E293B;
+  color: white;
+  font-weight: 600;
+}
+
+.tab-icon {
+  flex-shrink: 0;
 }
 
 /* 플랜 선택 탭 */
@@ -761,5 +880,80 @@ onUnmounted(() => {
   .status-box {
     width: 100%;
   }
+
+  .tab-button {
+    font-size: 0.8125rem;
+    padding: 0.5rem;
+  }
+}
+
+/* 다크모드 */
+[data-theme="dark"] .group-info-card,
+[data-theme="dark"] .section-card {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .group-name {
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .group-description {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .tab-navigation {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .tab-button {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .tab-button:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .tab-button.active {
+  background: var(--color-accent-primary);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .member-item {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .member-name {
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .meta-label {
+  color: var(--color-text-muted);
+}
+
+[data-theme="dark"] .meta-value,
+[data-theme="dark"] .plan-text {
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .plan-tab {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .plan-tab.active {
+  background: var(--color-accent-primary);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+[data-theme="dark"] .single-plan-name {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
 }
 </style>

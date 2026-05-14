@@ -1,3 +1,5 @@
+from calendar import monthrange
+from datetime import date
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -7,7 +9,10 @@ from django.db.models import Q, Count
 from django.utils import timezone
 from accounts.models import User
 from accounts.serializers import UserSearchSerializer
-from .models import ReadingGroup, GroupMembership, GroupInvitation, BibleReadingPlan
+from .models import (
+    ReadingGroup, GroupMembership, GroupInvitation, BibleReadingPlan,
+    DailyBibleSchedule, UserBibleProgress, PlanSubscription
+)
 from .serializers import BibleReadingPlanSerializer
 import logging
 
@@ -623,6 +628,184 @@ def update_group_visibility(request, group_id):
         })
     except Exception as e:
         logger.error(f"Error updating group visibility: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_group_member_progress(request, group_id):
+    """그룹 멤버별 월별 진도 조회 (달력 뷰용)"""
+    try:
+        # 쿼리 파라미터
+        today = date.today()
+        month = request.query_params.get('month', today.month)
+        year = request.query_params.get('year', today.year)
+        plan_id = request.query_params.get('plan_id')
+
+        try:
+            month = int(month)
+            year = int(year)
+        except (TypeError, ValueError):
+            return Response({
+                'success': False,
+                'error': 'month와 year는 숫자여야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if month < 1 or month > 12:
+            return Response({
+                'success': False,
+                'error': 'month는 1부터 12 사이여야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            group = ReadingGroup.objects.prefetch_related('plans').get(id=group_id)
+        except ReadingGroup.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': '그룹을 찾을 수 없습니다.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # 비공개 그룹 접근 제어
+        if not group.is_public:
+            if not request.user.is_authenticated:
+                return Response({
+                    'success': False,
+                    'error': '비공개 그룹입니다.'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            is_member = GroupMembership.objects.filter(
+                group=group,
+                user=request.user,
+                is_active=True
+            ).exists()
+
+            if not is_member:
+                return Response({
+                    'success': False,
+                    'error': '그룹 멤버만 조회할 수 있습니다.'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+        # 조회 플랜 선택
+        selected_plan = None
+        if plan_id:
+            try:
+                plan_id = int(plan_id)
+            except (TypeError, ValueError):
+                return Response({
+                    'success': False,
+                    'error': 'plan_id는 숫자여야 합니다.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            selected_plan = group.plans.filter(id=plan_id).first()
+            if not selected_plan:
+                return Response({
+                    'success': False,
+                    'error': '그룹에 포함되지 않은 플랜입니다.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            selected_plan = group.plans.first()
+
+        if not selected_plan:
+            return Response({
+                'success': False,
+                'error': '그룹에 설정된 플랜이 없습니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 월 범위 계산
+        _, last_day = monthrange(year, month)
+        start_date = date(year, month, 1)
+        end_date = date(year, month, last_day)
+
+        # 해당 월의 스케줄 조회
+        schedules = DailyBibleSchedule.objects.filter(
+            plan=selected_plan,
+            date__range=[start_date, end_date]
+        ).order_by('date', 'id')
+
+        # 활성 멤버 조회
+        memberships = GroupMembership.objects.filter(
+            group=group,
+            is_active=True
+        ).select_related('user').order_by('joined_at')
+
+        member_ids = [membership.user_id for membership in memberships]
+
+        # 멤버의 활성 구독 조회 (해당 플랜)
+        subscriptions = PlanSubscription.objects.filter(
+            user_id__in=member_ids,
+            plan=selected_plan,
+            is_active=True
+        )
+
+        subscription_map = {subscription.user_id: subscription.id for subscription in subscriptions}
+        subscription_ids = list(subscription_map.values())
+
+        schedule_ids = [schedule.id for schedule in schedules]
+
+        # 완료 진도 조회
+        completed_progress = set()
+        if subscription_ids and schedule_ids:
+            progress_rows = UserBibleProgress.objects.filter(
+                subscription_id__in=subscription_ids,
+                schedule_id__in=schedule_ids,
+                is_completed=True
+            ).values_list('subscription__user_id', 'schedule_id')
+            completed_progress = set(progress_rows)
+
+        # 날짜별 캘린더 데이터 구성
+        calendar_data = {}
+        for schedule in schedules:
+            date_str = schedule.date.isoformat()
+            members_data = []
+            completed_count = 0
+
+            for membership in memberships:
+                user = membership.user
+                subscription_id = subscription_map.get(user.id)
+                is_completed = False
+
+                if subscription_id:
+                    is_completed = (user.id, schedule.id) in completed_progress
+
+                if is_completed:
+                    completed_count += 1
+
+                members_data.append({
+                    'id': user.id,
+                    'nickname': user.nickname,
+                    'profile_image': user.profile_image,
+                    'is_completed': is_completed
+                })
+
+            calendar_data[date_str] = {
+                'schedule': {
+                    'book': schedule.book,
+                    'start_chapter': schedule.start_chapter,
+                    'end_chapter': schedule.end_chapter
+                },
+                'total_members': len(members_data),
+                'completed_count': completed_count,
+                'members': members_data
+            }
+
+        return Response({
+            'success': True,
+            'plan': {
+                'id': selected_plan.id,
+                'name': selected_plan.name
+            },
+            'meta': {
+                'year': year,
+                'month': month,
+                'total_members': len(member_ids)
+            },
+            'calendar': calendar_data
+        })
+    except Exception as e:
+        logger.error(f"Error getting group member progress: {str(e)}")
         return Response({
             'success': False,
             'error': str(e)

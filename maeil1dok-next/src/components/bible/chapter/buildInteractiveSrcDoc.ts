@@ -1,5 +1,9 @@
 export function buildInteractiveSrcDoc(content: string) {
   const interactionScript = `
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/@noonnu/kopub-batang@0.0.1/KoPubBatang-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400;500;600&display=swap">
 <style>
   @font-face {
@@ -56,15 +60,22 @@ export function buildInteractiveSrcDoc(content: string) {
   }
 
   :root {
-    --bible-bg: #f9fafb;
-    --bible-text: #1f2937;
+    --bible-bg: #faf8f6;
+    --bible-text: #2a1111;
     --bible-border: #e5e7eb;
     --bible-muted: #999999;
     --bible-selection-bg: rgba(75, 159, 126, 0.18);
     --bible-selection-outline: #4b9f7e;
     --bible-header: var(--color-accent-primary, #4b9f7e);
     --bible-highlight-alpha: 0.46;
-    --section-title-color: #4a5d4a;
+    --section-title-color: #4B9F7E;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    letter-spacing: -0.05em;
   }
 
   html, body {
@@ -79,10 +90,11 @@ export function buildInteractiveSrcDoc(content: string) {
     color: var(--bible-text);
     font-family: var(--font-family-reading, "KoPub Batang"), "Noto Serif KR", serif;
     font-size: 1rem;
-    line-height: 1.8;
-    letter-spacing: -0.02em;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
+    font-weight: 500;
+    line-height: 1.6;
+    letter-spacing: -0.05em;
+    text-rendering: auto;
+    -webkit-font-smoothing: auto;
     transition: background-color 0.2s ease, color 0.2s ease;
     word-break: keep-all;
   }
@@ -353,7 +365,7 @@ export function buildInteractiveSrcDoc(content: string) {
     --bible-selection-outline: #6bc99f;
     --bible-header: #b8d4c4;
     --bible-highlight-alpha: 0.3;
-    --section-title-color: #8ba888;
+    --section-title-color: #6bc99f;
   }
 
   body.ocd-theme-dark .ocd-verse-node:hover,

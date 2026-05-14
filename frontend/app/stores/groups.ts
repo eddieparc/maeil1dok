@@ -65,6 +65,28 @@ interface GroupInvitation {
   created_at: string
 }
 
+interface MemberProgress {
+  id: number
+  nickname: string
+  profile_image?: string
+  is_completed: boolean
+}
+
+interface CalendarDayData {
+  schedule: {
+    book: string
+    start_chapter: number
+    end_chapter: number
+  }
+  total_members: number
+  completed_count: number
+  members: MemberProgress[]
+}
+
+interface GroupCalendarData {
+  [date: string]: CalendarDayData
+}
+
 export const useGroupsStore = defineStore('groups', {
   state: () => ({
     groups: [] as ReadingGroup[],
@@ -72,8 +94,12 @@ export const useGroupsStore = defineStore('groups', {
     currentGroup: null as ReadingGroup | null,
     currentGroupMembers: [] as GroupMember[],
     currentPlanSchedules: [] as DailySchedule[],
+    memberCalendarData: {} as GroupCalendarData,
+    memberCalendarPlan: null as { id: number; name: string } | null,
+    memberCalendarMeta: null as { year: number; month: number; total_members: number } | null,
     invitations: [] as GroupInvitation[],
     isLoading: false,
+    isMemberCalendarLoading: false,
     error: null as string | null
   }),
 
@@ -287,6 +313,33 @@ export const useGroupsStore = defineStore('groups', {
       }
     },
 
+    async fetchGroupMemberProgress(groupId: number, month: number, year?: number, planId?: number) {
+      this.isMemberCalendarLoading = true
+
+      try {
+        const currentYear = year || new Date().getFullYear()
+        const params: Record<string, number> = { month, year: currentYear }
+        if (planId) params.plan_id = planId
+
+        const { data } = await useApi().get(`/api/v1/todos/groups/${groupId}/member-progress/`, {
+          params
+        })
+
+        if (data?.success) {
+          this.memberCalendarData = data.calendar || {}
+          this.memberCalendarPlan = data.plan || null
+          this.memberCalendarMeta = data.meta || null
+          return { success: true }
+        } else {
+          return { success: false, error: data?.error }
+        }
+      } catch (error: any) {
+        return { success: false, error: error.message || '멤버 진도를 불러올 수 없습니다.' }
+      } finally {
+        this.isMemberCalendarLoading = false
+      }
+    },
+
     // 타인의 공개 그룹 조회
     async fetchUserPublicGroups(userId: number) {
       this.isLoading = true
@@ -333,6 +386,9 @@ export const useGroupsStore = defineStore('groups', {
       this.currentGroup = null
       this.currentGroupMembers = []
       this.currentPlanSchedules = []
+      this.memberCalendarData = {}
+      this.memberCalendarPlan = null
+      this.memberCalendarMeta = null
       this.invitations = []
       this.error = null
     }

@@ -1,16 +1,11 @@
 <template>
   <div class="sanctuary-theme">
     <div class="bg-pattern"></div>
-    
+
     <div class="container">
       <header class="home-header">
         <div class="logo-wrapper">
-          <NuxtImg
-            src="/images/로고_투명.png"
-            alt="Maeil1dok"
-            class="logo-img"
-            loading="lazy"
-          />
+          <NuxtImg src="/images/로고_투명.png" alt="Maeil1dok" class="logo-img" loading="lazy" />
         </div>
         <div class="header-actions">
           <button class="theme-toggle-btn" @click="toggleTheme" :aria-label="isDark ? '라이트 모드로 전환' : '다크 모드로 전환'">
@@ -32,7 +27,7 @@
       </main>
 
       <FloatingNav />
-      
+
       <Menu :is-open="showMenu" @close="showMenu = false" />
     </div>
   </div>
@@ -83,7 +78,7 @@ onMounted(() => {
   --accent: var(--color-accent-primary, #4A5D53);
   --accent-light: var(--color-accent-primary-light, #E8ECE9);
   --paper-shadow: var(--shadow-sm, 0 4px 20px rgba(44, 51, 51, 0.04));
-  
+
   --font-serif: 'Noto Serif KR', serif;
   --font-sans: 'Pretendard', sans-serif;
 

@@ -2,7 +2,7 @@
   "expo": {
     "name": "매일일독",
     "slug": "maeil1dok",
-    "version": "1.2.1",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -66,7 +66,7 @@
           ]
         }
       ],
-      "versionCode": 12
+      "versionCode": 8
     },
     "web": {
       "favicon": "./assets/favicon.png"
