@@ -265,7 +265,7 @@
     {
       "id": "A-2",
       "title": "[AUTH] Kakao/Google OAuth Provider 등록 — Client ID/Secret 적용 + 콜백 URL 확인",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-2`\n\n## 작업 내용\nKakao/Google OAuth Provider 등록 — Client ID/Secret 적용 + 콜백 URL 확인\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — OAuth 진입 → Supabase 콜백 도달 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-2`\n\n## 작업 내용\nKakao/Google OAuth Provider 등록 — Client ID/Secret 적용 + 콜백 URL 확인\n\n## 의존성 (Mn5)\n- 선행: `F-15`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — OAuth 진입 → Supabase 콜백 도달 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/AUTH — 인증 시스템",
       "labels": [
         "slice:AUTH",
@@ -276,7 +276,7 @@
     {
       "id": "A-3",
       "title": "[AUTH] Apple Sign In Provider 등록 (Self-critique MAJOR M4) — credential **4개 모두**: (1) S",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-3`\n\n## 작업 내용\nApple Sign In Provider 등록 (Self-critique MAJOR M4) — credential **4개 모두**: (1) Service ID (`com.maeil1dok.web.signin`) (2) Team ID (Apple Developer 계정) (3) Key ID (.p8 발급 시 부여) (4) Private Key (.p8 파일 내용). Supabase Auth Provider 설정에 모두 입력. 누락 시 OAuth flow `invalid_client` 에러\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — OAuth 진입 → Apple 인증 페이지 도달 + 콜백 정상\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-3`\n\n## 작업 내용\nApple Sign In Provider 등록 (Self-critique MAJOR M4) — credential **4개 모두**: (1) Service ID (`com.maeil1dok.web.signin`) (2) Team ID (Apple Developer 계정) (3) Key ID (.p8 발급 시 부여) (4) Private Key (.p8 파일 내용). Supabase Auth Provider 설정에 모두 입력. 누락 시 OAuth flow `invalid_client` 에러\n\n## 의존성 (Mn5)\n- 선행: `F-15`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — OAuth 진입 → Apple 인증 페이지 도달 + 콜백 정상\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/AUTH — 인증 시스템",
       "labels": [
         "slice:AUTH",
@@ -551,7 +551,7 @@
     {
       "id": "M-5b",
       "title": "[MIGRATE] **SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1, Mn8) — M-5b-",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5b`\n\n## 작업 내용\n**SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1, Mn8) — M-5b-pre 에서 입증된 경로로 Django `accounts_socialaccount` 의 모든 row 를 마이그레이션. `provider` + `provider_id` + `user_id (mapped UUID)` + `identity_data` (M-5e). **Mn8: auth.identities 의 PK (UUID `id`) 정책 — Supabase 자동 생성. Django SocialAccount.id 는 보존 안 함 (Supabase 의 UUID 로 대체). FK 참조 없으므로 무방.**\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Django SocialAccount count == Supabase auth.identities count + 5명 spot check\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5b`\n\n## 작업 내용\n**SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1, Mn8) — M-5b-pre 에서 입증된 경로로 Django `accounts_socialaccount` 의 모든 row 를 마이그레이션. `provider` + `provider_id` + `user_id (mapped UUID)` + `identity_data` (M-5e). **Mn8: auth.identities 의 PK (UUID `id`) 정책 — Supabase 자동 생성. Django SocialAccount.id 는 보존 안 함 (Supabase 의 UUID 로 대체). FK 참조 없으므로 무방.**\n\n## 의존성 (Mn5)\n- 선행: `M-5b-pre`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Django SocialAccount count == Supabase auth.identities count + 5명 spot check\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -562,7 +562,7 @@
     {
       "id": "M-5c",
       "title": "[MIGRATE] **PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5c`\n\n## 작업 내용\n**PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1, Self-critique MAJOR M3) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. **선행 의무: F-17 (Supabase tier 사전 확인) 통과 후 진입.** F-17 결과 Pro tier 필요 + 사용자 비용 승인 시 (a) 경로, 불가 시 (b) 강제 reset 경로 자동 회귀.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (a): 5명 sample 로 첫 로그인 통과. (b): 강제 reset 발송 후 응답률 추적\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5c`\n\n## 작업 내용\n**PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1, Self-critique MAJOR M3) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. **선행 의무: F-17 (Supabase tier 사전 확인) 통과 후 진입.** F-17 결과 Pro tier 필요 + 사용자 비용 승인 시 (a) 경로, 불가 시 (b) 강제 reset 경로 자동 회귀.\n\n## 의존성 (Mn5)\n- 선행: `F-17`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (a): 5명 sample 로 첫 로그인 통과. (b): 강제 reset 발송 후 응답률 추적\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -573,7 +573,7 @@
     {
       "id": "M-5d",
       "title": "[MIGRATE] **Trigger 충돌 우회 — ON CONFLICT 방식** (Oracle R2 Critical #2, 자가 R3 Self-2, Self-cr",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5d`\n\n## 작업 내용\n**Trigger 충돌 우회 — ON CONFLICT 방식** (Oracle R2 Critical #2, 자가 R3 Self-2, Self-critique B2) — `on_auth_user_created` 트리거가 `profiles` 자동 생성. **Supabase managed 환경에서 service_role 은 `auth.users` 의 trigger 제어 권한 없음 (table owner: `supabase_auth_admin`)**. 트리거 DISABLE 시도 대신 **`profiles INSERT ... ON CONFLICT (user_id) DO UPDATE SET ...`** 사용. 트리거가 빈 profiles row 를 먼저 만들어도 우리 데이터로 덮어쓰기. + maintenance mode 로 신규 가입은 별도 차단.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5d.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — profiles INSERT 시 충돌 0건 (ON CONFLICT 의 DO UPDATE 가 처리) + profiles 의 모든 컬럼이 Django UserProfile 값으로 셋팅됨\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5d`\n\n## 작업 내용\n**Trigger 충돌 우회 — ON CONFLICT 방식** (Oracle R2 Critical #2, 자가 R3 Self-2, Self-critique B2) — `on_auth_user_created` 트리거가 `profiles` 자동 생성. **Supabase managed 환경에서 service_role 은 `auth.users` 의 trigger 제어 권한 없음 (table owner: `supabase_auth_admin`)**. 트리거 DISABLE 시도 대신 **`profiles INSERT ... ON CONFLICT (user_id) DO UPDATE SET ...`** 사용. 트리거가 빈 profiles row 를 먼저 만들어도 우리 데이터로 덮어쓰기. + maintenance mode 로 신규 가입은 별도 차단.\n\n## 의존성 (Mn5)\n- 선행: `M-5`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5d.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — profiles INSERT 시 충돌 0건 (ON CONFLICT 의 DO UPDATE 가 처리) + profiles 의 모든 컬럼이 Django UserProfile 값으로 셋팅됨\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -584,7 +584,7 @@
     {
       "id": "M-5e",
       "title": "[MIGRATE] **`auth.identities` identity_data JSONB 완비** (Oracle R2 Major #3, 자가 R3 Self-3) ",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5e`\n\n## 작업 내용\n**`auth.identities` identity_data JSONB 완비** (Oracle R2 Major #3, 자가 R3 Self-3) — GoTrue schema 정확히: `{\"sub\": provider_id, \"email\": email, \"email_verified\": true, \"phone_verified\": false, \"provider_id\": provider_id, ...optional provider-specific}`. `sub` 와 `provider_id` 모두 명시 (둘 다 GoTrue 가 참조).\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5e.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5명 spot check: identity_data.sub == identity_data.provider_id == auth.identities.provider_id\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5e`\n\n## 작업 내용\n**`auth.identities` identity_data JSONB 완비** (Oracle R2 Major #3, 자가 R3 Self-3) — GoTrue schema 정확히: `{\"sub\": provider_id, \"email\": email, \"email_verified\": true, \"phone_verified\": false, \"provider_id\": provider_id, ...optional provider-specific}`. `sub` 와 `provider_id` 모두 명시 (둘 다 GoTrue 가 참조).\n\n## 의존성 (Mn5)\n- 선행: `M-5b`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5e.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5명 spot check: identity_data.sub == identity_data.provider_id == auth.identities.provider_id\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -991,7 +991,7 @@
     {
       "id": "PW-4",
       "title": "[PWA] FCM 토큰 발급 + Supabase 등록 — **Wave 1/2 에서는 Mock 만, 실 DB 기록은 11-MIGRATE 완료 후 (Wave ",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PWA`  \n**플랜**: docs/migration-v2/11-PWA.md  \n**작업 ID**: `PW-4`\n\n## 작업 내용\nFCM 토큰 발급 + Supabase 등록 — **Wave 1/2 에서는 Mock 만, 실 DB 기록은 11-MIGRATE 완료 후 (Wave 3 이상)**\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 로그인 후 토큰 row 존재\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PWA`  \n**플랜**: docs/migration-v2/11-PWA.md  \n**작업 ID**: `PW-4`\n\n## 작업 내용\nFCM 토큰 발급 + Supabase 등록 — **Wave 1/2 에서는 Mock 만, 실 DB 기록은 11-MIGRATE 완료 후 (Wave 3 이상)**\n\n## 의존성 (Mn5)\n- 선행: `M-5`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 로그인 후 토큰 row 존재\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/PWA — PWA+FCM",
       "labels": [
         "slice:PWA",
@@ -1849,7 +1849,7 @@
     {
       "id": "C-1",
       "title": "[CUTOVER] 모든 11-* 슬라이스 통과 확인 (GitHub Milestone 모두 closed)",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-1`\n\n## 작업 내용\n모든 11-* 슬라이스 통과 확인 (GitHub Milestone 모두 closed)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Milestone state 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-1`\n\n## 작업 내용\n모든 11-* 슬라이스 통과 확인 (GitHub Milestone 모두 closed)\n\n## 의존성 (Mn5)\n- 선행: `all 11-* milestones closed`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Milestone state 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",
@@ -1959,7 +1959,7 @@
     {
       "id": "C-9c",
       "title": "[CUTOVER] **구 클라이언트 503 처리 역검증 + hotfix timeline** (Oracle R2 Major #4, Self-critique MAJO",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9c`\n\n## 작업 내용\n**구 클라이언트 503 처리 역검증 + hotfix timeline** (Oracle R2 Major #4, Self-critique MAJOR M2) — 컷오버 전 사전 작업: 현재 배포된 Nuxt + 모바일 앱이 503 `app_updated` 응답을 받았을 때 (1) 사용자에게 안내 UI 표시 + (2) 앱스토어/Play 스토어로 유도하는 로직 **실제 존재 검증**. **없으면 hotfix 배포 필요 = 컷오버 +7d (iOS 리뷰 24~72h + Play Store 24~48h + 사용자 업데이트 propagation 며칠).** 사용자 사전 알림 의무.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — grep 코드 + 모바일 실 디바이스 503 시나리오 테스트 + hotfix 시 컷오버 일정 조정 발표\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9c`\n\n## 작업 내용\n**구 클라이언트 503 처리 역검증 + hotfix timeline** (Oracle R2 Major #4, Self-critique MAJOR M2) — 컷오버 전 사전 작업: 현재 배포된 Nuxt + 모바일 앱이 503 `app_updated` 응답을 받았을 때 (1) 사용자에게 안내 UI 표시 + (2) 앱스토어/Play 스토어로 유도하는 로직 **실제 존재 검증**. **없으면 hotfix 배포 필요 = 컷오버 +7d (iOS 리뷰 24~72h + Play Store 24~48h + 사용자 업데이트 propagation 며칠).** 사용자 사전 알림 의무.\n\n## 의존성 (Mn5)\n- 선행: `F-13 (Hotfix)`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — grep 코드 + 모바일 실 디바이스 503 시나리오 테스트 + hotfix 시 컷오버 일정 조정 발표\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",
@@ -1981,7 +1981,7 @@
     {
       "id": "C-11",
       "title": "[CUTOVER] 마이그레이션 풀 실행 (real, dry-run 아님)",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-11`\n\n## 작업 내용\n마이그레이션 풀 실행 (real, dry-run 아님)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — validation_report.json overall=pass + Critical 3 테이블 0% 손실 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-11`\n\n## 작업 내용\n마이그레이션 풀 실행 (real, dry-run 아님)\n\n## 의존성 (Mn5)\n- 선행: `C-6 (dry-run 통과)`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — validation_report.json overall=pass + Critical 3 테이블 0% 손실 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",
@@ -1992,7 +1992,7 @@
     {
       "id": "C-12",
       "title": "[CUTOVER] Cloudflare DNS 전환 — A→CNAME (Vercel). **Cloudflare proxy off (grey cloud) — WAF/",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-12`\n\n## 작업 내용\nCloudflare DNS 전환 — A→CNAME (Vercel). **Cloudflare proxy off (grey cloud) — WAF/DDoS 보호 사라짐, Vercel 자체 인프라가 흡수** (자가 R3 Self-6). Vercel Edge Network + Firewall Rules 설정 사전 검토. **Mn1: Cloudflare DNS authoritative + Vercel CDN 단일 의존 — 둘 다 다운 시 fallback 없음을 사용자 인지하고 운영.**\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `dig maeil1dok.app` → Vercel IP + Vercel Firewall 활성 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-12`\n\n## 작업 내용\nCloudflare DNS 전환 — A→CNAME (Vercel). **Cloudflare proxy off (grey cloud) — WAF/DDoS 보호 사라짐, Vercel 자체 인프라가 흡수** (자가 R3 Self-6). Vercel Edge Network + Firewall Rules 설정 사전 검토. **Mn1: Cloudflare DNS authoritative + Vercel CDN 단일 의존 — 둘 다 다운 시 fallback 없음을 사용자 인지하고 운영.**\n\n## 의존성 (Mn5)\n- 선행: `C-11 (real migration 완료)`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `dig maeil1dok.app` → Vercel IP + Vercel Firewall 활성 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",
@@ -2003,7 +2003,7 @@
     {
       "id": "C-13",
       "title": "[CUTOVER] `MAINTENANCE_MODE=false` 비활성화",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-13`\n\n## 작업 내용\n`MAINTENANCE_MODE=false` 비활성화\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl `/` → 200\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-13`\n\n## 작업 내용\n`MAINTENANCE_MODE=false` 비활성화\n\n## 의존성 (Mn5)\n- 선행: `C-14 smoke 통과`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl `/` → 200\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",
@@ -2113,7 +2113,7 @@
     {
       "id": "C-21",
       "title": "[CUTOVER] VPS Django 컨테이너 중지 (**C-19b 통과 + 1주 stable 확인 후만**)",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-21`\n\n## 작업 내용\nVPS Django 컨테이너 중지 (**C-19b 통과 + 1주 stable 확인 후만**)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-21.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `docker compose down` 출력\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-21`\n\n## 작업 내용\nVPS Django 컨테이너 중지 (**C-19b 통과 + 1주 stable 확인 후만**)\n\n## 의존성 (Mn5)\n- 선행: `C-19b (T+48h~T+7d Hard Block 유지)`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-21.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `docker compose down` 출력\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",

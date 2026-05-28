@@ -51,6 +51,22 @@ SLICE_META = {
 # **F-1** 또는 F-1 모두 허용. 마지막 컬럼은 항상 DoD 로 간주.
 ROW_RE = re.compile(r"^\|\s*\*{0,2}([A-Z]{1,2})-(\d+[a-z]?(?:-[a-z]+)?)\*{0,2}\s*\|(.+?)\|\s*$")
 
+CROSS_SLICE_DEPS = {
+    "M-5b": ["M-5b-pre"],
+    "M-5c": ["F-17"],
+    "M-5d": ["M-5"],
+    "M-5e": ["M-5b"],
+    "A-2": ["F-15"],
+    "A-3": ["F-15"],
+    "PW-4": ["M-5"],
+    "C-1": ["all 11-* milestones closed"],
+    "C-9c": ["F-13 (Hotfix)"],
+    "C-11": ["C-6 (dry-run 통과)"],
+    "C-12": ["C-11 (real migration 완료)"],
+    "C-13": ["C-14 smoke 통과"],
+    "C-21": ["C-19b (T+48h~T+7d Hard Block 유지)"],
+}
+
 
 def parse_slice(slice_name: str, prefix: str, file_path: Path):
     """파일에서 작업 표 행을 추출."""
@@ -73,12 +89,17 @@ def parse_slice(slice_name: str, prefix: str, file_path: Path):
         dod = cols[-1] if len(cols) > 1 else ""
         task_id = f"{row_prefix}-{num}"
         title = f"[{slice_name}] {work[:80]}"
+        deps = CROSS_SLICE_DEPS.get(task_id, [])
+        deps_section = ""
+        if deps:
+            deps_section = "## 의존성 (Mn5)\n" + "\n".join(f"- 선행: `{d}`" for d in deps) + "\n\n"
         body = (
             f"## 슬라이스 / 작업\n"
             f"**슬라이스**: `slice:{slice_name}`  \n"
             f"**플랜**: docs/migration-v2/11-{slice_name}.md  \n"
             f"**작업 ID**: `{task_id}`\n\n"
             f"## 작업 내용\n{work}\n\n"
+            f"{deps_section}"
             f"## DoD (Definition of Done)\n"
             f"- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n"
             f"- [ ] **EVIDENCE** — `.sisyphus/evidence/{slice_name}-{task_id}.{{txt,png,json}}`\n"

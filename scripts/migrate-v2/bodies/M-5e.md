@@ -6,6 +6,9 @@
 ## 작업 내용
 **`auth.identities` identity_data JSONB 완비** (Oracle R2 Major #3, 자가 R3 Self-3) — GoTrue schema 정확히: `{"sub": provider_id, "email": email, "email_verified": true, "phone_verified": false, "provider_id": provider_id, ...optional provider-specific}`. `sub` 와 `provider_id` 모두 명시 (둘 다 GoTrue 가 참조).
 
+## 의존성 (Mn5)
+- 선행: `M-5b`
+
 ## DoD (Definition of Done)
 - [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)
 - [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5e.{txt,png,json}`

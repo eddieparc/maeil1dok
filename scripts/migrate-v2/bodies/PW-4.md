@@ -6,6 +6,9 @@
 ## 작업 내용
 FCM 토큰 발급 + Supabase 등록 — **Wave 1/2 에서는 Mock 만, 실 DB 기록은 11-MIGRATE 완료 후 (Wave 3 이상)**
 
+## 의존성 (Mn5)
+- 선행: `M-5`
+
 ## DoD (Definition of Done)
 - [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)
 - [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-4.{txt,png,json}`

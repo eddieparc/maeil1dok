@@ -6,6 +6,9 @@
 ## 작업 내용
 **PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1, Self-critique MAJOR M3) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. **선행 의무: F-17 (Supabase tier 사전 확인) 통과 후 진입.** F-17 결과 Pro tier 필요 + 사용자 비용 승인 시 (a) 경로, 불가 시 (b) 강제 reset 경로 자동 회귀.
 
+## 의존성 (Mn5)
+- 선행: `F-17`
+
 ## DoD (Definition of Done)
 - [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)
 - [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5c.{txt,png,json}`
