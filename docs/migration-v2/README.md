@@ -47,6 +47,10 @@
 [Gate F] Oracle 고정밀 최종 리뷰                       ✅ CONDITIONAL (R1+R2 외부 + R3 자가 — credits 차단, 자가 8건 보완 적용)
 [Gate G] GitHub Issues + Milestones 생성 (187 issues)  ✅ COMPLETE (라벨 49 + 마일스톤 16 + 이슈 187)
 [Gate H] 실 코드 작업 시작 (별도 세션)                 ⬜ 사용자 결정 대기
+
+[추가 가능] 검증 + 적대적 크리틱 루프 재실행 — 별도 세션
+  핸드오프: docs/migration-v2/50-handoff-verification-loop.md
+  Trigger prompt: docs/migration-v2/51-handoff-prompt.txt
 ```
 
 각 Gate 는 사용자 확인 또는 자동 검증 통과 후 다음 단계 진입.
