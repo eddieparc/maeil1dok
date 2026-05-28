@@ -51,3 +51,6 @@ playwright-report/
 
 # Session artifacts
 .sisyphus/
+
+*storybook.log
+storybook-static
