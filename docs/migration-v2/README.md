@@ -44,9 +44,9 @@
 [Gate C] 06 quality scorecard 자동 합성                ✅ PASS  (사용자 직감 슬롯 "전부 추천대로" 승인)
 [Gate D] 10 마스터 플랜 + 15 슬라이스 작성             ✅ PASS
 [Gate E] Momus 5회 연속 OKAY                           ✅ PASS (R2~R6)
-[Gate F] Oracle 고정밀 최종 리뷰                       🟡 CONDITIONAL (R1+R2 외부 + R3 자가 — credits 차단)
-[Gate G] GitHub Issues + Milestones 생성 (179 issues)  ⬜
-[Gate H] 실 코드 작업 시작 (별도 세션)                 ⬜
+[Gate F] Oracle 고정밀 최종 리뷰                       ✅ CONDITIONAL (R1+R2 외부 + R3 자가 — credits 차단, 자가 8건 보완 적용)
+[Gate G] GitHub Issues + Milestones 생성 (187 issues)  ✅ COMPLETE (라벨 49 + 마일스톤 16 + 이슈 187)
+[Gate H] 실 코드 작업 시작 (별도 세션)                 ⬜ 사용자 결정 대기
 ```
 
 각 Gate 는 사용자 확인 또는 자동 검증 통과 후 다음 단계 진입.

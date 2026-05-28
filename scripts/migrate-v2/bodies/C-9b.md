@@ -4,13 +4,13 @@
 **작업 ID**: `C-9b`
 
 ## 작업 내용
-**Hard DB Lock** — MySQL 사용자 권한 REVOKE INSERT/UPDATE/DELETE (또는 `FLUSH TABLES WITH READ LOCK`). 모바일 클라이언트가 토큰 가지고 직접 호출해도 데이터 변경 0 보장
+**Hard Block 503 모드** (Oracle Critical #2) — Nginx/Django 측에서 모든 `/api/*` 요청에 `HTTP 503 Service Unavailable` + JSON body `{"error":"app_updated","message":"앱이 업데이트되었습니다. 앱을 완전히 종료 후 다시 실행해주세요"}`. MySQL `INSERT/UPDATE/DELETE` 권한 REVOKE 도 병행.
 
 ## DoD (Definition of Done)
 - [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)
 - [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9b.{txt,png,json}`
 - [ ] **REPRODUCE** — 재현 명령 1줄
-- [ ] **ASSERTION** — `INSERT` 시도 → ER_TABLEACCESS_DENIED. 검증 query 결과
+- [ ] **ASSERTION** — curl → 503 + 안내 JSON
 
 ## 차단 (Must NOT)
 - 무관 파일 수정 금지
