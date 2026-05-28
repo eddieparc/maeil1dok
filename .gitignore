@@ -86,6 +86,16 @@ logo/
 # Sisyphus (OpenCode planning)
 .sisyphus/
 
+# OhMyOpenCode session artifacts (preserve on disk, do not track)
+.omo/
+
+# Playwright-CLI session artifacts
+.playwright-cli/
+
+# Playwright snapshot YAMLs that occasionally leak to repo root
+/desktop_*.yml
+/mobile_*.yml
+
 # Audit temp files
 **/audit_tmp/
 
@@ -128,3 +138,11 @@ maeil1dok-next/node_modules/
 maeil1dok-next/.next/
 maeil1dok-next/out/
 !maeil1dok-next/src/lib/
+
+# Migration toolkit — extracted production user data (sensitive, never commit)
+maeil1dok-next/scripts/migrate/data/
+maeil1dok-next/scripts/migrate/*.log
+
+# Migration test results
+maeil1dok-next/test-results/
+maeil1dok-next/playwright-report/

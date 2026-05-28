@@ -1,0 +1,2037 @@
+{
+  "version": "1",
+  "generated_at": "2026-05-28",
+  "milestones": [
+    {
+      "title": "v2/FOUND — Foundation 복구",
+      "description": "슬라이스 FOUND — 자세히는 docs/migration-v2/11-FOUND.md"
+    },
+    {
+      "title": "v2/AUTH — 인증 시스템",
+      "description": "슬라이스 AUTH — 자세히는 docs/migration-v2/11-AUTH.md"
+    },
+    {
+      "title": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "description": "슬라이스 MIGRATE — 자세히는 docs/migration-v2/11-MIGRATE.md"
+    },
+    {
+      "title": "v2/DESIGN — 디자인 검증",
+      "description": "슬라이스 DESIGN — 자세히는 docs/migration-v2/11-DESIGN.md"
+    },
+    {
+      "title": "v2/PWA — PWA+FCM",
+      "description": "슬라이스 PWA — 자세히는 docs/migration-v2/11-PWA.md"
+    },
+    {
+      "title": "v2/READER — 성경 뷰어",
+      "description": "슬라이스 READER — 자세히는 docs/migration-v2/11-READER.md"
+    },
+    {
+      "title": "v2/PLAN — 통독 플랜·일정",
+      "description": "슬라이스 PLAN — 자세히는 docs/migration-v2/11-PLAN.md"
+    },
+    {
+      "title": "v2/PROGRESS — 진도 추적",
+      "description": "슬라이스 PROGRESS — 자세히는 docs/migration-v2/11-PROGRESS.md"
+    },
+    {
+      "title": "v2/HASENA — 하세나",
+      "description": "슬라이스 HASENA — 자세히는 docs/migration-v2/11-HASENA.md"
+    },
+    {
+      "title": "v2/CATCHUP — 캐치업",
+      "description": "슬라이스 CATCHUP — 자세히는 docs/migration-v2/11-CATCHUP.md"
+    },
+    {
+      "title": "v2/PROFILE — 프로필·업적·잔디",
+      "description": "슬라이스 PROFILE — 자세히는 docs/migration-v2/11-PROFILE.md"
+    },
+    {
+      "title": "v2/SOCIAL — 친구·스코어보드",
+      "description": "슬라이스 SOCIAL — 자세히는 docs/migration-v2/11-SOCIAL.md"
+    },
+    {
+      "title": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "description": "슬라이스 ANNOTATE — 자세히는 docs/migration-v2/11-ANNOTATE.md"
+    },
+    {
+      "title": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "description": "슬라이스 ADMIN — 자세히는 docs/migration-v2/11-ADMIN.md"
+    },
+    {
+      "title": "v2/CUTOVER — 실 컷오버",
+      "description": "슬라이스 CUTOVER — 자세히는 docs/migration-v2/11-CUTOVER.md"
+    }
+  ],
+  "issues": [
+    {
+      "id": "F-1",
+      "title": "[FOUND] maeil1dok-next/ 의존성 설치",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-1`\n\n## 작업 내용\nmaeil1dok-next/ 의존성 설치\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `npm install` exit 0 + node_modules 존재\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-2",
+      "title": "[FOUND] scripts/migrate/ 의존성 설치",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-2`\n\n## 작업 내용\nscripts/migrate/ 의존성 설치\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 동일\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-3",
+      "title": "[FOUND] `.env.local` 존재 + 키 검증",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-3`\n\n## 작업 내용\n`.env.local` 존재 + 키 검증\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 02 인벤토리 §12 의 필수 키 모두 존재\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-4",
+      "title": "[FOUND] TS 에러 5건 수정 — 1건당 1 PR 또는 1 commit",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-4`\n\n## 작업 내용\nTS 에러 5건 수정 — 1건당 1 PR 또는 1 commit\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `npx tsc --noEmit` exit 0\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-5",
+      "title": "[FOUND] `npm run build` 통과",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-5`\n\n## 작업 내용\n`npm run build` 통과\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — exit 0 + `.next/` 생성\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-6",
+      "title": "[FOUND] 런타임 스모크 — `npm start` 후 `/`, `/login`, `/maintenance` GET 200",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-6`\n\n## 작업 내용\n런타임 스모크 — `npm start` 후 `/`, `/login`, `/maintenance` GET 200\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl 3건 모두 200 (또는 의도된 302)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-7",
+      "title": "[FOUND] Vitest 4건 fail 원인 진단 (수정 vs 의도된 skip 결정)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-7`\n\n## 작업 내용\nVitest 4건 fail 원인 진단 (수정 vs 의도된 skip 결정)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — exit 0 또는 명시적 .skip + 사유 주석\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-8",
+      "title": "[FOUND] WIP 커밋 e5269db 분석 — Nuxt 변경 vs Next 변경 분리",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-8`\n\n## 작업 내용\nWIP 커밋 e5269db 분석 — Nuxt 변경 vs Next 변경 분리\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `git show e5269db --stat` 분석 보고서\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-9",
+      "title": "[FOUND] WIP의 frontend/ (Nuxt) 부분 처리 결정 (유지 / 폐기)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-9`\n\n## 작업 내용\nWIP의 frontend/ (Nuxt) 부분 처리 결정 (유지 / 폐기)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-9.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 사용자 결정\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-10",
+      "title": "[FOUND] WIP의 maeil1dok-next/ 부분 — 의미 있는 단위로 재커밋 또는 폐기 결정",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-10`\n\n## 작업 내용\nWIP의 maeil1dok-next/ 부분 — 의미 있는 단위로 재커밋 또는 폐기 결정\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-10.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 사용자 결정\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-11",
+      "title": "[FOUND] `.omo/` 작업 산출물 보존 (gitignore 확인 또는 별도 archive)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-11`\n\n## 작업 내용\n`.omo/` 작업 산출물 보존 (gitignore 확인 또는 별도 archive)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `.omo/`가 .gitignore에 있거나 명시적 보존 결정\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-12",
+      "title": "[FOUND] pre-push hook 도입 — `WIP` prefix 차단 (00-meta-system §2.6)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-12`\n\n## 작업 내용\npre-push hook 도입 — `WIP` prefix 차단 (00-meta-system §2.6)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — hook 동작 검증 (테스트 WIP 푸시 시도 → 차단)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-13",
+      "title": "[FOUND] placeholder 텍스트 grep CI 추가 — \"구현 예정\", \"TODO production\" 검출 시 CI fail",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-13`\n\n## 작업 내용\nplaceholder 텍스트 grep CI 추가 — \"구현 예정\", \"TODO production\" 검출 시 CI fail\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — CI workflow 파일 + 의도적 테스트 푸시로 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-14",
+      "title": "[FOUND] Plan-checksum 동기화 스크립트 — docs/migration-v2/10-plan-overview.md + 11-*.md 변경 시 메타",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-14`\n\n## 작업 내용\nPlan-checksum 동기화 스크립트 — docs/migration-v2/10-plan-overview.md + 11-*.md 변경 시 메타 갱신\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-14.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 스크립트 + npm run plan-sync\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-1",
+      "title": "[AUTH] Supabase 프로젝트의 Auth Settings 검증: Site URL=`https://maeil1dok.app`, Additional Re",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-1`\n\n## 작업 내용\nSupabase 프로젝트의 Auth Settings 검증: Site URL=`https://maeil1dok.app`, Additional Redirect URLs 정확\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — dashboard 스크린샷 + curl 콜백 동작 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-2",
+      "title": "[AUTH] Kakao/Google OAuth Provider 등록 — Client ID/Secret 적용 + 콜백 URL 확인",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-2`\n\n## 작업 내용\nKakao/Google OAuth Provider 등록 — Client ID/Secret 적용 + 콜백 URL 확인\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — OAuth 진입 → Supabase 콜백 도달 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-3",
+      "title": "[AUTH] Apple Sign In Provider 등록 (Service ID + Private Key)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-3`\n\n## 작업 내용\nApple Sign In Provider 등록 (Service ID + Private Key)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 동일\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-4",
+      "title": "[AUTH] 이메일 로그인 — `signInWithPassword` 흐름",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-4`\n\n## 작업 내용\n이메일 로그인 — `signInWithPassword` 흐름\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — playwright: 가입→로그인→리프레시 후 세션 유지\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-5",
+      "title": "[AUTH] 이메일 가입 — `signUp` + email confirmation",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-5`\n\n## 작업 내용\n이메일 가입 — `signUp` + email confirmation\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — playwright: 가입→확인 메일 수신→인증 클릭→자동 로그인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-6",
+      "title": "[AUTH] Kakao 로그인 — `signInWithOAuth` 흐름",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-6`\n\n## 작업 내용\nKakao 로그인 — `signInWithOAuth` 흐름\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — playwright: 카카오 진입 → 콜백 → 인증된 페이지 도달\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-7",
+      "title": "[AUTH] Google 로그인 — 동일",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-7`\n\n## 작업 내용\nGoogle 로그인 — 동일\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 동일\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-8",
+      "title": "[AUTH] Apple 로그인 — Apple은 POST 콜백 처리 (middleware.ts §16 존재)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-8`\n\n## 작업 내용\nApple 로그인 — Apple은 POST 콜백 처리 (middleware.ts §16 존재)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 동일\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-9",
+      "title": "[AUTH] 로그아웃 — `signOut` + 세션 정리",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-9`\n\n## 작업 내용\n로그아웃 — `signOut` + 세션 정리\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-9.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl: 로그아웃 후 보호 라우트 401\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-10",
+      "title": "[AUTH] 세션 새로고침 — `updateSession` middleware 동작 검증",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-10`\n\n## 작업 내용\n세션 새로고침 — `updateSession` middleware 동작 검증\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-10.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — playwright: 5분 idle 후 새로고침 → 세션 유지\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-11",
+      "title": "[AUTH] 비밀번호 재설정 메일 발송 — `resetPasswordForEmail`",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-11`\n\n## 작업 내용\n비밀번호 재설정 메일 발송 — `resetPasswordForEmail`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 메일 수신 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-12",
+      "title": "[AUTH] 재설정 토큰으로 새 비밀번호 설정 — `updateUser({password})`",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-12`\n\n## 작업 내용\n재설정 토큰으로 새 비밀번호 설정 — `updateUser({password})`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 새 비번 로그인 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-13",
+      "title": "[AUTH] \"마이그레이션된 비밀번호 사용자\" 안내 — 첫 로그인 시 비번 재설정 강제 흐름",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-13`\n\n## 작업 내용\n\"마이그레이션된 비밀번호 사용자\" 안내 — 첫 로그인 시 비번 재설정 강제 흐름\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — UX: 가입 시 metadata.requires_password_reset 플래그\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-14",
+      "title": "[AUTH] 현재 연동된 identity 목록 — `auth.identities` 쿼리 (Service role API route 필요)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-14`\n\n## 작업 내용\n현재 연동된 identity 목록 — `auth.identities` 쿼리 (Service role API route 필요)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-14.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Next API route + 화면 표시\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-15",
+      "title": "[AUTH] 추가 소셜 연동 — `linkIdentity()`",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-15`\n\n## 작업 내용\n추가 소셜 연동 — `linkIdentity()`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-15.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 연동 후 identities 표 갱신\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-16",
+      "title": "[AUTH] 소셜 연동 해제 — `unlinkIdentity()`",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-16`\n\n## 작업 내용\n소셜 연동 해제 — `unlinkIdentity()`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-16.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 해제 후 identities 표 갱신\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-17",
+      "title": "[AUTH] 회원 탈퇴 — soft delete (auth.users.user_metadata.scheduled_deletion) + 데이터 보존 정책",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-17`\n\n## 작업 내용\n회원 탈퇴 — soft delete (auth.users.user_metadata.scheduled_deletion) + 데이터 보존 정책\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-17.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정책 확정 + 실행\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-18",
+      "title": "[AUTH] 계정 병합 — Django의 `merged_into` 대응. v2 정책 결정 필요",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-18`\n\n## 작업 내용\n계정 병합 — Django의 `merged_into` 대응. v2 정책 결정 필요\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-18.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 결정 + 구현 또는 백로그 이전\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-19",
+      "title": "[AUTH] 닉네임 unique 정책 — `profiles.nickname UNIQUE` 또는 RPC 검증",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-19`\n\n## 작업 내용\n닉네임 unique 정책 — `profiles.nickname UNIQUE` 또는 RPC 검증\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-19.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — DB constraint + 사용 시 친절한 에러\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-20",
+      "title": "[AUTH] 닉네임 체크 API — `/api/check-nickname` Next route",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-20`\n\n## 작업 내용\n닉네임 체크 API — `/api/check-nickname` Next route\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-20.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 응답 200/409 동작\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "A-21",
+      "title": "[AUTH] 가입 시 닉네임 자동 제안 — Django는 OAuth 가입 시 보완 페이지로 보냄",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-21`\n\n## 작업 내용\n가입 시 닉네임 자동 제안 — Django는 OAuth 가입 시 보완 페이지로 보냄\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-21.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정책 정의 + 구현\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/AUTH — 인증 시스템",
+      "labels": [
+        "slice:AUTH",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-1",
+      "title": "[MIGRATE] Supabase Admin API rate limit 정확한 한계 측정 — 100명 batch 실험",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-1`\n\n## 작업 내용\nSupabase Admin API rate limit 정확한 한계 측정 — 100명 batch 실험\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 한계치 / 추천 delay 기록\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-2",
+      "title": "[MIGRATE] 사용자 skip 사유 enum 정의 + 사유별 카운트 출력",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-2`\n\n## 작업 내용\n사용자 skip 사유 enum 정의 + 사유별 카운트 출력\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 출력 검증: 누락 사용자 142명 = 모든 사유 합계\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-3",
+      "title": "[MIGRATE] 중복 이메일 (이메일 + 소셜 같은 이메일) 케이스 정책 — 자동 병합 or 명시적 알림",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-3`\n\n## 작업 내용\n중복 이메일 (이메일 + 소셜 같은 이메일) 케이스 정책 — 자동 병합 or 명시적 알림\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정책 + 코드 + 테스트\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-4",
+      "title": "[MIGRATE] `scheduled_deletion_at` / `merged_into` 사용자 처리 — skip but log to separate file",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-4`\n\n## 작업 내용\n`scheduled_deletion_at` / `merged_into` 사용자 처리 — skip but log to separate file\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `data/deleted_users.json` + `data/merged_users.json`\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-5",
+      "title": "[MIGRATE] `02-create-supabase-users.ts` v2 — 위 4개 반영",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5`\n\n## 작업 내용\n`02-create-supabase-users.ts` v2 — 위 4개 반영\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 실행 시 user_mapping.json 의 entries 수 = 활성 사용자 수 (203 - 의도적 skip)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-6",
+      "title": "[MIGRATE] `04-validate.ts` v2 — **분모 보정**: Valid Users (=Django total - 정당 skip) 기준. 일반 테이",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-6`\n\n## 작업 내용\n`04-validate.ts` v2 — **분모 보정**: Valid Users (=Django total - 정당 skip) 기준. 일반 테이블 5% / **Critical 3 테이블 (profiles/plan_subscriptions/user_progress) 0%** hard fail\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 의도적 1건 누락 주입 → user_progress 검증 시 exit 1\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-7",
+      "title": "[MIGRATE] FK 무결성 → 0 orphan 확인 (이미 통과 중이지만 강화)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-7`\n\n## 작업 내용\nFK 무결성 → 0 orphan 확인 (이미 통과 중이지만 강화)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 위반 시 hard fail\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-8",
+      "title": "[MIGRATE] 멱등성 검증 — 동일 마이그레이션 2회 → row count 변화 0",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-8`\n\n## 작업 내용\n멱등성 검증 — 동일 마이그레이션 2회 → row count 변화 0\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 검증 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-9",
+      "title": "[MIGRATE] 라운드 트립 샘플 — **20명** (max-data 5 + zero-data 5 + 무작위 10) × 모든 자식 테이블 row count 일치",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-9`\n\n## 작업 내용\n라운드 트립 샘플 — **20명** (max-data 5 + zero-data 5 + 무작위 10) × 모든 자식 테이블 row count 일치 + 필드 spot check\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-9.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-9b",
+      "title": "[MIGRATE] **Skip 사용자 spot check** (Momus R1 Hidden #2) — `data/skipped_users.json` 의 무작위 5",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-9b`\n\n## 작업 내용\n**Skip 사용자 spot check** (Momus R1 Hidden #2) — `data/skipped_users.json` 의 무작위 5명을 Django 측에서 직접 SELECT 해 `scheduled_deletion_at` / `merged_into` / 중복 이메일 여부 확인\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-9b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5/5 모두 정당 skip 입증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-10",
+      "title": "[MIGRATE] daily_schedules +7행 원인 추적 + 멱등성 fix",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-10`\n\n## 작업 내용\ndaily_schedules +7행 원인 추적 + 멱등성 fix\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-10.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 원인 보고서 + fix 적용 후 재현 시 +0\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-11",
+      "title": "[MIGRATE] [supabase/migrations/20260301000001_plan_f_new_tables.sql](file:///Users/jgp/Git",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-11`\n\n## 작업 내용\n[supabase/migrations/20260301000001_plan_f_new_tables.sql](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/supabase/migrations/20260301000001_plan_f_new_tables.sql) 검증 — bible_bookmarks/reflection_notes/personal_reading_records/migration_user_mapping\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 적용 + 스키마 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-12",
+      "title": "[MIGRATE] 그룹 기능 (`ReadingGroup`, `GroupMembership`, `GroupInvitation`) — v2 포함 여부 결정",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-12`\n\n## 작업 내용\n그룹 기능 (`ReadingGroup`, `GroupMembership`, `GroupInvitation`) — v2 포함 여부 결정\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 결정 + 포함 시 SQL 작성\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-13",
+      "title": "[MIGRATE] `BibleContentCache` — Supabase로 옮길지 / 재생성할지 결정",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-13`\n\n## 작업 내용\n`BibleContentCache` — Supabase로 옮길지 / 재생성할지 결정\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 결정 + 실행\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-14",
+      "title": "[MIGRATE] `01-extract-mysql.ts` 의 `main().catch(console.error)` → `process.exit(1)` 적용 (00",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-14`\n\n## 작업 내용\n`01-extract-mysql.ts` 의 `main().catch(console.error)` → `process.exit(1)` 적용 (00-meta-system F5 대응)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-14.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 실패 시 정확한 exit code\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-15",
+      "title": "[MIGRATE] `data/` 디렉토리 .gitignore 확실히 들어 있는지 검증 + 검증 명령 자동화",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-15`\n\n## 작업 내용\n`data/` 디렉토리 .gitignore 확실히 들어 있는지 검증 + 검증 명령 자동화\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-15.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — gitignore 확인 + CI 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-16",
+      "title": "[MIGRATE] `run-migration.ts` 의 step 4 fail 시 정확한 에러 메시지 + log path 출력",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-16`\n\n## 작업 내용\n`run-migration.ts` 의 step 4 fail 시 정확한 에러 메시지 + log path 출력\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-16.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — dry-run + 에러 시뮬레이션\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-1",
+      "title": "[DESIGN] playwright.config.ts 의 dark VRT testMatch ↔ ignore 충돌 제거",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-1`\n\n## 작업 내용\nplaywright.config.ts 의 dark VRT testMatch ↔ ignore 충돌 제거\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `npx playwright test --list` 에 dark VRT 등장\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-2",
+      "title": "[DESIGN] dark VRT 실 1회 실행 → baseline 갱신 또는 fail 명시",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-2`\n\n## 작업 내용\ndark VRT 실 1회 실행 → baseline 갱신 또는 fail 명시\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — snapshots 디렉토리 갱신 + commit\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-3",
+      "title": "[DESIGN] home-light 35,407 픽셀 diff 원인 — 의도된 변화 (디자인 업데이트) 라면 baseline 갱신, 회귀라면 fix",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-3`\n\n## 작업 내용\nhome-light 35,407 픽셀 diff 원인 — 의도된 변화 (디자인 업데이트) 라면 baseline 갱신, 회귀라면 fix\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — diff 원인 보고서 + 결정 + 적용\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-4",
+      "title": "[DESIGN] VRT 실행 시 fail 시 무시 금지 — CI 에 noUncommitted snapshot 강제",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-4`\n\n## 작업 내용\nVRT 실행 시 fail 시 무시 금지 — CI 에 noUncommitted snapshot 강제\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 의도 회귀 시도 → CI fail 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-5",
+      "title": "[DESIGN] login color contrast",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-5`\n\n## 작업 내용\nlogin color contrast\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — axe 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-6",
+      "title": "[DESIGN] register-email contrast",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-6`\n\n## 작업 내용\nregister-email contrast\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — axe 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-7",
+      "title": "[DESIGN] company contrast",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-7`\n\n## 작업 내용\ncompany contrast\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — axe 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-8",
+      "title": "[DESIGN] home contrast",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-8`\n\n## 작업 내용\nhome contrast\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — axe 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-9",
+      "title": "[DESIGN] plans contrast",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-9`\n\n## 작업 내용\nplans contrast\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-9.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — axe 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-10",
+      "title": "[DESIGN] reading contrast",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-10`\n\n## 작업 내용\nreading contrast\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-10.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — axe 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-11",
+      "title": "[DESIGN] settings contrast",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-11`\n\n## 작업 내용\nsettings contrast\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — axe 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-12",
+      "title": "[DESIGN] BookSelector.tsx 5월 변경 (525 line diff) — 책 선택 UX 회귀 검증",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-12`\n\n## 작업 내용\nBookSelector.tsx 5월 변경 (525 line diff) — 책 선택 UX 회귀 검증\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — playwright: 책 선택 → 본문 정상 (BUG-004 회귀 0)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-13",
+      "title": "[DESIGN] BibleReaderHeader, BibleReaderView.css 변경 — 헤더 + 본문 영역 시각 회귀",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-13`\n\n## 작업 내용\nBibleReaderHeader, BibleReaderView.css 변경 — 헤더 + 본문 영역 시각 회귀\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — VRT diff 0 px\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-14",
+      "title": "[DESIGN] buildInteractiveSrcDoc.ts (iframe) — 본문 렌더 영향",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-14`\n\n## 작업 내용\nbuildInteractiveSrcDoc.ts (iframe) — 본문 렌더 영향\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-14.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 11-READER 와 협업\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-15",
+      "title": "[DESIGN] 다크모드 토글 → 모든 페이지 즉시 반영",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-15`\n\n## 작업 내용\n다크모드 토글 → 모든 페이지 즉시 반영\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-15.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 라우트 × 라이트/다크 = 2N 스크린샷 비교\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-16",
+      "title": "[DESIGN] 시스템 테마 변경 → 자동 반영",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-16`\n\n## 작업 내용\n시스템 테마 변경 → 자동 반영\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-16.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — next-themes attribute=class 동작 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-17",
+      "title": "[DESIGN] CI VRT — PR 마다 자동 실행 + diff 결과 PR 코멘트",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-17`\n\n## 작업 내용\nCI VRT — PR 마다 자동 실행 + diff 결과 PR 코멘트\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-17.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 의도 회귀 PR → 빨강\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-18",
+      "title": "[DESIGN] placeholder grep — production 빌드에서 \"구현 예정\", \"TODO production\" 등 검출 시 CI fail (00",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-18`\n\n## 작업 내용\nplaceholder grep — production 빌드에서 \"구현 예정\", \"TODO production\" 등 검출 시 CI fail (00-meta §2.6)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-18.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 의도 검출 시 실패\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "D-19",
+      "title": "[DESIGN] a11y baseline — axe violations 0 외에 증가 시 fail",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:DESIGN`  \n**플랜**: docs/migration-v2/11-DESIGN.md  \n**작업 ID**: `D-19`\n\n## 작업 내용\na11y baseline — axe violations 0 외에 증가 시 fail\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/DESIGN-D-19.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 동일\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/DESIGN — 디자인 검증",
+      "labels": [
+        "slice:DESIGN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PW-1",
+      "title": "[PWA] manifest.webmanifest — 아이콘/이름/색상/start_url",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PWA`  \n**플랜**: docs/migration-v2/11-PWA.md  \n**작업 ID**: `PW-1`\n\n## 작업 내용\nmanifest.webmanifest — 아이콘/이름/색상/start_url\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Lighthouse PWA score\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PWA — PWA+FCM",
+      "labels": [
+        "slice:PWA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PW-2",
+      "title": "[PWA] 서비스 워커 — Next 의 next-pwa 또는 수동",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PWA`  \n**플랜**: docs/migration-v2/11-PWA.md  \n**작업 ID**: `PW-2`\n\n## 작업 내용\n서비스 워커 — Next 의 next-pwa 또는 수동\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — offline fallback 페이지 동작\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PWA — PWA+FCM",
+      "labels": [
+        "slice:PWA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PW-3",
+      "title": "[PWA] iOS PWA 호환 (메타 태그 + status bar)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PWA`  \n**플랜**: docs/migration-v2/11-PWA.md  \n**작업 ID**: `PW-3`\n\n## 작업 내용\niOS PWA 호환 (메타 태그 + status bar)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — iOS Safari 홈 추가 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PWA — PWA+FCM",
+      "labels": [
+        "slice:PWA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PW-6",
+      "title": "[PWA] Apple Sign In 리뷰 호환성 (Apple은 Sign In 시 push 표시 요구사항 있음)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PWA`  \n**플랜**: docs/migration-v2/11-PWA.md  \n**작업 ID**: `PW-6`\n\n## 작업 내용\nApple Sign In 리뷰 호환성 (Apple은 Sign In 시 push 표시 요구사항 있음)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Apple 리뷰 가이드 체크리스트\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PWA — PWA+FCM",
+      "labels": [
+        "slice:PWA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PW-4",
+      "title": "[PWA] FCM 토큰 발급 + Supabase 등록 — **Wave 1/2 에서는 Mock 만, 실 DB 기록은 11-MIGRATE 완료 후 (Wave ",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PWA`  \n**플랜**: docs/migration-v2/11-PWA.md  \n**작업 ID**: `PW-4`\n\n## 작업 내용\nFCM 토큰 발급 + Supabase 등록 — **Wave 1/2 에서는 Mock 만, 실 DB 기록은 11-MIGRATE 완료 후 (Wave 3 이상)**\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 로그인 후 토큰 row 존재\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PWA — PWA+FCM",
+      "labels": [
+        "slice:PWA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PW-5",
+      "title": "[PWA] 통독 리마인더 푸시 (Edge function 또는 cron)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PWA`  \n**플랜**: docs/migration-v2/11-PWA.md  \n**작업 ID**: `PW-5`\n\n## 작업 내용\n통독 리마인더 푸시 (Edge function 또는 cron)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PWA-PW-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 테스트 디바이스 수신\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PWA — PWA+FCM",
+      "labels": [
+        "slice:PWA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-1",
+      "title": "[READER] URL 파라미터 schema 정의 — `?book=jhn&chapter=3&version=GAE` (Zod)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-1`\n\n## 작업 내용\nURL 파라미터 schema 정의 — `?book=jhn&chapter=3&version=GAE` (Zod)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — schema 파일 + 잘못된 입력 → 기본값 fallback\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-2",
+      "title": "[READER] 책/장 선택 → URL push (replace) → state",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-2`\n\n## 작업 내용\n책/장 선택 → URL push (replace) → state\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — playwright: 선택 시 URL 정상 (BUG-004 회귀 0)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-3",
+      "title": "[READER] URL → fetch (시퀀스 일관)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-3`\n\n## 작업 내용\nURL → fetch (시퀀스 일관)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 동일 URL 진입 시 동일 본문\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-4",
+      "title": "[READER] 다음/이전 장 네비",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-4`\n\n## 작업 내용\n다음/이전 장 네비\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 양 끝 (창세기 1장 ← / 요한계시록 22장 →) 처리 명시\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-5",
+      "title": "[READER] bible-proxy 응답 schema 검증 + 정상/주석 분리",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-5`\n\n## 작업 내용\nbible-proxy 응답 schema 검증 + 정상/주석 분리\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 창세기 1:1 본문 텍스트 (e2e) \"태초에 하나님이 천지를 창조하시니라\" 등장\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-6",
+      "title": "[READER] 파서 통합 — 표준/KNT/GAE 분기 검증",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-6`\n\n## 작업 내용\n파서 통합 — 표준/KNT/GAE 분기 검증\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 4개 역본 × 3개 책 = 12 케이스 e2e\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-7",
+      "title": "[READER] iframe 렌더링 모드 — 폰트, MIME 정상",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-7`\n\n## 작업 내용\niframe 렌더링 모드 — 폰트, MIME 정상\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — iframe console 에 MIME error 0\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-8",
+      "title": "[READER] 절 번호 표시 / 단락 / 각주",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-8`\n\n## 작업 내용\n절 번호 표시 / 단락 / 각주\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 시각 회귀 (VRT) 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-9",
+      "title": "[READER] 구절 선택 → 메뉴 (북마크/노트/하이라이트) — UI 만 (실 동작은 11-ANNOTATE)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-9`\n\n## 작업 내용\n구절 선택 → 메뉴 (북마크/노트/하이라이트) — UI 만 (실 동작은 11-ANNOTATE)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-9.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — UI 동작\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-10",
+      "title": "[READER] 오디오 듣기 버튼 (`btn_listen.png` 누락 해결)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-10`\n\n## 작업 내용\n오디오 듣기 버튼 (`btn_listen.png` 누락 해결)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-10.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 자산 존재 + 클릭 동작\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-11",
+      "title": "[READER] 폰트/테마 설정 즉시 반영",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-11`\n\n## 작업 내용\n폰트/테마 설정 즉시 반영\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 설정 변경 시 본문 < 100ms 재렌더\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-12",
+      "title": "[READER] 모바일 (375px) 본문 가독성",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-12`\n\n## 작업 내용\n모바일 (375px) 본문 가독성\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — VRT pass + a11y color contrast pass\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-13",
+      "title": "[READER] 데스크탑 (1280px) max-width 적용",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-13`\n\n## 작업 내용\n데스크탑 (1280px) max-width 적용\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — VRT pass\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-14",
+      "title": "[READER] `reading-archived.vue` (7224) / `index-archived.vue` (2383) — Nuxt 측 폐기 결정",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-14`\n\n## 작업 내용\n`reading-archived.vue` (7224) / `index-archived.vue` (2383) — Nuxt 측 폐기 결정\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-14.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 사용자 결정 후 삭제 또는 동결\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "R-15",
+      "title": "[READER] Nuxt의 1198 라인 모놀리식 → Next는 화면-단위 분리 (header/reader/sidebar/menu)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:READER`  \n**플랜**: docs/migration-v2/11-READER.md  \n**작업 ID**: `R-15`\n\n## 작업 내용\nNuxt의 1198 라인 모놀리식 → Next는 화면-단위 분리 (header/reader/sidebar/menu)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/READER-R-15.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 컴포넌트 분리 + 각 파일 ≤ 300 라인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/READER — 성경 뷰어",
+      "labels": [
+        "slice:READER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "P-1",
+      "title": "[PLAN] 플랜 목록 fetch — Supabase `bible_reading_plans`",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-1`\n\n## 작업 내용\n플랜 목록 fetch — Supabase `bible_reading_plans`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — e2e: 플랜 6개 표시\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PLAN — 통독 플랜·일정",
+      "labels": [
+        "slice:PLAN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "P-2",
+      "title": "[PLAN] 플랜 구독 — `plan_subscriptions` insert",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-2`\n\n## 작업 내용\n플랜 구독 — `plan_subscriptions` insert\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — RLS 정책 통과 + insert 동작\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PLAN — 통독 플랜·일정",
+      "labels": [
+        "slice:PLAN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "P-3",
+      "title": "[PLAN] 플랜 해지 — soft (is_active=false) vs hard delete",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-3`\n\n## 작업 내용\n플랜 해지 — soft (is_active=false) vs hard delete\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정책 결정 + 구현\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PLAN — 통독 플랜·일정",
+      "labels": [
+        "slice:PLAN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "P-4",
+      "title": "[PLAN] 플랜 일정 캘린더 (`daily_schedules`) — 월간 뷰",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-4`\n\n## 작업 내용\n플랜 일정 캘린더 (`daily_schedules`) — 월간 뷰\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 데스크탑 + 모바일 VRT\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PLAN — 통독 플랜·일정",
+      "labels": [
+        "slice:PLAN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "P-5",
+      "title": "[PLAN] 일정 상세 (today / tomorrow / arbitrary date)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-5`\n\n## 작업 내용\n일정 상세 (today / tomorrow / arbitrary date)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — e2e 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PLAN — 통독 플랜·일정",
+      "labels": [
+        "slice:PLAN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "P-6",
+      "title": "[PLAN] 비디오 인트로 (`video_bible_intros`) — 책별 영상",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-6`\n\n## 작업 내용\n비디오 인트로 (`video_bible_intros`) — 책별 영상\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 표시 + 재생\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PLAN — 통독 플랜·일정",
+      "labels": [
+        "slice:PLAN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "P-7",
+      "title": "[PLAN] 11-MIGRATE 통과 후 plan_subscriptions row count = 463 (Django 기준)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-7`\n\n## 작업 내용\n11-MIGRATE 통과 후 plan_subscriptions row count = 463 (Django 기준)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — row count 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PLAN — 통독 플랜·일정",
+      "labels": [
+        "slice:PLAN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "P-8",
+      "title": "[PLAN] UserPlanDisplaySettings — 사용자별 색상/순서 설정 마이그레이션",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-8`\n\n## 작업 내용\nUserPlanDisplaySettings — 사용자별 색상/순서 설정 마이그레이션\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 463/463\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PLAN — 통독 플랜·일정",
+      "labels": [
+        "slice:PLAN",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-1",
+      "title": "[PROGRESS] 읽음 토글 API (Next route) — `user_progress` upsert",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-1`\n\n## 작업 내용\n읽음 토글 API (Next route) — `user_progress` upsert\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — e2e: 토글 → DB 반영 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-2",
+      "title": "[PROGRESS] 토글 idempotent — 같은 요청 2회 → 1행",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-2`\n\n## 작업 내용\n토글 idempotent — 같은 요청 2회 → 1행\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-3",
+      "title": "[PROGRESS] 다중 일정 (오늘 + 내일 같이 읽음 표시)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-3`\n\n## 작업 내용\n다중 일정 (오늘 + 내일 같이 읽음 표시)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — UI/UX 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-4",
+      "title": "[PROGRESS] 사용자 통계 — 완독 일수, current/longest streak",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-4`\n\n## 작업 내용\n사용자 통계 — 완독 일수, current/longest streak\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — profiles 의 stats 컬럼 활용 또는 RPC\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-5",
+      "title": "[PROGRESS] 플랜 진도율 — 구독 기간 대비 완료율",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-5`\n\n## 작업 내용\n플랜 진도율 — 구독 기간 대비 완료율\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정확성 검증 (Django와 비교)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-6",
+      "title": "[PROGRESS] 사용자 잔디밭 (1년 일별 색상) — profile 페이지용",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-6`\n\n## 작업 내용\n사용자 잔디밭 (1년 일별 색상) — profile 페이지용\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 11-PROFILE 와 협업\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-7",
+      "title": "[PROGRESS] 일자별 읽은 본문 조회",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-7`\n\n## 작업 내용\n일자별 읽은 본문 조회\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `personal_reading_records` 테이블 + RPC\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-8",
+      "title": "[PROGRESS] 책별 정복 현황",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-8`\n\n## 작업 내용\n책별 정복 현황\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `personal_reading_records`\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-9",
+      "title": "[PROGRESS] 월간 캘린더 — 완독 / 부분 완독 / 미완료 색상",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-9`\n\n## 작업 내용\n월간 캘린더 — 완독 / 부분 완독 / 미완료 색상\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-9.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — VRT pass\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-10",
+      "title": "[PROGRESS] 멀티 플랜 색상 (`user_plan_display_settings.color`)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-10`\n\n## 작업 내용\n멀티 플랜 색상 (`user_plan_display_settings.color`)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-10.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 색상 일치 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-11",
+      "title": "[PROGRESS] RLS 정책 — user_progress 는 본인만 read/write",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-11`\n\n## 작업 내용\nRLS 정책 — user_progress 는 본인만 read/write\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 다른 사용자 user_id 로 시도 → 401\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PR-12",
+      "title": "[PROGRESS] 마이그레이션 round-trip 검증 — 5명 샘플의 progress 100% 일치",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROGRESS`  \n**플랜**: docs/migration-v2/11-PROGRESS.md  \n**작업 ID**: `PR-12`\n\n## 작업 내용\n마이그레이션 round-trip 검증 — 5명 샘플의 progress 100% 일치\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROGRESS-PR-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — round-trip 리포트\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROGRESS — 진도 추적",
+      "labels": [
+        "slice:PROGRESS",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "H-1",
+      "title": "[HASENA] 오늘 하세나 요약 + 본문 표시",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:HASENA`  \n**플랜**: docs/migration-v2/11-HASENA.md  \n**작업 ID**: `H-1`\n\n## 작업 내용\n오늘 하세나 요약 + 본문 표시\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/HASENA-H-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — e2e 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/HASENA — 하세나",
+      "labels": [
+        "slice:HASENA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "H-2",
+      "title": "[HASENA] 완료 토글 (`hasena_records`)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:HASENA`  \n**플랜**: docs/migration-v2/11-HASENA.md  \n**작업 ID**: `H-2`\n\n## 작업 내용\n완료 토글 (`hasena_records`)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/HASENA-H-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — DB upsert + 멱등\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/HASENA — 하세나",
+      "labels": [
+        "slice:HASENA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "H-3",
+      "title": "[HASENA] 과거 일자 조회",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:HASENA`  \n**플랜**: docs/migration-v2/11-HASENA.md  \n**작업 ID**: `H-3`\n\n## 작업 내용\n과거 일자 조회\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/HASENA-H-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 캘린더 모달 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/HASENA — 하세나",
+      "labels": [
+        "slice:HASENA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "H-4",
+      "title": "[HASENA] 요약 regenerate (관리자만) — Admin 슬라이스로 이관 결정 가능",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:HASENA`  \n**플랜**: docs/migration-v2/11-HASENA.md  \n**작업 ID**: `H-4`\n\n## 작업 내용\n요약 regenerate (관리자만) — Admin 슬라이스로 이관 결정 가능\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/HASENA-H-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 결정\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/HASENA — 하세나",
+      "labels": [
+        "slice:HASENA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "H-5",
+      "title": "[HASENA] 마이그레이션: HasenaRecord 383 / HasenaSummary 6 row count Django==Supabase",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:HASENA`  \n**플랜**: docs/migration-v2/11-HASENA.md  \n**작업 ID**: `H-5`\n\n## 작업 내용\n마이그레이션: HasenaRecord 383 / HasenaSummary 6 row count Django==Supabase\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/HASENA-H-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5% hard fail 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/HASENA — 하세나",
+      "labels": [
+        "slice:HASENA",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "CA-1",
+      "title": "[CATCHUP] TS 에러 (CatchupClient missingCount) 해결 — 11-FOUND 와 협업",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CATCHUP`  \n**플랜**: docs/migration-v2/11-CATCHUP.md  \n**작업 ID**: `CA-1`\n\n## 작업 내용\nTS 에러 (CatchupClient missingCount) 해결 — 11-FOUND 와 협업\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CATCHUP-CA-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — tsc clean\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CATCHUP — 캐치업",
+      "labels": [
+        "slice:CATCHUP",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "CA-2",
+      "title": "[CATCHUP] 밀린 일정 preview — strategy/range 입력 → 재배치 시뮬레이션 결과",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CATCHUP`  \n**플랜**: docs/migration-v2/11-CATCHUP.md  \n**작업 ID**: `CA-2`\n\n## 작업 내용\n밀린 일정 preview — strategy/range 입력 → 재배치 시뮬레이션 결과\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CATCHUP-CA-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — e2e\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CATCHUP — 캐치업",
+      "labels": [
+        "slice:CATCHUP",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "CA-3",
+      "title": "[CATCHUP] catchup session 생성",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CATCHUP`  \n**플랜**: docs/migration-v2/11-CATCHUP.md  \n**작업 ID**: `CA-3`\n\n## 작업 내용\ncatchup session 생성\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CATCHUP-CA-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — DB insert + 일정 row N개\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CATCHUP — 캐치업",
+      "labels": [
+        "slice:CATCHUP",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "CA-4",
+      "title": "[CATCHUP] catchup 일정 완료 토글",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CATCHUP`  \n**플랜**: docs/migration-v2/11-CATCHUP.md  \n**작업 ID**: `CA-4`\n\n## 작업 내용\ncatchup 일정 완료 토글\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CATCHUP-CA-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 멱등\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CATCHUP — 캐치업",
+      "labels": [
+        "slice:CATCHUP",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "CA-5",
+      "title": "[CATCHUP] 세션 중도 포기/완료",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CATCHUP`  \n**플랜**: docs/migration-v2/11-CATCHUP.md  \n**작업 ID**: `CA-5`\n\n## 작업 내용\n세션 중도 포기/완료\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CATCHUP-CA-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 상태 전환 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CATCHUP — 캐치업",
+      "labels": [
+        "slice:CATCHUP",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "CA-6",
+      "title": "[CATCHUP] 마이그레이션: 0행 → 0행 (스키마만, 데이터 없음)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CATCHUP`  \n**플랜**: docs/migration-v2/11-CATCHUP.md  \n**작업 ID**: `CA-6`\n\n## 작업 내용\n마이그레이션: 0행 → 0행 (스키마만, 데이터 없음)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CATCHUP-CA-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — row count 일치\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CATCHUP — 캐치업",
+      "labels": [
+        "slice:CATCHUP",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PF-1",
+      "title": "[PROFILE] 프로필 표시 (본인/타인)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROFILE`  \n**플랜**: docs/migration-v2/11-PROFILE.md  \n**작업 ID**: `PF-1`\n\n## 작업 내용\n프로필 표시 (본인/타인)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROFILE-PF-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — RLS + e2e\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROFILE — 프로필·업적·잔디",
+      "labels": [
+        "slice:PROFILE",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PF-2",
+      "title": "[PROFILE] 프로필 편집 (닉네임/이미지/공개여부)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROFILE`  \n**플랜**: docs/migration-v2/11-PROFILE.md  \n**작업 ID**: `PF-2`\n\n## 작업 내용\n프로필 편집 (닉네임/이미지/공개여부)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROFILE-PF-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — nickname unique 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROFILE — 프로필·업적·잔디",
+      "labels": [
+        "slice:PROFILE",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PF-3",
+      "title": "[PROFILE] 잔디 (1년 일별 색상 grid)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROFILE`  \n**플랜**: docs/migration-v2/11-PROFILE.md  \n**작업 ID**: `PF-3`\n\n## 작업 내용\n잔디 (1년 일별 색상 grid)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROFILE-PF-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — VRT\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROFILE — 프로필·업적·잔디",
+      "labels": [
+        "slice:PROFILE",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PF-4",
+      "title": "[PROFILE] 업적 — Plan F 폐기 후 v2 재계산 로직",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROFILE`  \n**플랜**: docs/migration-v2/11-PROFILE.md  \n**작업 ID**: `PF-4`\n\n## 작업 내용\n업적 — Plan F 폐기 후 v2 재계산 로직\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROFILE-PF-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — streak 기반 자동 산출 RPC\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROFILE — 프로필·업적·잔디",
+      "labels": [
+        "slice:PROFILE",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "PF-5",
+      "title": "[PROFILE] 팔로워/팔로잉 카운트 + 모달",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PROFILE`  \n**플랜**: docs/migration-v2/11-PROFILE.md  \n**작업 ID**: `PF-5`\n\n## 작업 내용\n팔로워/팔로잉 카운트 + 모달\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PROFILE-PF-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 11-SOCIAL 와 협업\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/PROFILE — 프로필·업적·잔디",
+      "labels": [
+        "slice:PROFILE",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "S-1",
+      "title": "[SOCIAL] 팔로우/언팔로우",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-1`\n\n## 작업 내용\n팔로우/언팔로우\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — upsert/delete + 카운트\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/SOCIAL — 친구·스코어보드",
+      "labels": [
+        "slice:SOCIAL",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "S-2",
+      "title": "[SOCIAL] 친구 검색",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-2`\n\n## 작업 내용\n친구 검색\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — nickname/email 부분 일치\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/SOCIAL — 친구·스코어보드",
+      "labels": [
+        "slice:SOCIAL",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "S-3",
+      "title": "[SOCIAL] 친구 피드 (진행 상황)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-3`\n\n## 작업 내용\n친구 피드 (진행 상황)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 페이징\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/SOCIAL — 친구·스코어보드",
+      "labels": [
+        "slice:SOCIAL",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "S-4",
+      "title": "[SOCIAL] 그룹 목록 + 가입/탈퇴",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-4`\n\n## 작업 내용\n그룹 목록 + 가입/탈퇴\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (PRE-7 결정 필요 — 그룹 포함 여부)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/SOCIAL — 친구·스코어보드",
+      "labels": [
+        "slice:SOCIAL",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "S-5",
+      "title": "[SOCIAL] 그룹 리더보드",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-5`\n\n## 작업 내용\n그룹 리더보드\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정렬 + 페이징\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/SOCIAL — 친구·스코어보드",
+      "labels": [
+        "slice:SOCIAL",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "S-6",
+      "title": "[SOCIAL] 그룹 멤버 캘린더 모달",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-6`\n\n## 작업 내용\n그룹 멤버 캘린더 모달\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — VRT\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/SOCIAL — 친구·스코어보드",
+      "labels": [
+        "slice:SOCIAL",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "S-7",
+      "title": "[SOCIAL] 스코어보드 (개인 + 하세나)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-7`\n\n## 작업 내용\n스코어보드 (개인 + 하세나)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 필터 (이번달/주/전체)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/SOCIAL — 친구·스코어보드",
+      "labels": [
+        "slice:SOCIAL",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "S-8",
+      "title": "[SOCIAL] T0002·T0004 회귀 방지 (audit_tmp): 필터 클릭 시 홈 리다이렉트 / 뒤로가기 500 에러",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-8`\n\n## 작업 내용\nT0002·T0004 회귀 방지 (audit_tmp): 필터 클릭 시 홈 리다이렉트 / 뒤로가기 500 에러\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 50회 반복 fuzz 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/SOCIAL — 친구·스코어보드",
+      "labels": [
+        "slice:SOCIAL",
+        "P2",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-1",
+      "title": "[ANNOTATE] 본문에서 구절 선택 → 메뉴 → 북마크 추가",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-1`\n\n## 작업 내용\n본문에서 구절 선택 → 메뉴 → 북마크 추가\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 11-READER 와 협업\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-2",
+      "title": "[ANNOTATE] 북마크 목록 페이지 — `/bible/bookmarks`",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-2`\n\n## 작업 내용\n북마크 목록 페이지 — `/bible/bookmarks`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — e2e + RLS\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-3",
+      "title": "[ANNOTATE] 하이라이트 색상 선택 + 적용 (5색)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-3`\n\n## 작업 내용\n하이라이트 색상 선택 + 적용 (5색)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 본문 텍스트에 색 반영\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-4",
+      "title": "[ANNOTATE] 하이라이트 목록 — `/bible/highlights` (BUG-005 placeholder 제거 의무)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-4`\n\n## 작업 내용\n하이라이트 목록 — `/bible/highlights` (BUG-005 placeholder 제거 의무)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — placeholder grep 0\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-5",
+      "title": "[ANNOTATE] 노트 작성 — 제목/내용/공개여부",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-5`\n\n## 작업 내용\n노트 작성 — 제목/내용/공개여부\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — CRUD\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-6",
+      "title": "[ANNOTATE] 노트 목록 + 상세",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-6`\n\n## 작업 내용\n노트 목록 + 상세\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — e2e\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-7",
+      "title": "[ANNOTATE] 일괄 삭제 (`bookmarks/delete-all/` 등)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-7`\n\n## 작업 내용\n일괄 삭제 (`bookmarks/delete-all/` 등)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 확인 모달\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-8",
+      "title": "[ANNOTATE] 마이그레이션: 3 신규 테이블 데이터 row count 일치",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-8`\n\n## 작업 내용\n마이그레이션: 3 신규 테이블 데이터 row count 일치\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5% hard fail\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AN-9",
+      "title": "[ANNOTATE] BibleHighlight.memo 처리 — Plan F 는 제외, v2 결정 (MD-3)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ANNOTATE`  \n**플랜**: docs/migration-v2/11-ANNOTATE.md  \n**작업 ID**: `AN-9`\n\n## 작업 내용\nBibleHighlight.memo 처리 — Plan F 는 제외, v2 결정 (MD-3)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ANNOTATE-AN-9.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 결정 + 구현\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트",
+      "labels": [
+        "slice:ANNOTATE",
+        "P1",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AD-1",
+      "title": "[ADMIN] 운영자 권한 모델 — auth.users.user_metadata.role='admin' 또는 별도 admins 테이블",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-1`\n\n## 작업 내용\n운영자 권한 모델 — auth.users.user_metadata.role='admin' 또는 별도 admins 테이블\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정책 확정\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "labels": [
+        "slice:ADMIN",
+        "P3",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AD-2",
+      "title": "[ADMIN] 보호된 라우트 (/admin/*) — 미들웨어 가드",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-2`\n\n## 작업 내용\n보호된 라우트 (/admin/*) — 미들웨어 가드\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 비관리자 → 403\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "labels": [
+        "slice:ADMIN",
+        "P3",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AD-3",
+      "title": "[ADMIN] 하세나 요약 생성/재생성 — Gemini API 호출 (Vercel Edge function)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-3`\n\n## 작업 내용\n하세나 요약 생성/재생성 — Gemini API 호출 (Vercel Edge function)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — UI + API 동작 (없으면 컷오버 후 신규 요약 차단 — CORE)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "labels": [
+        "slice:ADMIN",
+        "P3",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AD-4",
+      "title": "[ADMIN] 통독 플랜 엑셀 업로드 → daily_schedules 생성",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-4`\n\n## 작업 내용\n통독 플랜 엑셀 업로드 → daily_schedules 생성\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 업로드 후 row 추가 검증 (없으면 신규 플랜 생성 불가능 — CORE)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "labels": [
+        "slice:ADMIN",
+        "P3",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AD-5",
+      "title": "[ADMIN] 비디오 인트로 업로드",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-5`\n\n## 작업 내용\n비디오 인트로 업로드\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 동일 (CORE — 매주 새 영상 등록 필요)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "labels": [
+        "slice:ADMIN",
+        "P3",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AD-6",
+      "title": "[ADMIN] Django admin 의 나머지 모델 — Supabase Studio 안내 (커스텀 admin 작성 X)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-6`\n\n## 작업 내용\nDjango admin 의 나머지 모델 — Supabase Studio 안내 (커스텀 admin 작성 X)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — README 안내\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "labels": [
+        "slice:ADMIN",
+        "P3",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AD-7",
+      "title": "[ADMIN] Admin 대시보드 (사용자 수, 활동량 등)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-7`\n\n## 작업 내용\nAdmin 대시보드 (사용자 수, 활동량 등)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 별도 컷오버\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "labels": [
+        "slice:ADMIN",
+        "P3",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "AD-8",
+      "title": "[ADMIN] 사용자 검색/관리",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-8`\n\n## 작업 내용\n사용자 검색/관리\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 별도\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "labels": [
+        "slice:ADMIN",
+        "P3",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-1",
+      "title": "[CUTOVER] 모든 11-* 슬라이스 통과 확인 (GitHub Milestone 모두 closed)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-1`\n\n## 작업 내용\n모든 11-* 슬라이스 통과 확인 (GitHub Milestone 모두 closed)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Milestone state 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-2",
+      "title": "[CUTOVER] 라이브 사이트의 (Nuxt) 최종 백업 — DB dump + 정적 자산",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-2`\n\n## 작업 내용\n라이브 사이트의 (Nuxt) 최종 백업 — DB dump + 정적 자산\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `final_backup_YYYYMMDD.sql` + S3 / 외부 보관\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-3",
+      "title": "[CUTOVER] Supabase 프로젝트 클린 상태 검증 — 이전 부분 마이그레이션 데이터 제거됨",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-3`\n\n## 작업 내용\nSupabase 프로젝트 클린 상태 검증 — 이전 부분 마이그레이션 데이터 제거됨\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — row count 0 (모든 user-data 테이블)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-4",
+      "title": "[CUTOVER] OAuth 리디렉트 URI 업데이트 (Kakao/Google/Apple Developer Console)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-4`\n\n## 작업 내용\nOAuth 리디렉트 URI 업데이트 (Kakao/Google/Apple Developer Console)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — playwright로 각 OAuth 진입 → Supabase 콜백 URL 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-5",
+      "title": "[CUTOVER] Vercel 커스텀 도메인 추가 + SSL 발급 확인",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-5`\n\n## 작업 내용\nVercel 커스텀 도메인 추가 + SSL 발급 확인\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `https://maeil1dok.app` curl HEAD → x-vercel-id 헤더\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-6",
+      "title": "[CUTOVER] 11-MIGRATE 의 풀 dry-run 다시 실행 — 100% 매핑 검증",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-6`\n\n## 작업 내용\n11-MIGRATE 의 풀 dry-run 다시 실행 — 100% 매핑 검증\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — validation_report.json overall=pass + 5% 임계 0건 위반\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-7",
+      "title": "[CUTOVER] 점검 공지 게시 — 사용자 알림 (메일 또는 SNS)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-7`\n\n## 작업 내용\n점검 공지 게시 — 사용자 알림 (메일 또는 SNS)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 공지 url + 게시 스크린샷\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-8",
+      "title": "[CUTOVER] `MAINTENANCE_MODE=true` 활성화 (Vercel env, Nuxt 측 동일)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-8`\n\n## 작업 내용\n`MAINTENANCE_MODE=true` 활성화 (Vercel env, Nuxt 측 동일)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl `/` → `/maintenance` 302\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-9",
+      "title": "[CUTOVER] Django/Nuxt 측 maintenance 페이지로 전환",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9`\n\n## 작업 내용\nDjango/Nuxt 측 maintenance 페이지로 전환\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl 응답 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-9b",
+      "title": "[CUTOVER] **Hard DB Lock** — MySQL 사용자 권한 REVOKE INSERT/UPDATE/DELETE (또는 `FLUSH TABLES WI",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9b`\n\n## 작업 내용\n**Hard DB Lock** — MySQL 사용자 권한 REVOKE INSERT/UPDATE/DELETE (또는 `FLUSH TABLES WITH READ LOCK`). 모바일 클라이언트가 토큰 가지고 직접 호출해도 데이터 변경 0 보장\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `INSERT` 시도 → ER_TABLEACCESS_DENIED. 검증 query 결과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-10",
+      "title": "[CUTOVER] 라이브 데이터 최종 추출 (MySQL dump)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-10`\n\n## 작업 내용\n라이브 데이터 최종 추출 (MySQL dump)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-10.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — snapshot 파일\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-11",
+      "title": "[CUTOVER] 마이그레이션 풀 실행 (real, dry-run 아님)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-11`\n\n## 작업 내용\n마이그레이션 풀 실행 (real, dry-run 아님)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-11.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — validation_report.json overall=pass + Critical 3 테이블 0% 손실 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-12",
+      "title": "[CUTOVER] Cloudflare DNS 전환 — A→CNAME (Vercel)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-12`\n\n## 작업 내용\nCloudflare DNS 전환 — A→CNAME (Vercel)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `dig maeil1dok.app` → Vercel IP\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-13",
+      "title": "[CUTOVER] `MAINTENANCE_MODE=false` 비활성화",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-13`\n\n## 작업 내용\n`MAINTENANCE_MODE=false` 비활성화\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl `/` → 200\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-14",
+      "title": "[CUTOVER] 즉시 스모크 테스트 — OAuth 1건 + 본문 1건 + 진도 조회 1건",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-14`\n\n## 작업 내용\n즉시 스모크 테스트 — OAuth 1건 + 본문 1건 + 진도 조회 1건\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-14.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Playwright session 3건 모두 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-14b",
+      "title": "[CUTOVER] **VPS Django 측은 read-only 유지** — DNS 캐시 잔존 사용자 (최대 48h) 보호. INSERT/UPDATE 권한 미복구",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-14b`\n\n## 작업 내용\n**VPS Django 측은 read-only 유지** — DNS 캐시 잔존 사용자 (최대 48h) 보호. INSERT/UPDATE 권한 미복구\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-14b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — DNS 전파 모니터링\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-15",
+      "title": "[CUTOVER] Vercel 로그 모니터링 — 5xx, 4xx, 인증 실패 비율 추적",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-15`\n\n## 작업 내용\nVercel 로그 모니터링 — 5xx, 4xx, 인증 실패 비율 추적\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-15.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 24h 로그 리포트\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-16",
+      "title": "[CUTOVER] Supabase 사용량/에러 모니터링",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-16`\n\n## 작업 내용\nSupabase 사용량/에러 모니터링\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-16.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — dashboard 스크린샷\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-17",
+      "title": "[CUTOVER] 사용자 문의 채널 모니터링",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-17`\n\n## 작업 내용\n사용자 문의 채널 모니터링\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-17.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — issue tracker\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-18",
+      "title": "[CUTOVER] OAuth 재로그인 안내 푸시 (FCM 또는 메일) — 비밀번호 재설정 필요한 사용자",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-18`\n\n## 작업 내용\nOAuth 재로그인 안내 푸시 (FCM 또는 메일) — 비밀번호 재설정 필요한 사용자\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-18.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 안내 발송 로그\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-19",
+      "title": "[CUTOVER] 데이터 정합성 재검증 — 7일 후 1회 더",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-19`\n\n## 작업 내용\n데이터 정합성 재검증 — 7일 후 1회 더\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-19.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — validate.ts 재실행 + 신규 사용자 통계\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-20",
+      "title": "[CUTOVER] 직전 7일 동안의 사용자 활동량 비교 (Nuxt 마지막 7일 vs Next 첫 7일)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-20`\n\n## 작업 내용\n직전 7일 동안의 사용자 활동량 비교 (Nuxt 마지막 7일 vs Next 첫 7일)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-20.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 추세 그래프\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-21",
+      "title": "[CUTOVER] VPS Django 컨테이너 중지",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-21`\n\n## 작업 내용\nVPS Django 컨테이너 중지\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-21.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `docker compose down` 출력\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-22",
+      "title": "[CUTOVER] VPS 서버 자체 폐기 결정 (1주 stable 후)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-22`\n\n## 작업 내용\nVPS 서버 자체 폐기 결정 (1주 stable 후)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-22.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 사용자 결정 + 인보이스 정리\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-23",
+      "title": "[CUTOVER] 1개월 후: `migration_user_mapping` 테이블 드랍",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-23`\n\n## 작업 내용\n1개월 후: `migration_user_mapping` 테이블 드랍\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-23.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — SQL 실행 로그\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-24",
+      "title": "[CUTOVER] 1개월 후: `scripts/migrate/data/` 디렉토리 삭제 (민감 데이터)",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-24`\n\n## 작업 내용\n1개월 후: `scripts/migrate/data/` 디렉토리 삭제 (민감 데이터)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-24.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — rm + 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    }
+  ]
+}

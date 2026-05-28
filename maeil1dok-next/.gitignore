@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Migration toolkit — extracted production user data (sensitive, never commit)
+scripts/migrate/data/
+scripts/migrate/*.log
+
+# Test results
+test-results/
+playwright-report/
+.playwright-cli/
+
+# Session artifacts
+.sisyphus/
