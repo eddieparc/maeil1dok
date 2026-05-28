@@ -88,3 +88,5 @@ Gate G 진입 가능하나, **APPLY=1 으로 GH Issue 일괄 생성 직전 사�
 
 <!-- self-review-date: 2026-05-28 -->
 <!-- oracle-external-blocked: credits-error -->
+<!-- retry-attempt-2: 2026-05-28, opencode/gemini-3.1-pro fallback, 동일 INSUFFICIENT_G1_CREDITS_BALANCE → 외부 Oracle R3 영구 차단 확정 -->
+<!-- self-r3 8건 보완 모두 적용 + validator 47 PASS / 0 FAIL + Gate G 완료 (라벨 49 + 마일스톤 16 + 이슈 187) -->
