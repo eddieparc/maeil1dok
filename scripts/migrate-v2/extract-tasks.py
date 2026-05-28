@@ -49,7 +49,7 @@ SLICE_META = {
 
 # 행 패턴: | F-1 | 작업 | 파일 | DoD | (4-col) 또는 | F-1 | 작업 | DoD | (3-col)
 # **F-1** 또는 F-1 모두 허용. 마지막 컬럼은 항상 DoD 로 간주.
-ROW_RE = re.compile(r"^\|\s*\*{0,2}([A-Z]{1,2})-(\d+[a-z]?)\*{0,2}\s*\|(.+?)\|\s*$")
+ROW_RE = re.compile(r"^\|\s*\*{0,2}([A-Z]{1,2})-(\d+[a-z]?(?:-[a-z]+)?)\*{0,2}\s*\|(.+?)\|\s*$")
 
 
 def parse_slice(slice_name: str, prefix: str, file_path: Path):

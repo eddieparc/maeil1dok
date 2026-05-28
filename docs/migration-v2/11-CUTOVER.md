@@ -46,14 +46,14 @@ Plan F 에서 만들어졌고 v2 에서도 유효한 것:
 
 | # | 작업 | DoD |
 |---|---|---|
-| C-7 | 점검 공지 게시 — 사용자 알림 (메일 또는 SNS) | 공지 url + 게시 스크린샷 |
+| C-7 | 점검 공지 게시 — 사용자 알림 (메일 또는 SNS). **Mn9: 컷오버 시점 T-7d 사전 공지 + T-1d 재공지 + T-0 점검 시작 공지. 점검 길이 default 4시간 (장인정신이라도 사용자 영향 최소화). 실 시간 초과 시 +1h 단위 추가 공지** | 3회 공지 URL + 게시 스크린샷 |
 | C-8 | `MAINTENANCE_MODE=true` 활성화 (Vercel env, Nuxt 측 동일) | curl `/` → `/maintenance` 302 |
 | C-9 | Django/Nuxt 측 maintenance 페이지로 전환 | curl 응답 확인 |
 | **C-9b** | **Hard Block 503 모드** (Oracle Critical #2) — Nginx/Django 측에서 모든 `/api/*` 요청에 `HTTP 503 Service Unavailable` + JSON body `{"error":"app_updated","message":"앱이 업데이트되었습니다. 앱을 완전히 종료 후 다시 실행해주세요"}`. MySQL `INSERT/UPDATE/DELETE` 권한 REVOKE 도 병행. | curl → 503 + 안내 JSON |
-| **C-9c** | **구 클라이언트 503 처리 역검증** (Oracle R2 Major #4) — 컷오버 전 사전 작업: 현재 배포된 Nuxt + 모바일 앱이 503 `app_updated` 응답을 받았을 때 (1) 사용자에게 안내 UI 표시 + (2) 앱스토어/Play 스토어로 유도하는 로직 **실제 존재 검증**. 없으면 hotfix 배포 후 컷오버 가능. | grep 코드 + 모바일 실 디바이스 503 응답 시나리오 테스트 결과 |
+| **C-9c** | **구 클라이언트 503 처리 역검증 + hotfix timeline** (Oracle R2 Major #4, Self-critique MAJOR M2) — 컷오버 전 사전 작업: 현재 배포된 Nuxt + 모바일 앱이 503 `app_updated` 응답을 받았을 때 (1) 사용자에게 안내 UI 표시 + (2) 앱스토어/Play 스토어로 유도하는 로직 **실제 존재 검증**. **없으면 hotfix 배포 필요 = 컷오버 +7d (iOS 리뷰 24~72h + Play Store 24~48h + 사용자 업데이트 propagation 며칠).** 사용자 사전 알림 의무. | grep 코드 + 모바일 실 디바이스 503 시나리오 테스트 + hotfix 시 컷오버 일정 조정 발표 |
 | C-10 | 라이브 데이터 최종 추출 (MySQL dump) | snapshot 파일 |
 | C-11 | 마이그레이션 풀 실행 (real, dry-run 아님) | validation_report.json overall=pass + Critical 3 테이블 0% 손실 검증 |
-| C-12 | Cloudflare DNS 전환 — A→CNAME (Vercel). **Cloudflare proxy off (grey cloud) — WAF/DDoS 보호 사라짐, Vercel 자체 인프라가 흡수** (자가 R3 Self-6). Vercel Edge Network + Firewall Rules 설정 사전 검토 | `dig maeil1dok.app` → Vercel IP + Vercel Firewall 활성 확인 |
+| C-12 | Cloudflare DNS 전환 — A→CNAME (Vercel). **Cloudflare proxy off (grey cloud) — WAF/DDoS 보호 사라짐, Vercel 자체 인프라가 흡수** (자가 R3 Self-6). Vercel Edge Network + Firewall Rules 설정 사전 검토. **Mn1: Cloudflare DNS authoritative + Vercel CDN 단일 의존 — 둘 다 다운 시 fallback 없음을 사용자 인지하고 운영.** | `dig maeil1dok.app` → Vercel IP + Vercel Firewall 활성 확인 |
 | C-13 | `MAINTENANCE_MODE=false` 비활성화 | curl `/` → 200 |
 | C-14 | 즉시 스모크 테스트 — OAuth 1건 + 본문 1건 + 진도 조회 1건 | Playwright session 3건 모두 통과 |
 | **C-14b** | **VPS Django 측 Hard Block 503 유지 48h** (Oracle Critical #2 수정) — DNS 캐시 잔존 사용자에게 silent fail 대신 명시적 안내 + force reload. INSERT/UPDATE 권한 미복구 (이중 안전) | DNS 전파 모니터링 + 503 응답 검증 + 사용자 문의 채널 모니터 |
@@ -74,11 +74,19 @@ Plan F 에서 만들어졌고 v2 에서도 유효한 것:
 | C-19 | 데이터 정합성 재검증 — 7일 후 1회 더 | validate.ts 재실행 + 신규 사용자 통계 |
 | C-20 | 직전 7일 동안의 사용자 활동량 비교 (Nuxt 마지막 7일 vs Next 첫 7일) | 추세 그래프 |
 
+### 3.4-bis 시간선 명시 (T+48h ~ T+7d) — Self-critique B4
+
+C-14b 의 "VPS Hard Block 48h" 이후 ~ C-21 의 "VPS 중지" (T+7d 가정) 사이 공백 처리:
+
+| # | 작업 | DoD |
+|---|---|---|
+| **C-19b** | T+48h ~ T+7d 동안 VPS 503 응답 유지 + DB shutdown 미실행. DNS 캐시 더 지속되는 ISP 보호 연장 | 매일 1회 curl `/api/health` → 503 응답 확인 + 사용자 문의 모니터링 0 |
+
 ### 3.5 폐기 (T+7d ~ T+30d)
 
 | # | 작업 | DoD |
 |---|---|---|
-| C-21 | VPS Django 컨테이너 중지 | `docker compose down` 출력 |
+| C-21 | VPS Django 컨테이너 중지 (**C-19b 통과 + 1주 stable 확인 후만**) | `docker compose down` 출력 |
 | C-22 | VPS 서버 자체 폐기 결정 (1주 stable 후) | 사용자 결정 + 인보이스 정리 |
 | C-23 | 1개월 후: `migration_user_mapping` 테이블 드랍 | SQL 실행 로그 |
 | C-24 | 1개월 후: `scripts/migrate/data/` 디렉토리 삭제 (민감 데이터) | rm + 검증 |

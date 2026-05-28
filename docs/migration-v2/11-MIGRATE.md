@@ -71,20 +71,21 @@ Django/MySQL → Supabase/PostgreSQL 데이터 마이그레이션을 **5% 손실
 | # | 작업 | DoD |
 |---|---|---|
 | M-1 | Supabase Admin API rate limit 정확한 한계 측정 — 100명 batch 실험 | 한계치 / 추천 delay 기록 |
-| M-2 | 사용자 skip 사유 enum 정의 + 사유별 카운트 출력 | 출력 검증: 누락 사용자 142명 = 모든 사유 합계 |
-| M-3 | 중복 이메일 (이메일 + 소셜 같은 이메일) 케이스 정책 — 자동 병합 or 명시적 알림 | 정책 + 코드 + 테스트 |
+| M-2 | 사용자 skip 사유 enum 정의 + 사유별 카운트 출력 (Self-critique B3) — Plan F 의 142 하드코딩 폐기. 동적 검증: `Django 활성 사용자 수 == Supabase auth.users 매핑 수 + skip 사유별 합계`. v2 실행 시점의 실 누락 수에 자동 적응 | 검증식 통과 + skip 사유별 카운트 보고서 (`scheduled_deletion_at` N1 / `merged_into` N2 / 중복 이메일 N3 / 기타 N4) |
+| M-3 | 중복 이메일 (이메일 + 소셜 같은 이메일) 케이스 정책 — **자동 병합 (이메일 unique 가정, 동일 이메일이면 같은 사용자로 통합)** (Self-critique MAJOR M1). 단, 두 Django 계정에 다른 progress 가 있으면 더 활성 계정 우선 + 다른 계정의 progress merge | 정책 + 코드 + 테스트 + merge 우선순위 명시 |
 | M-4 | `scheduled_deletion_at` / `merged_into` 사용자 처리 — skip but log to separate file | `data/deleted_users.json` + `data/merged_users.json` |
 | M-5 | `02-create-supabase-users.ts` v2 — 위 4개 반영 | 실행 시 user_mapping.json 의 entries 수 = 활성 사용자 수 (203 - 의도적 skip) |
-| **M-5b** | **SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1) — Django `accounts_socialaccount` 의 모든 row 를 `provider` + `provider_id` + `user_id (mapped UUID)` 로 `auth.identities` 에 service_role 로 직접 insert. Apple Private Relay 이메일이나 Kakao 비공개 이메일 사용자도 첫 로그인 시 자동 연결됨. | Django SocialAccount count == Supabase auth.identities count (정상 사용자 모수 기준). 5명 spot check: Django provider_id 가 auth.identities.provider_id 와 일치 |
-| **M-5c** | **PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. 첫 로그인 시 Django PBKDF2 해시를 Edge function 에서 검증, 성공 시 Supabase 가 자동으로 PHC 형식으로 재해시 저장. 실패 시 (b) 이메일 사용자 강제 reset 으로 회귀. **Supabase Pro tier 필요할 수 있음 — F-? 작업에서 사전 확인.** | (a): 5명 sample 로 첫 로그인 통과. (b): 강제 reset 발송 후 응답률 추적 |
-| **M-5d** | **Trigger 충돌 우회 + 마이그레이션 중 가입 차단** (Oracle R2 Critical #2, 자가 R3 Self-2) — `on_auth_user_created` 트리거가 `profiles` 자동 생성하므로 충돌. 마이그레이션 동안 `ALTER TABLE auth.users DISABLE TRIGGER ALL` (service_role 권한 가능) + maintenance mode 로 신규 가입 차단 의무 (트리거 OFF 동안 정상 신규 가입은 profiles 미생성). 마이그레이션 종료 후 즉시 트리거 RE-ENABLE. | 충돌 0건 + profiles count == auth.users count + maintenance mode 동안 신규 signup 시도 시 503 |
+| **M-5b-pre** | **`auth.identities` 쓰기 메커니즘 사전 검증** (Self-critique B1) — 빈 Supabase 프로젝트에 1건 sample 로 (a) `service_role` 로 `auth.identities` 직접 INSERT 시도, (b) 실패 시 `supabase.auth.admin.linkIdentity()` API 시도, (c) 둘 다 실패 시 `supabase.auth.admin.createUser({...identities})` 통합 생성 시도. 동작하는 경로 1개 입증 후 M-5b 진입. | 1건 sample 로 `auth.identities` 에 row 존재 입증 + 사용한 method 보고서 |
+| **M-5b** | **SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1, Mn8) — M-5b-pre 에서 입증된 경로로 Django `accounts_socialaccount` 의 모든 row 를 마이그레이션. `provider` + `provider_id` + `user_id (mapped UUID)` + `identity_data` (M-5e). **Mn8: auth.identities 의 PK (UUID `id`) 정책 — Supabase 자동 생성. Django SocialAccount.id 는 보존 안 함 (Supabase 의 UUID 로 대체). FK 참조 없으므로 무방.** | Django SocialAccount count == Supabase auth.identities count + 5명 spot check |
+| **M-5c** | **PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1, Self-critique MAJOR M3) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. **선행 의무: F-17 (Supabase tier 사전 확인) 통과 후 진입.** F-17 결과 Pro tier 필요 + 사용자 비용 승인 시 (a) 경로, 불가 시 (b) 강제 reset 경로 자동 회귀. | (a): 5명 sample 로 첫 로그인 통과. (b): 강제 reset 발송 후 응답률 추적 |
+| **M-5d** | **Trigger 충돌 우회 — ON CONFLICT 방식** (Oracle R2 Critical #2, 자가 R3 Self-2, Self-critique B2) — `on_auth_user_created` 트리거가 `profiles` 자동 생성. **Supabase managed 환경에서 service_role 은 `auth.users` 의 trigger 제어 권한 없음 (table owner: `supabase_auth_admin`)**. 트리거 DISABLE 시도 대신 **`profiles INSERT ... ON CONFLICT (user_id) DO UPDATE SET ...`** 사용. 트리거가 빈 profiles row 를 먼저 만들어도 우리 데이터로 덮어쓰기. + maintenance mode 로 신규 가입은 별도 차단. | profiles INSERT 시 충돌 0건 (ON CONFLICT 의 DO UPDATE 가 처리) + profiles 의 모든 컬럼이 Django UserProfile 값으로 셋팅됨 |
 | **M-5e** | **`auth.identities` identity_data JSONB 완비** (Oracle R2 Major #3, 자가 R3 Self-3) — GoTrue schema 정확히: `{"sub": provider_id, "email": email, "email_verified": true, "phone_verified": false, "provider_id": provider_id, ...optional provider-specific}`. `sub` 와 `provider_id` 모두 명시 (둘 다 GoTrue 가 참조). | 5명 spot check: identity_data.sub == identity_data.provider_id == auth.identities.provider_id |
 
 ### 4.2 5% Hard Fail 검증 강화 (Plan F의 04-validate 재작성)
 
 | # | 작업 | DoD |
 |---|---|---|
-| M-6 | `04-validate.ts` v2 — **분모 보정**: Valid Users (=Django total - 정당 skip) 기준. 일반 테이블 5% / **Critical 3 테이블 (profiles/plan_subscriptions/user_progress) 0%** hard fail | 의도적 1건 누락 주입 → user_progress 검증 시 exit 1 |
+| M-6 | `04-validate.ts` v2 — **분모 보정**: Valid Users (=Django total - 정당 skip) 기준. 일반 테이블 5% / **Critical 3 테이블 (profiles/plan_subscriptions/user_progress) 0% exhaustive count match (sample 아닌 전수)** hard fail. **Mn6: Critical 3 는 SQL count diff 로 전수 비교 — M-9 의 20명 round-trip 은 추가 sample 검증 layer** | 의도적 1건 누락 주입 → user_progress 검증 시 exit 1 + 전수 count 일치 확인 |
 | M-7 | FK 무결성 → 0 orphan 확인 (이미 통과 중이지만 강화) | 위반 시 hard fail |
 | M-8 | 멱등성 검증 — 동일 마이그레이션 2회 → row count 변화 0 | 검증 통과 |
 | M-9 | 라운드 트립 샘플 — **20명** (max-data 5 + zero-data 5 + 무작위 10) × 모든 자식 테이블 row count 일치 + 필드 spot check | 통과 |

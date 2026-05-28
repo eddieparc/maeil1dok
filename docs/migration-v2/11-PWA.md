@@ -13,12 +13,13 @@
 - Supabase migration: `20260227000001_plan_e_avatar_fcm_notifications.sql` — FCM 토큰 테이블 존재
 - Next: 02 §3 의 컴포넌트 + 02 §12 의 환경변수 (FCM 키)
 
-## 3. 작업 — Wave 2 (인프라 부분)
+## 3. 작업 — Wave 2 (인프라 부분, Mn7: SDK init OK, token register 만 Wave 3 지연)
 | # | 작업 | DoD |
 |---|---|---|
 | PW-1 | manifest.webmanifest — 아이콘/이름/색상/start_url | Lighthouse PWA score |
 | PW-2 | 서비스 워커 — Next 의 next-pwa 또는 수동 | offline fallback 페이지 동작 |
 | PW-3 | iOS PWA 호환 (메타 태그 + status bar) | iOS Safari 홈 추가 검증 |
+| **PW-3b** | **Firebase SDK init (Wave 2 OK, Mn7)** — `firebase.initializeApp(config)` + `getMessaging()` 호출까지는 Wave 2 에서 진행. **`getToken()` (FCM token 발급+서버 등록) 만 Wave 3 으로 지연**. SDK init 자체는 사용자 데이터 미접촉이므로 안전 | `firebase.initializeApp` 실행 + console error 0 |
 | PW-6 | Apple Sign In 리뷰 호환성 (Apple은 Sign In 시 push 표시 요구사항 있음) | Apple 리뷰 가이드 체크리스트 |
 
 ## 4. 작업 — Wave 3+ (FCM 실 등록은 사용자 사전 생성 후로 지연 — Momus R1 Minor #3)

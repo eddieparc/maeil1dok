@@ -18,7 +18,7 @@
 | PRE-4 | 그룹 기능 (ReadingGroup/Membership/Invitation) | **백로그 (이번 v2 에서 제외)** | 11-SOCIAL 축소, 11-MIGRATE 에서 그룹 3 테이블 SKIP |
 | PRE-5 | Admin 도구 (`/admin/*`) | **수정 (Momus R1 BLOCKING #4)**: 핵심 쓰기 기능 (플랜 엑셀 업로드, 영상 인트로 업로드, 하세나 요약 재생성) 은 **메인 컷오버에 포함** (11-ADMIN-CORE, Wave 5). 통계·대시보드 등 비쓰기 부분만 별도 컷오버. | 11-ADMIN-CORE 메인 포함 / 11-ADMIN-EXTENDED 별도 트랙 |
 | PRE-6 | UserAchievement 데이터 | **재계산 (streak 기반 자동 산출 로직)** | 11-PROFILE, 11-PROGRESS |
-| PRE-7 | 일정 / 컷오버 시점 | **장인 정신 — 시간 제약 없음, 품질 기준만 따짐** | 모든 게이트 통과 기준이 시간 압박 0 |
+| PRE-7 | 일정 / 컷오버 시점 | **장인 정신 — 시간 제약 없음, 품질 기준만 따짐**. **Mn4: 단, production 측이 시간 흐름에 따라 drift (신규 사용자/데이터/버그) 가능 — 매월 1회 인벤토리 재확인 의무. drift 1% 초과 시 plan 재합의** | 모든 게이트 통과 기준이 시간 압박 0 + 월간 drift 체크 |
 
 **Contest 가능**: 위 결정 중 하나라도 사장님 의향과 다르면 해당 ID 지목해 알려주시면 슬라이스 재조정.
 
@@ -82,7 +82,8 @@ Wave 0 (직렬):
 └── 11-FOUND  ← 빌드 그린 + WIP 정리
 
 Wave 1 (직렬 단독 — DB 파괴적 작업이므로 병렬 금지):
-└── 11-MIGRATE  ← TRUNCATE + 사용자 사전 생성 (M-1~M-9). 운영 Supabase 의 SoT 가 됨.
+└── 11-MIGRATE  ← TRUNCATE + 사용자 사전 생성 (M-1~M-9 + M-5b-pre + M-5b~M-5e). 운영 Supabase 의 SoT.
+                  Mn3: 권장 timebox 2주 (장인정신 무한정 회피). 초과 시 deep-dive 검토.
 
 Wave 2 (병렬 3개 — MIGRATE 산출물 위에서):
 ├── 11-AUTH      ← Supabase Auth Provider 등록 + OAuth 콜백 + 새로고침 회귀 (사용자 mapping 위에서 검증)

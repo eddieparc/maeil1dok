@@ -4,7 +4,7 @@
 **작업 ID**: `M-5c`
 
 ## 작업 내용
-**PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. 첫 로그인 시 Django PBKDF2 해시를 Edge function 에서 검증, 성공 시 Supabase 가 자동으로 PHC 형식으로 재해시 저장. 실패 시 (b) 이메일 사용자 강제 reset 으로 회귀. **Supabase Pro tier 필요할 수 있음 — F-? 작업에서 사전 확인.**
+**PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1, Self-critique MAJOR M3) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. **선행 의무: F-17 (Supabase tier 사전 확인) 통과 후 진입.** F-17 결과 Pro tier 필요 + 사용자 비용 승인 시 (a) 경로, 불가 시 (b) 강제 reset 경로 자동 회귀.
 
 ## DoD (Definition of Done)
 - [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)

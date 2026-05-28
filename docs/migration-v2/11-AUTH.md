@@ -73,7 +73,7 @@
 |---|---|---|
 | A-1 | Supabase 프로젝트의 Auth Settings 검증: Site URL=`https://maeil1dok.app`, Additional Redirect URLs 정확 | dashboard 스크린샷 + curl 콜백 동작 확인 |
 | A-2 | Kakao/Google OAuth Provider 등록 — Client ID/Secret 적용 + 콜백 URL 확인 | OAuth 진입 → Supabase 콜백 도달 확인 |
-| A-3 | Apple Sign In Provider 등록 (Service ID + Private Key) | 동일 |
+| A-3 | Apple Sign In Provider 등록 (Self-critique MAJOR M4) — credential **4개 모두**: (1) Service ID (`com.maeil1dok.web.signin`) (2) Team ID (Apple Developer 계정) (3) Key ID (.p8 발급 시 부여) (4) Private Key (.p8 파일 내용). Supabase Auth Provider 설정에 모두 입력. 누락 시 OAuth flow `invalid_client` 에러 | OAuth 진입 → Apple 인증 페이지 도달 + 콜백 정상 |
 
 ### 3.2 핵심 흐름
 
