@@ -206,6 +206,59 @@ check "11-DESIGN.md Wave 2 병렬 박힘" "grep -lE '^>.*\*\*Wave\*\*: 2.*data �
 check "11-PWA.md Wave 2 박힘" "grep -lE 'Wave\*\*: 2' 11-PWA.md | wc -l | xargs" "1"
 
 echo ""
+echo "===== 13. Oracle R-rerun-final 신규 fix 박힘 (Critical + Major + Minor) ====="
+check "R-rerun-final Critical #1 — extract-tasks.py backtick-aware split 박힘" "grep -lE 'split_row_pipe_safe|backtick-protection' $REPO_ROOT/scripts/migrate-v2/extract-tasks.py 2>/dev/null | wc -l | xargs" "1"
+check "R-rerun-final Critical #2 — 02b-update-milestones.sh 신설" "test -x $REPO_ROOT/scripts/migrate-v2/02b-update-milestones.sh && echo 1 || echo 0" "1"
+check "R-rerun-final Critical #2 — verify-milestones.sh 신설" "test -x $REPO_ROOT/scripts/migrate-v2/verify-milestones.sh && echo 1 || echo 0" "1"
+check "R-rerun-final Major #1 — L4-Gate T+96h Mandatory Decision 박힘" "grep -lE 'L4-Gate|T\\+96h.*Mandatory|Mandatory Decision' 11-CUTOVER.md | wc -l | xargs" "1"
+check "R-rerun-final Major #2 — Dormant User Gate 박힘 (M-5c 90일+사용자 승인+180일 ceiling)" "grep -lE 'Dormant User Gate|90일 도달 시점에 사용자 명시 승인|180일 hard ceiling' 11-MIGRATE.md | wc -l | xargs" "1"
+check "R-rerun-final Major #3 — Deterministic Serialization 박힘 (M-8 UTC+ISO+jsonb_build_object)" "grep -lE 'Deterministic Serialization|SET TIME ZONE.*UTC|jsonb_build_object' 11-MIGRATE.md | wc -l | xargs" "1"
+check "R-rerun-final Major #4 — verify-issues.sh body sha256 강화 박힘" "grep -lE 'body sha256|깊은 무결성|BODY mismatch' $REPO_ROOT/scripts/migrate-v2/verify-issues.sh 2>/dev/null | wc -l | xargs" "1"
+check "R-rerun-final Minor — 11-DESIGN groups historical-only caveat 박힘" "grep -lE 'groups.*historical only.*PRE-4 backlog|do NOT implement/VRT' 11-DESIGN.md | wc -l | xargs" "1"
+
+echo ""
+echo "===== 14. catalog M-5c body 무결성 (Oracle R-rerun-final Critical #1 — sync 후 회귀 차단) ====="
+m5c_body=$(jq -r '.issues[] | select(.id == "M-5c") | .body' $REPO_ROOT/scripts/migrate-v2/catalog.json 2>/dev/null)
+for marker in 'reject' 'updateUserById' '수명주기' '30일' 'soft-deactivate' 'migrated_at' 'pbkdf2Verify' '(b) 경로'; do
+    if echo "$m5c_body" | grep -qF "$marker"; then
+        echo "✅ PASS  catalog M-5c marker [$marker] 존재"
+        PASS=$((PASS+1))
+    else
+        echo "❌ FAIL  catalog M-5c marker [$marker] 없음 (parser truncation 의심)"
+        FAIL=$((FAIL+1))
+    fi
+done
+
+m5c_len=${#m5c_body}
+if (( m5c_len >= 3000 )); then
+    echo "✅ PASS  catalog M-5c body length >= 3000 ($m5c_len chars)"
+    PASS=$((PASS+1))
+else
+    echo "❌ FAIL  catalog M-5c body length $m5c_len < 3000 (truncation 의심)"
+    FAIL=$((FAIL+1))
+fi
+
+echo ""
+echo "===== 15. Code fence balance 검증 (catalog body 안 triple-backtick 짝수) ====="
+# Use python to count safely (avoid bash quoting issues with backticks)
+imbalance=$(python3 -c "
+import json
+with open('$REPO_ROOT/scripts/migrate-v2/catalog.json') as f:
+    data = json.load(f)
+bad = []
+for issue in data['issues']:
+    n = issue['body'].count('\`\`\`')
+    if n % 2 != 0:
+        bad.append(f\"{issue['id']}: {n} occurrences\")
+for b in bad:
+    print(f'  unbalanced: {b}')
+print(len(bad))
+" 2>&1)
+last_line=$(echo "$imbalance" | tail -1)
+echo "$imbalance" | grep -v '^[0-9]*$' || true
+check "Code fence balance — unbalanced issues 0건" "echo $last_line" "0"
+
+echo ""
 echo "================================"
 echo "TOTAL: $PASS PASS / $FAIL FAIL"
 echo "================================"

@@ -19,7 +19,7 @@ Plan F 시기 검출됐던 시각 회귀 실패 (F1·F2·F3) 영역을 **검증 
 
 git log 발췌:
 - 토큰화: ui/Toast, Card, Button, Badge, Container, Input, Textarea, Select, Modal, EmptyState
-- 페이지 토큰화: friends, scoreboard, profile, catchup, groups, hasena, home, reading, intro, plans, calendar, auth, public
+- 페이지 토큰화: friends, scoreboard, profile, catchup, **groups (historical only — PRE-4 backlog, do NOT implement/VRT in v2; Oracle R-rerun-final Minor #1 caveat)**, hasena, home, reading, intro, plans, calendar, auth, public
 - 다크모드: 4건의 darkmode commit
 - 타이포그래피: heading hierarchy + custom font sizes 제거
 - 접근성: aria-labels, focus rings, form components focus-visible

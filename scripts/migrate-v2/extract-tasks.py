@@ -51,6 +51,22 @@ SLICE_META = {
 # **F-1** 또는 F-1 모두 허용. 마지막 컬럼은 항상 DoD 로 간주.
 ROW_RE = re.compile(r"^\|\s*\*{0,2}([A-Z]{1,2})-(\d+[a-z]?(?:-[a-z]+)?)\*{0,2}\s*\|(.+?)\|\s*$")
 
+# Markdown row split with backtick-protection (Oracle R-rerun-final Critical #1 fix).
+# 직전 parser 는 ``` ... ``` 또는 ` ... ` 안의 `|` 를 컬럼 구분자로 오인 → M-5c 본문 truncation.
+# 이 함수는 triple-backtick + single-backtick span 안의 `|` 를 placeholder 로 보호한 뒤 split.
+_PIPE_PLACEHOLDER = "\x00PIPE\x00"
+
+
+def split_row_pipe_safe(rest):
+    """Split markdown row by `|` while preserving `|` inside backtick spans."""
+    def _protect(m):
+        return m.group(0).replace("|", _PIPE_PLACEHOLDER)
+    # Protect triple-backtick fences first (may contain `|` in json/sql)
+    s = re.sub(r"```.*?```", _protect, rest)
+    # Then single-backtick inline code spans
+    s = re.sub(r"`[^`\n]+`", _protect, s)
+    return [c.replace(_PIPE_PLACEHOLDER, "|").strip() for c in s.split("|")]
+
 CROSS_SLICE_DEPS = {
     "M-5b": ["M-5b-pre"],
     "M-5c": ["F-17"],
@@ -83,8 +99,8 @@ def parse_slice(slice_name: str, prefix: str, file_path: Path):
         row_prefix, num, rest = m.groups()
         if row_prefix != prefix:
             continue
-        # rest 를 '|' 로 split. 마지막은 DoD, 첫째는 작업.
-        cols = [c.strip() for c in rest.split("|")]
+        # rest 를 '|' 로 split (backtick-aware, R-rerun-final Critical #1). 마지막은 DoD, 첫째는 작업.
+        cols = split_row_pipe_safe(rest)
         work = cols[0] if cols else ""
         dod = cols[-1] if len(cols) > 1 else ""
         task_id = f"{row_prefix}-{num}"
