@@ -61,6 +61,8 @@ Django/MySQL → Supabase/PostgreSQL 데이터 마이그레이션을 **5% 손실
 | M-3 | 중복 이메일 (이메일 + 소셜 같은 이메일) 케이스 정책 — 자동 병합 or 명시적 알림 | 정책 + 코드 + 테스트 |
 | M-4 | `scheduled_deletion_at` / `merged_into` 사용자 처리 — skip but log to separate file | `data/deleted_users.json` + `data/merged_users.json` |
 | M-5 | `02-create-supabase-users.ts` v2 — 위 4개 반영 | 실행 시 user_mapping.json 의 entries 수 = 활성 사용자 수 (203 - 의도적 skip) |
+| **M-5b** | **SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1) — Django `accounts_socialaccount` 의 모든 row 를 `provider` + `provider_id` + `user_id (mapped UUID)` 로 `auth.identities` 에 service_role 로 직접 insert. Apple Private Relay 이메일이나 Kakao 비공개 이메일 사용자도 첫 로그인 시 자동 연결됨. | Django SocialAccount count == Supabase auth.identities count (정상 사용자 모수 기준). 5명 spot check: Django provider_id 가 auth.identities.provider_id 와 일치 |
+| **M-5c** | **PBKDF2 해시 포팅 시도** (Oracle Major #5) — Django `accounts_user.password` 의 PBKDF2 해시를 Supabase Auth 의 `encrypted_password` PHC 포맷으로 변환. 변환 라이브러리 또는 Supabase Admin API 의 `password_hash` 파라미터 활용. 변환 실패 시에만 강제 reset. | 5명 spot check: 변환된 해시로 로그인 시 정상 동작 |
 
 ### 4.2 5% Hard Fail 검증 강화 (Plan F의 04-validate 재작성)
 
@@ -96,7 +98,7 @@ Django/MySQL → Supabase/PostgreSQL 데이터 마이그레이션을 **5% 손실
 | Django 모델 | Supabase 테이블 | v2 정책 |
 |---|---|---|
 | User | auth.users + profiles | MIGRATE (사전 생성) |
-| SocialAccount | auth.identities | AUTO (OAuth 재로그인) |
+| **SocialAccount** | **auth.identities** | **MIGRATE (Oracle Critical #1 — 명시적)** — Apple Private Relay / Kakao 이메일 미제공 사용자는 자동 매칭 불가. `provider` + `provider_id` 를 service_role 로 `auth.identities` 에 직접 insert. M-5b 참조 |
 | UserProfile | profiles | MIGRATE |
 | Follow | user_follows | MIGRATE |
 | UserAchievement | — | **SKIP** (Plan F 정책 유지) |

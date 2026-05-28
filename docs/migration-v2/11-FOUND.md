@@ -68,6 +68,8 @@
 |---|---|---|
 | F-13 | placeholder 텍스트 grep CI 추가 — "구현 예정", "TODO production" 검출 시 CI fail | CI workflow 파일 + 의도적 테스트 푸시로 검증 |
 | F-14 | Plan-checksum 동기화 스크립트 — docs/migration-v2/10-plan-overview.md + 11-*.md 변경 시 메타 갱신 | 스크립트 + npm run plan-sync |
+| **F-15** | **Supabase CLI 도입** (Oracle Major #3 — IaC) — `supabase init`, `supabase link`, 모든 DB/RLS 변경은 `supabase/migrations/*.sql` 로 커밋 강제. Dashboard 조작 후 `supabase db diff` 로 capture 의무 | `supabase status` 통과 + CI 에 `supabase db lint` 추가 |
+| **F-16** | **Supabase migrations diff CI** (Oracle Major #3) — PR 에서 운영 DB 와 migrations 디렉토리 사이 drift 검출 시 fail | `supabase db diff` exit 0 in CI |
 
 ---
 

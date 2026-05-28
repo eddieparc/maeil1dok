@@ -15,48 +15,41 @@
 
 ---
 
-## 1. 파일 구조
+## 1. 파일 구조 (현재 32개 파일, 3,800+ 줄)
 
-| 파일 | 역할 | 작성 주체 | 합의 단계 |
-|---|---|---|---|
-| [`README.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/README.md) | 본 문서 — 전체 구조 + 진행 순서 | Sisyphus | 작성 중 |
-| [`00-meta-system.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/00-meta-system.md) | AI 실수 방지 시스템 + Definition of Done 표준 | Sisyphus | 작성 중 |
-| [`01-nuxt-inventory.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/01-nuxt-inventory.md) | Nuxt 운영 코드 전수 명세 | explore (background) | 진행 중 |
-| [`02-next-inventory.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/02-next-inventory.md) | Next 마이그레이션 코드 전수 명세 + 빌드 실측 | explore (background) | 진행 중 |
-| [`03-backend-inventory.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/03-backend-inventory.md) | Django 백엔드 전수 명세 (API/모델/로직) | explore (background) | 진행 중 |
-| [`04-production-live-audit.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/04-production-live-audit.md) | 라이브 사이트 실측 (Playwright) | explore (background) | 진행 중 |
-| `05-feature-matrix.md` | 1~4 교차 매칭 — 누락/회귀/불일치 자동 탐지 | Sisyphus 합성 | 1~4 완료 후 |
-| `06-quality-scorecard.md` | 기능별 신뢰도 점수 + 사용자 직감 반영란 | Sisyphus + 사용자 | 5 후 |
-| `10-plan-overview.md` | 신규 마이그레이션 마스터 플랜 v2 | Sisyphus | 6 후 |
-| `11-plan-{slice}.md` (다수) | 하위 분할 플랜들 | Sisyphus | 10 후 |
-| `20-momus-critique-round-{N}.md` | 적대적 크리틱 라운드 N (1~5+) | momus | 10·11 후 반복 |
-| `30-oracle-final-review.md` | 고정밀 최종 리뷰 | oracle | 20 통과 후 |
-| `40-github-mapping.md` | 확정 플랜 → GitHub Issues/Milestones 매핑 | Sisyphus | 30 통과 후 |
+| 파일 | 역할 | 상태 |
+|---|---|---|
+| [`README.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/README.md) | 본 문서 | ✅ |
+| [`00-meta-system.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/00-meta-system.md) | AI 실수 방지 + DoD 4중 + 우회 패턴 차단 | ✅ |
+| [`01-nuxt-inventory.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/01-nuxt-inventory.md) | Nuxt 41p/128c/11s/38co 전수 | ✅ |
+| [`02-next-inventory.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/02-next-inventory.md) | Next 35p/33API/111c + TS 5 에러 실측 | ✅ |
+| [`03a-backend-api.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/03a-backend-api.md) | Django 129 endpoint | ✅ |
+| [`03b-backend-domain.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/03b-backend-domain.md) | Django 28 모델 + signals + admin | ✅ |
+| [`04-production-live-audit.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/04-production-live-audit.md) | maeil1dok.app Webfetch 실측 | ✅ (Playwright 보강 잔존) |
+| [`05-feature-matrix.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/05-feature-matrix.md) | PARITY 27 / MISSING 17 / OBSOLETE 9 / DEFER 6 / NEW 11 | ✅ |
+| [`06-quality-scorecard.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/06-quality-scorecard.md) | 신뢰도 점수 + 우선순위 P0~P3 (auto) | ✅ |
+| [`10-plan-overview.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/10-plan-overview.md) | 마스터 플랜 + PRE-1~7 + Wave (R1 fix 반영) | ✅ |
+| [`11-FOUND.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-FOUND.md) ~ [`11-CUTOVER.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-CUTOVER.md) | 15 슬라이스 (R1 fix 반영) | ✅ |
+| [`20~24-momus-critique-round-N.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/) | R1 REJECT → R2~R5 OKAY (4/5) | 🟡 R6 진행 중 |
+| [`30-oracle-final-review.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/30-oracle-final-review.md) | Oracle 최종 (호출 대기) | ⬜ Gate F |
+| [`40-github-mapping.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/40-github-mapping.md) | GH Issues/Milestones 매핑 + 라벨 + 템플릿 | ✅ |
 
 ---
 
-## 2. 진행 순서 (gate 기반, 단계 건너뛰기 금지)
+## 2. Gate 진행 현황
 
 ```
-[Gate A] 인벤토리 4건 모두 산출 + 누락·요약 표현 0건
-   ↓
-[Gate B] 교차 매트릭스(05) — Nuxt 기능 × Next 상태 × API × 라이브
-         "Nuxt에는 있는데 Next에 없는 것" 자동 탐지 통과
-   ↓
-[Gate C] 품질 스코어카드(06) — 사용자 직감 반영, 신뢰도 점수 합의
-   ↓
-[Gate D] 마스터 플랜(10) + 하위 플랜들(11) 작성
-   ↓
-[Gate E] Momus 적대적 크리틱 N회 — 5회 연속 OK까지
-   ↓
-[Gate F] Oracle 고정밀 리뷰 통과 — REJECT 시 D로 회귀
-   ↓
-[Gate G] GitHub Issues + Milestones 생성 (40)
-   ↓
-[Gate H] 실 작업 시작 (별도 세션)
+[Gate A] 인벤토리 4건 + 누락 0건 + 메타 검증           ✅ PASS
+[Gate B] 05 feature matrix 교차 합성                   ✅ PASS  (PARITY 27 / MISSING 17 / OBSOLETE 9 / DEFER 6 / NEW 11)
+[Gate C] 06 quality scorecard 자동 합성                ✅ PASS  (사용자 직감 슬롯 "전부 추천대로" 승인)
+[Gate D] 10 마스터 플랜 + 15 슬라이스 작성             ✅ PASS
+[Gate E] Momus 5회 연속 OKAY                           ✅ PASS (R2~R6)
+[Gate F] Oracle 고정밀 최종 리뷰                       🟡 진행 중
+[Gate G] GitHub Issues + Milestones 생성 (179 issues)  ⬜
+[Gate H] 실 코드 작업 시작 (별도 세션)                 ⬜
 ```
 
-각 Gate는 다음 단계 진입 전 **사용자 확인이 필요한 결정 지점**이다. AI가 자율로 다음 Gate를 통과 선언할 수 없다.
+각 Gate 는 사용자 확인 또는 자동 검증 통과 후 다음 단계 진입.
 
 ---
 

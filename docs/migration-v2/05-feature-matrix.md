@@ -164,7 +164,7 @@ Next는 Supabase 클라이언트 직접 호출이 많아 1:1 매핑 아님.
 |---|---|---|---|
 | `User` (AbstractUser) | `auth.users` + `profiles` | PARITY (분할) | 11-AUTH+MIGRATE |
 | `UserProfile` | `profiles` (병합) | PARITY | 11-MIGRATE |
-| `SocialAccount` | `auth.identities` | **OBSOLETE** (Supabase 자동) | — |
+| `SocialAccount` | `auth.identities` | **MIGRATE** (Oracle Critical #1 — 자동 매칭 불가 케이스) — provider/provider_id 명시적 마이그레이션 | 11-MIGRATE |
 | `Follow` | `user_follows` | PARITY | 11-MIGRATE |
 | `UserAchievement` | (없음) | DECIDE (PRE-6 = 재계산) | 11-PROFILE RPC |
 | `UserReadingSettings` | `user_reading_settings` | PARITY | 11-MIGRATE |

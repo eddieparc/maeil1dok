@@ -219,6 +219,28 @@
       ]
     },
     {
+      "id": "F-15",
+      "title": "[FOUND] **Supabase CLI 도입** (Oracle Major #3 — IaC) — `supabase init`, `supabase link`, ",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-15`\n\n## 작업 내용\n**Supabase CLI 도입** (Oracle Major #3 — IaC) — `supabase init`, `supabase link`, 모든 DB/RLS 변경은 `supabase/migrations/*.sql` 로 커밋 강제. Dashboard 조작 후 `supabase db diff` 로 capture 의무\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-15.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `supabase status` 통과 + CI 에 `supabase db lint` 추가\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-16",
+      "title": "[FOUND] **Supabase migrations diff CI** (Oracle Major #3) — PR 에서 운영 DB 와 migrations 디렉토",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-16`\n\n## 작업 내용\n**Supabase migrations diff CI** (Oracle Major #3) — PR 에서 운영 DB 와 migrations 디렉토리 사이 drift 검출 시 fail\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-16.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `supabase db diff` exit 0 in CI\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
       "id": "A-1",
       "title": "[AUTH] Supabase 프로젝트의 Auth Settings 검증: Site URL=`https://maeil1dok.app`, Additional Re",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:AUTH`  \n**플랜**: docs/migration-v2/11-AUTH.md  \n**작업 ID**: `A-1`\n\n## 작업 내용\nSupabase 프로젝트의 Auth Settings 검증: Site URL=`https://maeil1dok.app`, Additional Redirect URLs 정확\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/AUTH-A-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — dashboard 스크린샷 + curl 콜백 동작 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
@@ -497,6 +519,28 @@
       "id": "M-5",
       "title": "[MIGRATE] `02-create-supabase-users.ts` v2 — 위 4개 반영",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5`\n\n## 작업 내용\n`02-create-supabase-users.ts` v2 — 위 4개 반영\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 실행 시 user_mapping.json 의 entries 수 = 활성 사용자 수 (203 - 의도적 skip)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-5b",
+      "title": "[MIGRATE] **SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1) — Django `ac",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5b`\n\n## 작업 내용\n**SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1) — Django `accounts_socialaccount` 의 모든 row 를 `provider` + `provider_id` + `user_id (mapped UUID)` 로 `auth.identities` 에 service_role 로 직접 insert. Apple Private Relay 이메일이나 Kakao 비공개 이메일 사용자도 첫 로그인 시 자동 연결됨.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Django SocialAccount count == Supabase auth.identities count (정상 사용자 모수 기준). 5명 spot check: Django provider_id 가 auth.identities.provider_id 와 일치\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-5c",
+      "title": "[MIGRATE] **PBKDF2 해시 포팅 시도** (Oracle Major #5) — Django `accounts_user.password` 의 PBKDF2",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5c`\n\n## 작업 내용\n**PBKDF2 해시 포팅 시도** (Oracle Major #5) — Django `accounts_user.password` 의 PBKDF2 해시를 Supabase Auth 의 `encrypted_password` PHC 포맷으로 변환. 변환 라이브러리 또는 Supabase Admin API 의 `password_hash` 파라미터 활용. 변환 실패 시에만 강제 reset.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5명 spot check: 변환된 해시로 로그인 시 정상 동작\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -1848,8 +1892,8 @@
     },
     {
       "id": "C-9b",
-      "title": "[CUTOVER] **Hard DB Lock** — MySQL 사용자 권한 REVOKE INSERT/UPDATE/DELETE (또는 `FLUSH TABLES WI",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9b`\n\n## 작업 내용\n**Hard DB Lock** — MySQL 사용자 권한 REVOKE INSERT/UPDATE/DELETE (또는 `FLUSH TABLES WITH READ LOCK`). 모바일 클라이언트가 토큰 가지고 직접 호출해도 데이터 변경 0 보장\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `INSERT` 시도 → ER_TABLEACCESS_DENIED. 검증 query 결과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[CUTOVER] **Hard Block 503 모드** (Oracle Critical #2 — silent data loss 방지) — Nginx/Django ",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9b`\n\n## 작업 내용\n**Hard Block 503 모드** (Oracle Critical #2 — silent data loss 방지) — Nginx/Django 측에서 모든 `/api/*` 요청에 `HTTP 503 Service Unavailable` + JSON body `{\"error\":\"app_updated\",\"message\":\"앱이 업데이트되었습니다. 앱을 완전히 종료 후 다시 실행해주세요\"}` 응답. 클라이언트 측 (Nuxt) 도 maintenance 안내 + force reload 버튼. MySQL `INSERT/UPDATE/DELETE` 권한 REVOKE 도 병행 (이중 안전)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl → 503 + 안내 JSON. 모바일 앱 시뮬: 토큰 가진 요청도 503. silent fail 0\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",
@@ -1914,8 +1958,8 @@
     },
     {
       "id": "C-14b",
-      "title": "[CUTOVER] **VPS Django 측은 read-only 유지** — DNS 캐시 잔존 사용자 (최대 48h) 보호. INSERT/UPDATE 권한 미복구",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-14b`\n\n## 작업 내용\n**VPS Django 측은 read-only 유지** — DNS 캐시 잔존 사용자 (최대 48h) 보호. INSERT/UPDATE 권한 미복구\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-14b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — DNS 전파 모니터링\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[CUTOVER] **VPS Django 측 Hard Block 503 유지 48h** (Oracle Critical #2 수정) — DNS 캐시 잔존 사용자에게",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-14b`\n\n## 작업 내용\n**VPS Django 측 Hard Block 503 유지 48h** (Oracle Critical #2 수정) — DNS 캐시 잔존 사용자에게 silent fail 대신 명시적 안내 + force reload. INSERT/UPDATE 권한 미복구 (이중 안전)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-14b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — DNS 전파 모니터링 + 503 응답 검증 + 사용자 문의 채널 모니터\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",

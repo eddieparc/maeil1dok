@@ -49,13 +49,13 @@ Plan F 에서 만들어졌고 v2 에서도 유효한 것:
 | C-7 | 점검 공지 게시 — 사용자 알림 (메일 또는 SNS) | 공지 url + 게시 스크린샷 |
 | C-8 | `MAINTENANCE_MODE=true` 활성화 (Vercel env, Nuxt 측 동일) | curl `/` → `/maintenance` 302 |
 | C-9 | Django/Nuxt 측 maintenance 페이지로 전환 | curl 응답 확인 |
-| **C-9b** | **Hard DB Lock** — MySQL 사용자 권한 REVOKE INSERT/UPDATE/DELETE (또는 `FLUSH TABLES WITH READ LOCK`). 모바일 클라이언트가 토큰 가지고 직접 호출해도 데이터 변경 0 보장 | `INSERT` 시도 → ER_TABLEACCESS_DENIED. 검증 query 결과 |
+| **C-9b** | **Hard Block 503 모드** (Oracle Critical #2 — silent data loss 방지) — Nginx/Django 측에서 모든 `/api/*` 요청에 `HTTP 503 Service Unavailable` + JSON body `{"error":"app_updated","message":"앱이 업데이트되었습니다. 앱을 완전히 종료 후 다시 실행해주세요"}` 응답. 클라이언트 측 (Nuxt) 도 maintenance 안내 + force reload 버튼. MySQL `INSERT/UPDATE/DELETE` 권한 REVOKE 도 병행 (이중 안전) | curl → 503 + 안내 JSON. 모바일 앱 시뮬: 토큰 가진 요청도 503. silent fail 0 |
 | C-10 | 라이브 데이터 최종 추출 (MySQL dump) | snapshot 파일 |
 | C-11 | 마이그레이션 풀 실행 (real, dry-run 아님) | validation_report.json overall=pass + Critical 3 테이블 0% 손실 검증 |
 | C-12 | Cloudflare DNS 전환 — A→CNAME (Vercel) | `dig maeil1dok.app` → Vercel IP |
 | C-13 | `MAINTENANCE_MODE=false` 비활성화 | curl `/` → 200 |
 | C-14 | 즉시 스모크 테스트 — OAuth 1건 + 본문 1건 + 진도 조회 1건 | Playwright session 3건 모두 통과 |
-| **C-14b** | **VPS Django 측은 read-only 유지** — DNS 캐시 잔존 사용자 (최대 48h) 보호. INSERT/UPDATE 권한 미복구 | DNS 전파 모니터링 |
+| **C-14b** | **VPS Django 측 Hard Block 503 유지 48h** (Oracle Critical #2 수정) — DNS 캐시 잔존 사용자에게 silent fail 대신 명시적 안내 + force reload. INSERT/UPDATE 권한 미복구 (이중 안전) | DNS 전파 모니터링 + 503 응답 검증 + 사용자 문의 채널 모니터 |
 
 ### 3.3 컷오버 직후 (T+0 ~ T+24h)
 

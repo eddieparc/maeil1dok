@@ -119,10 +119,26 @@
 
 | 회귀 방지 | 검증 |
 |---|---|
-| 새로고침 시 로그아웃 (Django 버그 #1~#3) | playwright: 로그인 → F5 새로고침 → 인증 상태 유지 (3가지 시나리오: idle/5min idle/1h idle) |
+| 새로고침 시 로그아웃 (Django 버그 #1~#3) | playwright: 로그인 → F5 새로고침 → 인증 상태 유지 (시나리오: immediate / 5min idle) |
 | 토큰 응답 본문 노출 | curl 응답 본문에 access_token 문자열 없음 grep |
 | CORS wildcard | Supabase + Vercel 설정에서 명시적 origin 목록 |
 | `print()` 토큰 로깅 | Next/Supabase Edge function 코드에 `console.log(token)` 패턴 grep = 0 |
+
+### 3.7 CI 환경 제약 (Oracle Major #4)
+
+**문제**: Vercel Preview URL (`*-pr-123.vercel.app`) 은 동적 — Kakao/Apple OAuth 가 사전 등록된 Redirect URI 만 허용하므로 모든 PR Playwright CI 가 OAuth 단계에서 무한 실패.
+
+**대응**:
+| 환경 | OAuth E2E 정책 |
+|---|---|
+| Local (`localhost:3000`) | 정상 진행 (각 OAuth provider 의 dev redirect URI 에 사전 등록) |
+| Staging (고정 도메인 `staging.maeil1dok.app`) | 정상 진행 (provider 에 사전 등록) |
+| Vercel Preview (`*.vercel.app`) | **Mock 모드** — Supabase Auth 의 `signInWithIdToken` 으로 가짜 토큰 주입 또는 OAuth 단계 skip + 인증 후 상태 stub |
+| Production (`maeil1dok.app`) | 정상 진행 |
+
+**DoD 분리**:
+- A-6 (Kakao E2E), A-7 (Google E2E), A-8 (Apple E2E) 의 ASSERTION 은 **Staging 통과** 시 PASS. PR Preview CI 에서는 Mock 단계 통과만 ASSERT.
+- Mocking 코드는 `tests/e2e/utils/auth-mock.ts` 에 분리. production build 에 포함 금지 (placeholder grep CI 와 동일 규칙).
 
 ---
 
