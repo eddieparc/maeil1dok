@@ -52,6 +52,20 @@ Django/MySQL → Supabase/PostgreSQL 데이터 마이그레이션을 **5% 손실
 
 ## 4. 작업 항목
 
+### 4.0 사용자/identity/profile 마이그레이션 순서 (자가 R3 Self-5)
+
+**엄격 순서 — race condition 방지**:
+```
+1. 트리거 DISABLE (M-5d)
+2. auth.users 사전 생성 (M-5, password_verification_hook 등록)
+3. auth.identities 추가 (M-5b, identity_data JSONB 완비)
+4. profiles INSERT (M-2~M-4 사용자 매핑 + skip 사유 분류)
+5. 트리거 RE-ENABLE (M-5d)
+6. 나머지 자식 테이블 (user_progress 등) 로딩
+```
+
+각 단계는 직렬. 병렬 금지 (race 위험).
+
 ### 4.1 사용자 사전 생성 강화 (Plan F의 02-* 재작성)
 
 | # | 작업 | DoD |
@@ -62,7 +76,9 @@ Django/MySQL → Supabase/PostgreSQL 데이터 마이그레이션을 **5% 손실
 | M-4 | `scheduled_deletion_at` / `merged_into` 사용자 처리 — skip but log to separate file | `data/deleted_users.json` + `data/merged_users.json` |
 | M-5 | `02-create-supabase-users.ts` v2 — 위 4개 반영 | 실행 시 user_mapping.json 의 entries 수 = 활성 사용자 수 (203 - 의도적 skip) |
 | **M-5b** | **SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1) — Django `accounts_socialaccount` 의 모든 row 를 `provider` + `provider_id` + `user_id (mapped UUID)` 로 `auth.identities` 에 service_role 로 직접 insert. Apple Private Relay 이메일이나 Kakao 비공개 이메일 사용자도 첫 로그인 시 자동 연결됨. | Django SocialAccount count == Supabase auth.identities count (정상 사용자 모수 기준). 5명 spot check: Django provider_id 가 auth.identities.provider_id 와 일치 |
-| **M-5c** | **PBKDF2 해시 포팅 시도** (Oracle Major #5) — Django `accounts_user.password` 의 PBKDF2 해시를 Supabase Auth 의 `encrypted_password` PHC 포맷으로 변환. 변환 라이브러리 또는 Supabase Admin API 의 `password_hash` 파라미터 활용. 변환 실패 시에만 강제 reset. | 5명 spot check: 변환된 해시로 로그인 시 정상 동작 |
+| **M-5c** | **PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. 첫 로그인 시 Django PBKDF2 해시를 Edge function 에서 검증, 성공 시 Supabase 가 자동으로 PHC 형식으로 재해시 저장. 실패 시 (b) 이메일 사용자 강제 reset 으로 회귀. **Supabase Pro tier 필요할 수 있음 — F-? 작업에서 사전 확인.** | (a): 5명 sample 로 첫 로그인 통과. (b): 강제 reset 발송 후 응답률 추적 |
+| **M-5d** | **Trigger 충돌 우회 + 마이그레이션 중 가입 차단** (Oracle R2 Critical #2, 자가 R3 Self-2) — `on_auth_user_created` 트리거가 `profiles` 자동 생성하므로 충돌. 마이그레이션 동안 `ALTER TABLE auth.users DISABLE TRIGGER ALL` (service_role 권한 가능) + maintenance mode 로 신규 가입 차단 의무 (트리거 OFF 동안 정상 신규 가입은 profiles 미생성). 마이그레이션 종료 후 즉시 트리거 RE-ENABLE. | 충돌 0건 + profiles count == auth.users count + maintenance mode 동안 신규 signup 시도 시 503 |
+| **M-5e** | **`auth.identities` identity_data JSONB 완비** (Oracle R2 Major #3, 자가 R3 Self-3) — GoTrue schema 정확히: `{"sub": provider_id, "email": email, "email_verified": true, "phone_verified": false, "provider_id": provider_id, ...optional provider-specific}`. `sub` 와 `provider_id` 모두 명시 (둘 다 GoTrue 가 참조). | 5명 spot check: identity_data.sub == identity_data.provider_id == auth.identities.provider_id |
 
 ### 4.2 5% Hard Fail 검증 강화 (Plan F의 04-validate 재작성)
 

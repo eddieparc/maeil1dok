@@ -213,13 +213,32 @@ Issue 가 close 되면 해당 슬라이스 플랜의 체크박스도 `[ ]` → `
 
 ---
 
-## 7. 본 문서의 진행 상태
+## 7. GitHub Project (Kanban) 활용 정책 (자가 R3 Self-7)
+
+186 이슈 추적을 사용자가 직접 따라가기 어려움. GH Project (V2 / 신규) 활용:
+
+| Project View | 필터 | 용도 |
+|---|---|---|
+| **By Wave** | milestone group: Wave 0~6 | 진행 단계 시각화 |
+| **By Slice** | label: slice:* | 슬라이스별 진척 |
+| **By Priority** | label: P0/P1/P2/P3 | 우선순위 큐 |
+| **Critical Path** | label: slice:FOUND OR MIGRATE OR AUTH OR READER OR PROGRESS OR CUTOVER + sort by milestone | 크리티컬 패스 트래킹 |
+| **Blocked** | label: state:blocked | 결정 대기 |
+
+생성 명령 (Gate G 통과 후):
+```bash
+gh project create --owner eddieparc --title "Migration v2 — 매일일독 Nuxt→Next 재출범"
+# Project 에 모든 v2 milestone 의 이슈 자동 추가 — gh project item-add
+```
+
+## 8. 본 문서의 진행 상태
 
 - [x] Milestone 매핑 정의 (15+1)
 - [x] Label 스킴 정의
 - [x] Issue 템플릿 (작업 + 결정)
-- [x] Issue 카탈로그 1차 (제목 패턴)
+- [x] Issue 카탈로그 자동 생성 (186 issue, catalog.json)
+- [x] GH Project 활용 정책 (Kanban)
 - [ ] **Gate F (Oracle 최종 리뷰) 통과 후 실제 `gh` 명령 생성**
 - [ ] 자동 동기화 워크플로우 (.github/workflows/plan-sync.yml)
 
-<!-- mapping-version: 1 -->
+<!-- mapping-version: 2 -->

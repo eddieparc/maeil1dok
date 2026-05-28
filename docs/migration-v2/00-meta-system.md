@@ -70,6 +70,7 @@
 | **세션 종료 전 빌드 그린 의무** — 빌드 fail 상태로 commit/push 금지 | F5 |
 | **TS error 0건 baseline** — 임의 증가 시 PR 차단 | 누적 부채 |
 | **TS 우회 패턴 금지** (Momus R1 Major #1) — `@ts-ignore`, `@ts-expect-error`, `as any`, `as unknown as X` 4종 모두 lint-staged + CI grep 으로 차단. `as unknown as X` 가 정당한 경우 (제네릭 한정 우회) 는 PR 에서 사용자 명시 승인 필요 | TS 그린 위장 |
+| **service_role key 유출 차단** (Oracle R2 Major #5) — CI 에 `NEXT_PUBLIC_.*SERVICE_ROLE_KEY`, `NEXT_PUBLIC_.*SECRET`, `NEXT_PUBLIC_.*PRIVATE_KEY` 패턴 grep 검출 시 hard fail. service_role key 는 server-only env 만 허용 | 전체 DB 읽기/쓰기 권한 클라이언트 노출 |
 | **런타임 스모크** — `npm run build` 통과만으로는 부족, 핵심 라우트 3개 GET 200 확인 | 빌드 그린 ≠ 동작 |
 
 ### 2.6 스코프·드리프트 방지 규칙

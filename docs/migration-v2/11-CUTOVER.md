@@ -49,10 +49,11 @@ Plan F 에서 만들어졌고 v2 에서도 유효한 것:
 | C-7 | 점검 공지 게시 — 사용자 알림 (메일 또는 SNS) | 공지 url + 게시 스크린샷 |
 | C-8 | `MAINTENANCE_MODE=true` 활성화 (Vercel env, Nuxt 측 동일) | curl `/` → `/maintenance` 302 |
 | C-9 | Django/Nuxt 측 maintenance 페이지로 전환 | curl 응답 확인 |
-| **C-9b** | **Hard Block 503 모드** (Oracle Critical #2 — silent data loss 방지) — Nginx/Django 측에서 모든 `/api/*` 요청에 `HTTP 503 Service Unavailable` + JSON body `{"error":"app_updated","message":"앱이 업데이트되었습니다. 앱을 완전히 종료 후 다시 실행해주세요"}` 응답. 클라이언트 측 (Nuxt) 도 maintenance 안내 + force reload 버튼. MySQL `INSERT/UPDATE/DELETE` 권한 REVOKE 도 병행 (이중 안전) | curl → 503 + 안내 JSON. 모바일 앱 시뮬: 토큰 가진 요청도 503. silent fail 0 |
+| **C-9b** | **Hard Block 503 모드** (Oracle Critical #2) — Nginx/Django 측에서 모든 `/api/*` 요청에 `HTTP 503 Service Unavailable` + JSON body `{"error":"app_updated","message":"앱이 업데이트되었습니다. 앱을 완전히 종료 후 다시 실행해주세요"}`. MySQL `INSERT/UPDATE/DELETE` 권한 REVOKE 도 병행. | curl → 503 + 안내 JSON |
+| **C-9c** | **구 클라이언트 503 처리 역검증** (Oracle R2 Major #4) — 컷오버 전 사전 작업: 현재 배포된 Nuxt + 모바일 앱이 503 `app_updated` 응답을 받았을 때 (1) 사용자에게 안내 UI 표시 + (2) 앱스토어/Play 스토어로 유도하는 로직 **실제 존재 검증**. 없으면 hotfix 배포 후 컷오버 가능. | grep 코드 + 모바일 실 디바이스 503 응답 시나리오 테스트 결과 |
 | C-10 | 라이브 데이터 최종 추출 (MySQL dump) | snapshot 파일 |
 | C-11 | 마이그레이션 풀 실행 (real, dry-run 아님) | validation_report.json overall=pass + Critical 3 테이블 0% 손실 검증 |
-| C-12 | Cloudflare DNS 전환 — A→CNAME (Vercel) | `dig maeil1dok.app` → Vercel IP |
+| C-12 | Cloudflare DNS 전환 — A→CNAME (Vercel). **Cloudflare proxy off (grey cloud) — WAF/DDoS 보호 사라짐, Vercel 자체 인프라가 흡수** (자가 R3 Self-6). Vercel Edge Network + Firewall Rules 설정 사전 검토 | `dig maeil1dok.app` → Vercel IP + Vercel Firewall 활성 확인 |
 | C-13 | `MAINTENANCE_MODE=false` 비활성화 | curl `/` → 200 |
 | C-14 | 즉시 스모크 테스트 — OAuth 1건 + 본문 1건 + 진도 조회 1건 | Playwright session 3건 모두 통과 |
 | **C-14b** | **VPS Django 측 Hard Block 503 유지 48h** (Oracle Critical #2 수정) — DNS 캐시 잔존 사용자에게 silent fail 대신 명시적 안내 + force reload. INSERT/UPDATE 권한 미복구 (이중 안전) | DNS 전파 모니터링 + 503 응답 검증 + 사용자 문의 채널 모니터 |

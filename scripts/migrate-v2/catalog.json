@@ -198,8 +198,8 @@
     },
     {
       "id": "F-13",
-      "title": "[FOUND] placeholder 텍스트 grep CI 추가 — \"구현 예정\", \"TODO production\" 검출 시 CI fail",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-13`\n\n## 작업 내용\nplaceholder 텍스트 grep CI 추가 — \"구현 예정\", \"TODO production\" 검출 시 CI fail\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — CI workflow 파일 + 의도적 테스트 푸시로 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[FOUND] placeholder + service_role 유출 grep CI 통합 (자가 R3 Self-4) — \"구현 예정\", \"TODO product",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-13`\n\n## 작업 내용\nplaceholder + service_role 유출 grep CI 통합 (자가 R3 Self-4) — \"구현 예정\", \"TODO production\" + `NEXT_PUBLIC_.*SERVICE_ROLE_KEY` + `NEXT_PUBLIC_.*SECRET` + `NEXT_PUBLIC_.*PRIVATE_KEY` 검출 시 CI fail\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — CI workflow 파일 + 의도적 테스트 푸시로 검증 (양쪽 패턴)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/FOUND — Foundation 복구",
       "labels": [
         "slice:FOUND",
@@ -233,6 +233,17 @@
       "id": "F-16",
       "title": "[FOUND] **Supabase migrations diff CI** (Oracle Major #3) — PR 에서 운영 DB 와 migrations 디렉토",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-16`\n\n## 작업 내용\n**Supabase migrations diff CI** (Oracle Major #3) — PR 에서 운영 DB 와 migrations 디렉토리 사이 drift 검출 시 fail\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-16.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `supabase db diff` exit 0 in CI\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/FOUND — Foundation 복구",
+      "labels": [
+        "slice:FOUND",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "F-17",
+      "title": "[FOUND] **Supabase tier 사전 확인** (자가 R3 Self-8) — Auth Hooks (M-5c) + Edge Functions (not",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-17`\n\n## 작업 내용\n**Supabase tier 사전 확인** (자가 R3 Self-8) — Auth Hooks (M-5c) + Edge Functions (notifications) + 200 MAU + DB ~10K row 가 free tier 로 충분한지 검증. Pro tier 필요 시 사전 결정 + 비용 승인\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-17.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — tier 적정성 보고서 + 사용자 결정\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/FOUND — Foundation 복구",
       "labels": [
         "slice:FOUND",
@@ -539,8 +550,30 @@
     },
     {
       "id": "M-5c",
-      "title": "[MIGRATE] **PBKDF2 해시 포팅 시도** (Oracle Major #5) — Django `accounts_user.password` 의 PBKDF2",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5c`\n\n## 작업 내용\n**PBKDF2 해시 포팅 시도** (Oracle Major #5) — Django `accounts_user.password` 의 PBKDF2 해시를 Supabase Auth 의 `encrypted_password` PHC 포맷으로 변환. 변환 라이브러리 또는 Supabase Admin API 의 `password_hash` 파라미터 활용. 변환 실패 시에만 강제 reset.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5명 spot check: 변환된 해시로 로그인 시 정상 동작\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[MIGRATE] **PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5c`\n\n## 작업 내용\n**PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. 첫 로그인 시 Django PBKDF2 해시를 Edge function 에서 검증, 성공 시 Supabase 가 자동으로 PHC 형식으로 재해시 저장. 실패 시 (b) 이메일 사용자 강제 reset 으로 회귀. **Supabase Pro tier 필요할 수 있음 — F-? 작업에서 사전 확인.**\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (a): 5명 sample 로 첫 로그인 통과. (b): 강제 reset 발송 후 응답률 추적\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-5d",
+      "title": "[MIGRATE] **Trigger 충돌 우회 + 마이그레이션 중 가입 차단** (Oracle R2 Critical #2, 자가 R3 Self-2) — `on_a",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5d`\n\n## 작업 내용\n**Trigger 충돌 우회 + 마이그레이션 중 가입 차단** (Oracle R2 Critical #2, 자가 R3 Self-2) — `on_auth_user_created` 트리거가 `profiles` 자동 생성하므로 충돌. 마이그레이션 동안 `ALTER TABLE auth.users DISABLE TRIGGER ALL` (service_role 권한 가능) + maintenance mode 로 신규 가입 차단 의무 (트리거 OFF 동안 정상 신규 가입은 profiles 미생성). 마이그레이션 종료 후 즉시 트리거 RE-ENABLE.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5d.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 충돌 0건 + profiles count == auth.users count + maintenance mode 동안 신규 signup 시도 시 503\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
+      "labels": [
+        "slice:MIGRATE",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "M-5e",
+      "title": "[MIGRATE] **`auth.identities` identity_data JSONB 완비** (Oracle R2 Major #3, 자가 R3 Self-3) ",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5e`\n\n## 작업 내용\n**`auth.identities` identity_data JSONB 완비** (Oracle R2 Major #3, 자가 R3 Self-3) — GoTrue schema 정확히: `{\"sub\": provider_id, \"email\": email, \"email_verified\": true, \"phone_verified\": false, \"provider_id\": provider_id, ...optional provider-specific}`. `sub` 와 `provider_id` 모두 명시 (둘 다 GoTrue 가 참조).\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5e.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5명 spot check: identity_data.sub == identity_data.provider_id == auth.identities.provider_id\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -1892,8 +1925,19 @@
     },
     {
       "id": "C-9b",
-      "title": "[CUTOVER] **Hard Block 503 모드** (Oracle Critical #2 — silent data loss 방지) — Nginx/Django ",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9b`\n\n## 작업 내용\n**Hard Block 503 모드** (Oracle Critical #2 — silent data loss 방지) — Nginx/Django 측에서 모든 `/api/*` 요청에 `HTTP 503 Service Unavailable` + JSON body `{\"error\":\"app_updated\",\"message\":\"앱이 업데이트되었습니다. 앱을 완전히 종료 후 다시 실행해주세요\"}` 응답. 클라이언트 측 (Nuxt) 도 maintenance 안내 + force reload 버튼. MySQL `INSERT/UPDATE/DELETE` 권한 REVOKE 도 병행 (이중 안전)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl → 503 + 안내 JSON. 모바일 앱 시뮬: 토큰 가진 요청도 503. silent fail 0\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[CUTOVER] **Hard Block 503 모드** (Oracle Critical #2) — Nginx/Django 측에서 모든 `/api/*` 요청에 `H",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9b`\n\n## 작업 내용\n**Hard Block 503 모드** (Oracle Critical #2) — Nginx/Django 측에서 모든 `/api/*` 요청에 `HTTP 503 Service Unavailable` + JSON body `{\"error\":\"app_updated\",\"message\":\"앱이 업데이트되었습니다. 앱을 완전히 종료 후 다시 실행해주세요\"}`. MySQL `INSERT/UPDATE/DELETE` 권한 REVOKE 도 병행.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — curl → 503 + 안내 JSON\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-9c",
+      "title": "[CUTOVER] **구 클라이언트 503 처리 역검증** (Oracle R2 Major #4) — 컷오버 전 사전 작업: 현재 배포된 Nuxt + 모바일 앱이 ",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9c`\n\n## 작업 내용\n**구 클라이언트 503 처리 역검증** (Oracle R2 Major #4) — 컷오버 전 사전 작업: 현재 배포된 Nuxt + 모바일 앱이 503 `app_updated` 응답을 받았을 때 (1) 사용자에게 안내 UI 표시 + (2) 앱스토어/Play 스토어로 유도하는 로직 **실제 존재 검증**. 없으면 hotfix 배포 후 컷오버 가능.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — grep 코드 + 모바일 실 디바이스 503 응답 시나리오 테스트 결과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",
@@ -1925,8 +1969,8 @@
     },
     {
       "id": "C-12",
-      "title": "[CUTOVER] Cloudflare DNS 전환 — A→CNAME (Vercel)",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-12`\n\n## 작업 내용\nCloudflare DNS 전환 — A→CNAME (Vercel)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `dig maeil1dok.app` → Vercel IP\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[CUTOVER] Cloudflare DNS 전환 — A→CNAME (Vercel). **Cloudflare proxy off (grey cloud) — WAF/",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-12`\n\n## 작업 내용\nCloudflare DNS 전환 — A→CNAME (Vercel). **Cloudflare proxy off (grey cloud) — WAF/DDoS 보호 사라짐, Vercel 자체 인프라가 흡수** (자가 R3 Self-6). Vercel Edge Network + Firewall Rules 설정 사전 검토\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-12.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `dig maeil1dok.app` → Vercel IP + Vercel Firewall 활성 확인\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",
