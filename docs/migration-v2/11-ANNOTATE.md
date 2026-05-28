@@ -28,6 +28,12 @@ Plan F 는 **데이터만 마이그레이션하고 UI는 제외**했다. v2 는 
 - AND-1 (= MD-3): memo 제외 / 포함
 - AND-2: 하이라이트 색상 토큰 — 직전 디자인과 일관성
 
-## 5. DoD
-- EVIDENCE: 4 도메인 × CRUD × RLS 위반 시도 = 16 e2e + placeholder grep 0
-- ASSERTION: "구현 예정" 텍스트 production build 에 0 hits
+## 5. DoD (Oracle R-final Major #6 + Momus #3 4-tuple 보강)
+- **CHANGE**: src/app/(authenticated)/bible/bookmarks/, highlights/, notes/, notes/[id]/, src/repositories/annotationRepo.ts, src/components/annotation/*
+- **EVIDENCE**: `.sisyphus/evidence/11-ANNOTATE-e2e/` — 4 도메인 (bookmark/highlight/note/personal-record) × CRUD = 16 e2e + RLS 위반 시도 4건 + placeholder grep 결과 (`placeholder-grep.txt`)
+- **REPRODUCE**: `npx playwright test tests/e2e/annotate/*.spec.ts && cd maeil1dok-next && npm run build && grep -rn "구현 예정\\|Task 3-3" .next/static .next/server | wc -l`
+- **ASSERTION**:
+  - 16/16 e2e pass
+  - 4/4 RLS 거부
+  - "구현 예정" 텍스트 production build 에 0 hits (BUG-005 해소 입증)
+  - 3 신규 테이블 (bible_bookmarks, reflection_notes, personal_reading_records) row count Django==Supabase

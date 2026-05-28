@@ -56,12 +56,12 @@
 | P-5 | 일정 상세 (today / tomorrow / arbitrary date) | e2e 통과 |
 | P-6 | 비디오 인트로 (`video_bible_intros`) — 책별 영상 | 표시 + 재생 |
 
-### 3.2 Plan F 데이터 손실 회복
+### 3.2 Plan F 데이터 손실 회복 (Oracle R-final Minor #3 — 하드코딩 제거)
 
 | # | 작업 | DoD |
 |---|---|---|
-| P-7 | 11-MIGRATE 통과 후 plan_subscriptions row count = 463 (Django 기준) | row count 검증 |
-| P-8 | UserPlanDisplaySettings — 사용자별 색상/순서 설정 마이그레이션 | 463/463 |
+| P-7 | 11-MIGRATE 통과 후 plan_subscriptions row count = **Django live snapshot 기준 expected count** (M-2 `valid_users.sql` JOIN `plan_subscriptions` 의 row 수, 매월 drift 체크와 동기). 직전 plan F 시기 463 은 참고치이며 v2 실행 시점에 재측정 | `.sisyphus/evidence/11-PLAN-expected-count.sql.out` (Django) == Supabase row count |
+| P-8 | UserPlanDisplaySettings — 사용자별 색상/순서 설정 마이그레이션 | Django snapshot count == Supabase count (P-7 과 동일 분모) |
 
 ### 3.3 결정 사항
 

@@ -43,7 +43,7 @@ SLICE_META = {
     "PROFILE":  {"prefix": "PF", "milestone": "v2/PROFILE — 프로필·업적·잔디",         "priority": "P2"},
     "SOCIAL":   {"prefix": "S",  "milestone": "v2/SOCIAL — 친구·스코어보드",          "priority": "P2"},
     "ANNOTATE": {"prefix": "AN", "milestone": "v2/ANNOTATE — 북마크·하이라이트·노트", "priority": "P1"},
-    "ADMIN":    {"prefix": "AD", "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",      "priority": "P3"},
+    "ADMIN":    {"prefix": "AD", "milestone": "v2/ADMIN-CORE — 관리자 핵심 (메인 컷오버 포함, PRE-5)", "priority": "P1"},
     "CUTOVER":  {"prefix": "C",  "milestone": "v2/CUTOVER — 실 컷오버",               "priority": "P0"},
 }
 
@@ -134,17 +134,36 @@ def main():
             "description": f"슬라이스 {slice_name} — 자세히는 docs/migration-v2/11-{slice_name}.md",
         })
 
+    # PRE-5 ADMIN-EXTENDED milestone (별도 트랙, AD-6/AD-7/AD-8)
+    catalog["milestones"].append({
+        "title": "v2/ADMIN-EXTENDED — 관리자 확장 (컷오버 후, PRE-5)",
+        "description": "슬라이스 ADMIN-EXTENDED (AD-6~8) — 통계·대시보드·사용자 검색 등 비-쓰기 부분. 메인 컷오버 후 별도 트랙.",
+    })
+
+    # PRE-5: AD-6, AD-7, AD-8 are EXTENDED (별도 트랙, P3, track:extended).
+    # AD-1~AD-5 are CORE (메인 컷오버 포함, P1). 11-ADMIN.md §3·§4 분리 결정 반영.
+    ADMIN_EXTENDED_IDS = {"AD-6", "AD-7", "AD-8"}
+
     # Issues
     for slice_name, meta in SLICE_META.items():
         file_path = DOCS / f"11-{slice_name}.md"
         slice_issues = parse_slice(slice_name, meta["prefix"], file_path)
         for issue in slice_issues:
-            issue["milestone"] = meta["milestone"]
-            issue["labels"] = [
-                f"slice:{slice_name}",
-                meta["priority"],
-                "state:ready",
-            ]
+            if slice_name == "ADMIN" and issue["id"] in ADMIN_EXTENDED_IDS:
+                issue["milestone"] = "v2/ADMIN-EXTENDED — 관리자 확장 (컷오버 후, PRE-5)"
+                issue["labels"] = [
+                    f"slice:{slice_name}",
+                    "P3",
+                    "track:extended",
+                    "state:ready",
+                ]
+            else:
+                issue["milestone"] = meta["milestone"]
+                issue["labels"] = [
+                    f"slice:{slice_name}",
+                    meta["priority"],
+                    "state:ready",
+                ]
         catalog["issues"].extend(slice_issues)
         print(f"  {slice_name}: {len(slice_issues)} issues", file=sys.stderr)
 

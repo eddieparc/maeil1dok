@@ -55,12 +55,16 @@
       "description": "슬라이스 ANNOTATE — 자세히는 docs/migration-v2/11-ANNOTATE.md"
     },
     {
-      "title": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "title": "v2/ADMIN-CORE — 관리자 핵심 (메인 컷오버 포함, PRE-5)",
       "description": "슬라이스 ADMIN — 자세히는 docs/migration-v2/11-ADMIN.md"
     },
     {
       "title": "v2/CUTOVER — 실 컷오버",
       "description": "슬라이스 CUTOVER — 자세히는 docs/migration-v2/11-CUTOVER.md"
+    },
+    {
+      "title": "v2/ADMIN-EXTENDED — 관리자 확장 (컷오버 후, PRE-5)",
+      "description": "슬라이스 ADMIN-EXTENDED (AD-6~8) — 통계·대시보드·사용자 검색 등 비-쓰기 부분. 메인 컷오버 후 별도 트랙."
     }
   ],
   "issues": [
@@ -198,8 +202,8 @@
     },
     {
       "id": "F-13",
-      "title": "[FOUND] placeholder + service_role 유출 grep CI 통합 (자가 R3 Self-4) — \"구현 예정\", \"TODO product",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-13`\n\n## 작업 내용\nplaceholder + service_role 유출 grep CI 통합 (자가 R3 Self-4) — \"구현 예정\", \"TODO production\" + `NEXT_PUBLIC_.*SERVICE_ROLE_KEY` + `NEXT_PUBLIC_.*SECRET` + `NEXT_PUBLIC_.*PRIVATE_KEY` 검출 시 CI fail\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — CI workflow 파일 + 의도적 테스트 푸시로 검증 (양쪽 패턴)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[FOUND] placeholder + service_role 5중 차단 CI 통합 (자가 R3 Self-4 + Oracle R-final Major #4 —",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:FOUND`  \n**플랜**: docs/migration-v2/11-FOUND.md  \n**작업 ID**: `F-13`\n\n## 작업 내용\nplaceholder + service_role 5중 차단 CI 통합 (자가 R3 Self-4 + Oracle R-final Major #4 — 범위 확장) — (a) placeholder grep: \"구현 예정\", \"TODO production\" hard fail. (b) **service_role 5중 차단** (00-meta-system §2.5 참조): (1) env 이름 grep (NEXT_PUBLIC_.*SERVICE_ROLE_KEY/SECRET/PRIVATE_KEY) (2) `import 'server-only'` 강제 + ESLint `no-service-role-in-client` rule (3) **client bundle/sourcemap secret scan** — `.next/static/**/*.js{,.map}` 에 service_role key 실제 값 + `eyJhbGc...` JWT 풀 패턴 grep (4) **route log redaction** ESLint rule (5) **issue body sanitizer** (`sync-issues.sh` 가 GH 전송 전 secret 패턴 grep)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/FOUND-F-13.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — CI workflow 파일 + 의도적 테스트 푸시로 5 경로 모두 검증 (각 패턴 1건씩 의도 leak → CI fail 확인) + `.sisyphus/evidence/F-13-secret-scan-{1..5}.txt`\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/FOUND — Foundation 복구",
       "labels": [
         "slice:FOUND",
@@ -495,8 +499,8 @@
     },
     {
       "id": "M-2",
-      "title": "[MIGRATE] 사용자 skip 사유 enum 정의 + 사유별 카운트 출력 (Self-critique B3) — Plan F 의 142 하드코딩 폐기. 동적 검",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-2`\n\n## 작업 내용\n사용자 skip 사유 enum 정의 + 사유별 카운트 출력 (Self-critique B3) — Plan F 의 142 하드코딩 폐기. 동적 검증: `Django 활성 사용자 수 == Supabase auth.users 매핑 수 + skip 사유별 합계`. v2 실행 시점의 실 누락 수에 자동 적응\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 검증식 통과 + skip 사유별 카운트 보고서 (`scheduled_deletion_at` N1 / `merged_into` N2 / 중복 이메일 N3 / 기타 N4)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[MIGRATE] **Valid Users SSOT 정의** (Oracle R-final Critical #3) — `scripts/migrate/sql/vali",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-2`\n\n## 작업 내용\n**Valid Users SSOT 정의** (Oracle R-final Critical #3) — `scripts/migrate/sql/valid_users.sql` 작성. deterministic query: `SELECT id, email FROM accounts_user WHERE scheduled_deletion_at IS NULL AND merged_into IS NULL` (+ 추가 제외 조건은 사용자 명시 승인 후만). **`valid_users.sql` 외 다른 query 는 분모로 사용 금지** (validator grep). 사용자 skip 사유 enum 정의: `scheduled_deletion / merged_into / duplicate_email / other` (+ \"other\" 카운트 > 0 시 사용자 승인 게이트). 동적 검증: `Django valid_users.sql count == Supabase auth.users 매핑 수 + skip 사유별 합계`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `valid_users.sql` 커밋 + 검증식 통과 + skip 사유별 카운트 보고서 (`scheduled_deletion_at` N1 / `merged_into` N2 / 중복 이메일 N3 / 기타 N4) + 기타 카운트 ≥ 1 시 사용자 승인 evidence\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -550,8 +554,8 @@
     },
     {
       "id": "M-5b",
-      "title": "[MIGRATE] **SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1, Mn8) — M-5b-",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5b`\n\n## 작업 내용\n**SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1, Mn8) — M-5b-pre 에서 입증된 경로로 Django `accounts_socialaccount` 의 모든 row 를 마이그레이션. `provider` + `provider_id` + `user_id (mapped UUID)` + `identity_data` (M-5e). **Mn8: auth.identities 의 PK (UUID `id`) 정책 — Supabase 자동 생성. Django SocialAccount.id 는 보존 안 함 (Supabase 의 UUID 로 대체). FK 참조 없으므로 무방.**\n\n## 의존성 (Mn5)\n- 선행: `M-5b-pre`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Django SocialAccount count == Supabase auth.identities count + 5명 spot check\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[MIGRATE] **SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1, Mn8 + Oracle",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5b`\n\n## 작업 내용\n**SocialAccount → auth.identities 명시적 마이그레이션** (Oracle Critical #1, Mn8 + Oracle R-final Major #2) — M-5b-pre 에서 입증된 경로로 Django `accounts_socialaccount` 의 모든 row 를 마이그레이션. `provider` + `provider_id` + `user_id (mapped UUID)` + `identity_data` (M-5e). **Mn8: auth.identities 의 PK (UUID `id`) 정책 — Supabase 자동 생성. Django SocialAccount.id 는 보존 안 함 (Supabase 의 UUID 로 대체). FK 참조 없으므로 무방.**\n\n## 의존성 (Mn5)\n- 선행: `M-5b-pre`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (a) Django SocialAccount count == Supabase auth.identities count. (b) **실 OAuth/token exchange 검증 — migrated social test account 1건당 staging 환경에서 실제 Kakao/Google/Apple OAuth 진행 → `supabase.auth.getUser()` 결과의 `id` 가 `user_mapping[django_user_id]` 와 정확히 일치 (각 provider 1건 = 3건 + 무작위 5명 추가 = 8건 검증)**. (c) `auth.identities` 유니크 제약 검증: `(provider, provider_id)` 중복 0건, `(user_id, provider)` 중복 0건. row 존재만으로는 첫 로그인 시 새 빈 계정 생성 차단 불충분 — 실 token exchange 가 사전 매핑 UUID 와 연결되는지 동작 검증 의무\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -561,8 +565,8 @@
     },
     {
       "id": "M-5c",
-      "title": "[MIGRATE] **PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5c`\n\n## 작업 내용\n**PBKDF2 → `password_verification_hook` 방식** (Oracle R2 Critical #1, 자가 R3 Self-1, Self-critique MAJOR M3) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. **선행 의무: F-17 (Supabase tier 사전 확인) 통과 후 진입.** F-17 결과 Pro tier 필요 + 사용자 비용 승인 시 (a) 경로, 불가 시 (b) 강제 reset 경로 자동 회귀.\n\n## 의존성 (Mn5)\n- 선행: `F-17`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (a): 5명 sample 로 첫 로그인 통과. (b): 강제 reset 발송 후 응답률 추적\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[MIGRATE] **PBKDF2 → `password_verification_hook` 방식 + 전체 스키마 명시** (Oracle R2 Critical #1 ",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5c`\n\n## 작업 내용\n**PBKDF2 → `password_verification_hook` 방식 + 전체 스키마 명시** (Oracle R2 Critical #1 + Oracle R-final Major #3, 자가 R3 Self-1, Self-critique MAJOR M3) — Supabase `password_verification_hook` (Auth Hooks 카테고리) 으로 외부 검증. **선행 의무: F-17 (Supabase tier 사전 확인) 통과 후 진입.** F-17 결과 Pro tier 필요 + 사용자 비용 승인 시 (a) 경로, 불가 시 (b) 강제 reset 경로 자동 회귀.<br><br>**(a) 경로 — 전체 스키마 명시 (Oracle R-final Major #3)**:<br>1. **`legacy_password_hashes` 테이블** (server-only, RLS 거부, service_role 만 read; auth schema 또는 별도 `_migration` schema):<br>   ```sql<br>   CREATE TABLE _migration.legacy_password_hashes (<br>     user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,<br>     algo text NOT NULL CHECK (algo='pbkdf2_sha256'),<br>     iterations int NOT NULL,<br>     salt text NOT NULL,<br>     hash text NOT NULL,<br>     created_at timestamptz DEFAULT now(),<br>     migrated_at timestamptz NULL  -- Supabase password 로 옮긴 시점<br>   );<br>   ALTER TABLE _migration.legacy_password_hashes ENABLE ROW LEVEL SECURITY;<br>   -- service_role 외 모든 role 접근 거부 (default deny)<br>   ```<br>2. **Hook request schema** (Supabase → Edge function):<br>   ```json<br>   {\"user_id\": \"uuid\", \"password\": \"plain text from sign-in attempt\", \"email\": \"...\"}<br>   ```<br>3. **Hook response schema** (Edge function → Supabase):<br>   ```json<br>   {\"decision\": \"continue\"\n\n## 의존성 (Mn5)\n- 선행: `F-17`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5c.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (a): 5명 sample staging 환경 첫 로그인 통과 + `_migration.legacy_password_hashes.migrated_at` 갱신 검증 + 30일 cron 동작 검증 (`.sisyphus/evidence/11-MIGRATE-password-hook.txt`). (b): reset 발송 row count + 30일 후 응답률 (`.sisyphus/evidence/11-MIGRATE-password-reset.txt`)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -572,8 +576,8 @@
     },
     {
       "id": "M-5d",
-      "title": "[MIGRATE] **Trigger 충돌 우회 — ON CONFLICT 방식** (Oracle R2 Critical #2, 자가 R3 Self-2, Self-cr",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5d`\n\n## 작업 내용\n**Trigger 충돌 우회 — ON CONFLICT 방식** (Oracle R2 Critical #2, 자가 R3 Self-2, Self-critique B2) — `on_auth_user_created` 트리거가 `profiles` 자동 생성. **Supabase managed 환경에서 service_role 은 `auth.users` 의 trigger 제어 권한 없음 (table owner: `supabase_auth_admin`)**. 트리거 DISABLE 시도 대신 **`profiles INSERT ... ON CONFLICT (user_id) DO UPDATE SET ...`** 사용. 트리거가 빈 profiles row 를 먼저 만들어도 우리 데이터로 덮어쓰기. + maintenance mode 로 신규 가입은 별도 차단.\n\n## 의존성 (Mn5)\n- 선행: `M-5`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5d.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — profiles INSERT 시 충돌 0건 (ON CONFLICT 의 DO UPDATE 가 처리) + profiles 의 모든 컬럼이 Django UserProfile 값으로 셋팅됨\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[MIGRATE] **Trigger 충돌 우회 — ON CONFLICT 방식** (Oracle R2 Critical #2 + Oracle R-final Criti",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-5d`\n\n## 작업 내용\n**Trigger 충돌 우회 — ON CONFLICT 방식** (Oracle R2 Critical #2 + Oracle R-final Critical #2, 자가 R3 Self-2, Self-critique B2) — `on_auth_user_created` 트리거가 `profiles` 자동 생성. **Supabase managed 환경에서 service_role 은 `auth.users` 의 trigger 제어 권한 없음 (table owner: `supabase_auth_admin`)**. **DISABLE/RE-ENABLE 절대 금지** (validator hard fail). **`profiles INSERT ... ON CONFLICT (user_id) DO UPDATE SET ...`** 사용. 트리거가 빈 profiles row 를 먼저 만들어도 우리 데이터로 덮어쓰기. + maintenance/signup hard block 으로 신규 가입은 별도 차단 (Supabase Auth Settings `disable_signup=true` 또는 RLS).\n\n## 의존성 (Mn5)\n- 선행: `M-5`\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-5d.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — profiles UPSERT 시 충돌 0건 (ON CONFLICT 의 DO UPDATE 가 처리) + profiles 의 모든 컬럼이 Django UserProfile 값으로 셋팅됨 + `disable_signup=true` 적용 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -616,8 +620,8 @@
     },
     {
       "id": "M-8",
-      "title": "[MIGRATE] 멱등성 검증 — 동일 마이그레이션 2회 → row count 변화 0",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-8`\n\n## 작업 내용\n멱등성 검증 — 동일 마이그레이션 2회 → row count 변화 0\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 검증 통과\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[MIGRATE] **멱등성 검증 + Digest Hash** (Oracle R-final Major #1) — 동일 마이그레이션 2회 → (a) row coun",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-8`\n\n## 작업 내용\n**멱등성 검증 + Digest Hash** (Oracle R-final Major #1) — 동일 마이그레이션 2회 → (a) row count delta = 0 + (b) **Critical 3 + auth.users + auth.identities 의 deterministic digest hash 동일**. 각 테이블에 대해 `SELECT json_agg(row_to_json(t) ORDER BY natural_key) FROM (SELECT natural_key, important_fields FROM target_table) t` 의 sha256 이 1회차 == 2회차. natural_key 정의: profiles=user_id, plan_subscriptions=(user_id, plan_id), user_progress=(user_id, schedule_id), auth.users=email, auth.identities=(provider, provider_id). row count 동일만으로는 UUID 재매핑/timestamp overwrite/identity relink 검출 불가 — digest 가 변질 차단\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — row count delta = 0 + digest hash 5개 모두 동일 (`.sisyphus/evidence/11-MIGRATE-digest-{run1,run2}.txt` 두 파일 sha256sum 일치)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -638,8 +642,8 @@
     },
     {
       "id": "M-9b",
-      "title": "[MIGRATE] **Skip 사용자 spot check** (Momus R1 Hidden #2) — `data/skipped_users.json` 의 무작위 5",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-9b`\n\n## 작업 내용\n**Skip 사용자 spot check** (Momus R1 Hidden #2) — `data/skipped_users.json` 의 무작위 5명을 Django 측에서 직접 SELECT 해 `scheduled_deletion_at` / `merged_into` / 중복 이메일 여부 확인\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-9b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 5/5 모두 정당 skip 입증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[MIGRATE] **Skip 사용자 spot check + 전수 게이트** (Momus R1 Hidden #2 + Oracle R-final Critical #",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:MIGRATE`  \n**플랜**: docs/migration-v2/11-MIGRATE.md  \n**작업 ID**: `M-9b`\n\n## 작업 내용\n**Skip 사용자 spot check + 전수 게이트** (Momus R1 Hidden #2 + Oracle R-final Critical #3) — `data/skipped_users.json` 의 사용자를 Django 측에서 직접 SELECT 해 `scheduled_deletion_at` / `merged_into` / 중복 이메일 여부 확인. **\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-9b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — > 20 시)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/MIGRATE — 데이터 마이그레이션 v2",
       "labels": [
         "slice:MIGRATE",
@@ -1243,8 +1247,8 @@
     },
     {
       "id": "P-7",
-      "title": "[PLAN] 11-MIGRATE 통과 후 plan_subscriptions row count = 463 (Django 기준)",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-7`\n\n## 작업 내용\n11-MIGRATE 통과 후 plan_subscriptions row count = 463 (Django 기준)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — row count 검증\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[PLAN] 11-MIGRATE 통과 후 plan_subscriptions row count = **Django live snapshot 기준 expecte",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-7`\n\n## 작업 내용\n11-MIGRATE 통과 후 plan_subscriptions row count = **Django live snapshot 기준 expected count** (M-2 `valid_users.sql` JOIN `plan_subscriptions` 의 row 수, 매월 drift 체크와 동기). 직전 plan F 시기 463 은 참고치이며 v2 실행 시점에 재측정\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — `.sisyphus/evidence/11-PLAN-expected-count.sql.out` (Django) == Supabase row count\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/PLAN — 통독 플랜·일정",
       "labels": [
         "slice:PLAN",
@@ -1255,7 +1259,7 @@
     {
       "id": "P-8",
       "title": "[PLAN] UserPlanDisplaySettings — 사용자별 색상/순서 설정 마이그레이션",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-8`\n\n## 작업 내용\nUserPlanDisplaySettings — 사용자별 색상/순서 설정 마이그레이션\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 463/463\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:PLAN`  \n**플랜**: docs/migration-v2/11-PLAN.md  \n**작업 ID**: `P-8`\n\n## 작업 내용\nUserPlanDisplaySettings — 사용자별 색상/순서 설정 마이그레이션\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/PLAN-P-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — Django snapshot count == Supabase count (P-7 과 동일 분모)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/PLAN — 통독 플랜·일정",
       "labels": [
         "slice:PLAN",
@@ -1606,8 +1610,8 @@
     },
     {
       "id": "S-4",
-      "title": "[SOCIAL] 그룹 목록 + 가입/탈퇴",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-4`\n\n## 작업 내용\n그룹 목록 + 가입/탈퇴\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (PRE-7 결정 필요 — 그룹 포함 여부)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[SOCIAL] (백로그, PRE-4) 그룹 목록 + 가입/탈퇴 — v2 제외",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-4`\n\n## 작업 내용\n(백로그, PRE-4) 그룹 목록 + 가입/탈퇴 — v2 제외\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — —\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/SOCIAL — 친구·스코어보드",
       "labels": [
         "slice:SOCIAL",
@@ -1617,8 +1621,8 @@
     },
     {
       "id": "S-5",
-      "title": "[SOCIAL] 그룹 리더보드",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-5`\n\n## 작업 내용\n그룹 리더보드\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정렬 + 페이징\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[SOCIAL] (백로그, PRE-4) 그룹 리더보드 — v2 제외",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-5`\n\n## 작업 내용\n(백로그, PRE-4) 그룹 리더보드 — v2 제외\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — —\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/SOCIAL — 친구·스코어보드",
       "labels": [
         "slice:SOCIAL",
@@ -1628,8 +1632,8 @@
     },
     {
       "id": "S-6",
-      "title": "[SOCIAL] 그룹 멤버 캘린더 모달",
-      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-6`\n\n## 작업 내용\n그룹 멤버 캘린더 모달\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — VRT\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "title": "[SOCIAL] (백로그, PRE-4) 그룹 멤버 캘린더 모달 — v2 제외",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:SOCIAL`  \n**플랜**: docs/migration-v2/11-SOCIAL.md  \n**작업 ID**: `S-6`\n\n## 작업 내용\n(백로그, PRE-4) 그룹 멤버 캘린더 모달 — v2 제외\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/SOCIAL-S-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — —\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/SOCIAL — 친구·스코어보드",
       "labels": [
         "slice:SOCIAL",
@@ -1762,10 +1766,10 @@
       "id": "AD-1",
       "title": "[ADMIN] 운영자 권한 모델 — auth.users.user_metadata.role='admin' 또는 별도 admins 테이블",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-1`\n\n## 작업 내용\n운영자 권한 모델 — auth.users.user_metadata.role='admin' 또는 별도 admins 테이블\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-1.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 정책 확정\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
-      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "milestone": "v2/ADMIN-CORE — 관리자 핵심 (메인 컷오버 포함, PRE-5)",
       "labels": [
         "slice:ADMIN",
-        "P3",
+        "P1",
         "state:ready"
       ]
     },
@@ -1773,10 +1777,10 @@
       "id": "AD-2",
       "title": "[ADMIN] 보호된 라우트 (/admin/*) — 미들웨어 가드",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-2`\n\n## 작업 내용\n보호된 라우트 (/admin/*) — 미들웨어 가드\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-2.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 비관리자 → 403\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
-      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "milestone": "v2/ADMIN-CORE — 관리자 핵심 (메인 컷오버 포함, PRE-5)",
       "labels": [
         "slice:ADMIN",
-        "P3",
+        "P1",
         "state:ready"
       ]
     },
@@ -1784,10 +1788,10 @@
       "id": "AD-3",
       "title": "[ADMIN] 하세나 요약 생성/재생성 — Gemini API 호출 (Vercel Edge function)",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-3`\n\n## 작업 내용\n하세나 요약 생성/재생성 — Gemini API 호출 (Vercel Edge function)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-3.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — UI + API 동작 (없으면 컷오버 후 신규 요약 차단 — CORE)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
-      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "milestone": "v2/ADMIN-CORE — 관리자 핵심 (메인 컷오버 포함, PRE-5)",
       "labels": [
         "slice:ADMIN",
-        "P3",
+        "P1",
         "state:ready"
       ]
     },
@@ -1795,10 +1799,10 @@
       "id": "AD-4",
       "title": "[ADMIN] 통독 플랜 엑셀 업로드 → daily_schedules 생성",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-4`\n\n## 작업 내용\n통독 플랜 엑셀 업로드 → daily_schedules 생성\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-4.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 업로드 후 row 추가 검증 (없으면 신규 플랜 생성 불가능 — CORE)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
-      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "milestone": "v2/ADMIN-CORE — 관리자 핵심 (메인 컷오버 포함, PRE-5)",
       "labels": [
         "slice:ADMIN",
-        "P3",
+        "P1",
         "state:ready"
       ]
     },
@@ -1806,10 +1810,10 @@
       "id": "AD-5",
       "title": "[ADMIN] 비디오 인트로 업로드",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-5`\n\n## 작업 내용\n비디오 인트로 업로드\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-5.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 동일 (CORE — 매주 새 영상 등록 필요)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
-      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "milestone": "v2/ADMIN-CORE — 관리자 핵심 (메인 컷오버 포함, PRE-5)",
       "labels": [
         "slice:ADMIN",
-        "P3",
+        "P1",
         "state:ready"
       ]
     },
@@ -1817,10 +1821,11 @@
       "id": "AD-6",
       "title": "[ADMIN] Django admin 의 나머지 모델 — Supabase Studio 안내 (커스텀 admin 작성 X)",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-6`\n\n## 작업 내용\nDjango admin 의 나머지 모델 — Supabase Studio 안내 (커스텀 admin 작성 X)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-6.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — README 안내\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
-      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "milestone": "v2/ADMIN-EXTENDED — 관리자 확장 (컷오버 후, PRE-5)",
       "labels": [
         "slice:ADMIN",
         "P3",
+        "track:extended",
         "state:ready"
       ]
     },
@@ -1828,10 +1833,11 @@
       "id": "AD-7",
       "title": "[ADMIN] Admin 대시보드 (사용자 수, 활동량 등)",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-7`\n\n## 작업 내용\nAdmin 대시보드 (사용자 수, 활동량 등)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-7.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 별도 컷오버\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
-      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "milestone": "v2/ADMIN-EXTENDED — 관리자 확장 (컷오버 후, PRE-5)",
       "labels": [
         "slice:ADMIN",
         "P3",
+        "track:extended",
         "state:ready"
       ]
     },
@@ -1839,10 +1845,11 @@
       "id": "AD-8",
       "title": "[ADMIN] 사용자 검색/관리",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:ADMIN`  \n**플랜**: docs/migration-v2/11-ADMIN.md  \n**작업 ID**: `AD-8`\n\n## 작업 내용\n사용자 검색/관리\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/ADMIN-AD-8.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — 별도\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
-      "milestone": "v2/ADMIN — 관리자 (별도 컷오버)",
+      "milestone": "v2/ADMIN-EXTENDED — 관리자 확장 (컷오버 후, PRE-5)",
       "labels": [
         "slice:ADMIN",
         "P3",
+        "track:extended",
         "state:ready"
       ]
     },
@@ -2026,6 +2033,17 @@
       "id": "C-14b",
       "title": "[CUTOVER] **VPS Django 측 Hard Block 503 유지 48h** (Oracle Critical #2 수정) — DNS 캐시 잔존 사용자에게",
       "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-14b`\n\n## 작업 내용\n**VPS Django 측 Hard Block 503 유지 48h** (Oracle Critical #2 수정) — DNS 캐시 잔존 사용자에게 silent fail 대신 명시적 안내 + force reload. INSERT/UPDATE 권한 미복구 (이중 안전)\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-14b.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — DNS 전파 모니터링 + 503 응답 검증 + 사용자 문의 채널 모니터\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
+      "milestone": "v2/CUTOVER — 실 컷오버",
+      "labels": [
+        "slice:CUTOVER",
+        "P0",
+        "state:ready"
+      ]
+    },
+    {
+      "id": "C-9d",
+      "title": "[CUTOVER] **Cache invalidation 5중 차단** (Oracle R-final Major #5) — Hard Block 503 이 cache/",
+      "body": "## 슬라이스 / 작업\n**슬라이스**: `slice:CUTOVER`  \n**플랜**: docs/migration-v2/11-CUTOVER.md  \n**작업 ID**: `C-9d`\n\n## 작업 내용\n**Cache invalidation 5중 차단** (Oracle R-final Major #5) — Hard Block 503 이 cache/SW 경로로 우회될 수 있어 다음 모두 적용: (1) **Cloudflare full purge** — `cf-cli purge --zone maeil1dok.app --everything` (DNS 전환 직전 + 직후 2회). (2) **Service Worker version bump + auto-update** — Wave 6 진입 시 Nuxt SW 의 `cacheName` 버전 강제 갱신 + `skipWaiting()` + `clients.claim()` 적용한 hotfix 배포 (컷오버 -3d). 사용자 다음 접속 시 자동 SW 교체. (3) **`Cache-Control: no-store` on 503** — Nginx 측 503 응답 헤더에 `Cache-Control: no-store, no-cache, must-revalidate` + `Pragma: no-cache` 강제. CDN / 브라우저 / SW 모두 캐싱 차단. (4) **HTML shell `<meta http-equiv=\"refresh\" content=\"0; url=/maintenance\">`** — 캐시된 구 Nuxt shell 이 떠도 즉시 maintenance 페이지로 리다이렉트 (사용자 무한 로딩 차단). (5) **컷오버 -2d 사전 검증 (재현 테스트)** — 다음 시나리오 staging 에서 실 검증: 모바일 Safari/Chrome 에서 구 SW 캐싱된 shell 진입 → 503 응답 → 사용자가 보는 화면이 maintenance + 새 SW 자동 인스톨.\n\n## DoD (Definition of Done)\n- [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)\n- [ ] **EVIDENCE** — `.sisyphus/evidence/CUTOVER-C-9d.{txt,png,json}`\n- [ ] **REPRODUCE** — 재현 명령 1줄\n- [ ] **ASSERTION** — (1) Cloudflare purge log + cache-status MISS 검증. (2) SW 버전 갱신 commit + Wave 6 -3d 배포 evidence. (3) `curl -I` 응답에 no-store 검증. (4) `<meta refresh>` HTML grep. (5) staging 재현 테스트 결과 (`.sisyphus/evidence/C-9d-cache-replay-{safari,chrome,sw}.txt`)\n\n## 차단 (Must NOT)\n- 무관 파일 수정 금지\n- placeholder 텍스트 production 포함 금지\n- 인증 우회 스크린샷 통과 처리 금지\n- `as unknown as X` PR 명시 승인 없이 사용 금지\n",
       "milestone": "v2/CUTOVER — 실 컷오버",
       "labels": [
         "slice:CUTOVER",

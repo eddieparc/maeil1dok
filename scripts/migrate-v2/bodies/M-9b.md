@@ -4,13 +4,13 @@
 **작업 ID**: `M-9b`
 
 ## 작업 내용
-**Skip 사용자 spot check** (Momus R1 Hidden #2) — `data/skipped_users.json` 의 무작위 5명을 Django 측에서 직접 SELECT 해 `scheduled_deletion_at` / `merged_into` / 중복 이메일 여부 확인
+**Skip 사용자 spot check + 전수 게이트** (Momus R1 Hidden #2 + Oracle R-final Critical #3) — `data/skipped_users.json` 의 사용자를 Django 측에서 직접 SELECT 해 `scheduled_deletion_at` / `merged_into` / 중복 이메일 여부 확인. **
 
 ## DoD (Definition of Done)
 - [ ] **CHANGE** — diff 파일 목록 (PR 머지 시 자동)
 - [ ] **EVIDENCE** — `.sisyphus/evidence/MIGRATE-M-9b.{txt,png,json}`
 - [ ] **REPRODUCE** — 재현 명령 1줄
-- [ ] **ASSERTION** — 5/5 모두 정당 skip 입증
+- [ ] **ASSERTION** — > 20 시)
 
 ## 차단 (Must NOT)
 - 무관 파일 수정 금지

@@ -1,7 +1,7 @@
 # 11-DESIGN · 디자인 시스템 검증 + VRT 회복
 
 > **슬라이스 ID**: 11-DESIGN  
-> **Wave**: 1 (병렬)  
+> **Wave**: 2 (병렬 — data 무관, MIGRATE 산출물과 독립; Oracle R-final Critical #1 + Momus #1 일관화)  
 > **의존**: 11-FOUND  
 > **추정 크기**: M
 

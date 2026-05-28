@@ -70,7 +70,7 @@
 | **세션 종료 전 빌드 그린 의무** — 빌드 fail 상태로 commit/push 금지 | F5 |
 | **TS error 0건 baseline** — 임의 증가 시 PR 차단 | 누적 부채 |
 | **TS 우회 패턴 금지** (Momus R1 Major #1) — `@ts-ignore`, `@ts-expect-error`, `as any`, `as unknown as X` 4종 모두 lint-staged + CI grep 으로 차단. `as unknown as X` 가 정당한 경우 (제네릭 한정 우회) 는 PR 에서 사용자 명시 승인 필요 | TS 그린 위장 |
-| **service_role key 유출 차단** (Oracle R2 Major #5) — CI 에 `NEXT_PUBLIC_.*SERVICE_ROLE_KEY`, `NEXT_PUBLIC_.*SECRET`, `NEXT_PUBLIC_.*PRIVATE_KEY` 패턴 grep 검출 시 hard fail. service_role key 는 server-only env 만 허용 | 전체 DB 읽기/쓰기 권한 클라이언트 노출 |
+| **service_role key 유출 차단** (Oracle R2 Major #5 + Oracle R-final Major #4 — 범위 확장) — 다음 모든 경로를 CI hard fail 로 차단: (1) **env 이름 grep** — `NEXT_PUBLIC_.*SERVICE_ROLE_KEY`, `NEXT_PUBLIC_.*SECRET`, `NEXT_PUBLIC_.*PRIVATE_KEY`. (2) **server-only import 강제** — `src/lib/supabase/server-admin.ts` (service_role client) 는 파일 최상단에 `import 'server-only';` 의무 + ESLint custom rule `no-service-role-in-client` (client component `'use client'` 또는 `src/app/**/page.tsx` 와 service-role 모듈 import 동시 발견 시 fail). (3) **client bundle / sourcemap secret scan** — `npm run build` 후 `.next/static/**/*.js` 와 `.next/static/**/*.js.map` 에 service_role key 패턴 (SUPABASE_SERVICE_ROLE_KEY 의 실제 값 첫 12자 또는 `eyJhbGc...` JWT 풀 패턴) grep 검출 시 fail. (4) **route log redaction** — `console.log` / `console.error` 인자에 service_role client 또는 `supabase.auth.admin` 응답 객체 직접 logging 차단 (ESLint custom rule). (5) **issue body sanitizer** — `scripts/migrate-v2/sync-issues.sh` 가 GH issue body 전송 전 service_role / JWT 패턴 grep → 검출 시 sync 중단. PUBLIC 저장소이므로 issue body 도 secret leak 경로 | 전체 DB 읽기/쓰기 권한 클라이언트 노출 (5 경로 모두 차단) |
 | **런타임 스모크** — `npm run build` 통과만으로는 부족, 핵심 라우트 3개 GET 200 확인 | 빌드 그린 ≠ 동작 |
 
 ### 2.6 스코프·드리프트 방지 규칙

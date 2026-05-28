@@ -24,6 +24,11 @@
 ## 4. 결정
 - CAD-1: weekend_multiplier, max_daily_chapters 등 알고리즘 파라미터 — Django 와 동일 유지
 
-## 5. DoD
-- EVIDENCE: e2e preview→create→toggle→complete 4건
-- ASSERTION: TS 0 errors in CatchupClient
+## 5. DoD (Oracle R-final Major #6 + Momus #3 4-tuple 보강)
+- **CHANGE**: src/app/(authenticated)/catchup/CatchupClient.tsx, src/repositories/catchupRepo.ts, src/components/catchup/*
+- **EVIDENCE**: `.sisyphus/evidence/11-CATCHUP-e2e/` — preview→create→toggle→complete 4건 + abandon 1건 + TS clean 출력 (`tsc-CA-1.txt`)
+- **REPRODUCE**: `npx playwright test tests/e2e/catchup/*.spec.ts && npx tsc --noEmit | grep CatchupClient`
+- **ASSERTION**:
+  - TS errors in CatchupClient: 0
+  - e2e: 5/5 pass
+  - catchup_sessions / catchup_schedules row count delta (1회 vs 2회 run): 0 (멱등성)

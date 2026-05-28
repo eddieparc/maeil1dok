@@ -10,10 +10,10 @@
 | Milestone 이름 | Wave | 슬라이스 파일 | 우선순위 (06 §4) |
 |---|---|---|---|
 | `v2/FOUND — Foundation 복구` | 0 | 11-FOUND.md | P0 |
-| `v2/AUTH — 인증 시스템` | 1 | 11-AUTH.md | P1 |
-| `v2/DESIGN — 디자인 검증` | 1 | 11-DESIGN.md | P1 |
-| `v2/PWA — PWA+FCM` | 1 | 11-PWA.md | P2 |
-| `v2/MIGRATE — 데이터 마이그레이션 v2` | 2 | 11-MIGRATE.md | P0 |
+| `v2/MIGRATE — 데이터 마이그레이션 v2` | 1 | 11-MIGRATE.md | P0 |
+| `v2/AUTH — 인증 시스템` | 2 | 11-AUTH.md | P1 |
+| `v2/DESIGN — 디자인 검증` | 2 | 11-DESIGN.md | P1 |
+| `v2/PWA — PWA+FCM` | 2 | 11-PWA.md | P2 |
 | `v2/READER — 성경 뷰어` | 3 | 11-READER.md | P0 |
 | `v2/PLAN — 통독 플랜·일정` | 3 | 11-PLAN.md | P1 |
 | `v2/ANNOTATE — 북마크·하이라이트·노트` | 3 | 11-ANNOTATE.md | P1 |
@@ -22,9 +22,14 @@
 | `v2/CATCHUP — 캐치업` | 4 | 11-CATCHUP.md | P2 |
 | `v2/PROFILE — 프로필·업적·잔디` | 4 | 11-PROFILE.md | P2 |
 | `v2/SOCIAL — 친구·스코어보드` | 5 | 11-SOCIAL.md | P2 |
-| `v2/ADMIN — 관리자 (별도 컷오버, PRE-5)` | 5 | 11-ADMIN.md | P3 (메인 컷오버 제외) |
+| `v2/ADMIN-CORE — 관리자 핵심 (메인 컷오버 포함, PRE-5)` | 5 | 11-ADMIN.md §3 | P1 (메인 컷오버 포함, 없으면 운영 마비) |
+| `v2/ADMIN-EXTENDED — 관리자 확장 (컷오버 후, PRE-5)` | (별도 트랙) | 11-ADMIN.md §4 | P3 (안정화 후) |
 | `v2/CUTOVER — 실 컷오버` | 6 | 11-CUTOVER.md | P0 (마지막) |
 | `v2/INFRA — 메타 시스템·CI` | 0 | 00-meta-system.md | P0 |
+
+> **Oracle R-final Critical #1 일관화**: 본 표의 Wave 순서가 [10-plan-overview.md §3 Wave 구조](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/10-plan-overview.md) 와 각 [11-*.md 슬라이스 헤더](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/) 와 1:1 일치하도록 갱신됨. `validate-plan.sh` 가 3중 일치를 강제 검사.
+
+> **Momus #2 / PRE-5 일관화**: ADMIN 마일스톤이 CORE (메인 컷오버 포함, P1) / EXTENDED (별도 트랙, P3) 로 분리됨. [10-plan-overview §0 PRE-5](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/10-plan-overview.md#L19) 와 [11-ADMIN.md §3·§4](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-ADMIN.md) 의 분할 결정 반영.
 
 ---
 

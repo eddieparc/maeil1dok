@@ -54,8 +54,8 @@
 | ID | 슬라이스 | 영역 | 추정 크기 | 의존성 |
 |---|---|---|---|---|
 | 11-FOUND | Foundation 복구 | 빌드 그린 + 환경 + WIP 정리 + lsp clean + 기본 라우팅 | S | — |
-| 11-AUTH | 인증 (이메일/소셜/세션) | login/register/oauth callback/세션 영속 + 새로고침 로그인 유지 | M | FOUND |
-| 11-MIGRATE | 데이터 마이그레이션 v2 | 03a/03b 모델 → Supabase, 매핑 정확성 100%, 멱등성 검증 | L | AUTH |
+| 11-MIGRATE | 데이터 마이그레이션 v2 | 03a/03b 모델 → Supabase, 매핑 정확성 100%, 멱등성 검증 | L | FOUND |
+| 11-AUTH | 인증 (이메일/소셜/세션) | login/register/oauth callback/세션 영속 + 새로고침 로그인 유지 | M | FOUND, MIGRATE |
 | 11-READER | 성경 본문 뷰어 | /bible (Nuxt 1198행) → Next 슬림화 + 본문 표시 + 역본 + URL 파라미터 | L | MIGRATE |
 | 11-PLAN | 통독 플랜 / 일정 | /plan, /plans, schedule API, 진도율, 캘린더 | M | READER |
 | 11-PROGRESS | 진도 추적 + 사용자 데이터 | 읽음 표시, 통계, 히스토리, hasena 진도 | M | PLAN |

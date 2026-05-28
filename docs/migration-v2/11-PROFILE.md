@@ -24,6 +24,12 @@
 - PFD-1 (= MD-2): 업적 폐기 / 재계산
 - PFD-2: 잔디 색상 스케일 (단조 vs 통독 강도 색)
 
-## 5. DoD
-- EVIDENCE: 본인/타인 프로필 × 공개/비공개 = 4 케이스 e2e + VRT
-- ASSERTION: 비공개 프로필 → 401 (RLS)
+## 5. DoD (Oracle R-final Major #6 + Momus #3 4-tuple 보강)
+- **CHANGE**: src/app/(authenticated)/profile/[id]/, src/repositories/profileRepo.ts, src/components/profile/*, src/lib/achievements/recompute.ts (PRE-6)
+- **EVIDENCE**: `.sisyphus/evidence/11-PROFILE-e2e/` — 본인/타인 × 공개/비공개 = 4 케이스 + 잔디 VRT (light/dark) + achievement 재계산 결과 (`achievements-recompute.json`)
+- **REPRODUCE**: `npx playwright test tests/e2e/profile/*.spec.ts`
+- **ASSERTION**:
+  - 4/4 e2e pass
+  - 비공개 프로필 익명 접근: 401 (RLS 검증)
+  - 잔디 VRT diff: 0 px (baseline 갱신 시 사용자 PR 승인)
+  - achievement 재계산: streak 기반 자동 (PRE-6)

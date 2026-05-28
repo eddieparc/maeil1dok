@@ -34,6 +34,15 @@ Django admin 페이지를 통한 운영자 작업을 Next 측에서 대체. 가�
 - ADD-2: 어드민 권한 모델 — role-based / 단순 boolean
 - ADD-3: 엑셀 파싱 라이브러리 (Next 측)
 
-## 5. DoD
-- EVIDENCE: admin route 가드 시도 + 핵심 흐름 e2e
-- ASSERTION: 비관리자 403 / 관리자 정상 / 데이터 변경 후 row count 검증
+## 5. DoD (Oracle R-final Major #6 + Momus #3 4-tuple 보강)
+- **CHANGE**: src/app/(authenticated)/admin/, src/middleware.ts (admin guard), src/lib/admin/role.ts, src/app/api/admin/{hasena,plans,video-intro}/route.ts (CORE), supabase/migrations/*_admin_role.sql
+- **EVIDENCE**: 
+  - CORE: `.sisyphus/evidence/11-ADMIN-CORE-e2e/` — 비관리자 403 시도 3건 + 관리자 정상 3건 + 엑셀 업로드 → daily_schedules row 추가 + 영상 업로드 → video_bible_intros row 추가 + 하세나 요약 재생성 → hasena_summaries row 갱신
+  - EXTENDED: `.sisyphus/evidence/11-ADMIN-EXTENDED-readme.md` — Supabase Studio 안내 문서 commit + 대시보드 별도 컷오버 결정 evidence
+- **REPRODUCE**: 
+  - CORE: `npx playwright test tests/e2e/admin-core/*.spec.ts`
+  - EXTENDED: `cat docs/admin-extended-runbook.md` (별도 트랙)
+- **ASSERTION**:
+  - 비관리자 → 403 (3 routes)
+  - 관리자 + 데이터 변경 → row count delta ≥ 1 (3 features)
+  - CORE 마이그레이션 포함, EXTENDED 별도 (PRE-5)

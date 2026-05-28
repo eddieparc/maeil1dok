@@ -1,8 +1,8 @@
 # 11-AUTH · 인증 시스템 (이메일/소셜/세션)
 
 > **슬라이스 ID**: 11-AUTH  
-> **Wave**: 1 (병렬)  
-> **의존**: 11-FOUND  
+> **Wave**: 2 (병렬 — MIGRATE 산출물 위에서; Oracle R-final Critical #1 + Momus #1 일관화)  
+> **의존**: 11-FOUND, 11-MIGRATE  
 > **추정 크기**: M  
 > **상태**: 스켈레톤 — 03a 인증 엔드포인트 + audit_tmp/AUTH_FIX_SUMMARY.md 의 직전 버그 증거 기반
 

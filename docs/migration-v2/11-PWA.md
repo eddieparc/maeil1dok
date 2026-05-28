@@ -1,6 +1,6 @@
 # 11-PWA · PWA + FCM 푸시
 
-> **슬라이스 ID**: 11-PWA · **Wave**: 1 (인프라만 선행 가능) · **의존**: 11-FOUND · **크기**: M
+> **슬라이스 ID**: 11-PWA · **Wave**: 2 (병렬, 인프라만 선행) · **의존**: 11-FOUND · **크기**: M
 
 ## 1. 목표
 - PWA 매니페스트/서비스워커 정상 (홈 화면 추가, 오프라인 fallback)
@@ -32,6 +32,12 @@
 - PWD-1: 푸시 발송 인프라 — Supabase Edge function / Vercel Cron / 외부 큐
 - PWD-2: 리마인더 시간/빈도 정책
 
-## 5. DoD
-- EVIDENCE: Lighthouse PWA + 실제 디바이스 푸시 스크린샷
-- ASSERTION: PWA score >= 90, FCM 토큰 등록 성공률 100%
+## 5. DoD (Oracle R-final Major #6 + Momus #3 4-tuple 보강)
+- **CHANGE**: public/manifest.webmanifest, public/sw.js (또는 next-pwa config), src/lib/firebase/init.ts, src/lib/fcm/register.ts, src/app/api/fcm/register/route.ts
+- **EVIDENCE**: `.sisyphus/evidence/11-PWA-lighthouse.json` (PWA score), `.sisyphus/evidence/11-PWA-fcm-register.txt` (토큰 등록 row), `.sisyphus/evidence/11-PWA-ios-screenshot.png` (iOS 홈 추가), `.sisyphus/evidence/11-PWA-push-receive-{ios,android}.png` (실 디바이스 수신)
+- **REPRODUCE**: `npx lighthouse https://maeil1dok.app --only-categories=pwa --output=json --output-path=.sisyphus/evidence/11-PWA-lighthouse.json && npx playwright test tests/e2e/pwa/*.spec.ts`
+- **ASSERTION**:
+  - Lighthouse PWA score: >= 90
+  - FCM 토큰 등록 성공률: 100% (실 디바이스 5대 sample)
+  - iOS Safari 홈 추가 동작 검증 (manual screenshot)
+  - 푸시 수신 latency: < 5s (테스트 디바이스)

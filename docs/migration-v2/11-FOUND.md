@@ -66,7 +66,7 @@
 
 | # | 작업 | DoD |
 |---|---|---|
-| F-13 | placeholder + service_role 유출 grep CI 통합 (자가 R3 Self-4) — "구현 예정", "TODO production" + `NEXT_PUBLIC_.*SERVICE_ROLE_KEY` + `NEXT_PUBLIC_.*SECRET` + `NEXT_PUBLIC_.*PRIVATE_KEY` 검출 시 CI fail | CI workflow 파일 + 의도적 테스트 푸시로 검증 (양쪽 패턴) |
+| F-13 | placeholder + service_role 5중 차단 CI 통합 (자가 R3 Self-4 + Oracle R-final Major #4 — 범위 확장) — (a) placeholder grep: "구현 예정", "TODO production" hard fail. (b) **service_role 5중 차단** (00-meta-system §2.5 참조): (1) env 이름 grep (NEXT_PUBLIC_.*SERVICE_ROLE_KEY/SECRET/PRIVATE_KEY) (2) `import 'server-only'` 강제 + ESLint `no-service-role-in-client` rule (3) **client bundle/sourcemap secret scan** — `.next/static/**/*.js{,.map}` 에 service_role key 실제 값 + `eyJhbGc...` JWT 풀 패턴 grep (4) **route log redaction** ESLint rule (5) **issue body sanitizer** (`sync-issues.sh` 가 GH 전송 전 secret 패턴 grep) | CI workflow 파일 + 의도적 테스트 푸시로 5 경로 모두 검증 (각 패턴 1건씩 의도 leak → CI fail 확인) + `.sisyphus/evidence/F-13-secret-scan-{1..5}.txt` |
 | F-14 | Plan-checksum 동기화 스크립트 — docs/migration-v2/10-plan-overview.md + 11-*.md 변경 시 메타 갱신 | 스크립트 + npm run plan-sync |
 | **F-15** | **Supabase CLI 도입** (Oracle Major #3 — IaC) — `supabase init`, `supabase link`, 모든 DB/RLS 변경은 `supabase/migrations/*.sql` 로 커밋 강제. Dashboard 조작 후 `supabase db diff` 로 capture 의무. **Mn2: 최초 `supabase db link` 후 첫 `db diff` 가 대량 출력 (Plan F 시기 Dashboard 조작으로 drift 누적) 예상 — `--schema public,auth` 로 범위 한정 + 의미 단위로 `supabase migration new` 분할 commit** | `supabase status` 통과 + CI 에 `supabase db lint` 추가 |
 | **F-16** | **Supabase migrations diff CI** (Oracle Major #3) — PR 에서 운영 DB 와 migrations 디렉토리 사이 drift 검출 시 fail | `supabase db diff` exit 0 in CI |
