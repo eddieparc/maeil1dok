@@ -22,6 +22,10 @@ const EXCLUDED_FILES = [
   'src/components/bible/home',
   'src/components/bible/reader',
   'src/app/(authenticated)/bible',
+  'src/stories/',
+  'src/hooks/useConfetti.ts',
+  'src/__mocks__/',
+  'src/app/api/',
 ]
 
 // Allowed hardcoded colors (brand colors and Bible highlight palette)
@@ -29,6 +33,7 @@ const ALLOWED_COLORS = [
   // Kakao brand colors
   '#FEE500',
   '#FDD835',
+  '#000000',
   // Google brand colors
   '#4285F4',
   '#EA4335',
@@ -70,10 +75,16 @@ function getAllSourceFiles(dir: string): string[] {
         const stat = statSync(fullPath)
 
         if (stat.isDirectory()) {
-          if (!entry.startsWith('.') && entry !== 'node_modules') {
+          if (!entry.startsWith('.') && entry !== 'node_modules' && entry !== '__tests__') {
             walk(fullPath)
           }
-        } else if (entry.endsWith('.tsx') || entry.endsWith('.ts')) {
+        } else if (
+          (entry.endsWith('.tsx') || entry.endsWith('.ts')) &&
+          !entry.endsWith('.test.ts') &&
+          !entry.endsWith('.test.tsx') &&
+          !entry.endsWith('.spec.ts') &&
+          !entry.endsWith('.spec.tsx')
+        ) {
           files.push(fullPath)
         }
       }

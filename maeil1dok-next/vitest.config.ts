@@ -21,7 +21,7 @@ export default defineConfig({
         environment: 'jsdom',
         globals: true,
         exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
-        setupFiles: ['src/__mocks__/zustand.ts']
+        setupFiles: ['vitest.setup.ts']
       }
     }, {
       extends: true,

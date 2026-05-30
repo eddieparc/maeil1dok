@@ -267,8 +267,7 @@ export const createTongdokModeStore = createStoreFactory<TongdokModeState>(
 // Context
 // ============================================
 
-export const {
-  StoreProvider: TongdokModeProvider,
-  useStoreContext: useTongdokMode,
-  useStoreApi: useTongdokModeApi,
-} = createStoreContext<TongdokModeState>()
+const _tongdokModeContext = createStoreContext<TongdokModeState>()
+export const TongdokModeProvider = _tongdokModeContext.StoreProvider
+export const useTongdokMode = _tongdokModeContext.useStoreContext
+export const useTongdokModeApi = _tongdokModeContext.useStoreApi

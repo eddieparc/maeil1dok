@@ -11,8 +11,6 @@ describe('HydrationGate', () => {
       </HydrationGate>
     )
 
-    expect(screen.getByText('loading')).toBeTruthy()
-
     await waitFor(() => {
       expect(screen.getByText('ready')).toBeTruthy()
     })

@@ -1,10 +1,9 @@
 import { act } from '@testing-library/react'
-import { afterEach, vi } from 'vitest'
-import type * as ZustandExports from 'zustand'
+import { afterEach } from 'vitest'
+import * as ZustandExports from 'zustand'
 import { type StateCreator } from 'zustand'
 
-const { create: actualCreate, createStore: actualCreateStore } =
-  await vi.importActual<typeof ZustandExports>('zustand')
+const { create: actualCreate, createStore: actualCreateStore } = ZustandExports
 
 const storeResetFns = new Set<() => void>()
 
