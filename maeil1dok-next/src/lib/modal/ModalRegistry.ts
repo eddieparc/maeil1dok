@@ -52,8 +52,10 @@ export const MODAL_REGISTRY: ModalRegistry = {
       createElement(module.default, {
         isOpen,
         onClose: closeModal,
-        currentBook: modal.data?.currentBook,
-        currentChapter: modal.data?.currentChapter,
+        currentBook: modal.data?.currentBook ?? '',
+        currentChapter: modal.data?.currentChapter ?? 1,
+        currentVersion: modal.data?.currentVersion ?? 'GAE',
+        onVersionSelect: () => {},
         onSelect: (_book: string, _chapter: number, _verse?: number) => {
           closeModal()
         },

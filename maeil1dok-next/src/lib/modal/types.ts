@@ -19,6 +19,7 @@ export type ModalId = BibleModalId
 export interface BookSelectorModalData {
   currentBook?: string
   currentChapter?: number
+  currentVersion?: BibleVersion
 }
 
 export interface VersionSelectorModalData {
