@@ -145,4 +145,4 @@ maeil1dok-next/scripts/migrate/*.log
 
 # Migration test results
 maeil1dok-next/test-results/
-maeil1dok-next/playwright-report/
+maeil1dok-next/playwright-report/.auth-state.json
