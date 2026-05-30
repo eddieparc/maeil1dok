@@ -36,52 +36,46 @@
 }
 
 .headerTitle {
-  font-size: 1.0625rem;
-  font-weight: 700;
-  color: var(--sanctuary-text-main);
+  font-family: var(--font-family-serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+  color: var(--color-ink);
   letter-spacing: -0.02em;
 }
 
 .editModeButton {
-  padding: 0.25rem 0.75rem;
-  background: var(--color-slate-100);
-  color: var(--color-slate-600);
-  border: 1px solid var(--color-slate-300);
-  border-radius: 8px;
+  padding: 0.375rem 0.875rem;
+  background: transparent;
+  color: var(--color-mute);
+  border: 1px solid var(--color-rule);
+  border-radius: 999px;
+  font-family: var(--font-family-ui);
   font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  transition: all 0.15s ease;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .editModeButton:hover {
-  background: var(--color-slate-200);
-  color: var(--color-slate-700);
+  background: var(--color-brand-faint);
+  color: var(--color-ink);
+  border-color: var(--color-brand-faint-border);
 }
 
 .editModeButton.active {
-  background: var(--color-accent-primary);
-  color: var(--color-tooltip-text);
-  border-color: var(--color-accent-primary);
-  font-weight: 600;
-}
-
-:global(.dark) .editModeButton {
-  background: transparent;
-  color: var(--color-text-secondary);
-  border-color: var(--color-border-default);
-}
-
-:global(.dark) .editModeButton:hover {
-  background: var(--color-button-hover);
-  color: var(--color-text-primary);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  border-color: var(--color-ink);
 }
 
 :global(.dark) .editModeButton.active {
-  background: var(--color-accent-primary);
-  color: var(--color-tooltip-text);
-  border-color: var(--color-accent-primary);
+  background: var(--color-ink);
+  color: var(--color-paper-warm);
+  border-color: var(--color-ink);
 }
 
 /* ── Controls row: plan selector + month pills ──────── */
@@ -96,22 +90,24 @@
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.3rem 0.75rem;
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border-default);
-  border-radius: 8px;
+  padding: 0.375rem 0.875rem;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  border-radius: 999px;
+  font-family: var(--font-family-ui);
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--sanctuary-text-main);
+  letter-spacing: -0.005em;
+  color: var(--color-ink);
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
-  max-width: 160px;
+  max-width: 180px;
   flex-shrink: 0;
   position: relative;
 }
 
-.planSelectButton:hover { border-color: var(--color-border-dark); }
+.planSelectButton:hover { border-color: var(--color-ink); }
 .planSelectButton span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .planSelectDropdown {
@@ -145,11 +141,13 @@
 
 .monthPill {
   flex-shrink: 0;
-  padding: 0.25rem 0.625rem;
+  padding: 0.3rem 0.75rem;
   border-radius: 999px;
+  font-family: var(--font-family-ui);
   font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--color-subtle);
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
@@ -157,8 +155,8 @@
   white-space: nowrap;
 }
 
-.monthPill:hover { color: var(--color-text-secondary); background: var(--color-bg-tertiary); }
-.monthPill.active { background: var(--sanctuary-accent); color: var(--color-tooltip-text); font-weight: 600; }
+.monthPill:hover { color: var(--color-ink); background: var(--color-brand-faint); }
+.monthPill.active { background: var(--color-ink); color: var(--color-paper); }
 
 /* ── Quick navigation row ───────────────────────────── */
 .quickNav {
@@ -173,23 +171,25 @@
 .quickNavDivider { color: var(--color-border-default); flex-shrink: 0; }
 
 .quickNavButton {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
   background: transparent;
-  border: 1px solid var(--color-border-default);
-  border-radius: 6px;
-  color: var(--color-text-secondary);
+  border: 1px solid var(--color-rule);
+  border-radius: 999px;
+  color: var(--color-mute);
+  font-family: var(--font-family-ui);
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
 }
 
-.quickNavButton:hover { background: var(--color-bg-tertiary); border-color: var(--color-border-dark); }
-.quickNavButton svg { width: 14px; height: 14px; flex-shrink: 0; }
+.quickNavButton:hover { background: var(--color-brand-faint); border-color: var(--color-brand-faint-border); color: var(--color-ink); }
+.quickNavButton svg { width: 13px; height: 13px; flex-shrink: 0; }
 
 /* ── Bulk edit bar ──────────────────────────────────── */
 .bulkEditBar {
@@ -247,24 +247,25 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.875rem 1rem;
-  background: var(--sanctuary-card-bg);
-  border: 1px solid var(--sanctuary-border);
-  border-radius: 12px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.scheduleItem:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); transform: translateY(-1px); }
+.scheduleItem:hover { border-color: var(--color-ink); }
 .scheduleItem:active { transform: scale(0.995); }
 
 /* Status variants */
-.scheduleItem.completed { background: var(--color-success-bg); border-color: color-mix(in srgb, var(--color-success) 20%, transparent); }
-.scheduleItem.completed:hover { background: color-mix(in srgb, var(--color-success-bg) 85%, var(--color-success)); }
-.scheduleItem.missed { background: var(--color-danger-bg); border-color: color-mix(in srgb, var(--color-danger) 20%, transparent); }
-.scheduleItem.missed:hover { background: color-mix(in srgb, var(--color-danger-bg) 85%, var(--color-danger)); }
-.scheduleItem.current { background: var(--color-info-bg); border-color: color-mix(in srgb, var(--color-info) 25%, transparent); }
-.scheduleItem.upcoming { background: var(--sanctuary-card-bg); border-color: var(--sanctuary-border); }
-.scheduleItem.selectedRange { background: color-mix(in srgb, var(--sanctuary-accent) 8%, var(--sanctuary-card-bg)); border-color: var(--sanctuary-accent); }
+.scheduleItem.completed { background: var(--color-success-bg); border-color: var(--color-success-border); }
+.scheduleItem.completed:hover { border-color: var(--color-success); }
+.scheduleItem.missed { background: var(--color-danger-bg); border-color: var(--color-danger-border); }
+.scheduleItem.missed:hover { border-color: var(--color-danger); }
+.scheduleItem.current { background: var(--color-brand-faint); border-color: var(--color-brand-faint-border); }
+.scheduleItem.current:hover { border-color: var(--color-brand); }
+.scheduleItem.upcoming { background: var(--color-paper); border-color: var(--color-rule); }
+.scheduleItem.selectedRange { background: var(--color-brand-faint); border-color: var(--color-brand); }
 
 /* ── Checkbox ───────────────────────────────────────── */
 .checkbox {
@@ -287,21 +288,21 @@
 .checkboxInput {
   width: 1.5rem;
   height: 1.5rem;
-  border-radius: 8px;
-  border: 2px solid var(--color-border-dark);
+  border-radius: 999px;
+  border: 1.5px solid var(--color-rule);
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: var(--sanctuary-card-bg);
+  background: var(--color-paper);
 }
 
-.checkboxInput:hover { border-color: var(--sanctuary-accent); }
+.checkboxInput:hover { border-color: var(--color-ink); }
 
 .checkboxInput:checked {
-  background: var(--sanctuary-accent);
-  border-color: var(--sanctuary-accent);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17L4 12'/%3E%3C/svg%3E");
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17L4 12'/%3E%3C/svg%3E");
   background-size: 12px;
   background-position: center;
   background-repeat: no-repeat;
@@ -315,29 +316,50 @@
 .todayBadge {
   display: inline-flex;
   align-items: center;
-  padding: 0.0625rem 0.375rem;
-  background: var(--sanctuary-accent);
-  color: var(--color-tooltip-text);
+  padding: 0.125rem 0.5rem;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-family-ui);
   font-size: 0.625rem;
   font-weight: 600;
-  border-radius: 4px;
+  letter-spacing: -0.005em;
+  border-radius: 999px;
 }
 
-.scheduleReading { font-size: 0.9375rem; font-weight: 500; color: var(--sanctuary-text-main); line-height: 1.3; }
+.scheduleReading {
+  font-family: var(--font-family-ui);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  line-height: 1.35;
+  letter-spacing: -0.012em;
+}
 
-.scheduleItem.completed .scheduleDate { text-decoration: line-through; color: var(--color-text-muted); }
-.scheduleItem.completed .scheduleReading { text-decoration: line-through; text-decoration-thickness: 1px; color: var(--color-text-muted); }
+.scheduleItem.completed .scheduleDate { color: var(--color-success-text); }
+.scheduleItem.completed .scheduleReading { text-decoration: line-through; text-decoration-thickness: 1px; color: var(--color-mute); }
 .scheduleItem.missed .scheduleDate { color: var(--color-danger-text); }
 .scheduleItem.missed .scheduleReading { color: var(--color-danger-text); }
-.scheduleItem.current .scheduleReading { color: var(--color-info-text); font-weight: 600; }
+.scheduleItem.current .scheduleDate { color: var(--color-brand); }
+.scheduleItem.current .scheduleReading { color: var(--color-ink); }
 
 /* ── Status indicator ───────────────────────────────── */
-.statusIndicator { flex-shrink: 0; display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; font-weight: 500; }
-.statusIcon { width: 14px; height: 14px; flex-shrink: 0; }
-.statusIndicator.completed { color: var(--color-success-text); }
-.statusIndicator.missed { color: var(--color-danger-text); }
-.statusIndicator.current { color: var(--color-info-text); }
-.statusIndicator.upcoming { color: var(--color-text-muted); }
+.statusIndicator {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.625rem;
+  border-radius: 999px;
+  font-family: var(--font-family-ui);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.statusIcon { width: 12px; height: 12px; flex-shrink: 0; }
+.statusIndicator.completed { background: color-mix(in srgb, var(--color-success-bg) 60%, var(--color-paper)); color: var(--color-success-text); }
+.statusIndicator.missed { background: color-mix(in srgb, var(--color-danger-bg) 60%, var(--color-paper)); color: var(--color-danger-text); }
+.statusIndicator.current { background: var(--color-ink); color: var(--color-paper); }
+.statusIndicator.upcoming { color: var(--color-subtle); }
 
 /* ── Empty / Loading / Error states ─────────────────── */
 .emptyState { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 1.5rem; text-align: center; gap: 0.75rem; }
@@ -349,18 +371,20 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.5rem 1.25rem;
-  background: var(--sanctuary-accent);
-  color: var(--color-tooltip-text);
+  padding: 0.625rem 1.25rem;
+  background: var(--color-ink);
+  color: var(--color-paper);
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
+  font-family: var(--font-family-ui);
   font-size: 0.8125rem;
   font-weight: 600;
+  letter-spacing: -0.012em;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease;
 }
 
-.emptyButton:hover { background: var(--sanctuary-accent-hover); transform: translateY(-1px); }
+.emptyButton:hover { background: var(--color-brand-deep); }
 
 .loadingState { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1rem; gap: 0.75rem; }
 
@@ -387,15 +411,15 @@
   right: 1.25rem;
   width: 2.5rem;
   height: 2.5rem;
-  border-radius: 50%;
-  background: var(--sanctuary-card-bg);
-  border: 1px solid var(--sanctuary-border);
-  box-shadow: var(--shadow-md);
+  border-radius: 999px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  box-shadow: var(--shadow-card);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--color-text-secondary);
+  color: var(--color-mute);
   transition: all 0.2s ease;
   z-index: 20;
   opacity: 0;
@@ -404,7 +428,7 @@
 }
 
 .scrollTopButton.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
-.scrollTopButton:hover { background: var(--color-bg-tertiary); color: var(--sanctuary-text-main); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.scrollTopButton:hover { background: var(--color-brand-faint); color: var(--color-ink); box-shadow: var(--shadow-card-hover); }
 
 /* ── Fade in animation ──────────────────────────────── */
 .fadeIn { animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1); }

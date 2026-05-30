@@ -16,7 +16,12 @@ export default function BibleSettingsPage() {
             <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
-        <h1 className="flex-1 text-lg font-semibold text-[var(--color-text-primary,#111)]">읽기 설정</h1>
+        <h1
+          className="flex-1 text-[20px] font-medium text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+          style={{ fontFamily: 'var(--font-family-serif)' }}
+        >
+          읽기 설정
+        </h1>
       </header>
       <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-4 pb-8">
         <BibleSettingsContent />

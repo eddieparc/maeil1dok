@@ -9,17 +9,12 @@ import {
   LINE_HEIGHT_STEP,
   type FontWeight,
   type TextAlign,
+  type ReadingSettings,
 } from '@/hooks/bible/ReadingSettingsContext'
 
 interface FontSectionProps {
-  settings: {
-    fontFamily: string
-    fontSize: number
-    fontWeight: FontWeight
-    lineHeight: number
-    textAlign: TextAlign
-  }
-  updateSetting: <K extends string>(key: K, value: unknown) => void
+  settings: ReadingSettings
+  updateSetting: <K extends keyof ReadingSettings>(key: K, value: ReadingSettings[K]) => void
 }
 
 export function FontSection({ settings, updateSetting }: FontSectionProps) {

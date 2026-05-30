@@ -68,7 +68,7 @@ export default function BibleTOC({ currentBook, onSelectBook, onBack }: BibleTOC
           <input
             type="search"
             placeholder="책 이름 또는 초성 검색 (예: 창, ㅊㅅㄱ)"
-            className="w-full rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] py-[10px] pl-10 pr-4 text-[15px] tracking-[-0.05em] text-[var(--color-text-primary)] outline-none transition-[border-color,background-color,box-shadow] duration-200 focus:border-[var(--color-accent-primary)] focus:bg-[var(--color-bg-card)] focus:ring-2 focus:ring-[var(--color-accent-primary)]/15"
+            className="w-full rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] py-[10px] pl-10 pr-4 text-[15px] tracking-[-0.05em] text-[var(--color-text-primary)] outline-none transition-[border-color,background-color,box-shadow] duration-200 focus:border-[var(--color-ink)] focus:bg-[var(--color-bg-card)] focus:ring-2 focus:ring-[var(--color-ink)]/15"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -131,13 +131,13 @@ function BookSection({
               type="button"
               className={`rounded-[10px] border px-2 py-3 text-left transition-all duration-200 ${
                 active
-                  ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
-                  : 'border-[var(--color-border-light)] bg-[var(--color-bg-card)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]/40 hover:bg-[var(--color-accent-light)]/40'
+                  ? 'border-[var(--color-ink)] bg-[var(--color-brand-faint)] text-[var(--color-brand)]'
+                  : 'border-[var(--color-border-light)] bg-[var(--color-bg-card)] text-[var(--color-text-primary)] hover:border-[var(--color-ink)] hover:bg-[var(--color-brand-faint)]'
               }`}
               onClick={() => onSelectBook(code)}
             >
               <p className="text-sm font-medium leading-snug tracking-[-0.05em]">{book.ko}</p>
-              <p className={`mt-0.5 text-xs ${active ? 'text-[var(--color-accent-primary)]/80' : 'text-[var(--color-text-tertiary)]'}`}>
+              <p className={`mt-0.5 text-xs ${active ? 'text-[var(--color-brand)]/80' : 'text-[var(--color-text-tertiary)]'}`}>
                 {book.chapters}
                 {chapterUnit}
               </p>

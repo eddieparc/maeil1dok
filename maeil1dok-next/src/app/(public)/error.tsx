@@ -15,7 +15,10 @@ export default function Error({ error, reset }: ErrorProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-surface-secondary)]">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-[var(--color-text-primary)] mb-4">
+        <h1
+          className="text-[40px] font-medium text-[var(--color-ink)] -tracking-[0.035em] leading-[1.15] mb-4"
+          style={{ fontFamily: 'var(--font-family-serif)' }}
+        >
           오류가 발생했습니다
         </h1>
         <p className="text-[var(--color-text-secondary)] mb-8">

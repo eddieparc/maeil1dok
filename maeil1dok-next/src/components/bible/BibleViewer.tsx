@@ -460,39 +460,60 @@ export default function BibleViewer({
   })
 
   return (
-    <div className="space-y-4 pb-24" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-4 shadow-sm">
+    <div className="space-y-3 pb-28" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      <header className="sticky top-0 z-20 -mx-4 flex h-14 items-center justify-between border-b border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 px-4 backdrop-blur-md sm:-mx-6">
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded-md bg-transparent px-1 py-0.5 text-left text-[clamp(1.125rem,5vw,1.375rem)] font-bold tracking-tight text-[var(--color-text-primary)]"
+          className="inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-1 text-left text-[var(--color-ink)] transition-colors hover:bg-[var(--color-brand-faint)]"
           onClick={() => handleChapterChange(currentChapter)}
           aria-label="성경 책과 장"
         >
-          <span className="truncate">{BIBLE_BOOKS[currentBook]?.ko ?? currentBook} {currentChapter}장</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M6 9l6 6 6-6" />
+          <span
+            className="truncate -tracking-[0.025em]"
+            style={{
+              fontFamily: 'var(--font-family-serif)',
+              fontSize: 'clamp(1.0625rem, 4.5vw, 1.25rem)',
+              fontWeight: 500,
+            }}
+          >
+            {BIBLE_BOOKS[currentBook]?.ko ?? currentBook} {currentChapter}장
+          </span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-[var(--color-mute)]">
+            <path d="m6 9 6 6 6-6" />
           </svg>
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <VersionSelector version={currentVersion} onVersionChange={handleVersionChange} />
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-mute)] transition-colors hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)]"
             aria-label="북마크"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
             </svg>
           </button>
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]"
-            onClick={() => setIsPanelOpen(true)}
-            aria-label="도구"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-mute)] transition-colors hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)]"
+            onClick={openMenuWithChapter}
+            aria-label="본문 작업"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="19" cy="12" r="1" />
+              <circle cx="5" cy="12" r="1" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-mute)] transition-colors hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)]"
+            onClick={() => setIsPanelOpen(true)}
+            aria-label="설정"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </button>
         </div>
@@ -532,18 +553,14 @@ export default function BibleViewer({
         />
       ) : null}
 
-      <button
-        type="button"
-        className="fixed bottom-24 right-4 z-30 rounded-full bg-[var(--color-primary)] p-3 text-white shadow-[var(--shadow-lg)] transition hover:opacity-90"
-        onClick={openMenuWithChapter}
-        aria-label="본문 작업 메뉴 열기"
-      >
-        📋
-      </button>
-
       {selectedVerseRange ? (
-        <div className="fixed bottom-24 left-4 z-20 rounded-full bg-[var(--color-info-bg)] px-3 py-1 text-xs font-medium text-[var(--color-info-text)] shadow-sm">
-          선택 {selectedVerseRange.start}절
+        <div
+          className="pointer-events-none fixed bottom-28 left-1/2 z-20 -translate-x-1/2 rounded-full border border-[var(--color-rule)] bg-[var(--color-paper)] px-3 py-1 text-[11px] font-semibold text-[var(--color-brand)] shadow-[var(--shadow-card)] -tracking-[0.005em]"
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
+          {selectedVerseRange.start === selectedVerseRange.end
+            ? `${selectedVerseRange.start}절 선택`
+            : `${selectedVerseRange.start}-${selectedVerseRange.end}절 선택`}
         </div>
       ) : null}
 

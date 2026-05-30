@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 interface WelcomeGuideProps {
@@ -30,44 +29,54 @@ export default function WelcomeGuide({
   onViewTOC,
   onPlanClick,
 }: WelcomeGuideProps) {
-  const router = useRouter()
-
   return (
     <section>
       <div
         className={cn(
-          'rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]',
+          'rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)]',
           'px-6 py-8 text-center',
         )}
       >
         <div className="mb-4 text-5xl">📖</div>
-        <h2 className="mb-2 text-lg font-bold text-[var(--color-text-primary)]">
-          매일일독에 오신 것을 환영합니다!
+        <h2
+          className="mb-2 text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+          style={{
+            fontFamily: 'var(--font-family-serif)',
+            fontSize: '1.375rem',
+            fontWeight: 500,
+          }}
+        >
+          매일일독에 오신 것을 환영합니다
         </h2>
-        <p className="mb-6 text-[0.9375rem] text-[var(--color-text-secondary)]">
-          성경을 읽고, 묵상하고, 기록해보세요.
+        <p
+          className="mb-6 text-[14px] font-medium text-[var(--color-mute)] -tracking-[0.01em]"
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
+          성경을 읽고, 묵상하고, 기록해보세요
         </p>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <button
             type="button"
             className={cn(
-              'flex items-center justify-center gap-2 rounded-xl px-4 py-3.5',
-              'bg-[var(--color-accent-primary)] text-[0.9375rem] font-medium text-white',
-              'transition-all hover:bg-[var(--color-accent-hover)]',
+              'inline-flex items-center justify-center gap-2 rounded-full px-4 py-3',
+              'bg-[var(--color-ink)] text-[13px] font-semibold text-[var(--color-paper)] -tracking-[0.012em]',
+              'transition-colors hover:bg-[var(--color-brand-deep)]',
             )}
+            style={{ fontFamily: 'var(--font-family-ui)' }}
             onClick={onViewTOC}
           >
-            <ListIcon className="h-[18px] w-[18px]" />
+            <ListIcon className="h-[14px] w-[14px]" />
             성경 목차에서 시작하기
           </button>
           {isAuthenticated && (
             <button
               type="button"
               className={cn(
-                'flex items-center justify-center gap-2 rounded-[10px] border border-[var(--color-border-default)] px-4 py-3.5',
-                'bg-[var(--color-bg-tertiary)] text-[0.9375rem] font-medium text-[var(--color-text-primary)]',
-                'transition-all hover:bg-[var(--color-bg-primary)]',
+                'inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-rule)] px-4 py-3',
+                'bg-transparent text-[13px] font-semibold text-[var(--color-ink)] -tracking-[0.012em]',
+                'transition-colors hover:border-[var(--color-ink)] hover:bg-[var(--color-brand-faint)]',
               )}
+              style={{ fontFamily: 'var(--font-family-ui)' }}
               onClick={onPlanClick}
             >
               <CalendarIcon />

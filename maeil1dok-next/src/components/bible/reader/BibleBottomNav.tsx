@@ -32,7 +32,7 @@ export default function BibleBottomNav({
         <Link
           href="/"
           aria-label="홈으로"
-          className="flex items-center justify-center w-8 h-8 text-[var(--color-text-tertiary)] rounded-lg transition-all hover:text-[var(--color-accent-primary)] hover:bg-[var(--color-accent-light)] active:scale-[0.92] no-underline shrink-0"
+          className="flex items-center justify-center w-8 h-8 text-[var(--color-text-tertiary)] rounded-lg transition-all hover:text-[var(--color-brand)] hover:bg-[var(--color-brand-faint)] active:scale-[0.92] no-underline shrink-0"
         >
           <Home size={16} aria-hidden="true" />
         </Link>
@@ -45,7 +45,7 @@ export default function BibleBottomNav({
             className={cn(
               'flex items-center justify-center w-7 h-7 rounded-md transition-all bg-transparent border-none cursor-pointer shrink-0',
               hasPrevChapter
-                ? 'text-[var(--color-text-secondary)] hover:scale-[1.15] hover:text-[var(--color-accent-primary)] active:scale-95'
+                ? 'text-[var(--color-text-secondary)] hover:scale-[1.15] hover:text-[var(--color-brand)] active:scale-95'
                 : 'text-[var(--color-text-muted)] opacity-50 cursor-not-allowed',
             )}
             disabled={!hasPrevChapter}
@@ -71,7 +71,7 @@ export default function BibleBottomNav({
             className={cn(
               'flex items-center justify-center w-7 h-7 rounded-md transition-all bg-transparent border-none cursor-pointer shrink-0',
               hasNextChapter
-                ? 'text-[var(--color-text-secondary)] hover:scale-[1.15] hover:text-[var(--color-accent-primary)] active:scale-95'
+                ? 'text-[var(--color-text-secondary)] hover:scale-[1.15] hover:text-[var(--color-brand)] active:scale-95'
                 : 'text-[var(--color-text-muted)] opacity-50 cursor-not-allowed',
             )}
             disabled={!hasNextChapter}
@@ -85,7 +85,7 @@ export default function BibleBottomNav({
         <Link
           href={userId ? `/profile/${userId}` : '/login'}
           aria-label="프로필"
-          className="flex items-center justify-center w-8 h-8 text-[var(--color-text-tertiary)] rounded-lg transition-all hover:text-[var(--color-accent-primary)] hover:bg-[var(--color-accent-light)] active:scale-[0.92] no-underline shrink-0"
+          className="flex items-center justify-center w-8 h-8 text-[var(--color-text-tertiary)] rounded-lg transition-all hover:text-[var(--color-brand)] hover:bg-[var(--color-brand-faint)] active:scale-[0.92] no-underline shrink-0"
         >
           <User size={16} aria-hidden="true" />
         </Link>

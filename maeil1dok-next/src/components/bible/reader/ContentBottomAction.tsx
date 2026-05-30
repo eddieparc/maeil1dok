@@ -59,7 +59,7 @@ export default function ContentBottomAction({
           </div>
           <span className="text-xs font-medium text-[var(--color-text-secondary)] whitespace-nowrap tracking-tight">
             {bookProgress.read} / {bookProgress.total}장{' '}
-            <span className="text-[var(--color-accent-primary)] font-semibold">
+            <span className="text-[var(--color-brand)] font-semibold">
               ({bookProgress.total > 0 ? Math.round((bookProgress.read / bookProgress.total) * 100) : 0}%)
             </span>
           </span>

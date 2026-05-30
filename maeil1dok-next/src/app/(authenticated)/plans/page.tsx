@@ -44,23 +44,36 @@ export default async function PlansPage() {
         <div className="fade-in">
           {/* ── 구독 중인 플랜 ── */}
           <section className="mb-8">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)] mb-4">
-              <span>구독 중인 플랜</span>
+            <h2
+              className="mb-4 flex items-baseline gap-2 text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+              style={{
+                fontFamily: 'var(--font-family-serif)',
+                fontSize: '1.25rem',
+                fontWeight: 500,
+              }}
+            >
+              구독 중인 플랜
               {subscribedPlans.length > 0 && (
-                <span className="text-sm font-normal text-[var(--color-text-secondary)]">
+                <span
+                  className="text-[12px] font-medium text-[var(--color-mute)] -tracking-[0.005em] tabular-nums"
+                  style={{ fontFamily: 'var(--font-family-ui)' }}
+                >
                   {subscribedPlans.length}개
                 </span>
               )}
             </h2>
 
             {subscribedPlans.length === 0 ? (
-              <div className="text-center py-8 rounded-lg bg-[var(--color-slate-100)]">
-                <p className="text-sm text-[var(--color-slate-600)]">
-                  아직 구독 중인 플랜이 없습니다.
+              <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] px-5 py-8 text-center">
+                <p
+                  className="text-[13px] font-medium text-[var(--color-mute)] -tracking-[0.008em]"
+                  style={{ fontFamily: 'var(--font-family-ui)' }}
+                >
+                  아직 구독 중인 플랜이 없습니다
                 </p>
               </div>
             ) : (
-              <div className="grid gap-4">
+              <div className="grid gap-3">
                 {subscribedPlans.map(({ plan, subscription }) => (
                   <SubscribedPlanCard
                     key={subscription.id}
@@ -74,28 +87,38 @@ export default async function PlansPage() {
 
           {/* ── 이용 가능한 플랜 ── */}
           <section className="mb-8">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)] mb-4">
-              <span>이용 가능한 플랜</span>
+            <h2
+              className="mb-4 flex items-baseline gap-2 text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+              style={{
+                fontFamily: 'var(--font-family-serif)',
+                fontSize: '1.25rem',
+                fontWeight: 500,
+              }}
+            >
+              이용 가능한 플랜
               {availablePlans.length > 0 && (
-                <span className="text-sm font-normal text-[var(--color-text-secondary)]">
+                <span
+                  className="text-[12px] font-medium text-[var(--color-mute)] -tracking-[0.005em] tabular-nums"
+                  style={{ fontFamily: 'var(--font-family-ui)' }}
+                >
                   {availablePlans.length}개
                 </span>
               )}
             </h2>
 
             {availablePlans.length === 0 ? (
-              <div className="text-center py-8 rounded-lg bg-[var(--color-slate-100)]">
-                <p className="text-sm text-[var(--color-slate-600)]">
-                  현재 이용 가능한 플랜이 없습니다.
+              <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] px-5 py-8 text-center">
+                <p
+                  className="text-[13px] font-medium text-[var(--color-mute)] -tracking-[0.008em]"
+                  style={{ fontFamily: 'var(--font-family-ui)' }}
+                >
+                  현재 이용 가능한 플랜이 없습니다
                 </p>
               </div>
             ) : (
-              <div className="grid gap-4">
+              <div className="grid gap-3">
                 {availablePlans.map((plan) => (
-                  <AvailablePlanCard
-                    key={plan.id}
-                    plan={plan}
-                  />
+                  <AvailablePlanCard key={plan.id} plan={plan} />
                 ))}
               </div>
             )}

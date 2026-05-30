@@ -120,7 +120,7 @@ export default function BookSelector({
                 className={cn(
                   'inline-flex shrink-0 items-center gap-1 rounded-lg border px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-all',
                   code === currentVersion
-                    ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white shadow-[0_2px_4px_rgba(99,102,241,0.2)]'
+                    ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white shadow-[0_2px_4px_rgba(99,102,241,0.2)]'
                     : 'border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-default)] hover:bg-[var(--color-bg-tertiary)]'
                 )}
                 onClick={() => onVersionSelect(code)}
@@ -151,7 +151,7 @@ export default function BookSelector({
               ref={searchRef}
               type="search"
               placeholder="예: 창1:3, ㅊㅅㄱ, 요한 3:16"
-              className="w-full rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] py-2.5 pl-10 pr-9 text-[15px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-accent-primary)] focus:bg-[var(--color-bg-primary)] focus:ring-2 focus:ring-[var(--color-accent-primary)]/20"
+              className="w-full rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] py-2.5 pl-10 pr-9 text-[15px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-all focus:border-[var(--color-ink)] focus:bg-[var(--color-bg-primary)] focus:ring-2 focus:ring-[var(--color-ink)]/15"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -216,7 +216,7 @@ export default function BookSelector({
                   className={cn(
                     'flex w-full items-center justify-center border-b border-[var(--color-border-default)] py-3 text-sm transition-colors',
                     isActive
-                      ? 'bg-[var(--color-accent-primary)] font-medium text-white'
+                      ? 'bg-[var(--color-ink)] font-medium text-white'
                       : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]'
                   )}
                   onClick={() => handleSelectChapter(ch)}
@@ -243,7 +243,7 @@ function BookItem({ code, isActive, onSelect }: { code: string; isActive: boolea
       className={cn(
         'flex w-full items-center border-b border-[var(--color-border-light)] px-4 py-3 text-left text-[15px] transition-colors',
         isActive
-          ? 'bg-[var(--color-accent-light)] font-medium text-[var(--color-accent-primary)]'
+          ? 'bg-[var(--color-brand-faint)] font-medium text-[var(--color-brand)]'
           : 'text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
       )}
       onClick={() => onSelect(code)}

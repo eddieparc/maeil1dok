@@ -190,7 +190,7 @@ export default function NoteDetailPage() {
       <main className="flex min-h-dvh items-center justify-center bg-[var(--color-bg-primary)] px-6">
         <div className="text-center">
           <p className="text-sm text-[var(--color-text-secondary)]">묵상노트를 찾을 수 없습니다</p>
-          <Link href="/bible/notes" className="mt-2 block text-sm text-[var(--color-accent-primary)]">목록으로 돌아가기</Link>
+          <Link href="/bible/notes" className="mt-2 block text-sm text-[var(--color-brand)]">목록으로 돌아가기</Link>
         </div>
       </main>
     )
@@ -209,10 +209,15 @@ export default function NoteDetailPage() {
             >
               <ChevronLeft size={20} aria-hidden="true" />
             </button>
-            <h1 className="flex-1 text-lg font-semibold text-[var(--color-text-primary)]">묵상노트</h1>
+            <h1
+              className="flex-1 text-[20px] font-medium text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+              style={{ fontFamily: 'var(--font-family-serif)' }}
+            >
+              묵상노트
+            </h1>
             <button
               type="button"
-              className="-m-1 rounded-lg p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-hover)] hover:text-red-500"
+              className="-m-1 rounded-lg p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-danger)]"
               onClick={() => void handleDelete()}
               aria-label="묵상노트 삭제"
             >
@@ -225,7 +230,7 @@ export default function NoteDetailPage() {
           <button
             type="button"
             onClick={goToBible}
-            className="mb-4 flex items-center gap-2 rounded-xl bg-[var(--color-bg-card)] px-3 py-3 text-[0.9375rem] font-medium text-[var(--color-accent-primary)] transition-colors hover:bg-[var(--color-bg-hover)]"
+            className="mb-4 flex items-center gap-2 rounded-xl bg-[var(--color-bg-card)] px-3 py-3 text-[0.9375rem] font-medium text-[var(--color-brand)] transition-colors hover:bg-[var(--color-bg-hover)]"
           >
             <BookOpen size={16} aria-hidden="true" />
             <span>{note.book_name || BIBLE_BOOKS[note.book]?.ko || note.book} {note.chapter}장</span>
@@ -249,7 +254,7 @@ export default function NoteDetailPage() {
                   onChange={(event) => setIsPrivate(event.target.checked)}
                   className="peer sr-only"
                 />
-                <span className="relative h-7 w-12 rounded-full bg-[var(--color-border)] transition-colors peer-checked:bg-[var(--color-accent-primary)]">
+                <span className="relative h-7 w-12 rounded-full bg-[var(--color-border)] transition-colors peer-checked:bg-[var(--color-ink)]">
                   <span className="absolute left-[3px] top-[3px] h-[22px] w-[22px] rounded-full bg-[var(--color-bg-card)] shadow-[var(--shadow-sm)] transition-transform peer-checked:translate-x-5" />
                 </span>
                 <span className="text-sm text-[var(--color-text-secondary)]">비공개</span>
@@ -262,7 +267,7 @@ export default function NoteDetailPage() {
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={!hasChanges || isSaving}
-                className="inline-flex min-w-[104px] items-center justify-center gap-2 rounded-[10px] bg-[var(--color-accent-primary)] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-w-[104px] items-center justify-center gap-2 rounded-full bg-[var(--color-ink)] px-5 py-3 text-[13px] font-semibold text-[var(--color-paper)] -tracking-[0.012em] transition-colors hover:bg-[var(--color-brand-deep)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
                 <span>{hasChanges ? '저장' : '저장됨'}</span>

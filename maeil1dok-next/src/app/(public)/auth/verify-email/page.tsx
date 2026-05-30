@@ -113,7 +113,10 @@ export default function VerifyEmailPage() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <h1 className="text-xl font-semibold m-0" style={{ color: 'var(--color-text-primary)' }}>
+          <h1
+            className="text-[22px] font-medium m-0 -tracking-[0.025em] leading-[1.3]"
+            style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-family-serif)' }}
+          >
             {status === 'success' ? '이메일 인증 완료!' : '이메일 인증 확인'}
           </h1>
 
@@ -156,8 +159,8 @@ export default function VerifyEmailPage() {
              <button
                type="button"
                onClick={() => router.push('/login')}
-               className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
-               style={{ backgroundColor: 'var(--color-primary)' }}
+               className="w-full py-3 px-6 rounded-full text-[13px] font-semibold border-none text-[var(--color-paper)] -tracking-[0.012em] transition-colors"
+               style={{ backgroundColor: 'var(--color-ink)' }}
              >
                로그인으로 이동
              </button>
@@ -166,9 +169,9 @@ export default function VerifyEmailPage() {
                type="button"
                onClick={handleResend}
                disabled={isLoading || !canResend}
-               className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
+               className="w-full py-3 px-6 rounded-full text-[13px] font-semibold border-none text-[var(--color-paper)] -tracking-[0.012em] transition-colors"
                style={{
-                 backgroundColor: 'var(--color-primary)',
+                 backgroundColor: 'var(--color-ink)',
                  cursor: isLoading || !canResend ? 'not-allowed' : 'pointer',
                  opacity: isLoading || !canResend ? 0.7 : 1,
                }}

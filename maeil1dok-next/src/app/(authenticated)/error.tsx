@@ -16,7 +16,10 @@ export default function AuthenticatedError({ error, reset }: ErrorProps) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="text-center">
-        <h1 className="mb-2 text-2xl font-bold text-[var(--color-text-primary)]">
+        <h1
+          className="mb-2 text-[28px] font-medium text-[var(--color-ink)] -tracking-[0.03em] leading-[1.2]"
+          style={{ fontFamily: 'var(--font-family-serif)' }}
+        >
           문제가 발생했습니다
         </h1>
         <p className="mb-6 text-sm text-[var(--color-text-secondary)]">
@@ -26,7 +29,7 @@ export default function AuthenticatedError({ error, reset }: ErrorProps) {
           <button
             onClick={reset}
             type="button"
-            className="rounded-lg bg-[var(--color-accent-primary)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
+            className="rounded-lg bg-[var(--color-ink)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
           >
             다시 시도
           </button>

@@ -176,8 +176,8 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1.5 rounded-xl border-[1.5px] px-3 py-2.5 text-[13px] font-medium transition-all',
                     settings.theme === value
-                      ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
-                      : 'border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]'
+                      ? 'border-[var(--color-ink)] bg-[var(--color-brand-faint)] text-[var(--color-brand)]'
+                      : 'border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:border-[var(--color-ink)]'
                   )}
                   onClick={() => updateSetting('theme', value)}
                 >
@@ -242,7 +242,7 @@ export default function ReadingSettingsModal({ isOpen, onClose }: ReadingSetting
             type="button"
             className={cn(
               'flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors',
-              'bg-[var(--color-accent-primary)] hover:bg-[var(--color-accent-hover)]'
+              'bg-[var(--color-ink)] hover:bg-[var(--color-brand-deep)]'
             )}
             onClick={onClose}
           >

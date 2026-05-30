@@ -15,7 +15,16 @@ export default function SettingsPage({ user, profile, identities }: SettingsPage
   return (
     <div className="mx-auto w-full max-w-[600px] py-6">
       <header className="mb-6 px-1">
-        <h1 className="text-xl font-semibold text-[var(--color-slate-800)]">계정 설정</h1>
+        <h1
+          className="text-[var(--color-ink)] -tracking-[0.025em] leading-[1.2]"
+          style={{
+            fontFamily: 'var(--font-family-serif)',
+            fontSize: 'clamp(1.25rem, 5vw, 1.5rem)',
+            fontWeight: 500,
+          }}
+        >
+          계정 설정
+        </h1>
       </header>
 
       <div className="space-y-8">

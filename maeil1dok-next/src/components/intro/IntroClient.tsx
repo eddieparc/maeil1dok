@@ -224,10 +224,10 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
                 disabled={isToggling[selectedVideo.id]}
                 onClick={() => handleToggleComplete(selectedVideo.id, !completed)}
                 className={cn(
-                  'pointer-events-auto inline-flex items-center gap-2 rounded-full px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70',
+                  'pointer-events-auto inline-flex items-center gap-2 rounded-full px-5 py-3 text-base font-semibold text-[var(--color-paper)] shadow-[var(--shadow-card-hover)] transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70',
                   completed
                     ? 'bg-[var(--color-danger)] shadow-[0_4px_14px_rgba(239,68,68,0.4)] hover:bg-[var(--color-danger-hover)]'
-                    : 'bg-[var(--color-success)] shadow-[0_4px_14px_rgba(16,185,129,0.4)] hover:bg-[var(--color-accent-hover)]',
+                    : 'bg-[var(--color-success)] shadow-[0_4px_14px_rgba(16,185,129,0.4)] hover:bg-[var(--color-brand-deep)]',
                 )}
               >
                 {isToggling[selectedVideo.id] ? (
@@ -324,7 +324,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
                           disabled={isToggling[video.id]}
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => handleToggleComplete(video.id, e.target.checked)}
-                          className="h-5 w-5 cursor-pointer rounded border-[var(--color-border-default)] text-[var(--color-accent-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
+                          className="h-5 w-5 cursor-pointer rounded border-[var(--color-border-default)] text-[var(--color-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30"
                           aria-label={`${video.book} 완료 여부`}
                         />
                       </div>
@@ -390,7 +390,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
                     className={cn(
                       'flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors',
                       isSelected
-                        ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-text-primary)]'
+                        ? 'border-[var(--color-ink)] bg-[var(--color-accent-light)] text-[var(--color-text-primary)]'
                         : 'border-[var(--color-border-default)] bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]',
                     )}
                   >
@@ -398,7 +398,7 @@ export default function IntroClient({ plans, videoIntros, progressList }: IntroC
                     <span className={cn(
                       'inline-flex h-5 w-5 items-center justify-center rounded-full border',
                       isSelected
-                        ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white'
+                        ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white'
                         : 'border-[var(--color-border-default)] text-transparent',
                     )}>
                       <Check className="h-3.5 w-3.5" />

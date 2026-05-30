@@ -27,7 +27,7 @@ export default function HighlightColorPicker({ onSelect, selectedColor }: Highli
             className={cn(
               'h-8 w-8 rounded-full border-2 transition duration-200 hover:scale-110',
               selectedColor === option.color
-                ? 'border-[var(--color-accent-primary)] shadow-[0_0_0_2px_var(--color-bg-primary),0_0_0_4px_var(--color-accent-primary)]'
+                ? 'border-[var(--color-ink)] shadow-[0_0_0_2px_var(--color-bg-primary),0_0_0_4px_var(--color-ink)]'
                 : 'border-transparent'
             )}
             style={{ backgroundColor: option.hex }}

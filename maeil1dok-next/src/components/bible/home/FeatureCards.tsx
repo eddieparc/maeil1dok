@@ -72,15 +72,15 @@ function FeatureCard({ icon, iconBg, iconColor, name, count, description, onClic
     <button
       type="button"
       className={cn(
-        'flex w-full items-center gap-3.5 rounded-xl border border-[var(--color-border-default)]',
-        'bg-[var(--color-bg-secondary)] p-4 text-left',
-        'transition-all hover:border-[var(--color-border-dark)] hover:bg-[var(--color-bg-tertiary)]',
+        'flex w-full items-center gap-3.5 rounded-2xl border border-[var(--color-rule)]',
+        'bg-[var(--color-paper)] p-4 text-left',
+        'transition-colors hover:border-[var(--color-ink)]',
       )}
       onClick={onClick}
     >
       <div
         className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+          'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
           iconBg,
           iconColor,
         )}
@@ -89,25 +89,32 @@ function FeatureCard({ icon, iconBg, iconColor, name, count, description, onClic
       </div>
       <div className="min-w-0 flex-1 text-left">
         <div className="mb-0.5 flex items-center gap-2">
-          <span className="text-[0.9375rem] font-semibold text-[var(--color-text-primary)]">
+          <span
+            className="text-[15px] font-semibold text-[var(--color-ink)] -tracking-[0.012em]"
+            style={{ fontFamily: 'var(--font-family-ui)' }}
+          >
             {name}
           </span>
           {count != null && count > 0 && (
             <span
               className={cn(
-                'rounded-lg bg-[var(--color-accent-light)] px-2 py-0.5',
-                'text-xs font-semibold text-[var(--color-accent-primary)]',
+                'rounded-full bg-[var(--color-brand-faint)] px-2 py-0.5',
+                'text-[11px] font-semibold text-[var(--color-brand)] tabular-nums',
               )}
+              style={{ fontFamily: 'var(--font-family-ui)' }}
             >
               {count}
             </span>
           )}
         </div>
-        <p className="truncate text-[0.8125rem] text-[var(--color-text-secondary)]">
+        <p
+          className="truncate text-[13px] text-[var(--color-mute)] -tracking-[0.008em]"
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
           {description}
         </p>
       </div>
-      <ChevronRightIcon className="shrink-0 text-[var(--color-text-muted)]" />
+      <ChevronRightIcon className="shrink-0 text-[var(--color-subtle)]" />
     </button>
   )
 }

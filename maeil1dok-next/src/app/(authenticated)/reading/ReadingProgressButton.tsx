@@ -51,7 +51,9 @@ export default function ReadingProgressButton({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ activityType: 'reading' }),
-        }).catch(() => { /* ignore notification errors */ })
+        }).catch(() => {
+          /* ignore notification errors */
+        })
       }
       setShowSuccess(true)
     } catch {
@@ -62,35 +64,46 @@ export default function ReadingProgressButton({
   }
 
   const buttonLabel = showSuccess
-    ? isCompleted ? '✓ 완료!' : '취소됨'
+    ? isCompleted
+      ? '완료!'
+      : '취소됨'
     : isLoading
-      ? '로딩 중...'
+      ? '저장 중...'
       : isCompleted
-        ? '읽기 완료 ✓'
+        ? '읽기 완료'
         : '읽기 완료하기'
 
+  const variantClass = showSuccess
+    ? 'bg-[var(--color-success-bg)] text-[var(--color-success-text)] border border-[var(--color-success-border)]'
+    : isCompleted
+      ? 'border border-[var(--color-rule)] bg-transparent text-[var(--color-ink)] hover:border-[var(--color-ink)]'
+      : 'bg-[var(--color-ink)] text-[var(--color-paper)] hover:bg-[var(--color-brand-deep)]'
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <button
         type="button"
         data-testid="progress-button"
         onClick={handleClick}
         disabled={isLoading}
-        className={`relative inline-flex w-full items-center justify-center overflow-hidden rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${
-          showSuccess
-            ? 'scale-105 bg-emerald-400/30 text-white backdrop-blur-sm'
-            : isCompleted
-              ? 'bg-[color-mix(in_srgb,var(--color-bg-secondary)_40%,transparent)] text-white backdrop-blur-sm hover:bg-[color-mix(in_srgb,var(--color-bg-secondary)_48%,transparent)]'
-              : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-on-surface)] hover:bg-[var(--color-button-hover)]'
-        }`}
+        className={`inline-flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[13px] font-semibold -tracking-[0.012em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${variantClass}`}
+        style={{ fontFamily: 'var(--font-family-ui)' }}
       >
-        {isLoading ? (
-          <span className="animate-pulse">{buttonLabel}</span>
-        ) : (
-          buttonLabel
-        )}
+        {showSuccess || isCompleted ? (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : null}
+        <span className={isLoading ? 'animate-pulse' : ''}>{buttonLabel}</span>
       </button>
-      {errorMessage ? <p className="text-sm text-red-300">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <p
+          className="text-[11px] font-medium text-[var(--color-danger)] -tracking-[0.005em]"
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   )
 }

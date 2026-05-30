@@ -28,12 +28,12 @@ export function SettingsPreview({
       <div
         className="px-4 py-3 transition-colors duration-200"
         style={{
-          backgroundColor: effectiveTheme === 'dark' ? '#1a1a1a' : '#f9fafb',
+          backgroundColor: 'var(--bible-bg)',
         }}
       >
         <p
           className="mb-1 text-center text-sm font-semibold"
-          style={{ color: effectiveTheme === 'dark' ? '#8ba888' : '#4a5d4a' }}
+          style={{ color: 'var(--section-title-color)' }}
         >
           예수 그리스도의 계보
           <span className="ml-1 text-xs font-normal opacity-60">(마 1:1-3)</span>
@@ -45,7 +45,7 @@ export function SettingsPreview({
             fontWeight: FONT_WEIGHTS[fontWeight as keyof typeof FONT_WEIGHTS],
             lineHeight: lineHeight,
             textAlign: textAlign as React.CSSProperties['textAlign'],
-            color: effectiveTheme === 'dark' ? '#e0e0e0' : '#1f2937',
+            color: 'var(--bible-text)',
           }}
         >
           {verseJoining ? (

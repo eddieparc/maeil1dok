@@ -94,7 +94,10 @@ export default function ResetPasswordPage() {
         {!isSuccess ? (
           <>
              <div className="text-center flex flex-col gap-2">
-               <h1 className="text-xl font-semibold m-0" style={{ color: 'var(--color-text-primary)' }}>
+               <h1
+                 className="text-[22px] font-medium m-0 -tracking-[0.025em] leading-[1.3]"
+                 style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-family-serif)' }}
+               >
                  새 비밀번호 설정
                </h1>
                <p className="text-sm m-0 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
@@ -150,9 +153,9 @@ export default function ResetPasswordPage() {
                <button
                  type="submit"
                  disabled={isLoading || !isFormValid}
-                 className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
+                 className="w-full py-3 px-6 rounded-full text-[13px] font-semibold border-none text-[var(--color-paper)] -tracking-[0.012em] transition-colors"
                  style={{
-                   backgroundColor: 'var(--color-primary)',
+                   backgroundColor: 'var(--color-ink)',
                    cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
                    opacity: isLoading || !isFormValid ? 0.7 : 1,
                  }}
@@ -178,8 +181,8 @@ export default function ResetPasswordPage() {
              <button
                type="button"
                onClick={() => router.push('/login')}
-               className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200"
-               style={{ backgroundColor: 'var(--color-primary)' }}
+               className="w-full py-3 px-6 rounded-full text-[13px] font-semibold border-none text-[var(--color-paper)] -tracking-[0.012em] transition-colors"
+               style={{ backgroundColor: 'var(--color-ink)' }}
              >
                로그인으로 이동
              </button>

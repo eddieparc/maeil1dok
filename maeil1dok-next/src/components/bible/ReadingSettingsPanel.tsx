@@ -100,7 +100,7 @@ function ToggleRow({
         className={cn(
           'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
           checked
-            ? 'bg-[var(--color-accent-primary)]'
+            ? 'bg-[var(--color-ink)]'
             : 'bg-[var(--color-border-default)]',
         )}
       >
@@ -131,8 +131,8 @@ function OptionButton({
       className={cn(
         'rounded-lg border px-3 py-2 text-sm font-medium transition',
         active
-          ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
-          : 'border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)]',
+          ? 'border-[var(--color-ink)] bg-[var(--color-brand-faint)] text-[var(--color-brand)]'
+          : 'border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-ink)]',
       )}
     >
       {label}
@@ -250,7 +250,7 @@ export default function ReadingSettingsPanel({
                   className={cn(
                     'rounded-lg border px-2 py-2 text-xs transition',
                     normalizedFamily === font.value
-                      ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
+                      ? 'border-[var(--color-ink)] bg-[var(--color-brand-faint)] text-[var(--color-brand)]'
                       : 'border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)]',
                   )}
                 >

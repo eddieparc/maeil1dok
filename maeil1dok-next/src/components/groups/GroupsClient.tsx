@@ -40,29 +40,39 @@ export default function GroupsClient({ groups }: GroupsClientProps) {
   return (
     <main className="min-h-[calc(100dvh-120px)] bg-[var(--color-bg-primary)] pb-24">
       <Container maxWidth="content" className="px-0">
-        <header className="sticky top-0 z-20 border-b border-[var(--color-border-light)] bg-[var(--color-bg-card)]">
-          <div className="flex h-14 items-center gap-3 px-4">
+        <header className="sticky top-0 z-20 border-b border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md">
+          <div className="flex h-14 items-center gap-2 px-4">
             <Link
               href="/"
-              className="-m-2 rounded-lg p-2 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-hover)]"
+              className="-m-2 rounded-full p-2 text-[var(--color-mute)] transition-colors hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)]"
               aria-label="뒤로 가기"
             >
-              <ChevronLeft size={20} aria-hidden="true" />
+              <ChevronLeft size={18} aria-hidden="true" />
             </Link>
-            <h1 className="text-lg font-semibold tracking-[-0.05em] text-[var(--color-text-primary)]">그룹</h1>
+            <h1
+              className="text-[var(--color-ink)] -tracking-[0.025em] leading-[1.2]"
+              style={{
+                fontFamily: 'var(--font-family-serif)',
+                fontSize: 'clamp(1.25rem, 5vw, 1.5rem)',
+                fontWeight: 500,
+              }}
+            >
+              그룹
+            </h1>
           </div>
         </header>
 
-        <section className="space-y-4 px-4 py-4">
+        <section className="space-y-3 px-4 py-4">
           <div className="relative">
-            <svg className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[var(--color-text-tertiary)]" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <svg className="pointer-events-none absolute top-1/2 left-4 h-[18px] w-[18px] -translate-y-1/2 text-[var(--color-subtle)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
               <path d="M21 21l-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" />
             </svg>
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="그룹 이름으로 검색해보세요"
-              className="h-12 w-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] pr-4 pl-11 text-[0.9375rem] text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-input-focus)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-input-focus)_18%,transparent)]"
+              className="h-12 w-full rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] pr-4 pl-11 text-[14px] font-medium text-[var(--color-ink)] -tracking-[0.01em] outline-none transition-colors placeholder:font-medium placeholder:text-[var(--color-subtle)] focus:border-[var(--color-ink)]"
+              style={{ fontFamily: 'var(--font-family-ui)' }}
             />
           </div>
 
@@ -75,11 +85,12 @@ export default function GroupsClient({ groups }: GroupsClientProps) {
                   type="button"
                   onClick={() => setActiveFilter(filter.value)}
                   className={[
-                    'rounded-full border px-4 py-2 text-[0.875rem] font-medium whitespace-nowrap transition-colors',
+                    'whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[12px] font-semibold -tracking-[0.005em] transition-colors',
                     active
-                      ? 'border-[var(--color-border-dark)] bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm'
-                      : 'border-transparent bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]',
+                      ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-paper)]'
+                      : 'border-[var(--color-rule)] bg-transparent text-[var(--color-mute)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]',
                   ].join(' ')}
+                  style={{ fontFamily: 'var(--font-family-ui)' }}
                 >
                   {filter.label}
                 </button>
@@ -88,14 +99,14 @@ export default function GroupsClient({ groups }: GroupsClientProps) {
           </div>
         </section>
 
-        <section className="space-y-4 px-4 pb-6">
+        <section className="space-y-3 px-4 pb-6">
           {filteredGroups.length > 0 ? (
             filteredGroups.map((group) => <GroupCard key={group.id} group={group} />)
           ) : (
             <EmptyState
               title={searchQuery ? '검색 결과가 없습니다' : '아직 그룹이 없습니다'}
-              description={searchQuery ? '다른 검색어로 시도해보세요.' : '다른 사용자들과 함께 성경을 읽어보세요!'}
-              className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] px-5 py-10 shadow-[var(--shadow-card)]"
+              description={searchQuery ? '다른 검색어로 시도해보세요' : '다른 사용자들과 함께 성경을 읽어보세요'}
+              className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] px-5 py-10"
             />
           )}
         </section>

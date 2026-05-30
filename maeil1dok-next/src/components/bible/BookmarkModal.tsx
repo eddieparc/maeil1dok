@@ -69,7 +69,7 @@ export default function BookmarkModal({
       </div>
 
       <div className="px-6 pb-4">
-        <div className="mb-5 flex items-center justify-center gap-2 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-[0.9375rem] font-medium text-[var(--color-accent-primary)]">
+        <div className="mb-5 flex items-center justify-center gap-2 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-[0.9375rem] font-medium text-[var(--color-brand)]">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
@@ -85,7 +85,7 @@ export default function BookmarkModal({
             maxLength={100}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="북마크 제목을 입력하세요"
-            className="w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-3 py-2.5 text-[0.9375rem] text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-accent-primary)] focus:ring-2 focus:ring-[var(--color-accent-primary)]/10"
+            className="w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-3 py-2.5 text-[0.9375rem] text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-ink)]/10"
           />
         </div>
 
@@ -117,7 +117,7 @@ export default function BookmarkModal({
             rows={3}
             onChange={(event) => setMemo(event.target.value)}
             placeholder="메모를 입력하세요"
-            className="w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-3 py-2.5 text-[0.9375rem] text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-accent-primary)] focus:ring-2 focus:ring-[var(--color-accent-primary)]/10"
+            className="w-full resize-y rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-3 py-2.5 text-[0.9375rem] text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-ink)]/10"
           />
         </div>
       </div>
@@ -132,7 +132,7 @@ export default function BookmarkModal({
         </button>
         <button
           type="button"
-          className="flex-1 rounded-xl bg-[var(--color-accent-primary)] px-4 py-2.5 text-[0.9375rem] font-medium text-white transition hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex-1 rounded-xl bg-[var(--color-ink)] px-4 py-2.5 text-[0.9375rem] font-medium text-white transition hover:bg-[var(--color-brand-deep)] disabled:cursor-not-allowed disabled:opacity-60"
           onClick={() => void handleSave()}
           disabled={isSaving}
         >

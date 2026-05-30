@@ -39,7 +39,7 @@ function ToggleSwitch({
       className={cn(
         'relative inline-flex shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200',
         w, h,
-        checked ? 'bg-[var(--color-accent-primary)]' : 'bg-[var(--color-border-default)]'
+        checked ? 'bg-[var(--color-ink)]' : 'bg-[var(--color-border-default)]'
       )}
       onClick={() => onChange(!checked)}
     >

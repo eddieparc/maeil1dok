@@ -74,14 +74,14 @@ export default function HeaderClient({
             <button
               onClick={() => setIsDropdownOpen((v) => !v)}
               type="button"
-              className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-full border-2 border-transparent bg-transparent transition duration-200 hover:scale-105 hover:border-[var(--color-accent-primary)] sm:h-8 sm:w-8"
+              className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-full border-2 border-transparent bg-transparent transition duration-200 hover:scale-105 hover:border-[var(--color-ink)] sm:h-8 sm:w-8"
               aria-label="프로필 메뉴"
               data-testid="profile-button"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" loading="lazy" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-[var(--color-accent-bg)] text-[var(--color-accent-primary)]">
+                <div className="flex h-full w-full items-center justify-center bg-[var(--color-brand-faint)] text-[var(--color-brand)]">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
@@ -153,7 +153,7 @@ export default function HeaderClient({
                 onClick={handleSignOut}
                 disabled={isSigningOut}
                 type="button"
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-[#dc2626] transition duration-150 hover:bg-[var(--color-slate-100)] disabled:opacity-70"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-[var(--color-danger)] transition duration-150 hover:bg-[var(--color-slate-100)] disabled:opacity-70"
                 data-testid="signout-button"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

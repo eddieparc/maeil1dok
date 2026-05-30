@@ -72,7 +72,7 @@ export default function BibleReaderHeader({
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <button
             type="button"
-            className="flex min-h-11 min-w-0 flex-1 items-center rounded-lg border-none bg-transparent px-0.5 text-left transition-colors duration-200 ease-out hover:bg-[var(--color-button-default)]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]/20 active:opacity-70"
+            className="flex min-h-11 min-w-0 flex-1 items-center rounded-lg border-none bg-transparent px-0.5 text-left transition-colors duration-200 ease-out hover:bg-[var(--color-button-default)]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ink)]/20 active:opacity-70"
             style={{ WebkitTapHighlightColor: 'transparent' }}
             onClick={onOpenBookSelector}
             aria-label={`${bookName} ${chapter}장 선택`}
@@ -87,9 +87,9 @@ export default function BibleReaderHeader({
           <button
             type="button"
             className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-none bg-transparent transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent-primary)]/20 active:scale-95',
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-none bg-transparent transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ink)]/20 active:scale-95',
               isBookmarked
-                ? 'text-[var(--color-accent-primary)] hover:bg-[var(--color-button-default)]'
+                ? 'text-[var(--color-brand)] hover:bg-[var(--color-brand-faint)]'
                 : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-button-default)] hover:text-[var(--color-text-primary)]'
             )}
             style={{ WebkitTapHighlightColor: 'transparent' }}

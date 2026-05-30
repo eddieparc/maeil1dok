@@ -76,7 +76,7 @@ export default function NotesPage() {
       <select
         value={bookFilter}
         onChange={(event) => setBookFilter(event.target.value)}
-        className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus:border-[var(--color-accent-primary)]"
+        className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus:border-[var(--color-ink)]"
         aria-label="성경 권 필터"
       >
         <option value="">전체</option>
@@ -110,7 +110,7 @@ export default function NotesPage() {
         isAuthenticated ? null : (
           <Link
             href="/login"
-            className="inline-flex rounded-lg bg-[var(--color-accent-primary)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
+            className="inline-flex rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-[13px] font-semibold text-[var(--color-paper)] -tracking-[0.012em] transition-colors hover:bg-[var(--color-brand-deep)]"
           >
             로그인
           </Link>
@@ -131,7 +131,7 @@ export default function NotesPage() {
             >
               <Link href={`/bible/notes/${note.id}`} className="block px-4 py-4">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-[0.9375rem] font-semibold text-[var(--color-accent-primary)]">{locationLabel}</p>
+                  <p className="text-[0.9375rem] font-semibold text-[var(--color-brand)]">{locationLabel}</p>
                   <p className="shrink-0 text-xs text-[var(--color-text-muted)]">{formatRelativeDate(note.updated_at)}</p>
                 </div>
                 <p className="line-clamp-2 text-[0.875rem] leading-relaxed text-[var(--color-text-primary)]">{preview}</p>

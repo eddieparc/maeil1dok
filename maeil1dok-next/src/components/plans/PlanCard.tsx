@@ -90,8 +90,8 @@ export function SubscribedPlanCard({ plan, subscription }: SubscribedPlanCardPro
                 disabled={loading}
                 className="
                   px-4 py-1.5 text-xs font-medium rounded-lg
-                  bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]
-                  border border-[var(--color-accent-primary)]
+                  bg-[var(--color-brand-faint)] text-[var(--color-brand)]
+                  border border-[var(--color-ink)]
                   hover:opacity-90 active:opacity-80
                   transition-all duration-200 min-w-[80px] text-center
                   disabled:opacity-50 disabled:cursor-not-allowed
@@ -110,7 +110,7 @@ export function SubscribedPlanCard({ plan, subscription }: SubscribedPlanCardPro
                   disabled:opacity-50 disabled:cursor-not-allowed
                   ${subscription.isActive
                     ? 'bg-[var(--color-slate-100)] border border-[var(--color-slate-300)] text-[var(--color-slate-600)] hover:bg-[var(--color-slate-200)]'
-                    : 'bg-[var(--color-accent-primary)] text-white hover:opacity-90'
+                    : 'bg-[var(--color-ink)] text-white hover:opacity-90'
                   }
                 `}
               >
@@ -205,7 +205,7 @@ export function AvailablePlanCard({ plan, subscriberCount }: AvailablePlanCardPr
               disabled={loading}
               className="
                 px-4 py-1.5 text-xs font-medium rounded-lg
-                bg-[var(--color-accent-primary)] text-white
+                bg-[var(--color-ink)] text-white
                 hover:opacity-90
                 active:opacity-80
                 transition-all duration-200 min-w-[80px] text-center

@@ -120,8 +120,8 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
   return (
     <section data-testid="quick-access-grid" className="mb-4">
       <h2
-        className="mb-3 text-xl font-bold text-[var(--color-text-primary)]"
-        style={{ fontFamily: 'var(--font-family-reading)' }}
+        className="mb-3 text-[22px] font-medium text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+        style={{ fontFamily: 'var(--font-family-serif)' }}
       >
         Explore
       </h2>
@@ -136,22 +136,22 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
             >
               <div
                 className={cn(
-                  'rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-4 shadow-[var(--shadow-card)] transition-all duration-200',
-                  'group-hover:-translate-y-0.5 group-hover:border-[var(--color-primary)] group-hover:shadow-[var(--shadow-card-hover)]',
+                  'rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] p-4 transition-all duration-200',
+                  'group-hover:-translate-y-0.5 group-hover:border-[var(--color-ink)] group-hover:shadow-[var(--shadow-card)]',
                 )}
               >
                 <div className={cn('mb-2', card.id === 'plan' && 'mb-3 flex items-start justify-between gap-2')}>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-surface-secondary)] text-[var(--color-text-primary)] transition-colors group-hover:bg-[var(--color-accent-light)] group-hover:text-[var(--color-primary)]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-brand-faint)] text-[var(--color-brand)] transition-colors">
                     {card.icon}
                   </div>
                   {card.id === 'plan' && (
-                    <span className="inline-flex shrink-0 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] px-2 py-1 text-[0.75rem] font-semibold text-[var(--color-text-secondary)]">
+                    <span className="inline-flex shrink-0 rounded-full bg-[var(--color-brand-faint)] px-2 py-[3px] text-[11px] font-semibold text-[var(--color-brand)]">
                       플랜 관리
                     </span>
                   )}
                 </div>
-                <p className="text-base font-semibold text-[var(--color-text-primary)]">{card.title}</p>
-                <p className="mt-1 text-[0.8125rem] text-[var(--color-text-secondary)]">{card.description}</p>
+                <p className="text-[15px] font-semibold text-[var(--color-ink)] -tracking-[0.012em]">{card.title}</p>
+                <p className="mt-1 text-[12px] text-[var(--color-mute)] -tracking-[0.005em]">{card.description}</p>
               </div>
             </Link>
           )

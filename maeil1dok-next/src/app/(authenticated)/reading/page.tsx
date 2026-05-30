@@ -4,12 +4,82 @@ import { createServerRepositories } from '@/repositories/factory'
 import { Container } from '@/components/ui'
 import ReadingProgressButton from './ReadingProgressButton'
 
-function EmptyCard({ children }: { children: React.ReactNode }) {
+function BackLink() {
   return (
-    <div className="relative w-full overflow-hidden rounded-3xl border border-white/20 p-6 shadow-[0_12px_26px_rgba(0,0,0,0.14)] bg-gradient-to-br from-sky-600 to-indigo-900 text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_58%)]" />
-      <div className="relative">{children}</div>
+    <Link
+      href="/"
+      className="mb-5 inline-flex items-center gap-1 rounded-full border border-[var(--color-rule)] bg-[var(--color-paper)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-mute)] -tracking-[0.005em] transition-colors hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+      style={{ fontFamily: 'var(--font-family-ui)' }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="m15 18-6-6 6-6" />
+      </svg>
+      홈으로
+    </Link>
+  )
+}
+
+function PlanLink() {
+  return (
+    <Link
+      href="/plan"
+      className="mt-5 inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--color-mute)] -tracking-[0.005em] transition-colors hover:text-[var(--color-ink)]"
+      style={{ fontFamily: 'var(--font-family-ui)' }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect width="18" height="18" x="3" y="4" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+      </svg>
+      통독표 보기
+    </Link>
+  )
+}
+
+function ReadingShellCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] p-6">
+      {children}
     </div>
+  )
+}
+
+function ReadingCaption() {
+  return (
+    <p
+      className="text-[11px] font-medium text-[var(--color-mute)] -tracking-[0.005em]"
+      style={{ fontFamily: 'var(--font-family-ui)' }}
+    >
+      오늘의 통독
+    </p>
+  )
+}
+
+function ReadingTitle({ book, startChapter, endChapter }: { book: string; startChapter: number; endChapter: number }) {
+  return (
+    <h1
+      className="mt-1 text-[var(--color-ink)] -tracking-[0.025em] leading-[1.25]"
+      style={{
+        fontFamily: 'var(--font-family-serif)',
+        fontSize: 'clamp(1.5rem, 6vw, 1.875rem)',
+        fontWeight: 500,
+      }}
+    >
+      {book}{' '}
+      <span className="tabular-nums">
+        {startChapter === endChapter ? `${startChapter}장` : `${startChapter}-${endChapter}장`}
+      </span>
+    </h1>
+  )
+}
+
+function ReadingDate({ date }: { date: string }) {
+  return (
+    <p
+      className="mt-1 text-[12px] font-medium text-[var(--color-subtle)] -tracking-[0.005em] tabular-nums"
+      style={{ fontFamily: 'var(--font-family-ui)' }}
+    >
+      {date}
+    </p>
   )
 }
 
@@ -27,15 +97,16 @@ export default async function ReadingPage() {
       return (
         <Container fullHeight className="py-8">
           <div className="mx-auto max-w-md">
-            <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
-              ← 홈으로
-            </Link>
-            <EmptyCard>
-              <p className="text-center text-base text-white/90">오늘의 통독 일정이 없습니다</p>
-            </EmptyCard>
-            <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
-              📅 통독표 보기
-            </Link>
+            <BackLink />
+            <ReadingShellCard>
+              <p
+                className="text-center text-[14px] font-medium text-[var(--color-mute)] -tracking-[0.01em]"
+                style={{ fontFamily: 'var(--font-family-ui)' }}
+              >
+                오늘의 통독 일정이 없습니다
+              </p>
+            </ReadingShellCard>
+            <PlanLink />
           </div>
         </Container>
       )
@@ -47,29 +118,19 @@ export default async function ReadingPage() {
       return (
         <Container fullHeight className="py-8">
           <div className="mx-auto max-w-md">
-            <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
-              ← 홈으로
-            </Link>
-            <div className="relative w-full overflow-hidden rounded-3xl border border-white/20 p-6 shadow-[0_12px_26px_rgba(0,0,0,0.14)] bg-gradient-to-br from-sky-600 to-indigo-900 text-white">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_58%)]" />
-              <div className="relative">
-                <span className="text-xs font-semibold tracking-[0.18em] text-white/65 uppercase">TODAY&apos;S READING</span>
-               <h2 className="mt-2 text-2xl leading-tight font-light" style={{ fontFamily: 'var(--font-family-reading)' }}>
-                   {schedule.book}
-                   <br />
-                   <strong className="font-bold">
-                     {schedule.startChapter}-{schedule.endChapter}장
-                   </strong>
-                 </h2>
-                <p className="mt-1 text-sm opacity-75">{schedule.date}</p>
-                 <p className="mt-5 rounded-xl bg-[color-mix(in_srgb,var(--color-bg-secondary)_32%,transparent)] px-4 py-2.5 text-sm text-white/90 backdrop-blur-sm">
-                   통독 계획을 구독해주세요
-                 </p>
-              </div>
-            </div>
-            <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
-              📅 통독표 보기
-            </Link>
+            <BackLink />
+            <ReadingShellCard>
+              <ReadingCaption />
+              <ReadingTitle book={schedule.book} startChapter={schedule.startChapter} endChapter={schedule.endChapter} />
+              <ReadingDate date={schedule.date} />
+              <p
+                className="mt-5 rounded-2xl border border-[var(--color-brand-faint-border)] bg-[var(--color-brand-faint)] px-4 py-3 text-[13px] font-medium text-[var(--color-brand)] -tracking-[0.008em]"
+                style={{ fontFamily: 'var(--font-family-ui)' }}
+              >
+                통독 계획을 구독해주세요
+              </p>
+            </ReadingShellCard>
+            <PlanLink />
           </div>
         </Container>
       )
@@ -81,33 +142,20 @@ export default async function ReadingPage() {
     return (
       <Container fullHeight className="py-8">
         <div className="mx-auto max-w-md">
-          <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
-            ← 홈으로
-          </Link>
-          <div className="relative w-full overflow-hidden rounded-3xl border border-white/20 p-6 shadow-[0_12px_26px_rgba(0,0,0,0.14)] bg-gradient-to-br from-sky-600 to-indigo-900 text-white">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.24),transparent_58%)]" />
-            <div className="relative">
-              <span className="text-xs font-semibold tracking-[0.18em] text-white/65 uppercase">TODAY&apos;S READING</span>
-              <h2 className="mt-2 text-2xl leading-tight font-light" style={{ fontFamily: 'var(--font-family-reading)' }}>
-                 {schedule.book}
-                 <br />
-                 <strong className="font-bold">
-                   {schedule.startChapter}-{schedule.endChapter}장
-                 </strong>
-               </h2>
-              <p className="mt-1 text-sm opacity-75">{schedule.date}</p>
-              <div className="mt-5">
-                <ReadingProgressButton
-                  scheduleId={schedule.id}
-                  subscriptionId={activeSubscription.id}
-                  initialCompleted={initialCompleted}
-                />
-              </div>
+          <BackLink />
+          <ReadingShellCard>
+            <ReadingCaption />
+            <ReadingTitle book={schedule.book} startChapter={schedule.startChapter} endChapter={schedule.endChapter} />
+            <ReadingDate date={schedule.date} />
+            <div className="mt-5">
+              <ReadingProgressButton
+                scheduleId={schedule.id}
+                subscriptionId={activeSubscription.id}
+                initialCompleted={initialCompleted}
+              />
             </div>
-          </div>
-          <Link href="/plan" className="mt-6 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
-            📅 통독표 보기
-          </Link>
+          </ReadingShellCard>
+          <PlanLink />
         </div>
       </Container>
     )
@@ -115,12 +163,15 @@ export default async function ReadingPage() {
     return (
       <Container fullHeight className="py-8">
         <div className="mx-auto max-w-md">
-          <Link href="/" className="mb-6 inline-flex items-center gap-1 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
-            ← 홈으로
-          </Link>
-          <EmptyCard>
-            <p className="text-center text-sm text-white/80">일정을 불러오는 중 오류가 발생했습니다</p>
-          </EmptyCard>
+          <BackLink />
+          <ReadingShellCard>
+            <p
+              className="text-center text-[14px] font-medium text-[var(--color-danger)] -tracking-[0.01em]"
+              style={{ fontFamily: 'var(--font-family-ui)' }}
+            >
+              일정을 불러오는 중 오류가 발생했습니다
+            </p>
+          </ReadingShellCard>
         </div>
       </Container>
     )

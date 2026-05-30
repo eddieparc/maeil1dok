@@ -205,16 +205,25 @@ export default function BibleHome({
       <header
         className={cn(
           'sticky top-0 z-10 flex items-center justify-between',
-          'border-b border-[var(--color-border-default)] bg-[var(--color-bg-secondary)]',
+          'border-b border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md',
           'px-4 py-3',
         )}
       >
-        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">성경</h1>
+        <h1
+          className="text-[var(--color-ink)] -tracking-[0.025em] leading-[1.2]"
+          style={{
+            fontFamily: 'var(--font-family-serif)',
+            fontSize: 'clamp(1.375rem, 5vw, 1.625rem)',
+            fontWeight: 500,
+          }}
+        >
+          성경
+        </h1>
         <button
           type="button"
           className={cn(
-            'rounded-lg p-2 text-[var(--color-text-secondary)] transition-all',
-            'hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-text-primary)]',
+            'rounded-full p-2 text-[var(--color-mute)] transition-colors',
+            'hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)]',
           )}
           onClick={() => router.push('/bible/settings')}
           aria-label="성경 설정"
@@ -282,13 +291,14 @@ export default function BibleHome({
           <button
             type="button"
             className={cn(
-              'flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-border-default)]',
-              'bg-[var(--color-bg-secondary)] py-3.5 text-[0.9375rem] text-[var(--color-text-primary)]',
-              'transition-all hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-bg-tertiary)]',
+              'flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--color-rule)]',
+              'bg-[var(--color-paper)] py-3.5 text-[15px] font-semibold text-[var(--color-ink)] -tracking-[0.012em]',
+              'transition-colors hover:border-[var(--color-ink)] hover:bg-[var(--color-brand-faint)]',
             )}
+            style={{ fontFamily: 'var(--font-family-ui)' }}
             onClick={() => setIsBookSelectorOpen(true)}
           >
-            <ListIcon className="text-[var(--color-accent-primary)]" />
+            <ListIcon className="text-[var(--color-brand)]" />
             성경 전체 목차
           </button>
         </section>

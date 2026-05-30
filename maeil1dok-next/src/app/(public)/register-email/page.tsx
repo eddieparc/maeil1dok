@@ -142,7 +142,10 @@ export default function RegisterEmailPage() {
           />
         </div>
 
-        <h1 className="text-center text-xl font-semibold m-0" style={{ color: 'var(--color-text-primary)' }}>
+        <h1
+          className="text-center text-[22px] font-medium m-0 -tracking-[0.025em] leading-[1.3]"
+          style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-family-serif)' }}
+        >
           이메일로 회원가입
         </h1>
 
@@ -267,9 +270,9 @@ export default function RegisterEmailPage() {
            <button
              type="submit"
              disabled={isLoading || !isFormValid}
-             className="w-full py-3 px-6 rounded-md text-sm font-medium border-none text-white transition-all duration-200 mt-2"
+             className="w-full py-3 px-6 rounded-full text-[13px] font-semibold border-none text-[var(--color-paper)] -tracking-[0.012em] transition-colors mt-2"
              style={{
-               backgroundColor: 'var(--color-primary)',
+               backgroundColor: 'var(--color-ink)',
                cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
                opacity: isLoading || !isFormValid ? 0.7 : 1,
              }}

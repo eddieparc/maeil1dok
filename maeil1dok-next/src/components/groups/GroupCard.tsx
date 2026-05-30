@@ -14,24 +14,31 @@ const statusLabel: Record<ReadingGroup['status'], string> = {
 }
 
 const statusClassName: Record<ReadingGroup['status'], string> = {
-  active: 'border-[var(--color-success-bg)] bg-[var(--color-success-bg)] text-[var(--color-success-text)]',
-  recruiting: 'border-[var(--color-info-bg)] bg-[var(--color-info-bg)] text-[var(--color-info-text)]',
-  ended: 'border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] text-[var(--color-text-tertiary)]',
+  active: 'bg-[var(--color-success-bg)] text-[var(--color-success-text)]',
+  recruiting: 'bg-[var(--color-brand-faint)] text-[var(--color-brand)]',
+  ended: 'bg-[var(--color-rule)] text-[var(--color-mute)]',
 }
 
 export default function GroupCard({ group }: GroupCardProps) {
-  const planText = group.plans.length > 1
-    ? `${group.plans[0]?.name ?? ''} 외 ${group.plans.length - 1}개`
-    : (group.plans[0]?.name ?? '읽기 계획 없음')
+  const planText =
+    group.plans.length > 1
+      ? `${group.plans[0]?.name ?? ''} 외 ${group.plans.length - 1}개`
+      : group.plans[0]?.name ?? '읽기 계획 없음'
 
   return (
-    <article className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[var(--shadow-card-hover)]">
+    <article className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] p-5 transition-colors hover:border-[var(--color-ink)]">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[0.75rem] font-medium leading-[1.2] ${statusClassName[group.status]}`}>
+        <span
+          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold -tracking-[0.005em] ${statusClassName[group.status]}`}
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
           {statusLabel[group.status]}
         </span>
-        <span className="inline-flex items-center gap-1 text-[0.8125rem] text-[var(--color-text-tertiary)]">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <span
+          className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-subtle)] -tracking-[0.005em] tabular-nums"
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -41,33 +48,47 @@ export default function GroupCard({ group }: GroupCardProps) {
         </span>
       </div>
 
-      <h3 className="mb-2 text-lg font-semibold leading-[1.4] tracking-[-0.02em] text-[var(--color-text-primary)]">
+      <h3
+        className="mb-2 text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+        style={{
+          fontFamily: 'var(--font-family-serif)',
+          fontSize: '1.125rem',
+          fontWeight: 500,
+        }}
+      >
         {group.name}
       </h3>
 
-      <p className="mb-4 line-clamp-2 min-h-[2.625rem] text-[0.875rem] leading-[1.5] text-[var(--color-text-secondary)]">
-        {group.description || '설명이 없습니다.'}
+      <p
+        className="mb-4 line-clamp-2 min-h-[2.625rem] text-[13px] font-medium text-[var(--color-mute)] -tracking-[0.008em]"
+        style={{ fontFamily: 'var(--font-family-ui)', lineHeight: 1.55 }}
+      >
+        {group.description || '설명이 없습니다'}
       </p>
 
-      <div className="mb-4 space-y-1.5 border-t border-[var(--color-surface-secondary)] pt-3 text-[0.8125rem]">
+      <div
+        className="mb-4 space-y-1.5 border-t border-[var(--color-rule)] pt-3 text-[12px] -tracking-[0.005em]"
+        style={{ fontFamily: 'var(--font-family-ui)' }}
+      >
         <div className="flex items-center gap-3">
-          <span className="min-w-10 text-[var(--color-text-tertiary)]">리더</span>
-          <span className="inline-flex items-center gap-2 text-[var(--color-text-primary)]">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-secondary)] text-[0.75rem] font-semibold text-[var(--color-text-tertiary)]">
+          <span className="min-w-10 font-medium text-[var(--color-subtle)]">리더</span>
+          <span className="inline-flex items-center gap-2 text-[var(--color-ink)]">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--color-rule)] bg-[var(--color-paper-warm)] text-[11px] font-semibold text-[var(--color-ink)]">
               {(group.leader.nickname || '?').charAt(0)}
             </span>
-            <span className="font-medium">{group.leader.nickname || '관리자'}</span>
+            <span className="font-semibold">{group.leader.nickname || '관리자'}</span>
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="min-w-10 text-[var(--color-text-tertiary)]">읽기표</span>
-          <span className="font-medium text-[var(--color-text-primary)]">{planText}</span>
+          <span className="min-w-10 font-medium text-[var(--color-subtle)]">읽기표</span>
+          <span className="font-semibold text-[var(--color-ink)]">{planText}</span>
         </div>
       </div>
 
       <Link
         href={`/groups/${group.id}`}
-        className="inline-flex h-9 w-full items-center justify-center rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] text-[0.8125rem] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-secondary)]"
+        className="inline-flex h-9 w-full items-center justify-center rounded-full border border-[var(--color-rule)] bg-transparent text-[12px] font-semibold text-[var(--color-ink)] -tracking-[0.005em] transition-colors hover:border-[var(--color-ink)] hover:bg-[var(--color-brand-faint)]"
+        style={{ fontFamily: 'var(--font-family-ui)' }}
       >
         상세보기
       </Link>

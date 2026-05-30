@@ -44,7 +44,7 @@ export function HighlightFilterBar({
         <select
           value={bookFilter}
           onChange={(event) => onBookFilterChange(event.target.value)}
-          className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus:border-[var(--color-accent-primary)]"
+          className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 text-sm text-[var(--color-text-primary)] outline-none transition-colors focus:border-[var(--color-ink)]"
           aria-label="성경 권 필터"
         >
           <option value="">전체</option>

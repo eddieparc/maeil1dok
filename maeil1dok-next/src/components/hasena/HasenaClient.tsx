@@ -430,7 +430,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
 
         <main className="flex flex-col gap-6 px-4 py-6">
           <section
-            className="overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-[var(--color-bg-card)] shadow-[var(--shadow-md)]"
+            className="overflow-hidden rounded-[20px] border border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md shadow-[var(--shadow-md)]"
             style={{ animationDelay: '0.1s' }}
           >
             <div className="relative w-full">
@@ -459,7 +459,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
           </section>
 
           <section
-            className="overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-[var(--color-bg-card)] shadow-[var(--shadow-md)]"
+            className="overflow-hidden rounded-[20px] border border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md shadow-[var(--shadow-md)]"
             style={{ animationDelay: '0.15s' }}
           >
             <button
@@ -481,7 +481,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                   </svg>
                   AI 요약
                 </span>
-                <span className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-accent-light)] px-1.5 py-0.5 text-[0.65rem] font-bold tracking-[0.5px] text-[var(--color-accent-primary)]">
+                <span className="rounded-md border border-[var(--color-border-default)] bg-[var(--color-accent-light)] px-1.5 py-0.5 text-[0.65rem] font-bold tracking-[0.5px] text-[var(--color-brand)]">
                   BETA
                 </span>
               </div>
@@ -532,7 +532,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                         <div className="flex flex-col gap-2">
                           {parseChecklistItems(parsedSummary.action).map((item) => (
                             <div key={item} className="flex items-start gap-3 py-0.5">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="mt-1.5 shrink-0" aria-hidden="true">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="mt-1.5 shrink-0" aria-hidden="true">
                                 <polyline points="20 6 9 17 4 12" />
                               </svg>
                               <span className="flex-1 text-[0.975rem] leading-7 text-[var(--color-text-primary)]">{renderTextWithBoldAndBreaks(item)}</span>
@@ -550,7 +550,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
           </section>
 
           <section
-            className="overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-[var(--color-bg-card)] p-6 shadow-[var(--shadow-md)]"
+            className="overflow-hidden rounded-[20px] border border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md p-6 shadow-[var(--shadow-md)]"
             style={{ animationDelay: '0.2s' }}
           >
             {bibleLoading ? (
@@ -568,13 +568,13 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
               <div>
                 <div className="mb-8 border-b border-dashed border-[var(--color-border-default)] pb-6 text-center">
                   <div className="relative mb-3 flex items-center justify-center gap-3">
-                    <span className="inline-block rounded-full bg-[var(--color-accent-light)] px-3 py-1 text-sm font-semibold text-[var(--color-accent-primary)]">
+                    <span className="inline-block rounded-full bg-[var(--color-accent-light)] px-3 py-1 text-sm font-semibold text-[var(--color-brand)]">
                       {todayLabel}
                     </span>
                     <button
                       type="button"
                       onClick={() => setIsReadingSettingsOpen(true)}
-                      className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] transition-all hover:border-[var(--color-accent-primary-light)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-accent-primary)] active:scale-95"
+                      className="absolute right-0 flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--color-border-light)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] transition-all hover:border-[var(--color-ink)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-brand)] active:scale-95"
                       aria-label="읽기 설정"
                       title="읽기 설정"
                     >
@@ -598,7 +598,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
           </section>
 
           {isAuthenticated ? (
-            <section className="rounded-[20px] border border-[var(--color-border-light)] bg-[var(--color-bg-card)] p-5 shadow-[var(--shadow-md)]">
+            <section className="rounded-[20px] border border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md p-5 shadow-[var(--shadow-md)]">
               <div className="flex justify-around">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">🔥</span>
@@ -617,7 +617,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">📅</span>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-[var(--color-accent-primary)]">{stats.totalCompleted}</span>
+                    <span className="text-xl font-bold text-[var(--color-brand)]">{stats.totalCompleted}</span>
                     <span className="text-xs text-[var(--color-text-tertiary)]">총 완료</span>
                   </div>
                 </div>
@@ -636,7 +636,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
               disabled={isSaving}
               onClick={() => void handleToggleComplete()}
               className={cn(
-                'pointer-events-auto inline-flex items-center gap-2 rounded-full px-5 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70',
+                'pointer-events-auto inline-flex items-center gap-2 rounded-full px-5 py-3 text-base font-semibold text-[var(--color-paper)] shadow-[var(--shadow-card-hover)] transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70',
                 isCompleted
                   ? 'bg-[var(--color-danger)] hover:opacity-90'
                   : 'bg-[var(--color-success)] hover:opacity-90',
@@ -675,7 +675,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
         }
 
         .hasena-verse-number {
-          color: var(--color-accent-primary);
+          color: var(--color-brand);
           font-weight: 600;
           margin-right: 0.5rem;
           min-width: 1.2rem;
@@ -700,7 +700,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
           width: 1.5rem;
           height: 1.5rem;
           border: 2px solid var(--color-border-default);
-          border-top-color: var(--color-accent-primary);
+          border-top-color: var(--color-brand);
           border-radius: 50%;
           animation: hasena-spin 1s linear infinite;
         }

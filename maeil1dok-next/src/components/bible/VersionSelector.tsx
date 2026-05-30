@@ -110,7 +110,7 @@ function VersionCategory({
               className={cn(
                 'flex w-full items-center justify-between rounded-xl px-3.5 py-3 text-left transition-all duration-200',
                 isActive
-                  ? 'bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]'
+                  ? 'bg-[var(--color-brand-faint)] text-[var(--color-brand)]'
                   : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] hover:bg-[var(--color-button-hover)]'
               )}
               onClick={() => onSelect(code)}
@@ -124,7 +124,7 @@ function VersionCategory({
                 )}
               </span>
               {isActive && (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[var(--color-accent-primary)]" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-[var(--color-brand)]" aria-hidden="true">
                   <path d="M5 12l5 5L20 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}

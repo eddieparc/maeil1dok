@@ -60,15 +60,15 @@ export function buildInteractiveSrcDoc(content: string) {
   }
 
   :root {
-    --bible-bg: #faf8f6;
-    --bible-text: #2a1111;
-    --bible-border: #e5e7eb;
-    --bible-muted: #999999;
-    --bible-selection-bg: rgba(75, 159, 126, 0.18);
-    --bible-selection-outline: #4b9f7e;
-    --bible-header: var(--color-accent-primary, #4b9f7e);
+    --bible-bg: #FAFAF9;
+    --bible-text: #1F1B17;
+    --bible-border: #E8E5E0;
+    --bible-muted: #A39E97;
+    --bible-selection-bg: rgba(92, 58, 46, 0.10);
+    --bible-selection-outline: #5C3A2E;
+    --bible-header: #5C3A2E;
     --bible-highlight-alpha: 0.46;
-    --section-title-color: #4B9F7E;
+    --section-title-color: #5C3A2E;
   }
 
   * {
@@ -236,7 +236,7 @@ export function buildInteractiveSrcDoc(content: string) {
   .description {
     font-style: italic;
     font-size: 0.9em;
-    color: #6b7280;
+    color: #6F6B66;
     margin: 0.5rem 0 1rem;
     padding-left: 0.75rem;
     border-left: 2px solid var(--bible-border);
@@ -246,7 +246,7 @@ export function buildInteractiveSrcDoc(content: string) {
   /* === 교차 참조 === */
   .cross-ref {
     font-size: 0.85em;
-    color: #6b7280;
+    color: #6F6B66;
     margin: 0.25rem 0 0.75rem;
     padding-left: 0.5rem;
   }
@@ -278,7 +278,7 @@ export function buildInteractiveSrcDoc(content: string) {
 
   /* === 각주 마커 === */
    .footnote-marker {
-     color: #6366f1;
+     color: #4A6B8A;
      cursor: help;
      font-size: 0.75em;
      vertical-align: super;
@@ -291,7 +291,7 @@ export function buildInteractiveSrcDoc(content: string) {
   .reference {
     font-size: 0.75em;
     font-weight: 500;
-    color: #6b7280;
+    color: #6F6B66;
     margin-left: 0.25rem;
   }
 
@@ -357,29 +357,29 @@ export function buildInteractiveSrcDoc(content: string) {
 
   /* === 다크 모드 === */
   body.ocd-theme-dark {
-    --bible-bg: #1a1a1a;
-    --bible-text: #e5e5e5;
-    --bible-border: #30363f;
-    --bible-muted: #666666;
-    --bible-selection-bg: rgba(107, 201, 159, 0.2);
-    --bible-selection-outline: #6bc99f;
-    --bible-header: #b8d4c4;
+    --bible-bg: #141210;
+    --bible-text: #D8D4CD;
+    --bible-border: #2A2622;
+    --bible-muted: #6F6B66;
+    --bible-selection-bg: rgba(184, 152, 135, 0.18);
+    --bible-selection-outline: #B89887;
+    --bible-header: #B89887;
     --bible-highlight-alpha: 0.3;
-    --section-title-color: #6bc99f;
+    --section-title-color: #B89887;
   }
 
   body.ocd-theme-dark .ocd-verse-node:hover,
   body.ocd-theme-dark .ocd-verse-group:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   body.ocd-theme-dark .description {
-    color: #9ca3af;
-    border-left-color: #404040;
+    color: #9B968F;
+    border-left-color: #2A2622;
   }
 
   body.ocd-theme-dark .cross-ref {
-    color: #9ca3af;
+    color: #9B968F;
   }
 
   body.ocd-theme-dark .sub-title {
@@ -395,11 +395,11 @@ export function buildInteractiveSrcDoc(content: string) {
   }
 
    body.ocd-theme-dark .footnote-marker {
-     color: #60a5fa;
+     color: #7C9BB8;
    }
 
    body.ocd-theme-dark .reference {
-     color: #9ca3af;
+     color: #9B968F;
    }
 
    body.ocd-theme-dark.ocd-hide-names .bible-name,
@@ -414,10 +414,10 @@ export function buildInteractiveSrcDoc(content: string) {
      left: 50%;
      bottom: 100%;
      transform: translateX(-50%);
-     background: #1f2937;
-     color: white;
+     background: #0A0A0A;
+     color: #FFFFFF;
      padding: 0.5rem 0.75rem;
-     border-radius: 0.375rem;
+     border-radius: 0.75rem;
      font-size: 0.8125rem;
      font-weight: normal;
      max-width: 280px;
@@ -425,14 +425,14 @@ export function buildInteractiveSrcDoc(content: string) {
      z-index: 100;
      white-space: normal;
      line-height: 1.5;
-     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+     box-shadow: 0 4px 6px -1px rgba(15, 10, 5, 0.10), 0 2px 4px -1px rgba(15, 10, 5, 0.06);
      margin-bottom: 4px;
    }
 
    body.ocd-theme-dark .footnote-marker:hover::after,
    body.ocd-theme-dark .footnote-marker:focus::after {
-     background: #374151;
-     color: #f3f4f6;
+     background: #1F1B17;
+     color: #FAFAF9;
    }
 </style>
 <script>

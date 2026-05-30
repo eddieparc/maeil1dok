@@ -10,7 +10,12 @@ export default function SupportPage() {
 
       <div className="max-w-[768px] mx-auto px-4 py-6">
         <div className="bg-[var(--color-bg-card)] rounded-[20px] shadow-[var(--shadow-md)] border border-[var(--color-border-light)] p-8 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-1">Customer Support</h1>
+          <h1
+            className="text-[28px] font-medium text-[var(--color-ink)] -tracking-[0.03em] leading-[1.2] mb-1"
+            style={{ fontFamily: 'var(--font-family-serif)' }}
+          >
+            Customer Support
+          </h1>
           <p className="text-sm text-[var(--color-text-secondary)] mb-8">고객지원</p>
 
           <div className="space-y-6">
@@ -20,7 +25,7 @@ export default function SupportPage() {
 
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 bg-[var(--color-bg-tertiary)] rounded-[12px] border border-[var(--color-border-light)]">
-                <div className="flex items-center justify-center w-12 h-12 bg-[var(--color-accent-primary)] text-white rounded-[12px] flex-shrink-0">
+                <div className="flex items-center justify-center w-12 h-12 bg-[var(--color-ink)] text-white rounded-[12px] flex-shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect width="20" height="16" x="2" y="4" rx="2"/>
                     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
@@ -35,7 +40,7 @@ export default function SupportPage() {
 
             <a 
               href="mailto:support@maeil1dok.app" 
-              className="inline-flex items-center justify-center gap-2 w-full px-8 py-4 bg-[var(--color-accent-primary)] text-white rounded-[12px] font-semibold text-base hover:bg-[var(--color-accent-hover)] hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all"
+              className="inline-flex items-center justify-center gap-2 w-full px-8 py-4 bg-[var(--color-ink)] text-white rounded-[12px] font-semibold text-base hover:bg-[var(--color-brand-deep)] hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="20" height="16" x="2" y="4" rx="2"/>
@@ -44,7 +49,7 @@ export default function SupportPage() {
               이메일 보내기
             </a>
 
-            <div className="p-4 bg-[var(--color-bg-tertiary)] rounded-[12px] border-l-4 border-[var(--color-accent-primary)]">
+            <div className="p-4 bg-[var(--color-bg-tertiary)] rounded-[12px] border-l-4 border-[var(--color-ink)]">
               <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed m-0">
                 <strong className="text-[var(--color-text-primary)]">운영 시간:</strong> 평일 09:00 - 18:00<br/>
                 <small className="text-[var(--color-text-tertiary)]">주말 및 공휴일에는 답변이 지연될 수 있습니다.</small>
@@ -53,17 +58,17 @@ export default function SupportPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 justify-center mt-6 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
-          <Link href="/company" className="px-5 py-2.5 bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] rounded-full text-sm font-medium hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-dark)] transition-all">
+        <div className="flex flex-wrap gap-2 justify-center mt-6 animate-fadeIn" style={{ animationDelay: '0.2s', fontFamily: 'var(--font-family-ui)' }}>
+          <Link href="/company" className="px-4 py-2 bg-transparent text-[var(--color-mute)] border border-[var(--color-rule)] rounded-full text-[12px] font-semibold -tracking-[0.005em] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors">
             회사정보
           </Link>
-          <Link href="/privacy" className="px-5 py-2.5 bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] rounded-full text-sm font-medium hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-dark)] transition-all">
+          <Link href="/privacy" className="px-4 py-2 bg-transparent text-[var(--color-mute)] border border-[var(--color-rule)] rounded-full text-[12px] font-semibold -tracking-[0.005em] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors">
             개인정보처리방침
           </Link>
-          <Link href="/terms" className="px-5 py-2.5 bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] rounded-full text-sm font-medium hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-dark)] transition-all">
+          <Link href="/terms" className="px-4 py-2 bg-transparent text-[var(--color-mute)] border border-[var(--color-rule)] rounded-full text-[12px] font-semibold -tracking-[0.005em] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors">
             이용약관
           </Link>
-          <Link href="/" className="px-5 py-2.5 bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] rounded-full text-sm font-medium hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-dark)] transition-all">
+          <Link href="/" className="px-4 py-2 bg-transparent text-[var(--color-mute)] border border-[var(--color-rule)] rounded-full text-[12px] font-semibold -tracking-[0.005em] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors">
             홈으로
           </Link>
         </div>

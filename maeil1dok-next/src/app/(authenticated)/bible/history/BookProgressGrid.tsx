@@ -34,7 +34,7 @@ export function BookProgressGrid({ books }: BookProgressGridProps) {
               className={[
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 filter === tab.key
-                  ? 'border-[var(--primary-color,var(--color-accent-primary))] bg-[var(--primary-color,var(--color-accent-primary))] text-white'
+                  ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white'
                   : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]',
               ].join(' ')}
               onClick={() => setFilter(tab.key)}

@@ -82,7 +82,7 @@
 }
 
 .progress-segment.filled {
-  background: var(--color-accent-primary);
+  background: var(--color-brand);
 }
 
 .progress-segment.current {
@@ -92,7 +92,7 @@
 }
 
 .dark .progress-segment.filled {
-  background: var(--color-accent-primary);
+  background: var(--color-brand);
 }
 
 .dark .progress-segment.current {
@@ -125,7 +125,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-accent-primary);
+  background: var(--color-brand);
 }
 
 @keyframes pulse-segment {
@@ -231,7 +231,7 @@
   width: 100%;
   max-width: 180px;
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, var(--color-accent-primary) 0%, #818cf8 100%);
+  background: linear-gradient(135deg, var(--color-brand) 0%, #818cf8 100%);
   color: white;
   border-radius: 12px;
   font-family: var(--font-family-ui);
@@ -304,7 +304,7 @@
 
 .book-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-accent-primary) 0%, #818cf8 100%);
+  background: linear-gradient(90deg, var(--color-brand) 0%, #818cf8 100%);
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 4px;
 }

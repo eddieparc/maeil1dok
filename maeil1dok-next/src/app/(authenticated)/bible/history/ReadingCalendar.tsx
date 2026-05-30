@@ -116,14 +116,14 @@ export function ReadingCalendar({ readingDates }: ReadingCalendarProps) {
               'relative flex aspect-square flex-col items-center justify-center rounded-lg',
               !date.isCurrentMonth ? 'opacity-30' : '',
               date.hasReading ? 'bg-[var(--color-success-bg)]' : '',
-              date.isToday ? 'ring-1 ring-[var(--primary-color,var(--color-accent-primary))]' : '',
+              date.isToday ? 'ring-1 ring-[var(--color-ink)]' : '',
             ].join(' ')}
           >
             <span
               className={[
                 'text-[0.8125rem] text-[var(--color-text-primary)]',
                 date.dayOfWeek === 0 ? 'text-[var(--color-danger)]' : '',
-                date.isToday ? 'font-semibold text-[var(--primary-color,var(--color-accent-primary))]' : '',
+                date.isToday ? 'font-semibold text-[var(--color-ink)]' : '',
               ].join(' ')}
             >
               {date.day}

@@ -147,52 +147,77 @@ export default function FriendsClient({ profiles }: FriendsClientProps) {
 
   return (
     <main className="mx-auto min-h-[calc(100dvh-120px)] max-w-[768px] bg-[var(--color-bg-primary)] pb-24">
-      <header className="sticky top-0 z-20 border-b border-[var(--color-border-light)] bg-[var(--color-bg-card)]">
-        <div className="flex h-14 items-center gap-3 px-4">
+      <header className="sticky top-0 z-20 border-b border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md">
+        <div className="flex h-14 items-center gap-2 px-4">
           <Link
             href="/"
-            className="-m-2 rounded-lg p-2 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-hover)]"
+            className="-m-2 rounded-full p-2 text-[var(--color-mute)] transition-colors hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)]"
             aria-label="뒤로 가기"
           >
-            <ChevronLeft size={20} aria-hidden="true" />
+            <ChevronLeft size={18} aria-hidden="true" />
           </Link>
-          <h1 className="text-lg font-semibold tracking-[-0.05em] text-[var(--color-text-primary)]">친구</h1>
+          <h1
+            className="text-[var(--color-ink)] -tracking-[0.025em] leading-[1.2]"
+            style={{
+              fontFamily: 'var(--font-family-serif)',
+              fontSize: 'clamp(1.25rem, 5vw, 1.5rem)',
+              fontWeight: 500,
+            }}
+          >
+            친구
+          </h1>
         </div>
       </header>
 
-       <section className="space-y-4 px-4 py-4">
+       <section className="space-y-3 px-4 py-4">
          <div className="relative">
-           <Search className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-[var(--color-text-tertiary)]" aria-hidden="true" />
+           <Search className="pointer-events-none absolute top-1/2 left-4 h-[18px] w-[18px] -translate-y-1/2 text-[var(--color-subtle)]" aria-hidden="true" />
            <input
              type="text"
              value={query}
              onChange={(event) => setQuery(event.target.value)}
              placeholder="친구 검색"
-             className="h-12 w-full rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-card)] pr-4 pl-11 text-[0.9375rem] text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-text-tertiary)] focus:shadow-[0_0_0_3px_rgba(107,114,128,0.1)]"
+             className="h-12 w-full rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] pr-4 pl-11 text-[14px] font-medium text-[var(--color-ink)] -tracking-[0.01em] outline-none transition-colors placeholder:font-medium placeholder:text-[var(--color-subtle)] focus:border-[var(--color-ink)]"
+             style={{ fontFamily: 'var(--font-family-ui)' }}
            />
          </div>
 
          {isLoading ? (
-           <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-5 py-10 text-center text-[0.9375rem] text-[var(--color-text-secondary)]">
+           <div
+             className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] px-5 py-10 text-center text-[14px] font-medium text-[var(--color-mute)] -tracking-[0.01em]"
+             style={{ fontFamily: 'var(--font-family-ui)' }}
+           >
              친구 목록을 불러오는 중입니다...
            </div>
          ) : error ? (
-           <div className="rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] px-5 py-10 text-center">
-             <p className="text-[0.9375rem] text-[#B91C1C]">{error}</p>
+           <div className="rounded-2xl border border-[var(--color-danger-border)] bg-[var(--color-danger-bg)] px-5 py-8 text-center">
+             <p
+               className="text-[14px] font-medium text-[var(--color-danger-text)] -tracking-[0.01em]"
+               style={{ fontFamily: 'var(--font-family-ui)' }}
+             >
+               {error}
+             </p>
              <button
                type="button"
                onClick={() => void loadFriends()}
-                className="mt-3 inline-flex h-9 items-center justify-center rounded-[8px] border border-[#FCA5A5] bg-[var(--color-surface)] px-3 text-[0.8125rem] font-medium text-[#B91C1C]"
+               className="mt-3 inline-flex h-9 items-center justify-center rounded-full border border-[var(--color-danger-border)] bg-[var(--color-paper)] px-4 text-[12px] font-semibold text-[var(--color-danger-text)] -tracking-[0.005em] transition-colors hover:border-[var(--color-danger)]"
+               style={{ fontFamily: 'var(--font-family-ui)' }}
              >
                다시 시도
              </button>
            </div>
          ) : filteredFriends.length === 0 ? (
-           <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-5 py-10 text-center">
-             <p className="text-[0.9375rem] text-[var(--color-text-primary)]">
+           <div className="rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] px-5 py-10 text-center">
+             <p
+               className="text-[14px] font-semibold text-[var(--color-ink)] -tracking-[0.01em]"
+               style={{ fontFamily: 'var(--font-family-ui)' }}
+             >
                {query.trim() ? '검색 결과가 없습니다' : '아직 친구가 없습니다'}
              </p>
-             <p className="mt-1 text-[0.8125rem] text-[var(--color-text-tertiary)]">
+             <p
+               className="mt-1 text-[12px] font-medium text-[var(--color-mute)] -tracking-[0.005em]"
+               style={{ fontFamily: 'var(--font-family-ui)' }}
+             >
                {query.trim() ? '다른 이름으로 검색해보세요.' : '팔로우한 사용자가 여기에 표시됩니다.'}
              </p>
            </div>

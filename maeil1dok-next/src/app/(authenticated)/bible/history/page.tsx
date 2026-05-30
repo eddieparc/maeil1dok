@@ -167,7 +167,12 @@ export default function HistoryPage() {
             >
               <ChevronLeft size={20} aria-hidden="true" />
             </Link>
-            <h1 className="flex-1 text-lg font-semibold text-[var(--color-text-primary)]">읽기 기록</h1>
+            <h1
+              className="flex-1 text-[20px] font-medium text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+              style={{ fontFamily: 'var(--font-family-serif)' }}
+            >
+              읽기 기록
+            </h1>
           </div>
           <div className="border-t border-[var(--color-border)] px-2 py-1">{tabs}</div>
         </header>
@@ -183,7 +188,7 @@ export default function HistoryPage() {
               <p className="text-[0.9375rem] text-[var(--color-text-secondary)]">로그인 후 읽기 기록을 확인할 수 있습니다</p>
               <Link
                 href="/login"
-                className="mt-4 inline-flex rounded-lg bg-[var(--primary-color,var(--color-accent-primary))] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
+                className="mt-4 inline-flex items-center justify-center rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-[13px] font-semibold text-[var(--color-paper)] -tracking-[0.012em] transition-colors hover:bg-[var(--color-brand-deep)]"
               >
                 로그인
               </Link>
@@ -192,13 +197,13 @@ export default function HistoryPage() {
             <>
               <section className="grid grid-cols-3 gap-3">
                 <article className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-4">
-                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-accent-primary-light)] text-[var(--primary-color,var(--color-accent-primary))]">
+                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-faint)] text-[var(--color-ink)]">
                     <BookOpen size={20} aria-hidden="true" />
                   </div>
                   <p className="text-sm font-bold text-[var(--color-text-primary)]">{stats.total_chapters_read} / {TOTAL_CHAPTERS}</p>
                   <p className="mt-1 text-xs text-[var(--color-text-muted)]">전체 진도</p>
                   <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[var(--color-bg-secondary)]">
-                    <div className="h-full rounded-full bg-[var(--primary-color,var(--color-accent-primary))]" style={{ width: `${Math.min(progressPercent, 100)}%` }} />
+                    <div className="h-full rounded-full bg-[var(--color-ink)]" style={{ width: `${Math.min(progressPercent, 100)}%` }} />
                   </div>
                 </article>
                 <article className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-4">

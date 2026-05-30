@@ -112,8 +112,8 @@ export function TypographySection({
                   className={cn(
                     'flex flex-col items-center gap-0.5 rounded-xl border-[1.5px] px-1.5 py-2.5 transition-all',
                     settings.fontFamily === key
-                      ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-light)]'
-                      : 'border-[var(--color-border-default)] hover:border-[var(--color-accent-primary)]'
+                      ? 'border-[var(--color-ink)] bg-[var(--color-brand-faint)]'
+                      : 'border-[var(--color-border-default)] hover:border-[var(--color-ink)]'
                   )}
                   onClick={() => onUpdateSetting('fontFamily', key as string)}
                 >
@@ -139,7 +139,7 @@ export function TypographySection({
                 className="reading-settings-slider flex-1"
               />
               <span className="text-lg text-[var(--color-text-muted)]">가</span>
-              <span className="min-w-[28px] text-right text-[13px] font-semibold text-[var(--color-accent-primary)]">
+              <span className="min-w-[28px] text-right text-[13px] font-semibold text-[var(--color-brand)]">
                 {settings.fontSize}
               </span>
             </div>
@@ -160,7 +160,7 @@ export function TypographySection({
                 className="reading-settings-slider flex-1"
               />
               <span className="text-xs text-[var(--color-text-muted)]">넓</span>
-              <span className="min-w-[28px] text-right text-[13px] font-semibold text-[var(--color-accent-primary)]">
+              <span className="min-w-[28px] text-right text-[13px] font-semibold text-[var(--color-brand)]">
                 {settings.lineHeight.toFixed(1)}
               </span>
             </div>
@@ -178,8 +178,8 @@ export function TypographySection({
                     className={cn(
                       'rounded-md border-[1.5px] px-2.5 py-1.5 text-xs font-medium transition-all',
                       settings.fontWeight === value
-                        ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white'
-                        : 'border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]'
+                        ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white'
+                        : 'border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:border-[var(--color-ink)]'
                     )}
                     onClick={() => onUpdateSetting('fontWeight', value)}
                   >
@@ -198,8 +198,8 @@ export function TypographySection({
                     className={cn(
                       'flex items-center justify-center rounded-md border-[1.5px] p-1.5 transition-all',
                       settings.textAlign === value
-                        ? 'border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white'
-                        : 'border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)]'
+                        ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white'
+                        : 'border-[var(--color-border-default)] text-[var(--color-text-primary)] hover:border-[var(--color-ink)]'
                     )}
                     onClick={() => onUpdateSetting('textAlign', value)}
                   >

@@ -85,7 +85,7 @@ export default function BottomNavigation({ userId }: BottomNavigationProps) {
               key={item.href}
               href={item.href}
               className="flex h-full flex-1 flex-col items-center justify-center gap-1 bg-transparent text-[var(--text-secondary)] no-underline transition-all duration-200 active:scale-95 md:gap-1.5 lg:gap-2"
-              style={{ color: active ? 'var(--color-accent-primary)' : 'var(--text-secondary)' }}
+              style={{ color: active ? 'var(--color-brand)' : 'var(--text-secondary)' }}
             >
               <span className={active ? 'scale-110 transition-transform duration-200' : 'transition-transform duration-200'}>{item.icon}</span>
               <span className="text-[0.7rem] font-medium md:text-[0.8125rem] lg:text-[0.9375rem]">{item.label}</span>
@@ -96,7 +96,7 @@ export default function BottomNavigation({ userId }: BottomNavigationProps) {
         <Link
           href={profileHref}
           className="flex h-full flex-1 flex-col items-center justify-center gap-1 bg-transparent text-[var(--text-secondary)] no-underline transition-all duration-200 active:scale-95 md:gap-1.5 lg:gap-2"
-          style={{ color: profileIsActive ? 'var(--color-accent-primary)' : 'var(--text-secondary)' }}
+          style={{ color: profileIsActive ? 'var(--color-brand)' : 'var(--text-secondary)' }}
         >
           <span className={profileIsActive ? 'scale-110 transition-transform duration-200' : 'transition-transform duration-200'}>
             {userId ? (

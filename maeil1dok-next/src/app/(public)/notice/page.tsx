@@ -46,44 +46,66 @@ const notices: Notice[] = [
 
 export default function NoticePage() {
   return (
-    <div className="max-w-2xl mx-auto bg-[var(--color-bg-tertiary)] min-h-screen">
+    <div className="max-w-2xl mx-auto bg-[var(--color-bg-primary)] min-h-screen">
       <div className="px-3 py-6">
         <PageHeader title="공지사항" />
       </div>
 
-      <div className="px-3 pb-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+      <div className="px-3 pb-6 animate-fade-in space-y-3" style={{ animationDelay: '0.2s' }}>
         {notices.map((notice) => (
           <div
             key={notice.id}
-            className="bg-[var(--color-surface)] rounded-2xl p-6 mb-4 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+            className="bg-[var(--color-paper)] rounded-2xl border border-[var(--color-rule)] p-6 transition-colors hover:border-[var(--color-ink)]"
           >
             {/* Date */}
-            <div className="text-xs text-[var(--color-text-secondary)] mb-3">{notice.date}</div>
+            <div
+              className="text-[11px] font-medium text-[var(--color-subtle)] -tracking-[0.005em] mb-3 tabular-nums"
+              style={{ fontFamily: 'var(--font-family-ui)' }}
+            >
+              {notice.date}
+            </div>
 
             {/* Header with NEW badge */}
             <div className="flex items-center gap-2 mb-2">
               {notice.isNew && (
-                <span className="bg-[var(--color-danger)] text-white text-xs font-semibold px-1.5 py-0.5 rounded">
+                <span
+                  className="inline-flex rounded-full bg-[var(--color-danger-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-danger-text)] -tracking-[0.005em]"
+                  style={{ fontFamily: 'var(--font-family-ui)' }}
+                >
                   NEW
                 </span>
               )}
-              <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
+              <h2
+                className="text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+                style={{
+                  fontFamily: 'var(--font-family-serif)',
+                  fontSize: '1.25rem',
+                  fontWeight: 500,
+                }}
+              >
                 {notice.title}
               </h2>
             </div>
 
             {/* Content */}
-            <div className="text-sm leading-relaxed text-[var(--color-text-secondary)] mb-4">
+            <div
+              className="text-[14px] font-medium leading-relaxed text-[var(--color-mute)] -tracking-[0.01em] mb-4"
+              style={{ fontFamily: 'var(--font-family-ui)' }}
+            >
               {notice.content}
             </div>
 
             {/* Highlights */}
             {notice.highlights && notice.highlights.length > 0 && (
-              <div className="bg-[var(--color-surface-secondary)] rounded-xl p-3 mb-4">
+              <div className="bg-[var(--color-brand-faint)] rounded-2xl p-3.5 mb-4">
                 {notice.highlights.map((highlight, idx) => (
-                  <div key={idx} className="flex items-start gap-3 py-2 text-sm text-[var(--color-text-secondary)]">
+                  <div
+                    key={idx}
+                    className="flex items-start gap-3 py-1.5 text-[13px] font-medium text-[var(--color-ink)] -tracking-[0.008em]"
+                    style={{ fontFamily: 'var(--font-family-ui)' }}
+                  >
                     <svg
-                      className="w-5 h-5 flex-shrink-0 text-[var(--color-accent-primary)] mt-0.5"
+                      className="w-[18px] h-[18px] flex-shrink-0 text-[var(--color-brand)] mt-0.5"
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 24 24"
                       fill="none"
@@ -110,7 +132,7 @@ export default function NoticePage() {
                       window.location.href = notice.actionLink
                     }
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[var(--color-accent-primary)] text-white rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity duration-200"
+                  className="w-full flex items-center justify-center gap-1.5 px-5 py-2.5 bg-[var(--color-ink)] text-[var(--color-paper)] rounded-full font-semibold text-[13px] -tracking-[0.012em] hover:bg-[var(--color-brand-deep)] transition-colors"
                 >
                   {notice.actionText}
                   <svg

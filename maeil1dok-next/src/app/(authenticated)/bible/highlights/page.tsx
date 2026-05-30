@@ -138,7 +138,7 @@ export default function HighlightsPage() {
         isAuthenticated ? null : (
           <Link
             href="/login"
-            className="inline-flex rounded-lg bg-[var(--color-accent-primary)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
+            className="inline-flex rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-[13px] font-semibold text-[var(--color-paper)] -tracking-[0.012em] transition-colors hover:bg-[var(--color-brand-deep)]"
           >
             로그인
           </Link>
@@ -176,7 +176,7 @@ export default function HighlightsPage() {
               </Link>
               <button
                 type="button"
-                className="-m-1 shrink-0 rounded-md p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-hover)] hover:text-red-500"
+                className="-m-1 shrink-0 rounded-md p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-danger)]"
                 onClick={() => void handleDelete(highlight)}
                 aria-label="하이라이트 삭제"
               >

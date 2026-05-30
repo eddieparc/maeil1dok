@@ -60,7 +60,7 @@ export default function HighlightModal({
       </div>
 
       <div className="px-6 pb-4">
-        <div className="mb-5 flex items-center justify-center gap-2 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-[0.9375rem] font-medium text-[var(--color-accent-primary)]">
+        <div className="mb-5 flex items-center justify-center gap-2 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-[0.9375rem] font-medium text-[var(--color-brand)]">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
@@ -82,7 +82,7 @@ export default function HighlightModal({
             value={memo}
             onChange={(event) => setMemo(event.target.value)}
             placeholder="하이라이트에 메모를 추가하세요..."
-            className="w-full resize-none rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-accent-primary)] focus:ring-2 focus:ring-[var(--color-accent-primary)]/10"
+            className="w-full resize-none rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-primary)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-ink)]/10"
           />
         </div>
       </div>
@@ -108,7 +108,7 @@ export default function HighlightModal({
           </button>
           <button
             type="button"
-            className="rounded-xl bg-[var(--color-accent-primary)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-xl bg-[var(--color-ink)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-deep)] disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSaving}
             onClick={() => void handleSave()}
           >

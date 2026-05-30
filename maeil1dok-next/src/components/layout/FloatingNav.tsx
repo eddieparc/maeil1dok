@@ -64,8 +64,8 @@ export default function FloatingNav({ userId }: FloatingNavProps) {
               className={cn(
                 'flex flex-1 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium whitespace-nowrap transition-all duration-200',
                 active
-                  ? 'bg-[var(--color-accent-primary)] font-semibold text-white shadow-[0_2px_8px_rgba(75,159,126,0.3)] dark:text-[var(--color-text-primary)]'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[rgba(75,159,126,0.08)] hover:text-[var(--color-accent-primary)]',
+                  ? 'bg-[var(--color-ink)] font-semibold text-white shadow-[0_2px_8px_rgba(75,159,126,0.3)] dark:text-[var(--color-text-primary)]'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-brand)]',
               )}
             >
               {item.icon}

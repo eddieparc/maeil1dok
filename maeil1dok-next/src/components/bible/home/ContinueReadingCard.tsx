@@ -27,28 +27,41 @@ export default function ContinueReadingCard({
 }: ContinueReadingCardProps) {
   return (
     <section>
-      <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
+      <h2
+        className="mb-2 text-[12px] font-medium text-[var(--color-mute)] -tracking-[0.005em]"
+        style={{ fontFamily: 'var(--font-family-ui)' }}
+      >
         계속 읽기
       </h2>
       <button
         type="button"
         className={cn(
-          'flex w-full items-center justify-between rounded-xl border border-[var(--color-border-default)]',
-          'bg-[var(--color-bg-secondary)] px-5 py-4 text-[var(--color-text-primary)]',
-          'transition-all hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-bg-tertiary)]',
+          'flex w-full items-center justify-between rounded-2xl border border-[var(--color-rule)]',
+          'bg-[var(--color-paper)] px-5 py-4 text-[var(--color-ink)]',
+          'transition-colors hover:border-[var(--color-ink)]',
         )}
         onClick={onClick}
       >
-        <div className="flex items-center gap-2">
-          <span className="font-semibold">
+        <div className="flex items-baseline gap-2">
+          <span
+            className="-tracking-[0.025em]"
+            style={{
+              fontFamily: 'var(--font-family-serif)',
+              fontSize: '1.0625rem',
+              fontWeight: 500,
+            }}
+          >
             {bookName}
           </span>
-          <span className="text-[0.9375rem] text-[var(--color-text-secondary)]">
+          <span
+            className="text-[14px] font-medium text-[var(--color-mute)] -tracking-[0.012em] tabular-nums"
+            style={{ fontFamily: 'var(--font-family-ui)' }}
+          >
             {chapter}
             {chapterUnit}
           </span>
         </div>
-        <ArrowRightIcon className="text-[var(--color-text-muted)]" />
+        <ArrowRightIcon className="text-[var(--color-subtle)]" />
       </button>
     </section>
   )

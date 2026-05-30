@@ -38,7 +38,7 @@ function MenuItem({ icon, label, badge, active, onClick, className }: MenuItemPr
       className={cn(
         'flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors',
         'text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]',
-        active && 'text-[var(--color-accent-primary)]',
+        active && 'text-[var(--color-brand)]',
         className,
       )}
       onClick={onClick}
@@ -46,7 +46,7 @@ function MenuItem({ icon, label, badge, active, onClick, className }: MenuItemPr
       <span className="text-[var(--color-text-secondary)]">{icon}</span>
       <span className="flex-1 text-left">{label}</span>
       {badge !== undefined && badge > 0 ? (
-        <span className="text-xs font-semibold text-[var(--color-accent-primary)]">{badge}</span>
+        <span className="text-xs font-semibold text-[var(--color-brand)]">{badge}</span>
       ) : null}
     </button>
   )
@@ -102,7 +102,7 @@ export default function ToolsPopover({
       >
         <Ellipsis size={18} aria-hidden="true" />
         {noteCount > 0 ? (
-          <span className="indicator-dot absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--color-accent-primary)]" />
+          <span className="indicator-dot absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--color-brand)]" />
         ) : null}
       </button>
 

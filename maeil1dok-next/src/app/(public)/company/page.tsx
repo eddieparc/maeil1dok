@@ -10,7 +10,12 @@ export default function CompanyPage() {
 
       <div className="max-w-[768px] mx-auto px-4 py-6">
         <div className="bg-[var(--color-bg-card)] rounded-[20px] shadow-[var(--shadow-md)] border border-[var(--color-border-light)] p-8">
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-1">Company Info</h1>
+          <h1
+            className="text-[28px] font-medium text-[var(--color-ink)] -tracking-[0.03em] leading-[1.2] mb-1"
+            style={{ fontFamily: 'var(--font-family-serif)' }}
+          >
+            Company Info
+          </h1>
           <p className="text-sm text-[var(--color-text-secondary)] mb-8">회사정보</p>
 
           <div className="space-y-4">
@@ -61,7 +66,7 @@ export default function CompanyPage() {
                   href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=6132462749" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-[var(--color-accent-primary)] hover:opacity-80 transition-opacity"
+                  className="text-[var(--color-brand)] hover:opacity-80 transition-opacity"
                 >
                   사업자정보확인 →
                 </a>
@@ -75,14 +80,14 @@ export default function CompanyPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 justify-center mt-6">
-          <Link href="/privacy" className="px-5 py-2.5 bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] rounded-full text-sm font-medium hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-dark)] transition-all">
+        <div className="flex flex-wrap gap-2 justify-center mt-6" style={{ fontFamily: 'var(--font-family-ui)' }}>
+          <Link href="/privacy" className="px-4 py-2 bg-transparent text-[var(--color-mute)] border border-[var(--color-rule)] rounded-full text-[12px] font-semibold -tracking-[0.005em] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors">
             개인정보처리방침
           </Link>
-          <Link href="/terms" className="px-5 py-2.5 bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] rounded-full text-sm font-medium hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-dark)] transition-all">
+          <Link href="/terms" className="px-4 py-2 bg-transparent text-[var(--color-mute)] border border-[var(--color-rule)] rounded-full text-[12px] font-semibold -tracking-[0.005em] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors">
             이용약관
           </Link>
-          <Link href="/" className="px-5 py-2.5 bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)] rounded-full text-sm font-medium hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-dark)] transition-all">
+          <Link href="/" className="px-4 py-2 bg-transparent text-[var(--color-mute)] border border-[var(--color-rule)] rounded-full text-[12px] font-semibold -tracking-[0.005em] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)] hover:border-[var(--color-ink)] transition-colors">
             홈으로
           </Link>
         </div>

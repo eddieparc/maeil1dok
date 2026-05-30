@@ -12,9 +12,9 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
   if (!group) {
     return (
       <main className="mx-auto min-h-[calc(100dvh-120px)] max-w-[768px] bg-[var(--color-bg-primary)] pb-24">
-        <header className="sticky top-0 z-20 border-b border-[var(--color-border-light)] bg-[var(--color-bg-card)]">
+        <header className="sticky top-0 z-20 border-b border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md">
           <div className="flex h-14 items-center gap-3 px-4">
-            <Link href="/groups" className="-m-2 rounded-lg p-2 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-hover)]" aria-label="뒤로 가기">
+            <Link href="/groups" className="-m-2 rounded-full p-2 text-[var(--color-mute)] transition-colors hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)]" aria-label="뒤로 가기">
               <ChevronLeft size={20} aria-hidden="true" />
             </Link>
             <h1 className="text-lg font-semibold tracking-[-0.05em] text-[var(--color-text-primary)]">그룹 정보</h1>
@@ -24,7 +24,7 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
         <div className="px-4 py-8">
           <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] px-5 py-10 text-center shadow-[var(--shadow-card)]">
             <p className="text-[0.9375rem] text-[var(--color-text-secondary)]">그룹을 찾을 수 없습니다.</p>
-            <Link href="/groups" className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] px-4 text-[0.8125rem] font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]">
+            <Link href="/groups" className="mt-4 inline-flex h-9 items-center justify-center rounded-full bg-[var(--color-ink)] px-4 text-[12px] font-semibold text-[var(--color-paper)] -tracking-[0.005em] transition-colors hover:bg-[var(--color-brand-deep)]">
               그룹 목록으로 돌아가기
             </Link>
           </div>
@@ -39,9 +39,9 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
 
   return (
     <main className="mx-auto min-h-[calc(100dvh-120px)] max-w-[768px] bg-[var(--color-bg-primary)] pb-24">
-      <header className="sticky top-0 z-20 border-b border-[var(--color-border-light)] bg-[var(--color-bg-card)]">
+      <header className="sticky top-0 z-20 border-b border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md">
         <div className="flex h-14 items-center gap-3 px-4">
-          <Link href="/groups" className="-m-2 rounded-lg p-2 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-hover)]" aria-label="뒤로 가기">
+          <Link href="/groups" className="-m-2 rounded-full p-2 text-[var(--color-mute)] transition-colors hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-ink)]" aria-label="뒤로 가기">
             <ChevronLeft size={20} aria-hidden="true" />
           </Link>
           <h1 className="truncate text-lg font-semibold tracking-[-0.05em] text-[var(--color-text-primary)]">{group.name}</h1>
@@ -73,7 +73,7 @@ export default function GroupDetailClient({ group }: GroupDetailClientProps) {
               </div>
             </div>
 
-            <button type="button" className="mt-6 h-11 w-full rounded-lg bg-[var(--color-primary)] text-[0.9375rem] font-semibold text-white transition-colors hover:bg-[var(--color-accent-hover)]">
+            <button type="button" className="mt-6 h-11 w-full rounded-lg bg-[var(--color-ink)] text-[13px] font-semibold text-[var(--color-paper)] -tracking-[0.012em] transition-colors hover:bg-[var(--color-brand-deep)]">
               그룹 가입하기
             </button>
           </div>

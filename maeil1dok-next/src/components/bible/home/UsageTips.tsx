@@ -18,11 +18,19 @@ interface TipItemProps {
 
 function TipItem({ emoji, title, description }: TipItemProps) {
   return (
-    <div className="flex gap-3 rounded-lg bg-[var(--color-bg-tertiary)] p-3">
+    <div className="flex gap-3 rounded-2xl bg-[var(--color-brand-faint)] p-3.5">
       <span className="shrink-0 text-xl">{emoji}</span>
       <div>
-        <strong className="mb-1 block text-sm text-[var(--color-text-primary)]">{title}</strong>
-        <p className="text-[0.8125rem] leading-relaxed text-[var(--color-text-secondary)]">
+        <strong
+          className="mb-1 block text-[14px] font-semibold text-[var(--color-ink)] -tracking-[0.01em]"
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
+          {title}
+        </strong>
+        <p
+          className="text-[13px] leading-relaxed text-[var(--color-mute)] -tracking-[0.008em]"
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
           {description}
         </p>
       </div>
@@ -40,10 +48,13 @@ export default function UsageTips({
   return (
     <section
       className={cn(
-        'rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4',
+        'rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)] p-4',
       )}
     >
-      <h2 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">
+      <h2
+        className="mb-3 text-[13px] font-semibold text-[var(--color-ink)] -tracking-[0.008em]"
+        style={{ fontFamily: 'var(--font-family-ui)' }}
+      >
         💡 사용 팁
       </h2>
       <div className="flex flex-col gap-3.5">
@@ -54,7 +65,7 @@ export default function UsageTips({
             description={
               <>
                 성경 본문에서 텍스트를{' '}
-                <em className="not-italic font-medium text-[var(--color-accent-primary)]">
+                <em className="not-italic font-medium text-[var(--color-brand)]">
                   드래그
                 </em>
                 하면 하이라이트, 복사, 공유 메뉴가 나타나요
@@ -69,7 +80,7 @@ export default function UsageTips({
             description={
               <>
                 성경 읽기 화면 상단의{' '}
-                <em className="not-italic font-medium text-[var(--color-accent-primary)]">
+                <em className="not-italic font-medium text-[var(--color-brand)]">
                   북마크 아이콘
                 </em>
                 을 눌러 현재 장을 저장하세요
@@ -84,7 +95,7 @@ export default function UsageTips({
             description={
               <>
                 읽기 화면의{' '}
-                <em className="not-italic font-medium text-[var(--color-accent-primary)]">
+                <em className="not-italic font-medium text-[var(--color-brand)]">
                   메뉴(⋮)
                 </em>
                 에서 묵상노트를 작성할 수 있어요
@@ -97,9 +108,10 @@ export default function UsageTips({
         <button
           type="button"
           className={cn(
-            'mt-3 block w-full text-center text-xs text-[var(--color-text-muted)]',
-            'transition-colors hover:text-[var(--color-text-secondary)]',
+            'mt-3 block w-full text-center text-[11px] font-medium text-[var(--color-subtle)] -tracking-[0.005em]',
+            'transition-colors hover:text-[var(--color-mute)]',
           )}
+          style={{ fontFamily: 'var(--font-family-ui)' }}
           onClick={onDismiss}
         >
           다음부터 표시 안함

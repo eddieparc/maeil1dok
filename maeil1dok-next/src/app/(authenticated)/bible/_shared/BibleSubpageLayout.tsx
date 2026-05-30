@@ -50,7 +50,10 @@ export function BibleSubpageLayout({
             >
               <ChevronLeft size={20} aria-hidden="true" />
             </button>
-            <h1 className="flex-1 text-lg font-semibold text-[var(--color-text-primary)]">
+            <h1
+              className="flex-1 text-[20px] font-medium text-[var(--color-ink)] -tracking-[0.025em] leading-[1.3]"
+              style={{ fontFamily: 'var(--font-family-serif)' }}
+            >
               {title}
             </h1>
             <div className="ml-auto flex items-center gap-2">{actions}</div>

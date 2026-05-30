@@ -19,14 +19,15 @@ interface ReadingCardStackProps {
   introCompleted?: boolean
 }
 
-interface CardProps {
+interface CardShellProps {
   children: ReactNode
   onClick?: () => void
+  testId?: string
+  variant?: 'paper' | 'faint'
   className?: string
-  'data-testid'?: string
 }
 
-function ReadingCard({ children, onClick, className = '', ...props }: CardProps) {
+function CardShell({ children, onClick, testId, variant = 'paper', className }: CardShellProps) {
   const isInteractive = typeof onClick === 'function'
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -36,6 +37,11 @@ function ReadingCard({ children, onClick, className = '', ...props }: CardProps)
       onClick()
     }
   }
+
+  const surfaceClass =
+    variant === 'faint'
+      ? 'border-[var(--color-brand-faint-border)] bg-[var(--color-brand-faint)]'
+      : 'border-[var(--color-rule)] bg-[var(--color-paper)]'
 
   return (
     <div
@@ -47,172 +53,281 @@ function ReadingCard({ children, onClick, className = '', ...props }: CardProps)
             tabIndex: 0,
           }
         : {})}
+      data-testid={testId ?? 'reading-card'}
       className={cn(
-        'relative flex w-full flex-col justify-center overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] p-5 shadow-[var(--shadow-card)] transition-all duration-300',
-        isInteractive && 'cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)] active:scale-[0.98]',
+        'relative w-full overflow-hidden rounded-2xl border px-5 py-5 transition-all duration-200',
+        surfaceClass,
+        isInteractive && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] active:scale-[0.99]',
         className,
       )}
-      data-testid="reading-card"
-      {...props}
     >
       {children}
     </div>
   )
 }
 
-function CardLabel({ label, tone = 'default' }: { label: string; tone?: 'default' | 'warning' | 'success' }) {
-  const toneClassName = {
-    default: 'bg-[var(--color-accent-light)] text-[var(--color-accent-primary)]',
-    warning: 'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)]',
-    success: 'bg-[var(--color-success-bg)] text-[var(--color-success-text)]',
-  }[tone]
-
-  return (
-    <span
-      className={cn(
-        'inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em]',
-        toneClassName,
-      )}
-      style={{ fontFamily: 'var(--font-family-ui)' }}
-    >
-      {label}
-    </span>
-  )
-}
-
-function ArrowIcon() {
+function IconArrowRight({ size = 13 }: { size?: number }) {
   return (
     <svg
-      width="16"
-      height="16"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.5"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ marginLeft: 4 }}
     >
-      <path d="M5 12h14M12 5l7 7-7 7" />
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
     </svg>
   )
 }
 
-function StartButton({ label, variant }: { label: string; variant?: 'default' | 'secondary' }) {
+function IconTriangleAlert({ size = 11 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <path d="M12 9v4M12 17h.01" />
+    </svg>
+  )
+}
+
+function IconCheckCircle({ size = 11 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  )
+}
+
+function Badge({
+  children,
+  tone = 'default',
+  icon,
+}: {
+  children: ReactNode
+  tone?: 'default' | 'warning' | 'success'
+  icon?: ReactNode
+}) {
+  const palette = {
+    default: 'bg-[var(--color-brand-faint)] text-[var(--color-brand)]',
+    warning: 'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)]',
+    success: 'bg-[var(--color-success-bg)] text-[var(--color-success-text)]',
+  }[tone]
   return (
     <span
       className={cn(
-        'mt-4 inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition-all hover:bg-[var(--color-surface-secondary)] hover:shadow-[var(--shadow-card)]',
-        variant === 'secondary' && 'text-[var(--color-text-secondary)]',
+        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold -tracking-[0.005em]',
+        palette,
       )}
+      style={{ fontFamily: 'var(--font-family-ui)' }}
+    >
+      {icon}
+      {children}
+    </span>
+  )
+}
+
+function PrimaryButton({
+  label,
+  fullWidth = true,
+  variant = 'primary',
+}: {
+  label: string
+  fullWidth?: boolean
+  variant?: 'primary' | 'outline'
+}) {
+  const palette =
+    variant === 'primary'
+      ? 'bg-[var(--color-ink)] text-[var(--color-paper)] hover:bg-[var(--color-brand-deep)]'
+      : 'border border-[var(--color-rule)] bg-transparent text-[var(--color-ink)] hover:border-[var(--color-ink)]'
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[13px] font-semibold -tracking-[0.012em] transition-colors',
+        palette,
+        fullWidth && 'w-full',
+      )}
+      style={{ fontFamily: 'var(--font-family-ui)' }}
     >
       {label}
-      <ArrowIcon />
+      <IconArrowRight />
     </span>
+  )
+}
+
+function CardCaption({ children, tone = 'mute' }: { children: ReactNode; tone?: 'mute' | 'brand' }) {
+  const color =
+    tone === 'brand' ? 'text-[var(--color-brand)]' : 'text-[var(--color-mute)]'
+  return (
+    <p
+      className={cn('text-[11px] font-medium -tracking-[0.005em]', color)}
+      style={{ fontFamily: 'var(--font-family-ui)' }}
+    >
+      {children}
+    </p>
+  )
+}
+
+function CardTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2
+      className="mt-1 text-[var(--color-ink)] leading-[1.25] -tracking-[0.025em]"
+      style={{
+        fontFamily: 'var(--font-family-serif)',
+        fontSize: 'clamp(1.25rem, 5vw, 1.5rem)',
+        fontWeight: 500,
+      }}
+    >
+      {children}
+    </h2>
+  )
+}
+
+function CardMeta({ children }: { children: ReactNode }) {
+  return (
+    <p
+      className="mt-1 text-[13px] font-medium text-[var(--color-mute)] -tracking-[0.008em]"
+      style={{ fontFamily: 'var(--font-family-ui)' }}
+    >
+      {children}
+    </p>
   )
 }
 
 function LoginCard({ onNavigate }: { onNavigate: () => void }) {
   return (
-    <ReadingCard
-      onClick={onNavigate}
-      className="text-[var(--color-text-primary)]"
-      data-testid="login-card"
-    >
-      <CardLabel label="WELCOME" />
-      <h2
-        className="mt-2 leading-tight font-light text-[var(--color-text-primary)]"
-        style={{ fontFamily: 'var(--font-family-reading)', fontSize: 'clamp(1.5rem, 6vw, 2rem)', lineHeight: 1.2 }}
-      >
+    <CardShell onClick={onNavigate} testId="login-card">
+      <CardCaption>환영합니다</CardCaption>
+      <CardTitle>
         로그인하고
         <br />
-        <strong className="font-bold">시작하세요</strong>
-      </h2>
-      <div className="mt-1 text-sm text-[var(--color-text-secondary)]">나만의 통독 기록을 관리할 수 있습니다</div>
-      <StartButton label="로그인 / 회원가입" />
-    </ReadingCard>
+        함께 시작해요
+      </CardTitle>
+      <CardMeta>로그인하면 나만의 통독 기록을 관리할 수 있어요</CardMeta>
+      <div className="mt-4">
+        <PrimaryButton label="로그인 / 회원가입" />
+      </div>
+    </CardShell>
   )
 }
 
-function MainReadingCard({ schedule, onNavigate, progressPercentage }: { schedule: DailySchedule; onNavigate: () => void; progressPercentage: number }) {
-  const readingRange = schedule.startChapter === schedule.endChapter
-    ? `${schedule.book} ${schedule.startChapter}장`
-    : `${schedule.book} ${schedule.startChapter}-${schedule.endChapter}장`
+function MainReadingCard({
+  schedule,
+  onNavigate,
+  progressPercentage,
+}: {
+  schedule: DailySchedule
+  onNavigate: () => void
+  progressPercentage: number
+}) {
+  const readingRange =
+    schedule.startChapter === schedule.endChapter
+      ? `${schedule.book} ${schedule.startChapter}장`
+      : `${schedule.book} ${schedule.startChapter}-${schedule.endChapter}장`
 
   return (
-    <ReadingCard
-      onClick={onNavigate}
-      className="text-[var(--color-text-primary)]"
-      data-testid="main-card"
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <CardLabel label="TODAY'S READING" />
-      </div>
-      <h2
-        className="mb-1 font-medium leading-tight text-[var(--color-text-primary)]"
-        style={{ fontFamily: 'var(--font-family-reading)', fontSize: 'clamp(1.5rem, 6vw, 2rem)', lineHeight: 1.2, wordBreak: 'keep-all' }}
-      >
-        {readingRange}
-      </h2>
-
-      <div className="mb-4 text-sm text-[var(--color-text-secondary)]" style={{ fontSize: 'clamp(0.9375rem, 3.5vw, 1.125rem)' }}>
-        오늘의 말씀
-      </div>
-
-      <div className="mb-4 flex items-center gap-4">
-        <div className="h-1 flex-1 rounded bg-[var(--color-surface-secondary)]">
-          <div className="h-full rounded bg-[var(--color-accent-primary)] transition-all duration-500" style={{ width: `${progressPercentage}%` }} />
+    <CardShell onClick={onNavigate} testId="main-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <CardCaption>오늘의 통독</CardCaption>
+          <CardTitle>{readingRange}</CardTitle>
+          <CardMeta>오늘의 말씀과 함께 걸어요</CardMeta>
         </div>
-        <span className="min-w-[70px] text-right text-sm font-medium text-[var(--color-accent-primary)]">{progressPercentage}% 완료</span>
       </div>
 
-      <StartButton label="통독 시작하기" />
-    </ReadingCard>
+      <div className="mt-4 mb-4">
+        <div
+          className="mb-1.5 flex items-center justify-between text-[11px] font-medium text-[var(--color-mute)] -tracking-[0.005em] tabular-nums"
+          style={{ fontFamily: 'var(--font-family-ui)' }}
+        >
+          <span>오늘 진행률</span>
+          <span>{progressPercentage}%</span>
+        </div>
+        <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--color-rule)]">
+          <div
+            className="h-full rounded-full bg-[var(--color-ink)] transition-all duration-500"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+      </div>
+
+      <PrimaryButton label="오늘 분량 시작하기" />
+    </CardShell>
   )
 }
 
-function PastIncompleteCard({ data, onNavigate }: { data: PastIncompleteData; onNavigate: () => void }) {
+function PastIncompleteCard({
+  data,
+  onNavigate,
+}: {
+  data: PastIncompleteData
+  onNavigate: () => void
+}) {
+  const range =
+    data.schedule.startChapter === data.schedule.endChapter
+      ? `${data.schedule.book} ${data.schedule.startChapter}장`
+      : `${data.schedule.book} ${data.schedule.startChapter}-${data.schedule.endChapter}장`
   return (
-    <ReadingCard
-      onClick={onNavigate}
-      className="text-[var(--color-text-primary)]"
-      data-testid="past-incomplete-card"
-    >
-      <CardLabel label="CATCH UP" tone="warning" />
-      <h2
-        className="mt-2 mb-1 font-medium leading-tight text-[var(--color-text-primary)]"
-        style={{ fontFamily: 'var(--font-family-reading)', fontSize: 'clamp(1.5rem, 6vw, 2rem)', lineHeight: 1.2 }}
-      >
-        밀린 읽기가
-        <br />
-        <strong className="font-bold">있어요</strong>
-      </h2>
-      <div className="mb-4 text-sm text-[var(--color-text-secondary)]">
-        {data.date} - {data.schedule.book} {data.schedule.startChapter}-{data.schedule.endChapter}장
+    <CardShell onClick={onNavigate} testId="past-incomplete-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <CardCaption>밀린 통독</CardCaption>
+          <CardTitle>{range}</CardTitle>
+          <CardMeta>{data.date} 분량을 마저 읽어보세요</CardMeta>
+        </div>
+        <Badge tone="warning" icon={<IconTriangleAlert />}>
+          밀린 통독
+        </Badge>
       </div>
-      <StartButton label="밀린 읽기 하러가기" />
-    </ReadingCard>
+      <div className="mt-4">
+        <PrimaryButton label="밀린 통독 시작하기" />
+      </div>
+    </CardShell>
   )
 }
 
 function AllDoneCard() {
   return (
-    <ReadingCard
-      className="text-[var(--color-text-primary)]"
-      data-testid="all-done-card"
-    >
-      <CardLabel label="AMAZING!" tone="success" />
-      <h2
-        className="mt-2 mb-1 font-medium leading-tight text-[var(--color-text-primary)]"
-        style={{ fontFamily: 'var(--font-family-reading)', fontSize: 'clamp(1.5rem, 6vw, 2rem)', lineHeight: 1.2 }}
-      >
-        오늘 할 일을
-        <br />
-        <strong className="font-bold">모두 마쳤어요! 🎉</strong>
-      </h2>
-      <div className="text-sm text-[var(--color-text-secondary)]">정말 대단해요! 내일도 함께해요</div>
-    </ReadingCard>
+    <CardShell testId="all-done-card" variant="faint">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <CardCaption tone="brand">오늘의 통독</CardCaption>
+          <CardTitle>
+            오늘 분량을
+            <br />
+            모두 마쳤어요
+          </CardTitle>
+          <CardMeta>내일도 함께 걸어요</CardMeta>
+        </div>
+        <Badge tone="success" icon={<IconCheckCircle />}>
+          완료
+        </Badge>
+      </div>
+    </CardShell>
   )
 }
 
@@ -247,23 +362,21 @@ export default function ReadingCardStack({
   const progressPercentage = todayProgress?.isCompleted ? 100 : 0
 
   return (
-    <div className="relative mb-6" data-testid="reading-card-stack">
+    <div className="mb-3" data-testid="reading-card-stack">
       {cardType === 'login' && <LoginCard onNavigate={handleLoginNavigate} />}
-      {cardType === 'main' && todaySchedule && <MainReadingCard schedule={todaySchedule} onNavigate={handleNavigate} progressPercentage={progressPercentage} />}
-      {cardType === 'pastIncomplete' && pastIncomplete && <PastIncompleteCard data={pastIncomplete} onNavigate={handleNavigate} />}
+      {cardType === 'main' && todaySchedule && (
+        <MainReadingCard
+          schedule={todaySchedule}
+          onNavigate={handleNavigate}
+          progressPercentage={progressPercentage}
+        />
+      )}
+      {cardType === 'pastIncomplete' && pastIncomplete && (
+        <PastIncompleteCard data={pastIncomplete} onNavigate={handleNavigate} />
+      )}
       {cardType === 'hasena' && <HasenaCard />}
       {cardType === 'intro' && <IntroCard />}
       {cardType === 'allDone' && <AllDoneCard />}
-
-      {/* Card stack shadow effect */}
-      <div
-        className="absolute top-2.5 right-5 left-5 -z-10 h-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] opacity-55 shadow-[var(--shadow-card)]"
-        aria-hidden="true"
-      />
-      <div
-        className="absolute top-5 right-10 left-10 -z-20 h-full rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-card)] opacity-35 shadow-[var(--shadow-card)]"
-        aria-hidden="true"
-      />
     </div>
   )
 }

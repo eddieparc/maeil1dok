@@ -428,7 +428,7 @@ export default function PlanPageClient({
                         planId: item.planId,
                       })
                       if (!url) {
-                        toast('알 수 없는 성경 책입니다', { type: 'error' })
+                        toast({ message: '알 수 없는 성경 책입니다', type: 'error' })
                         return
                       }
                       router.push(url)
