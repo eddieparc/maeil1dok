@@ -9,6 +9,7 @@ interface TabsContextType {
   setIndicatorStyle: (style: { left: number; width: number }) => void
   indicatorStyle: { left: number; width: number }
   tabListRef: React.RefObject<HTMLDivElement | null>
+  variant: 'underline' | 'pill'
 }
 
 const TabsContext = createContext<TabsContextType | undefined>(undefined)
@@ -26,6 +27,7 @@ interface TabsProps {
   onTabChange: (tabId: string) => void
   children: ReactNode
   className?: string
+  variant?: 'underline' | 'pill'
 }
 
 interface TabListProps {
@@ -45,16 +47,8 @@ interface TabPanelProps {
   className?: string
 }
 
-/**
- * Tabs component with animated indicator
- * Supports composable sub-components: TabList, Tab, TabPanel
- * Implements WAI-ARIA tabs pattern
- */
-export function Tabs({ activeTab, onTabChange, children, className }: TabsProps) {
-  const [indicatorStyle, setIndicatorStyle] = useState<{
-    left: number
-    width: number
-  }>({ left: 0, width: 0 })
+export function Tabs({ activeTab, onTabChange, children, className, variant = 'underline' }: TabsProps) {
+  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 })
   const tabListRef = useRef<HTMLDivElement>(null)
 
   const value: TabsContextType = {
@@ -63,70 +57,86 @@ export function Tabs({ activeTab, onTabChange, children, className }: TabsProps)
     setIndicatorStyle,
     indicatorStyle,
     tabListRef,
+    variant,
   }
 
   return (
     <TabsContext.Provider value={value}>
-      <div className={cn('w-full', className)}>
-        {children}
-      </div>
+      <div className={cn('w-full', className)}>{children}</div>
     </TabsContext.Provider>
   )
 }
 
-/**
- * TabList - Container for Tab components
- * Implements role="tablist" for accessibility
- */
 export function TabList({ children, className }: TabListProps) {
-  const { indicatorStyle, tabListRef } = useTabsContext()
+  const { indicatorStyle, tabListRef, variant } = useTabsContext()
+
+  if (variant === 'pill') {
+    return (
+      <div
+        ref={tabListRef}
+        role="tablist"
+        className={cn(
+          'inline-flex gap-1 rounded-full border border-[var(--color-rule)] bg-[var(--color-paper)] p-1',
+          className
+        )}
+      >
+        {children}
+      </div>
+    )
+  }
 
   return (
     <div
       ref={tabListRef}
       role="tablist"
-      className={cn(
-        'relative flex border-b border-[var(--color-border-default)] overflow-x-auto',
-        className
-      )}
+      className={cn('relative flex border-b border-[var(--color-rule)] overflow-x-auto', className)}
     >
       {children}
-
-      {/* Animated indicator */}
       <div
-        className="absolute bottom-0 h-0.5 bg-[var(--color-primary)] transition-all duration-300 ease-out"
-        style={{
-          left: `${indicatorStyle.left}px`,
-          width: `${indicatorStyle.width}px`,
-        }}
+        className="absolute bottom-0 h-0.5 bg-[var(--color-ink)] transition-all duration-300 ease-out"
+        style={{ left: `${indicatorStyle.left}px`, width: `${indicatorStyle.width}px` }}
       />
     </div>
   )
 }
 
-/**
- * Tab - Individual tab button
- * Implements role="tab" and aria-selected for accessibility
- */
 export function Tab({ id, label, disabled = false }: TabProps) {
-  const { activeTab, onTabChange, setIndicatorStyle, tabListRef } = useTabsContext()
+  const { activeTab, onTabChange, setIndicatorStyle, tabListRef, variant } = useTabsContext()
   const tabRef = useRef<HTMLButtonElement>(null)
-
   const isActive = activeTab === id
 
   useEffect(() => {
+    if (variant !== 'underline') return
     if (isActive && tabRef.current && tabListRef.current) {
-      setIndicatorStyle({
-        left: tabRef.current.offsetLeft,
-        width: tabRef.current.offsetWidth,
-      })
+      setIndicatorStyle({ left: tabRef.current.offsetLeft, width: tabRef.current.offsetWidth })
     }
-  }, [isActive, setIndicatorStyle, tabListRef])
+  }, [isActive, setIndicatorStyle, tabListRef, variant])
 
   const handleClick = () => {
-    if (!disabled) {
-      onTabChange(id)
-    }
+    if (!disabled) onTabChange(id)
+  }
+
+  if (variant === 'pill') {
+    return (
+      <button
+        ref={tabRef}
+        role="tab"
+        aria-selected={isActive}
+        aria-controls={`panel-${id}`}
+        id={`tab-${id}`}
+        disabled={disabled}
+        onClick={handleClick}
+        className={cn(
+          'px-[10px] py-1 font-semibold text-[11px] -tracking-[0.005em] rounded-full whitespace-nowrap transition-all duration-150',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          isActive
+            ? 'bg-[var(--color-ink)] text-[var(--color-paper)]'
+            : 'bg-transparent text-[var(--color-mute)] hover:text-[var(--color-ink)]'
+        )}
+      >
+        {label}
+      </button>
+    )
   }
 
   return (
@@ -139,11 +149,11 @@ export function Tab({ id, label, disabled = false }: TabProps) {
       disabled={disabled}
       onClick={handleClick}
       className={cn(
-        'px-4 py-3 font-medium text-sm whitespace-nowrap transition-colors duration-200',
+        'px-4 py-3 font-semibold text-[13px] -tracking-[0.01em] whitespace-nowrap transition-colors duration-150',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         isActive
-          ? 'text-[var(--color-primary)]'
-          : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+          ? 'text-[var(--color-ink)]'
+          : 'text-[var(--color-mute)] hover:text-[var(--color-ink)]'
       )}
     >
       {label}
@@ -151,10 +161,6 @@ export function Tab({ id, label, disabled = false }: TabProps) {
   )
 }
 
-/**
- * TabPanel - Content area for a tab
- * Implements role="tabpanel" and aria-labelledby for accessibility
- */
 export function TabPanel({ id, children, className }: TabPanelProps) {
   return (
     <div

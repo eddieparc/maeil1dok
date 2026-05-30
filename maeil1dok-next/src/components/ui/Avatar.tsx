@@ -7,27 +7,9 @@ interface AvatarProps {
 }
 
 const sizes = {
-  sm: 'w-8 h-8 text-xs',
-  md: 'w-12 h-12 text-sm',
-  lg: 'w-20 h-20 text-2xl',
-}
-
-function getColorFromName(name: string): string {
-  const colors = [
-    'bg-indigo-500',
-    'bg-blue-500',
-    'bg-green-500',
-    'bg-yellow-500',
-    'bg-red-500',
-    'bg-purple-500',
-    'bg-pink-500',
-    'bg-orange-500',
-  ]
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return colors[Math.abs(hash) % colors.length]
+  sm: 'w-7 h-7 text-[11px]',
+  md: 'w-10 h-10 text-sm',
+  lg: 'w-16 h-16 text-xl',
 }
 
 export default function Avatar({ url, name, size = 'md' }: AvatarProps) {
@@ -39,16 +21,16 @@ export default function Avatar({ url, name, size = 'md' }: AvatarProps) {
       <img
         src={url}
         alt={name}
-        className={`${sizeClass} rounded-full object-cover flex-shrink-0`}
+        className={`${sizeClass} rounded-full object-cover flex-shrink-0 border border-[var(--color-rule)]`}
       />
     )
   }
 
   return (
     <div
-      className={`${sizeClass} ${getColorFromName(name)} rounded-full flex items-center justify-center flex-shrink-0`}
+      className={`${sizeClass} rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--color-paper-warm)] border border-[var(--color-rule)]`}
     >
-      <span className="text-white font-semibold">{initial}</span>
+      <span className="font-semibold text-[var(--color-ink)] -tracking-[0.01em]">{initial}</span>
     </div>
   )
 }

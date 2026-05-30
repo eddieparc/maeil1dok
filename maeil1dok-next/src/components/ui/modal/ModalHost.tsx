@@ -52,7 +52,7 @@ function ModalLayer({ modal, status, zIndex, isTopmost, onClose }: ModalLayerPro
         type="button"
         aria-label="Close modal overlay"
         className={cn(
-          'absolute inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 ease-out',
+          'absolute inset-0 bg-[var(--color-overlay)] backdrop-blur-[2px] transition-opacity duration-200 ease-out',
           isVisible ? 'opacity-100' : 'opacity-0',
         )}
         onClick={() => {
@@ -69,7 +69,7 @@ function ModalLayer({ modal, status, zIndex, isTopmost, onClose }: ModalLayerPro
         aria-modal="true"
         tabIndex={-1}
         className={cn(
-          'relative z-10 w-full max-w-[420px] rounded-2xl bg-[var(--color-bg-primary)] shadow-2xl outline-none transition-all duration-200 ease-out',
+          'relative z-10 w-full max-w-[420px] rounded-3xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-[var(--shadow-xl)] outline-none transition-all duration-200 ease-out',
           isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0',
         )}
         data-testid="modal-content"

@@ -1,6 +1,7 @@
 'use client'
 
 import { type ConfirmVariant, type ModalIcon, useModal } from '@/hooks/useModal'
+import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ConfirmModalProps {
@@ -14,17 +15,17 @@ interface ConfirmModalProps {
 }
 
 const ICON_STYLE: Record<ModalIcon, string> = {
-  warning: 'bg-amber-100 text-amber-600',
-  error: 'bg-red-100 text-red-600',
-  info: 'bg-blue-100 text-blue-600',
-  success: 'bg-emerald-100 text-emerald-600',
+  warning: 'bg-[var(--color-warning-bg)] text-[var(--color-warning)]',
+  error: 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]',
+  info: 'bg-[var(--color-info-bg)] text-[var(--color-info)]',
+  success: 'bg-[var(--color-success-bg)] text-[var(--color-success)]',
 }
 
-const ICON_TEXT: Record<ModalIcon, string> = {
-  warning: '⚠️',
-  error: '❌',
-  info: 'ℹ️',
-  success: '✅',
+const ICON_COMPONENT: Record<ModalIcon, typeof AlertTriangle> = {
+  warning: AlertTriangle,
+  error: XCircle,
+  info: Info,
+  success: CheckCircle2,
 }
 
 export function ConfirmModal({
@@ -37,32 +38,43 @@ export function ConfirmModal({
   icon,
 }: ConfirmModalProps) {
   const modal = useModal()
+  const Icon = icon ? ICON_COMPONENT[icon] : null
 
   return (
     <div className="p-6 text-center" data-testid="confirm-modal">
-      {icon ? (
+      {icon && Icon ? (
         <div
-          className={cn('mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full text-2xl', ICON_STYLE[icon])}
+          className={cn(
+            'mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full',
+            ICON_STYLE[icon],
+          )}
           aria-hidden="true"
         >
-          {ICON_TEXT[icon]}
+          <Icon className="h-6 w-6" strokeWidth={1.8} />
         </div>
       ) : null}
 
-      <h3 className="mb-2 text-lg font-semibold text-[var(--color-text-primary)]" data-testid="confirm-modal-title">
+      <h3
+        className="mb-2 text-[18px] font-medium text-[var(--color-ink)] -tracking-[0.02em] leading-[1.3]"
+        style={{ fontFamily: 'var(--font-family-serif)' }}
+        data-testid="confirm-modal-title"
+      >
         {title}
       </h3>
 
       {description ? (
-        <p className="mb-6 text-sm leading-6 text-[var(--color-text-secondary)]" data-testid="confirm-modal-description">
+        <p
+          className="mb-6 text-[13px] leading-[1.5] text-[var(--color-mute)] -tracking-[0.008em]"
+          data-testid="confirm-modal-description"
+        >
           {description}
         </p>
       ) : null}
 
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <button
           type="button"
-          className="flex-1 rounded-lg bg-[var(--color-bg-tertiary)] px-4 py-3 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-button-hover)]"
+          className="flex-1 rounded-full border border-[var(--color-rule)] bg-transparent px-4 py-3 text-[13px] font-semibold text-[var(--color-ink)] -tracking-[0.012em] transition-all duration-150 hover:bg-[var(--color-brand-faint)] active:scale-[0.98]"
           onClick={() => modal.cancel(modalId)}
           data-testid="confirm-modal-cancel"
         >
@@ -71,8 +83,10 @@ export function ConfirmModal({
         <button
           type="button"
           className={cn(
-            'flex-1 rounded-lg px-4 py-3 text-sm font-semibold text-white transition-colors',
-            confirmVariant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-[var(--color-accent-primary)] hover:bg-[var(--color-accent-hover)]',
+            'flex-1 rounded-full px-4 py-3 text-[13px] font-semibold text-[var(--color-paper)] -tracking-[0.012em] transition-all duration-150 hover:opacity-90 active:opacity-80 active:scale-[0.98]',
+            confirmVariant === 'danger'
+              ? 'bg-[var(--color-danger)]'
+              : 'bg-[var(--color-ink)]',
           )}
           onClick={() => modal.close(modalId, true)}
           data-testid="confirm-modal-confirm"

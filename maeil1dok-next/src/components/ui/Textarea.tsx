@@ -1,7 +1,6 @@
 'use client'
 
-import { TextareaHTMLAttributes } from 'react'
-import { useId } from 'react'
+import { TextareaHTMLAttributes, useId } from 'react'
 import { cn } from '@/lib/utils'
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -25,7 +24,7 @@ export default function Textarea({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
+        <label htmlFor={id} className="mb-1.5 block text-[11px] font-medium text-[var(--color-mute)]">
           {label}
         </label>
       )}
@@ -33,22 +32,20 @@ export default function Textarea({
         id={id}
         disabled={disabled}
         className={cn(
-          'w-full px-3 py-2 text-base rounded-lg',
-          'bg-[var(--color-input-bg)] border border-[var(--color-input-border)]',
-          'text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)]',
-          'transition-all duration-200 resize-vertical',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 focus-visible:border-[var(--color-primary)]',
+          'w-full px-3 py-[9px] text-[13px] rounded-xl resize-vertical',
+          'bg-[var(--color-paper)] border border-[var(--color-rule)]',
+          'text-[var(--color-ink)] placeholder-[var(--color-subtle)] -tracking-[0.008em]',
+          'transition-all duration-150',
+          'focus:outline-none focus-visible:border-[var(--color-ink)]',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          error && 'border-[var(--color-danger)] focus-visible:ring-[var(--color-danger)]/30 focus-visible:border-[var(--color-danger)]',
+          error && 'border-[var(--color-danger)] focus-visible:border-[var(--color-danger)]',
           className
         )}
         {...props}
       />
-      {error && (
-        <p className="mt-1 text-sm text-[var(--color-danger)]">{error}</p>
-      )}
+      {error && <p className="mt-1 text-[11px] text-[var(--color-danger)]">{error}</p>}
       {helperText && !error && (
-        <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">{helperText}</p>
+        <p className="mt-1 text-[11px] text-[var(--color-subtle)]">{helperText}</p>
       )}
     </div>
   )

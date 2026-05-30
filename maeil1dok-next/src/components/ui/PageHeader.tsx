@@ -10,15 +10,6 @@ interface PageHeaderProps {
   className?: string
 }
 
-/**
- * PageHeader component - Page title with optional subtitle and action button area
- * Provides consistent spacing and typography for page headers
- * 
- * @param title - Main page title (required)
- * @param subtitle - Optional subtitle text
- * @param action - Optional action button or element (e.g., button, icon)
- * @param className - Additional CSS classes
- */
 export default function PageHeader({
   title,
   subtitle,
@@ -32,12 +23,15 @@ export default function PageHeader({
         className
       )}
     >
-      <div className="flex-1">
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)] mb-1">
+      <div className="flex-1 min-w-0">
+        <h1
+          className="text-[28px] font-medium text-[var(--color-ink)] -tracking-[0.03em] leading-[1.2] mb-1"
+          style={{ fontFamily: 'var(--font-family-serif)' }}
+        >
           {title}
         </h1>
         {subtitle && (
-          <p className="text-sm text-[var(--color-text-secondary)]">
+          <p className="text-[13px] text-[var(--color-mute)] -tracking-[0.008em]">
             {subtitle}
           </p>
         )}

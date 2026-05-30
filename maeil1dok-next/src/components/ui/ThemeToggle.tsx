@@ -26,7 +26,7 @@ export default function ThemeToggle() {
           'rounded-full p-2',
           'transition-colors duration-200',
           'hover:bg-[var(--color-button-hover)]',
-          'focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)]'
+          'focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]'
         )}
       >
         <span className="inline-block h-5 w-5" />
@@ -43,7 +43,7 @@ export default function ThemeToggle() {
         'rounded-full p-2',
         'transition-colors duration-200',
         'hover:bg-[var(--color-button-hover)]',
-        'focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-primary)]'
+        'focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]'
       )}
     >
       {theme === 'light' && <Sun className="h-5 w-5" />}

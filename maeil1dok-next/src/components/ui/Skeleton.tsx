@@ -15,14 +15,9 @@ interface SkeletonProps {
 const variantStyles: Record<SkeletonVariant, string> = {
   text: 'rounded',
   circular: 'rounded-full',
-  rectangular: 'rounded-lg',
+  rectangular: 'rounded-2xl',
 }
 
-/**
- * Skeleton component - Animated loading placeholder
- * Displays a pulsing skeleton while content is loading
- * Variants: text (single line), circular (avatar), rectangular (card)
- */
 export default function Skeleton({
   variant = 'text',
   width = '100%',
@@ -35,7 +30,7 @@ export default function Skeleton({
   return (
     <div
       className={cn(
-        'bg-[var(--color-bg-tertiary)] dark:bg-[var(--color-bg-secondary)] animate-pulse',
+        'bg-[var(--color-rule)] animate-pulse',
         variantStyles[variant],
         className
       )}

@@ -1,5 +1,21 @@
 @import "tailwindcss";
-/* ===== Font Face Declarations ===== */
+
+/* =================================================================
+ * Maeil1Dok Design System — Refined v3.1 (Mono Cocoa)
+ *
+ * SSOT: maeil1dok-next/src/stories/design-manners/Refined.stories.tsx
+ * 핸드오프: docs/migration-v2/53-handoff-design-impl.md
+ *
+ * 토큰 구성:
+ * - 컬러: 기본 14 + 시맨틱 16 = 30개
+ * - 폰트: UI (Pretendard) + Serif (KoPub Batang)
+ * - 라운드: 8개 (sm/md/lg/xl/modal/cell/pill/circle)
+ *
+ * 기존 변수명(--color-primary, --color-bg-primary 등)은 호환성 유지를 위해
+ * 새 v3.1 토큰을 var() reference 하는 bridge alias로 보존.
+ * ================================================================= */
+
+/* ===== Font Face Declarations (jsdelivr CDN — 사용자 결정 §8) ===== */
 
 /* RIDI 바탕 - 전자책 최적화 명조체 */
 @font-face {
@@ -69,8 +85,12 @@
 
 
 :root {
+  /* ===== Font families (v3.1 — --font-family-serif 통일) ===== */
   --font-family-ui: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-family-reading: "KoPub Batang", "RIDI Batang", "Noto Serif KR", serif;
+  --font-family-serif: "KoPub Batang", "RIDIBatang", "Noto Serif KR", serif;
+  /* Bridge alias — 기존 코드 호환 (점진 마이그레이션) */
+  --font-family-reading: var(--font-family-serif);
+
   --font-size-xs-tablet: 0.8125rem;
   --font-size-sm-tablet: 0.9375rem;
   --font-size-base-tablet: 1.0625rem;
@@ -81,54 +101,115 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #4B9F7E;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-   --color-danger: #EF4444;
-   --color-danger-hover: #DC2626;
+  /* =============================================================
+   * v3.1 BASE TOKENS — Mono Cocoa
+   * ============================================================= */
+
+  /* --- Color: Base (14) --- */
+  --color-ink: #0A0A0A;
+  --color-paper: #FFFFFF;
+  --color-paper-warm: #FAFAF9;
+  --color-brand: #5C3A2E;
+  --color-brand-deep: #3D2817;
+  --color-brand-faint: #F4EFEA;
+  --color-brand-faint-border: #E5DED2;
+  --color-rule: #E8E5E0;
+  --color-mute: #6F6B66;
+  --color-subtle: #A39E97;
+  --color-dark-bg: #141210;
+  --color-dark-ink: #FAFAF9;
+  --color-dark-rule: #2A2622;
+  --color-dark-mute: #9B968F;
+
+  /* --- Color: Semantic 4 × 4 = 16 (절제된 톤, brand cocoa와 조화) --- */
+  --color-success: #3D6B4F;
+  --color-success-bg: #ECF2EE;
+  --color-success-text: #1F3A2A;
+  --color-success-border: #D4DFD8;
+
+  --color-warning: #A87C3D;
+  --color-warning-bg: #F7EFE0;
+  --color-warning-text: #5C401C;
+  --color-warning-border: #E8D8B8;
+
+  --color-danger: #A8483E;
+  --color-danger-bg: #F4E5E3;
+  --color-danger-text: #5C1F18;
+  --color-danger-border: #E5C9C4;
+
+  --color-info: #4A6B8A;
+  --color-info-bg: #E8EDF2;
+  --color-info-text: #1F344D;
+  --color-info-border: #CDD7E1;
+
+  /* --- Typography families --- */
   --font-family-ui: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-family-reading: "KoPub Batang", "RIDI Batang", "Noto Serif KR", serif;
+  --font-family-serif: "KoPub Batang", "RIDIBatang", "Noto Serif KR", serif;
+  --font-family-reading: var(--font-family-serif);
 
-  --color-bg-primary: #faf8f6;
-  --color-bg-secondary: #ffffff;
-  --color-bg-tertiary: #f5f3f0;
-  --color-bg-card: #ffffff;
-  --color-bg-hover: #e5e7eb;
-  --color-surface-secondary: #f1f5f9;
-  --color-surface-hover: #e2e8f0;
+  /* --- Radius (v3.1 — 더 둥글게) --- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-modal: 24px;
+  --radius-cell: 8px;
+  --radius-pill: 9999px;
+  --radius-full: 9999px;
+  /* Bridge alias */
+  --radius-card: var(--radius-lg);
+  --radius-button: var(--radius-pill);
+  --radius-input: var(--radius-md);
 
-  --color-text-primary: #1f2937;
-  --color-text-secondary: #4b5563;
-  --color-text-tertiary: #6b7280;
-  --color-text-muted: #9ca3af;
-  --color-text-on-surface: #334155;
+  /* =============================================================
+   * LEGACY BRIDGE ALIAS (기존 코드 호환 — 점진 마이그레이션)
+   * 모든 기존 변수는 v3.1 토큰을 reference. atom 재디자인 시 직접 토큰으로 교체.
+   * ============================================================= */
 
-  --color-border-default: #e5e7eb;
-  --color-border-light: #f0f0f0;
-  --color-border-dark: #d1d5db;
-  --color-border-subtle: #e2e8f0;
+  /* --- Primary (sage → cocoa) --- */
+  --color-primary: var(--color-brand);
+  --color-success-hover: #2F5440;
 
-  --color-accent-primary: var(--color-primary);
-  --color-accent-hover: #3B7E63;
-  --color-accent-light: #e9f5f0;
+  /* --- Background --- */
+  --color-bg-primary: var(--color-paper-warm);
+  --color-bg-secondary: var(--color-paper);
+  --color-bg-tertiary: #F0EBE5;
+  --color-bg-card: var(--color-paper);
+  --color-bg-hover: #EEEAE3;
+  --color-surface-secondary: var(--color-brand-faint);
+  --color-surface-hover: var(--color-brand-faint-border);
 
-  --color-success-bg: #d1fae5;
-  --color-success-text: #065f46;
-  --color-warning-bg: #fef3c7;
-  --color-warning-text: #92400e;
-  --color-danger-bg: #fee2e2;
-  --color-danger-text: #991b1b;
-  --color-info: #3b82f6;
-  --color-info-bg: #dbeafe;
-  --color-info-text: #1e40af;
+  /* --- Text --- */
+  --color-text-primary: var(--color-ink);
+  --color-text-secondary: var(--color-mute);
+  --color-text-tertiary: var(--color-mute);
+  --color-text-muted: var(--color-subtle);
+  --color-text-on-surface: var(--color-ink);
 
-  --color-button-default: #f3f4f6;
-  --color-button-hover: #e5e7eb;
-  --color-button-active: #d1d5db;
-  --color-input-bg: #ffffff;
-  --color-input-border: #d1d5db;
-  --color-input-focus: #4B9F7E;
+  /* --- Border --- */
+  --color-border-default: var(--color-rule);
+  --color-border-light: #F1ECE5;
+  --color-border-dark: #D5CFC4;
+  --color-border-subtle: var(--color-rule);
 
+  /* --- Accent (brand alias) --- */
+  --color-accent-primary: var(--color-brand);
+  --color-accent-hover: var(--color-brand-deep);
+  --color-accent-light: var(--color-brand-faint);
+
+  /* --- Danger interaction (semantic) --- */
+  --color-danger-hover: #8F3D34;
+
+  /* --- Button surfaces --- */
+  --color-button-default: var(--color-brand-faint);
+  --color-button-hover: var(--color-brand-faint-border);
+  --color-button-active: #DDD3C7;
+  --color-input-bg: var(--color-paper);
+  --color-input-border: var(--color-rule);
+  --color-input-focus: var(--color-ink);
+
+  /* --- Font sizes --- */
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -151,266 +232,285 @@
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.75;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-card: 0 2px 6px -2px rgb(15 23 42 / 0.12), 0 4px 12px -4px rgb(15 23 42 / 0.08);
-  --shadow-card-hover: 0 6px 14px -4px rgb(15 23 42 / 0.16), 0 10px 24px -8px rgb(15 23 42 / 0.12);
+  /* --- Shadows (v3.1 — 부드럽게) --- */
+  --shadow-sm: 0 1px 2px 0 rgb(15 10 5 / 0.04);
+  --shadow-md: 0 2px 6px -2px rgb(15 10 5 / 0.08), 0 4px 12px -4px rgb(15 10 5 / 0.04);
+  --shadow-lg: 0 4px 16px -4px rgb(15 10 5 / 0.10), 0 12px 32px -8px rgb(15 10 5 / 0.06);
+  --shadow-xl: 0 8px 24px -8px rgb(15 10 5 / 0.12), 0 20px 48px -16px rgb(15 10 5 / 0.08);
+  --shadow-card: 0 1px 3px 0 rgb(15 10 5 / 0.04), 0 4px 12px -4px rgb(15 10 5 / 0.06);
+  --shadow-card-hover: 0 4px 12px -2px rgb(15 10 5 / 0.10), 0 12px 24px -8px rgb(15 10 5 / 0.08);
 
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
-  --radius-full: 9999px;
-  --radius-card: 0.75rem;
-  --radius-button: 0.5rem;
-  --radius-modal: 1rem;
-  --radius-input: 0.5rem;
-
+  /* --- Durations --- */
   --duration-tap: 120ms;
   --duration-fade: 180ms;
   --duration-panel: 220ms;
 
+  /* --- Kakao brand (외부 SDK 색 — 변경 금지) --- */
   --color-kakao-bg: #FEE500;
   --color-kakao-hover: #FDD835;
   --color-kakao-text: #000000;
 
-  /* Overlay */
-  --color-modal-bg: #ffffff;
-  --color-overlay: rgba(0, 0, 0, 0.5);
-  --color-tooltip-bg: #1f2937;
-  --color-tooltip-text: #ffffff;
+  /* --- Overlay --- */
+  --color-modal-bg: var(--color-paper);
+  --color-overlay: rgba(10, 10, 10, 0.45);
+  --color-tooltip-bg: var(--color-ink);
+  --color-tooltip-text: var(--color-paper);
 
-  /* ===== Bible Content Specific ===== */
-  --bible-bg: #faf8f6;
-  --bible-text: #2a1111;
-  --verse-number-color: #999999;
-  --section-title-color: #4B9F7E;
-  --cross-ref-color: #666666;
-  --footnote-color: #3b82f6;
-  --description-color: #6b7280;
+  /* =============================================================
+   * BIBLE CONTENT (성경 본문 — v3.1 cocoa)
+   * ============================================================= */
+  --bible-bg: var(--color-paper-warm);
+  --bible-text: #1F1B17;
+  --verse-number-color: var(--color-subtle);
+  --section-title-color: var(--color-brand);
+  --cross-ref-color: var(--color-mute);
+  --footnote-color: var(--color-info);
+  --description-color: var(--color-mute);
 
-  /* Highlight colors for names/places */
-  --highlight-name-color: #7c5a3c;
-  --highlight-place-color: #5a6e54;
+  /* Highlight (인명·지명) */
+  --highlight-name-color: #7C5A3C;   /* brown muted */
+  --highlight-place-color: #5A6E54;  /* sage muted (단일 잔존 — 인명 vs 지명 색 구분 의도) */
 
-  /* ===== Schedule Status Colors ===== */
-  /* Completed (읽음) - Green tones */
-  --color-schedule-completed-bg: #f0fdf4;
-  --color-schedule-completed-border: #c3e0cd;
-  --color-schedule-completed-text: #166534;
-  --color-schedule-completed-hover: #e6f7ec;
+  /* =============================================================
+   * SCHEDULE STATUS (시맨틱 매핑)
+   * ============================================================= */
+  /* Completed → success */
+  --color-schedule-completed-bg: var(--color-success-bg);
+  --color-schedule-completed-border: var(--color-success-border);
+  --color-schedule-completed-text: var(--color-success-text);
+  --color-schedule-completed-hover: #E0EBE3;
 
-  /* Missed/Not completed (미완료) - Red tones */
-  --color-schedule-missed-bg: #fef2f2;
-  --color-schedule-missed-border: #dabbbb;
-  --color-schedule-missed-text: #991b1b;
-  --color-schedule-missed-hover: #fee8e8;
+  /* Missed → danger */
+  --color-schedule-missed-bg: var(--color-danger-bg);
+  --color-schedule-missed-border: var(--color-danger-border);
+  --color-schedule-missed-text: var(--color-danger-text);
+  --color-schedule-missed-hover: #EFD6D2;
 
-  /* Current (오늘) - Blue tones */
-  --color-schedule-current-bg: #eff6ff;
-  --color-schedule-current-border: #bfdbfe;
-  --color-schedule-current-text: #546395;
-  --color-schedule-current-hover: #dbeafe;
+  /* Current → brand */
+  --color-schedule-current-bg: var(--color-brand-faint);
+  --color-schedule-current-border: var(--color-brand-faint-border);
+  --color-schedule-current-text: var(--color-brand);
+  --color-schedule-current-hover: #EDE3D5;
 
-  /* Upcoming - Slate tones */
-  --color-schedule-upcoming-hover: #f1f5f9;
+  /* Upcoming */
+  --color-schedule-upcoming-hover: #F1ECE5;
 
-  /* Current location (현재 위치) - Yellow tones */
-  --color-schedule-location-bg: #fefce8;
-  --color-schedule-location-border: #fef08a;
-  --color-schedule-location-border-dark: #e5d87b;
-  --color-schedule-location-bg-light: #fef9c3;
-  --color-schedule-location-text: #997b1b;
-  --color-schedule-location-hover: #fef9c3;
+  /* Location → warning */
+  --color-schedule-location-bg: var(--color-warning-bg);
+  --color-schedule-location-border: var(--color-warning-border);
+  --color-schedule-location-border-dark: #D8C088;
+  --color-schedule-location-bg-light: #FBF5E8;
+  --color-schedule-location-text: var(--color-warning-text);
+  --color-schedule-location-hover: #F0E5C8;
 
-  /* Today badge */
-  --color-schedule-today-bg: #405e9f;
+  /* Today badge (ink solid) */
+  --color-schedule-today-bg: var(--color-ink);
 
   /* Info indicator */
-  --color-schedule-info-bg: #eff6ff;
-  --color-schedule-info-border: #bfdbfe;
-  --color-schedule-info-text: #1e40af;
+  --color-schedule-info-bg: var(--color-info-bg);
+  --color-schedule-info-border: var(--color-info-border);
+  --color-schedule-info-text: var(--color-info-text);
 
-  /* ===== Slate Color Palette ===== */
-  --color-slate-50: #F8FAFC;
-  --color-slate-100: #F1F5F9;
-  --color-slate-200: #E2E8F0;
-  --color-slate-300: #CBD5E1;
-  --color-slate-400: #94A3B8;
-  --color-slate-500: #64748B;
-  --color-slate-600: #475569;
-  --color-slate-700: #334155;
-  --color-slate-800: #1E293B;
-  --color-slate-900: #0F172A;
+  /* =============================================================
+   * SLATE PALETTE (잔존 — neutral grayscale, brand 와 직교)
+   * 점진 마이그레이션: brand-faint, rule, mute, subtle 로 교체 예정
+   * ============================================================= */
+  --color-slate-50: #FAFAF9;
+  --color-slate-100: #F4EFEA;
+  --color-slate-200: #E8E5E0;
+  --color-slate-300: #D5CFC4;
+  --color-slate-400: #A39E97;
+  --color-slate-500: #6F6B66;
+  --color-slate-600: #525049;
+  --color-slate-700: #3A3833;
+  --color-slate-800: #2A2622;
+  --color-slate-900: #141210;
 
   --text-secondary: var(--color-text-secondary);
 }
 
-/* Sanctuary Theme Variables */
+/* ===== Sanctuary Theme Variables (page-level 그라데이션 등) ===== */
 @theme {
-  --sanctuary-bg: var(--color-bg-primary);
-  --sanctuary-accent: var(--color-primary);
-  --sanctuary-accent-hover: var(--color-accent-hover);
-  --sanctuary-card-bg: var(--color-bg-card);
-  --sanctuary-text-main: var(--color-text-primary);
-  --sanctuary-text-secondary: var(--color-text-secondary);
-  --sanctuary-border: var(--color-border-default);
+  --sanctuary-bg: var(--color-paper-warm);
+  --sanctuary-accent: var(--color-brand);
+  --sanctuary-accent-hover: var(--color-brand-deep);
+  --sanctuary-card-bg: var(--color-paper);
+  --sanctuary-text-main: var(--color-ink);
+  --sanctuary-text-secondary: var(--color-mute);
+  --sanctuary-border: var(--color-rule);
 }
 
+/* =================================================================
+ * DARK MODE (v3.1 cocoa-dark)
+ * ================================================================= */
 .dark {
   color-scheme: dark;
 
-  --color-primary: #6bc99f;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-   --color-danger: #f87171;
-   --color-danger-hover: #f05252;
+  /* Base */
+  --color-ink: #FAFAF9;
+  --color-paper: #1F1B17;
+  --color-paper-warm: #141210;
+  --color-brand: #B89887;
+  --color-brand-deep: #D4BBA7;
+  --color-brand-faint: #2A2017;
+  --color-brand-faint-border: #3A2E22;
+  --color-rule: #2A2622;
+  --color-mute: #9B968F;
+  --color-subtle: #6F6B66;
 
-  --color-bg-primary: #1a1a1a;
-  --color-bg-secondary: #242424;
-  --color-bg-tertiary: #2d2d2d;
-  --color-bg-card: #242424;
-  --color-bg-hover: #3d3d3d;
-  --color-surface-secondary: #273244;
-  --color-surface-hover: #334155;
+  --color-primary: var(--color-brand);
 
-  --color-text-primary: #f3f4f6;
-  --color-text-secondary: #d1d5db;
-  --color-text-tertiary: #9ca3af;
-  --color-text-muted: #6b7280;
-  --color-text-on-surface: #e2e8f0;
+  /* Background */
+  --color-bg-primary: var(--color-paper-warm);
+  --color-bg-secondary: var(--color-paper);
+  --color-bg-tertiary: #1A1714;
+  --color-bg-card: var(--color-paper);
+  --color-bg-hover: #2A2520;
+  --color-surface-secondary: var(--color-brand-faint);
+  --color-surface-hover: var(--color-brand-faint-border);
 
-  --color-border-default: #3d3d3d;
-  --color-border-light: #333333;
-  --color-border-dark: #4a4a4a;
-  --color-border-subtle: #475569;
+  /* Text */
+  --color-text-primary: var(--color-ink);
+  --color-text-secondary: var(--color-mute);
+  --color-text-tertiary: var(--color-mute);
+  --color-text-muted: var(--color-subtle);
+  --color-text-on-surface: var(--color-ink);
 
-  --color-accent-primary: var(--color-primary);
-  --color-accent-hover: #5ab88e;
-  --color-accent-light: #1a2f25;
+  /* Border */
+  --color-border-default: var(--color-rule);
+  --color-border-light: #1F1C18;
+  --color-border-dark: #3A3530;
+  --color-border-subtle: var(--color-rule);
 
-  --color-success-bg: #064e3b;
-  --color-success-text: #a7f3d0;
-  --color-warning-bg: #78350f;
-  --color-warning-text: #fef3c7;
-  --color-danger-bg: #7f1d1d;
-  --color-danger-text: #fecaca;
-  --color-info: #60a5fa;
-  --color-info-bg: #1e3a5f;
-  --color-info-text: #bfdbfe;
+  /* Accent */
+  --color-accent-primary: var(--color-brand);
+  --color-accent-hover: var(--color-brand-deep);
+  --color-accent-light: var(--color-brand-faint);
 
-  --color-button-default: #3a3a3a;
-  --color-button-hover: #4a4a4a;
-  --color-button-active: #5a5a5a;
-  --color-input-bg: #333333;
-  --color-input-border: #4a4a4a;
-  --color-input-focus: var(--color-primary);
+  /* Semantic — darker bg, lighter text */
+  --color-success: #6FAF87;
+  --color-success-bg: #1A2E22;
+  --color-success-text: #B8DFC4;
+  --color-success-border: #2A4A36;
 
-  --shadow-card: 0 3px 10px -4px rgb(0 0 0 / 0.45), 0 8px 20px -8px rgb(0 0 0 / 0.5);
-  --shadow-card-hover: 0 8px 18px -6px rgb(0 0 0 / 0.55), 0 14px 30px -10px rgb(0 0 0 / 0.58);
+  --color-warning: #D4A765;
+  --color-warning-bg: #2E2418;
+  --color-warning-text: #F0D9A8;
+  --color-warning-border: #4A3A20;
 
-  --radius-card: 0.75rem;
-  --radius-button: 0.5rem;
-  --radius-modal: 1rem;
-  --radius-input: 0.5rem;
+  --color-danger: #D8786E;
+  --color-danger-bg: #2E1A18;
+  --color-danger-text: #F0BCB4;
+  --color-danger-border: #4A2622;
 
-  --duration-tap: 120ms;
-  --duration-fade: 180ms;
-  --duration-panel: 220ms;
+  --color-info: #7C9BB8;
+  --color-info-bg: #1A2330;
+  --color-info-text: #BDD0E0;
+  --color-info-border: #2A3A52;
 
-  --color-kakao-bg: #FEE500;
+  --color-danger-hover: #C25E54;
+
+  /* Buttons */
+  --color-button-default: var(--color-brand-faint);
+  --color-button-hover: var(--color-brand-faint-border);
+  --color-button-active: #4A3A2A;
+  --color-input-bg: var(--color-paper);
+  --color-input-border: var(--color-rule);
+  --color-input-focus: var(--color-brand);
+
+  /* Shadows */
+  --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.40), 0 8px 20px -8px rgb(0 0 0 / 0.32);
+  --shadow-card-hover: 0 6px 16px -4px rgb(0 0 0 / 0.50), 0 14px 32px -10px rgb(0 0 0 / 0.42);
 
   /* Overlay */
-  --color-modal-bg: #2a2a2a;
-  --color-overlay: rgba(0, 0, 0, 0.7);
-  --color-tooltip-bg: #f3f4f6;
-  --color-tooltip-text: #1f2937;
+  --color-modal-bg: var(--color-paper);
+  --color-overlay: rgba(0, 0, 0, 0.65);
+  --color-tooltip-bg: var(--color-paper);
+  --color-tooltip-text: var(--color-ink);
 
-  /* ===== Bible Content Specific ===== */
-  --bible-bg: #1a1a1a;
-  --bible-text: #e0e0e0;
-  --verse-number-color: #666666;
-  --section-title-color: #6bc99f;
-  --cross-ref-color: #a0a0a0;
-  --footnote-color: #60a5fa;
-  --description-color: #9ca3af;
+  /* Bible */
+  --bible-bg: var(--color-paper-warm);
+  --bible-text: #D8D4CD;
+  --verse-number-color: var(--color-subtle);
+  --section-title-color: var(--color-brand);
+  --cross-ref-color: var(--color-mute);
+  --footnote-color: var(--color-info);
+  --description-color: var(--color-mute);
 
-  /* Highlight colors for names/places - 다크모드용 부드러운 색상 */
-  --highlight-name-color: #c9a67a;
-  --highlight-place-color: #9cb094;
+  /* Highlight */
+  --highlight-name-color: #C9A67A;
+  --highlight-place-color: #9CB094;
 
-  /* ===== Schedule Status Colors (Dark) ===== */
-  /* Completed (읽음) - Refined Green tones */
-  --color-schedule-completed-bg: #132e24;
-  --color-schedule-completed-border: #1f4e35;
-  --color-schedule-completed-text: #6ee7b7;
-  --color-schedule-completed-hover: #1a3b2e;
+  /* Schedule */
+  --color-schedule-completed-bg: var(--color-success-bg);
+  --color-schedule-completed-border: var(--color-success-border);
+  --color-schedule-completed-text: var(--color-success-text);
+  --color-schedule-completed-hover: #1F3826;
 
-  /* Missed/Not completed (미완료) - Refined Red tones */
-  --color-schedule-missed-bg: #2e1a1a;
-  --color-schedule-missed-border: #4f2222;
-  --color-schedule-missed-text: #fca5a5;
-  --color-schedule-missed-hover: #3b2020;
+  --color-schedule-missed-bg: var(--color-danger-bg);
+  --color-schedule-missed-border: var(--color-danger-border);
+  --color-schedule-missed-text: var(--color-danger-text);
+  --color-schedule-missed-hover: #38221E;
 
-  /* Current (오늘) - Refined Blue tones */
-  --color-schedule-current-bg: #1a2639;
-  --color-schedule-current-border: #273e63;
-  --color-schedule-current-text: #93c5fd;
-  --color-schedule-current-hover: #20304a;
+  --color-schedule-current-bg: var(--color-brand-faint);
+  --color-schedule-current-border: var(--color-brand-faint-border);
+  --color-schedule-current-text: var(--color-brand);
+  --color-schedule-current-hover: #382A1F;
 
-  /* Upcoming - Subtle hover state */
-  --color-schedule-upcoming-hover: #2d3748;
+  --color-schedule-upcoming-hover: #2A2520;
 
-  /* Current location (현재 위치) - Refined Yellow tones */
-  --color-schedule-location-bg: #2e2912;
-  --color-schedule-location-border: #4a4216;
-  --color-schedule-location-border-dark: #6a6a38;
-  --color-schedule-location-bg-light: #3a3a20;
-  --color-schedule-location-text: #fde047;
-  --color-schedule-location-hover: #3a3316;
+  --color-schedule-location-bg: var(--color-warning-bg);
+  --color-schedule-location-border: var(--color-warning-border);
+  --color-schedule-location-border-dark: #5A4828;
+  --color-schedule-location-bg-light: #3A2E1E;
+  --color-schedule-location-text: var(--color-warning-text);
+  --color-schedule-location-hover: #3D2E1A;
 
-  /* Today badge */
-  --color-schedule-today-bg: #3b5998;
+  --color-schedule-today-bg: var(--color-ink);
 
-  /* Info indicator */
-  --color-schedule-info-bg: #1a2639;
-  --color-schedule-info-border: #273e63;
-  --color-schedule-info-text: #93c5fd;
+  --color-schedule-info-bg: var(--color-info-bg);
+  --color-schedule-info-border: var(--color-info-border);
+  --color-schedule-info-text: var(--color-info-text);
 
-  /* ===== Slate Color Palette (Dark) ===== */
-  --color-slate-50: #262626;
-  --color-slate-100: #333333;
-  --color-slate-200: #404040;
-  --color-slate-300: #525252;
-  --color-slate-400: #737373;
-  --color-slate-500: #a3a3a3;
-  --color-slate-600: #d4d4d4;
-  --color-slate-700: #e5e5e5;
-  --color-slate-800: #f5f5f5;
-  --color-slate-900: #ffffff;
+  /* Slate dark inversion */
+  --color-slate-50: #141210;
+  --color-slate-100: #1F1B17;
+  --color-slate-200: #2A2622;
+  --color-slate-300: #3A3530;
+  --color-slate-400: #6F6B66;
+  --color-slate-500: #9B968F;
+  --color-slate-600: #B8B4AD;
+  --color-slate-700: #D5D1CA;
+  --color-slate-800: #E8E5E0;
+  --color-slate-900: #FAFAF9;
 
   --text-secondary: var(--color-text-secondary);
 }
 
+
+/* =================================================================
+ * BODY (v3.1 — letter-spacing 완화)
+ * ================================================================= */
 body {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-family-ui);
-  letter-spacing: -0.05em;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Common Utility Styles */
+/* =================================================================
+ * COMMON UTILITIES
+ * ================================================================= */
 
-/* Gradient Background Pattern */
+/* Sanctuary gradient background */
 .sanctuary-bg {
-  background: linear-gradient(180deg, var(--sanctuary-bg) 0%, #EFEFEA 100%);
+  background: linear-gradient(180deg, var(--sanctuary-bg) 0%, #F0EBE5 100%);
 }
 
 .dark .sanctuary-bg {
-  background: linear-gradient(180deg, var(--sanctuary-bg) 0%, #222222 100%);
+  background: linear-gradient(180deg, var(--sanctuary-bg) 0%, #1A1714 100%);
 }
 
 /* Floating Footer */
@@ -430,36 +530,38 @@ body {
   position: sticky;
   top: 0;
   backdrop-filter: blur(10px);
-  background: rgba(249, 248, 246, 0.8);
+  background: rgba(250, 250, 249, 0.85);
   z-index: 30;
 }
 
 .dark .sticky-header {
-  background: rgba(34, 34, 34, 0.8);
+  background: rgba(20, 18, 16, 0.85);
 }
 
-/* Animations */
+/* =================================================================
+ * ANIMATIONS
+ * ================================================================= */
+
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.fade-in {
+.fade-in,
+.animate-fadeIn {
   opacity: 0;
   animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .loading-spinner {
@@ -478,7 +580,10 @@ body {
   border-width: 1.5px;
 }
 
-/* Button Interactions */
+/* =================================================================
+ * INTERACTIONS
+ * ================================================================= */
+
 .btn-interactive {
   transition: transform 0.2s ease-out;
 }
@@ -488,7 +593,7 @@ body {
 }
 
 .btn-interactive:active {
-  transform: scale(0.95);
+  transform: scale(0.97);
 }
 
 /* Reading Settings Slider */
@@ -517,22 +622,4 @@ body {
   background: var(--color-accent-primary);
   cursor: pointer;
   border: none;
-}
-
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fadeIn {
-  opacity: 0;
-  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

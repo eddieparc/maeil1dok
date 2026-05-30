@@ -17,11 +17,6 @@ interface EmptyStateProps {
   className?: string
 }
 
-/**
- * EmptyState component - Display when no data is available
- * Shows icon, title, description, and optional action button
- * Used for empty lists, no data states, etc.
- */
 export default function EmptyState({
   icon,
   title,
@@ -32,22 +27,13 @@ export default function EmptyState({
   onAction,
   className,
 }: EmptyStateProps) {
-  // Determine icon styling based on variant
   const getIconStyles = () => {
-    const baseStyles = 'mb-4 text-4xl'
-    
     if (variant === 'error') {
-      return cn(
-        baseStyles,
-        'text-[var(--color-danger)]',
-        'bg-[var(--color-danger-bg)] rounded-full p-3'
-      )
+      return 'mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-danger-bg)] text-[var(--color-danger)]'
     }
-    
-    return cn(baseStyles, 'text-[var(--color-text-secondary)]')
+    return 'mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-brand-faint)] text-[var(--color-brand)]'
   }
 
-  // Determine button to render (prefer new props over legacy action)
   const buttonLabel = actionLabel || action?.label
   const buttonHandler = onAction || action?.onClick
   const showButton = !!(buttonLabel && buttonHandler)
@@ -59,18 +45,17 @@ export default function EmptyState({
         className
       )}
     >
-      {icon && (
-        <div className={getIconStyles()}>
-          {icon}
-        </div>
-      )}
+      {icon && <div className={getIconStyles()}>{icon}</div>}
 
-      <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+      <h3
+        className="text-[18px] font-medium text-[var(--color-ink)] -tracking-[0.02em] mb-1.5"
+        style={{ fontFamily: 'var(--font-family-serif)' }}
+      >
         {title}
       </h3>
 
       {description && (
-        <p className="text-sm text-[var(--color-text-secondary)] mb-6 max-w-sm">
+        <p className="text-[13px] text-[var(--color-mute)] -tracking-[0.008em] mb-6 max-w-sm">
           {description}
         </p>
       )}
@@ -80,10 +65,10 @@ export default function EmptyState({
           type="button"
           onClick={buttonHandler}
           className={cn(
-            'px-4 py-2 text-sm font-medium rounded-lg',
-            'bg-[var(--color-primary)] text-white',
-            'hover:opacity-90 active:opacity-80',
-            'transition-all duration-200'
+            'inline-flex items-center justify-center px-[17px] py-[9px] text-[13px] font-semibold rounded-full',
+            'bg-[var(--color-ink)] text-[var(--color-paper)] border border-[var(--color-ink)]',
+            '-tracking-[0.012em] transition-all duration-150',
+            'hover:opacity-90 active:opacity-80 active:scale-[0.98]'
           )}
         >
           {buttonLabel}
