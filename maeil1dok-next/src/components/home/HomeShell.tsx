@@ -16,8 +16,13 @@ interface HomeShellProps {
 
 function HomeThemeToggle() {
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [direction, setDirection] = useState<'enter' | 'leave'>('enter')
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleToggle = useCallback(() => {
     setDirection('leave')
@@ -48,17 +53,27 @@ function HomeThemeToggle() {
         transform: 'rotate(0deg) scale(1)',
       }
 
+  const buttonClass = cn(
+    'flex items-center justify-center p-2',
+    'text-[var(--color-text-primary)]',
+    'transition-opacity duration-200',
+    'hover:opacity-70 active:scale-95',
+  )
+
+  if (!mounted) {
+    return (
+      <button type="button" aria-label="테마 전환" className={buttonClass}>
+        <span className="inline-block h-5 w-5" />
+      </button>
+    )
+  }
+
   return (
     <button
       type="button"
       onClick={handleToggle}
       aria-label={`현재 테마: ${theme}. 클릭하여 전환`}
-      className={cn(
-        'flex items-center justify-center p-2',
-        'text-[var(--color-text-primary)]',
-        'transition-opacity duration-200',
-        'hover:opacity-70 active:scale-95',
-      )}
+      className={buttonClass}
     >
       <span style={iconStyle}>
         {theme === 'light' && <Moon className="h-5 w-5" />}

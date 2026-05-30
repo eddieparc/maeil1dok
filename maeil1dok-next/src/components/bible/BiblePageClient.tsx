@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useShallow } from 'zustand/react/shallow'
 
 import { useBiblePageState } from '@/stores/bible/biblePageState'
-import { useTongdokMode, type TongdokRange } from '@/stores/bible/tongdokMode'
+import { useTongdokMode, tongdokModeSelectors, type TongdokRange } from '@/stores/bible/tongdokMode'
 import { usePersonalRecord } from '@/hooks/bible/usePersonalRecord'
 import { BIBLE_BOOKS, type BibleVersion } from '@/lib/bible/books'
 
@@ -61,17 +62,23 @@ export default function BiblePageClient({
   const tongdokMode = useTongdokMode((state) => state.tongdokMode)
   const enableTongdokMode = useTongdokMode((state) => state.enableTongdokMode)
   const loadReadingDetail = useTongdokMode((state) => state.loadReadingDetail)
-  const tongdokProgress = useTongdokMode((state) => state.getTongdokProgress())
   const disableTongdokMode = useTongdokMode((state) => state.disableTongdokMode)
-  const getTongdokScheduleRange = useTongdokMode((state) => state.getTongdokScheduleRange)
+  // FIX BUG-B: selector 내부에서 action 호출 시 매 렌더링마다 새 객체 반환 → infinite loop.
+  // primitive state 분리 + useMemo / useShallow 로 메모이제이션.
+  const tongdokProgress = useTongdokMode(
+    useShallow((state) => tongdokModeSelectors.progress(state)),
+  )
+  const tongdokScheduleRange = useTongdokMode(
+    useShallow((state) => tongdokModeSelectors.scheduleRange(state)),
+  )
 
   const { markAsRead } = usePersonalRecord(currentBook)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isBookSelectorOpen, setIsBookSelectorOpen] = useState(false)
   const initialized = useRef(false)
   const tongdokRangeText = useMemo(
-    () => formatTongdokRangeText(getTongdokScheduleRange()),
-    [getTongdokScheduleRange]
+    () => formatTongdokRangeText(tongdokScheduleRange),
+    [tongdokScheduleRange],
   )
 
   useEffect(() => {

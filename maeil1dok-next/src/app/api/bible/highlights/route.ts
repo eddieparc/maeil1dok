@@ -30,6 +30,22 @@ export async function GET(request: Request) {
     const chapterParam = searchParams.get('chapter')
     const version = searchParams.get('version')
 
+    // No filter params → return all user highlights (used by BibleHome dashboard for counts).
+    if (!book && !chapterParam && !version) {
+      const { data, error: queryError } = await supabase
+        .from('user_highlights')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (queryError) {
+        return NextResponse.json({ error: 'Failed to load highlights' }, { status: 500 })
+      }
+
+      return NextResponse.json({ data: data ?? [] })
+    }
+
+    // Partial filter is invalid — require all three when filtering.
     if (!book || !chapterParam || !version) {
       return NextResponse.json({ error: 'book, chapter, version are required' }, { status: 400 })
     }
