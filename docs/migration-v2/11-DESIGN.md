@@ -66,7 +66,7 @@ git log 발췌:
 | D-13 | BibleReaderHeader, BibleReaderView.css 변경 — 헤더 + 본문 영역 시각 회귀 | VRT diff 0 px |
 | D-14 | buildInteractiveSrcDoc.ts (iframe) — 본문 렌더 영향 | 11-READER 와 협업 |
 
-### 3.4 다크모드 잔존 위반 (audit_tmp/darkmode_audit_v2.md)
+### 3.4 다크모드 잔존 위반 ([`docs/audit_tmp/darkmode_audit_v2.md`](file:///Users/jgp/GitHub/maeil1dok/docs/audit_tmp/darkmode_audit_v2.md) — Momus R-rerun-19 fix 실 경로)
 
 | # | 작업 | DoD |
 |---|---|---|

@@ -48,7 +48,7 @@
 |---|---|---|
 | 본문 미표시 (라이브 BUG-001) | docs/bible-renewal-qa-report.md | 컷오버 전 본문 렌더링 e2e 의무 |
 | URL `chapter=undefined` (BUG-004) | 같은 보고서 | URL state 단방향 테스트 (책 선택 → URL 정상) |
-| iframe `text/css` MIME 에러 | audit_tmp/README.md T0004 | iframe src/style 검증 |
+| iframe `text/css` MIME 에러 | [`docs/audit_tmp/README.md`](file:///Users/jgp/GitHub/maeil1dok/docs/audit_tmp/README.md) T0004 (Momus R-rerun-19 fix) | iframe src/style 검증 |
 | 본문 영역 깨진 이미지 | BUG-002 (`btn_listen.png` 404) | 정적 자산 누락 검증 + grep |
 | /bible/highlights 의 "Task 3-3에서 구현 예정" | BUG-005 | placeholder grep CI (00-meta §2.6) |
 

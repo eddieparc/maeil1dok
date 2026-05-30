@@ -17,7 +17,7 @@ Plan F 는 **데이터만 마이그레이션하고 UI는 제외**했다. v2 는 
 | AN-1 | 본문에서 구절 선택 → 메뉴 → 북마크 추가 | 11-READER 와 협업 |
 | AN-2 | 북마크 목록 페이지 — `/bible/bookmarks` | e2e + RLS |
 | AN-3 | 하이라이트 색상 선택 + 적용 (5색) | 본문 텍스트에 색 반영 |
-| AN-4 | 하이라이트 목록 — `/bible/highlights` (BUG-005 placeholder 제거 의무) | placeholder grep 0 |
+| AN-4 | 하이라이트 목록 — `/bible/highlights` (BUG-005 placeholder 제거 의무 + **BUG-006 회귀 방지 의무**) | placeholder grep 0 + **로그인 후 페이지 렌더 검증 (`TypeError: Cannot read properties of null (reading 'id')` JS 크래시 차단 — 04-production-live-audit.md L-8 신 발견)** + e2e: 로그인 사용자가 highlights 페이지 진입 시 빈 페이지 ❌ / 정상 컨테이너 ✅ (snapshot ≥ 3 줄 + main heading 존재) |
 | AN-5 | 노트 작성 — 제목/내용/공개여부 | CRUD |
 | AN-6 | 노트 목록 + 상세 | e2e |
 | AN-7 | 일괄 삭제 (`bookmarks/delete-all/` 등) | 확인 모달 |

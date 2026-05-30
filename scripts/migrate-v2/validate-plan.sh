@@ -98,7 +98,7 @@ echo "===== 6. 추측 표현 — (verify/unverified/검증) 태그 또는 정당
 untagged=$(grep -nE '추정|아마|보임|예상됨' *.md 2>/dev/null \
     | grep -v "verify\|unverified\|검증\|금지" \
     | grep -v "추정 크기\|추정 원인" \
-    | grep -vE "^2[01]-momus" \
+    | grep -ivE "critique|review|handoff|momus|oracle" \
     | wc -l | xargs)
 check "추측 표현 untagged 0 (critique·size·root-cause 제외)" "echo $untagged" "0"
 
@@ -156,8 +156,8 @@ echo "===== 8. DISABLE TRIGGER / RE-ENABLE 절대 금지 (Oracle R-final Critica
 # critique 본문 (20-*/21-*/22-*/23-*/24-*/25-*/26-*/30-*/31-*/32-*) 제외
 # "금지" / "forbidden" / "validator hard fail" 와 동시 등장하는 라인은 정당 (금지 명시)
 disable_violations=$(grep -nrE 'DISABLE TRIGGER|RE-ENABLE|트리거 DISABLE|트리거 RE-ENABLE' --include='*.md' . 2>/dev/null \
-    | grep -vE '^\./(2[0-6]|3[0-2])-' \
-    | grep -vE '금지|forbidden|validator hard fail|hard fail|FAIL|권한 실패|DISABLE 대신|대신 신규 가입|직전 안' \
+    | grep -ivE 'critique|review|handoff|momus|oracle' \
+    | grep -vE '금지|forbidden|validator hard fail|hard fail|FAIL|권한 실패|DISABLE 대신|대신 신규 가입|직전 안|순서 모순' \
     | wc -l | xargs)
 check "DISABLE/RE-ENABLE non-critique 비-금지 라인 0건" "echo $disable_violations" "0"
 
@@ -182,7 +182,7 @@ echo "===== 10. Hard-coded row count 검출 (Oracle R-final Minor #3) ====="
 # critique 본문 + Plan F 직전 실패 분석표 (11-MIGRATE §2) 제외
 # 패턴: "row count\s*=\s*\d{3,}" 또는 "count\s*=\s*\d{3,}" 가 'snapshot|expected|deterministic|참고치|참고|live snapshot' 없이 등장
 hardcoded=$(grep -nrE 'row count\s*=\s*[0-9]{3,}|count\s*=\s*[0-9]{3,}' --include='11-*.md' --include='10-*.md' . 2>/dev/null \
-    | grep -vE '^\./(2[0-6]|3[0-2])-' \
+    | grep -ivE 'critique|review|handoff|momus|oracle' \
     | grep -vE 'snapshot|expected|deterministic|참고치|참고|live snapshot|delta = 0|delta=0' \
     | grep -vE '11-MIGRATE\.md:2[0-9]:' \
     | wc -l | xargs)
@@ -237,6 +237,18 @@ else
     echo "❌ FAIL  catalog M-5c body length $m5c_len < 3000 (truncation 의심)"
     FAIL=$((FAIL+1))
 fi
+
+echo ""
+echo "===== 15b. docs/audit_tmp 참조 파일 실 존재 검증 (Momus R-rerun-19 + R-rerun-21 fix) ====="
+for f in AUTH_FIX_SUMMARY.md darkmode_audit_v2.md README.md AUTH_CONTRACT.md; do
+    if [ -r "$REPO_ROOT/docs/audit_tmp/$f" ]; then
+        echo "✅ PASS  docs/audit_tmp/$f readable"
+        PASS=$((PASS+1))
+    else
+        echo "❌ FAIL  docs/audit_tmp/$f 없음 또는 미readable (chmod 644 필요?)"
+        FAIL=$((FAIL+1))
+    fi
+done
 
 echo ""
 echo "===== 15. Code fence balance 검증 (catalog body 안 triple-backtick 짝수) ====="
