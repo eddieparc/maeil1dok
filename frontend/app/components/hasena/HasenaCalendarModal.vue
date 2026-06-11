@@ -7,30 +7,28 @@
           <div class="modal-header">
             <h2 class="modal-title">하세나하시조 기록</h2>
             <button class="close-btn" @click="close" aria-label="닫기">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
+              <XIcon :size="24" />
             </button>
           </div>
 
           <!-- Stats -->
           <div class="stats-section">
             <div class="stat-item">
-              <span class="stat-icon">🔥</span>
+              <FlameIcon class="stat-icon" :size="20" />
               <div class="stat-info">
                 <span class="stat-value">{{ stats.current_streak }}</span>
                 <span class="stat-label">현재 연속</span>
               </div>
             </div>
             <div class="stat-item">
-              <span class="stat-icon">🏆</span>
+              <TrophyIcon class="stat-icon" :size="20" />
               <div class="stat-info">
                 <span class="stat-value">{{ stats.longest_streak }}</span>
                 <span class="stat-label">최장 연속</span>
               </div>
             </div>
             <div class="stat-item">
-              <span class="stat-icon">📅</span>
+              <CalendarDaysIcon class="stat-icon" :size="20" />
               <div class="stat-info">
                 <span class="stat-value">{{ stats.total_completed }}</span>
                 <span class="stat-label">총 완료</span>
@@ -41,15 +39,11 @@
           <!-- Calendar Navigation -->
           <div class="calendar-nav">
             <button class="nav-btn" @click="prevMonth" aria-label="이전 달">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
+              <ChevronLeftIcon :size="20" />
             </button>
             <span class="nav-title">{{ calendarTitle }}</span>
             <button class="nav-btn" :disabled="isCurrentMonth" @click="nextMonth" aria-label="다음 달">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              <ChevronRightIcon :size="20" />
             </button>
           </div>
 
@@ -76,9 +70,7 @@
               >
                 <span class="date-number">{{ date.day }}</span>
                 <span v-if="date.completed && !date.otherMonth" class="check-icon">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
+                  <CheckIcon :size="14" :stroke-width="3" />
                 </span>
                 <span v-if="loadingDate === date.dateStr" class="loading-indicator"></span>
               </button>
@@ -110,6 +102,15 @@
 </template>
 
 <script setup lang="ts">
+import {
+  CalendarDaysIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FlameIcon,
+  TrophyIcon,
+  XIcon
+} from '@lucide/vue'
 import { ref, computed, watch } from 'vue'
 import { useHasenaStore } from '~/stores/hasena'
 

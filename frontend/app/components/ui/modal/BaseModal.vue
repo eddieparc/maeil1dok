@@ -25,15 +25,7 @@
               aria-label="닫기"
               @click="close"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M18 6L6 18M6 6l12 12"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <XIcon :size="24" />
             </button>
           </div>
 
@@ -53,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import { XIcon } from '@lucide/vue';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';

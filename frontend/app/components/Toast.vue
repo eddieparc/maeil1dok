@@ -7,23 +7,10 @@
       :class="msg.type"
     >
       <div class="toast-content">
-        <!-- Success: Checkmark -->
-        <svg v-if="msg.type === 'success'" width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <!-- Error: X mark -->
-        <svg v-else-if="msg.type === 'error'" width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <!-- Warning: Exclamation triangle -->
-        <svg v-else-if="msg.type === 'warning'" width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <!-- Info: Info circle -->
-        <svg v-else-if="msg.type === 'info'" width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <CircleCheckIcon v-if="msg.type === 'success'" :size="16" />
+        <CircleXIcon v-else-if="msg.type === 'error'" :size="16" />
+        <TriangleAlertIcon v-else-if="msg.type === 'warning'" :size="16" />
+        <InfoIcon v-else-if="msg.type === 'info'" :size="16" />
         <span class="toast-message">{{ msg.message }}</span>
       </div>
     </div>
@@ -31,6 +18,7 @@
 </template>
 
 <script setup lang="ts">
+import { CircleCheckIcon, CircleXIcon, InfoIcon, TriangleAlertIcon } from '@lucide/vue'
 import { ref } from 'vue'
 
 interface ToastMessage {
@@ -127,4 +115,4 @@ defineExpose({ show })
 .toast-move {
   transition: transform 0.3s ease;
 }
-</style> 
+</style>

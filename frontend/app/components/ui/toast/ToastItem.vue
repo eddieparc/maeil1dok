@@ -10,28 +10,10 @@
     <div v-if="toast.showIcon" class="toast-icon">
       <component :is="toast.icon" v-if="toast.icon" />
       <template v-else>
-        <!-- Success: 원 안에 체크마크 -->
-        <svg v-if="toast.type === 'success'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M8 12l3 3 5-6"/>
-        </svg>
-        <!-- Error: 원 안에 X -->
-        <svg v-else-if="toast.type === 'error'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M15 9l-6 6M9 9l6 6"/>
-        </svg>
-        <!-- Warning: 삼각형 안에 느낌표 -->
-        <svg v-else-if="toast.type === 'warning'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <path d="M12 9v4"/>
-          <circle cx="12" cy="17" r="0.5" fill="currentColor"/>
-        </svg>
-        <!-- Info: 원 안에 i -->
-        <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <circle cx="12" cy="8" r="0.5" fill="currentColor"/>
-          <path d="M12 11v5"/>
-        </svg>
+        <CircleCheckIcon v-if="toast.type === 'success'" :size="18" />
+        <CircleXIcon v-else-if="toast.type === 'error'" :size="18" />
+        <TriangleAlertIcon v-else-if="toast.type === 'warning'" :size="18" />
+        <InfoIcon v-else :size="18" />
       </template>
     </div>
 
@@ -59,15 +41,13 @@
       aria-label="닫기"
       @click="handleDismiss"
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
+      <XIcon :size="16" />
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { CircleCheckIcon, CircleXIcon, InfoIcon, TriangleAlertIcon, XIcon } from '@lucide/vue'
 import type { ToastInstance } from '~/types/toast'
 
 const props = defineProps<{

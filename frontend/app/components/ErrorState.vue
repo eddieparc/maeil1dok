@@ -1,30 +1,20 @@
 <template>
   <div class="error-state">
     <div class="error-icon">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" 
-          stroke="currentColor" 
-          stroke-width="2" 
-          stroke-linecap="round" 
-          stroke-linejoin="round"/>
-      </svg>
+      <CircleAlertIcon :size="48" />
     </div>
     <h3 class="error-title">{{ title }}</h3>
     <p class="error-message">{{ message }}</p>
     <button v-if="showRetry" @click="$emit('retry')" class="retry-button">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M1 4V10H7M23 20V14H17M20.49 9C19.79 5.91 16.82 3.5 13.5 3.5C9.85 3.5 6.75 5.82 5.52 9M3.51 15C4.21 18.09 7.18 20.5 10.5 20.5C14.15 20.5 17.25 18.18 18.48 15" 
-          stroke="currentColor" 
-          stroke-width="2" 
-          stroke-linecap="round" 
-          stroke-linejoin="round"/>
-      </svg>
+      <RefreshCwIcon :size="16" />
       다시 시도
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { CircleAlertIcon, RefreshCwIcon } from '@lucide/vue'
+
 interface Props {
   title?: string
   message?: string
