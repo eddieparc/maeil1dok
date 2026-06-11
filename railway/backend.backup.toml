@@ -2,6 +2,7 @@
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.backup"
 watchPatterns = [
+  "backend/**",
   "backend/scripts/railway_mysql_backup.sh",
   "backend/Dockerfile.backup",
   "railway/backend.backup.toml",
