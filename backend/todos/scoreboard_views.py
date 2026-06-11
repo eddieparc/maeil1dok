@@ -2,13 +2,13 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Count, Q, F, Sum, Case, When, IntegerField, Prefetch
+from django.db.models import Count, Q, Sum, Case, When, IntegerField, Prefetch
 from django.utils import timezone
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 from datetime import datetime, timedelta
-from accounts.models import User, UserProfile, Follow
+from accounts.models import User, Follow
 from accounts.serializers import UserSearchSerializer
 from .models import UserBibleProgress, PlanSubscription, DailyBibleSchedule, ReadingGroup, GroupMembership
 import logging
@@ -42,8 +42,14 @@ def get_completed_days_annotation(period, plan_id=None):
     if plan_id:
         progress_filter &= Q(plansubscription__plan_id=plan_id)
 
+    count_field = (
+        'plansubscription__progress__schedule__date'
+        if period == 'all' and not plan_id
+        else 'plansubscription__progress'
+    )
+
     return Count(
-        'plansubscription__progress',
+        count_field,
         filter=progress_filter,
         distinct=True
     )
@@ -51,9 +57,6 @@ def get_completed_days_annotation(period, plan_id=None):
 
 def get_completed_count_annotation(period, plan_id=None):
     """리더보드 완료 일수 계산 기준 생성"""
-    if period == 'all' and not plan_id:
-        return F('profile__total_completed_days')
-
     return get_completed_days_annotation(period, plan_id)
 
 
@@ -67,7 +70,10 @@ def calculate_progress_rate(user, plan_id=None):
     특정 플랜의 진도율 계산에는 사용하지 않습니다.
     """
     try:
-        subscriptions = PlanSubscription.objects.filter(user=user, is_active=True)
+        subscriptions = PlanSubscription.objects.filter(user=user)
+        if plan_id:
+            subscriptions = subscriptions.filter(is_active=True)
+
         if not subscriptions.exists():
             return 0
 
@@ -80,6 +86,23 @@ def calculate_progress_rate(user, plan_id=None):
 
         if not subscription:
             return 0
+
+        if not plan_id:
+            plan_ids = subscriptions.values_list('plan_id', flat=True).distinct()
+            total_schedules = DailyBibleSchedule.objects.filter(
+                plan_id__in=plan_ids,
+                date__lte=timezone.now().date()
+            ).count()
+
+            if total_schedules == 0:
+                return 0
+
+            completed_schedules = UserBibleProgress.objects.filter(
+                subscription__in=subscriptions,
+                is_completed=True
+            ).count()
+
+            return round((completed_schedules / total_schedules * 100), 2)
 
         # 해당 플랜의 오늘까지 스케줄 수
         total_schedules = DailyBibleSchedule.objects.filter(
@@ -113,9 +136,48 @@ def calculate_progress_rates_bulk(users, plan_id=None):
     if not user_ids:
         return {}
 
-    subs = PlanSubscription.objects.filter(user_id__in=user_ids, is_active=True)
     if plan_id:
+        subs = PlanSubscription.objects.filter(user_id__in=user_ids, is_active=True)
         subs = subs.filter(plan_id=plan_id)
+    else:
+        subs = PlanSubscription.objects.filter(user_id__in=user_ids)
+
+    if not plan_id:
+        plan_ids_by_user = {}
+        for sub in subs.order_by('user_id', 'id'):
+            plan_ids_by_user.setdefault(sub.user_id, set()).add(sub.plan_id)
+
+        if not plan_ids_by_user:
+            return {uid: 0 for uid in user_ids}
+
+        all_plan_ids = set()
+        for plan_ids in plan_ids_by_user.values():
+            all_plan_ids.update(plan_ids)
+
+        total_by_plan = {
+            row['plan_id']: row['cnt']
+            for row in DailyBibleSchedule.objects
+            .filter(plan_id__in=all_plan_ids, date__lte=timezone.now().date())
+            .values('plan_id')
+            .annotate(cnt=Count('id'))
+        }
+
+        completed_by_user = {
+            row['subscription__user_id']: row['cnt']
+            for row in UserBibleProgress.objects
+            .filter(subscription__user_id__in=user_ids, is_completed=True)
+            .values('subscription__user_id')
+            .annotate(cnt=Count('id'))
+        }
+
+        rates = {}
+        for uid in user_ids:
+            total = sum(total_by_plan.get(plan_id, 0) for plan_id in plan_ids_by_user.get(uid, set()))
+            if not total:
+                rates[uid] = 0
+                continue
+            rates[uid] = round(completed_by_user.get(uid, 0) / total * 100, 2)
+        return rates
 
     # 사용자별 기준 구독 1개 선택 (id 오름차순 → first()와 동일)
     sub_by_user = {}

@@ -134,6 +134,30 @@ class ProgressRateBulkTest(ProgressTestBase):
         bulk = calculate_progress_rates_bulk([self.user])
         self.assertEqual(bulk[self.user.id], calculate_progress_rate(self.user))
 
+    def test_bulk_without_plan_filter_uses_all_subscriptions(self):
+        first_plan = BibleReadingPlan.objects.create(name='빈 플랜', created_by=self.user)
+        PlanSubscription.objects.create(
+            user=self.user, plan=first_plan, start_date=date.today(), is_active=True,
+        )
+        DailyBibleSchedule.objects.create(
+            plan=first_plan,
+            date=date.today(),
+            book='민수기',
+            start_chapter=1,
+            end_chapter=1,
+        )
+        UserBibleProgress.objects.create(
+            subscription=self.subscription,
+            schedule=self.schedules[0],
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+
+        bulk = calculate_progress_rates_bulk([self.user])
+
+        self.assertEqual(bulk[self.user.id], calculate_progress_rate(self.user))
+        self.assertGreater(bulk[self.user.id], 0)
+
 
 class ScoreboardRankingTest(TestCase):
     SCOREBOARD_URL = '/api/v1/todos/scoreboard/'
@@ -217,6 +241,25 @@ class ScoreboardRankingTest(TestCase):
         self.assertEqual(leaderboard[0]['user']['id'], self.other.id)
         self.assertEqual(leaderboard[0]['rank'], 1)
         self.assertEqual(leaderboard[0]['completed_days'], 1)
+        self.assertEqual(leaderboard[1]['user']['id'], self.reader.id)
+        self.assertEqual(leaderboard[1]['rank'], 2)
+        self.assertEqual(leaderboard[1]['completed_days'], 0)
+        self.assertEqual(leaderboard[1]['progress_rate'], 0)
+
+    def test_scoreboard_ignores_stale_profile_completed_days(self):
+        self.reader.profile.total_completed_days = 99
+        self.reader.profile.save(update_fields=['total_completed_days'])
+        self._complete(self.other_selected_sub, self.selected_schedules[0])
+
+        response = self.client.get(self.SCOREBOARD_URL, {
+            'period': 'all',
+            'limit': 10,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        leaderboard = response.data['leaderboard']
+        self.assertEqual(leaderboard[0]['user']['id'], self.other.id)
+        self.assertEqual(leaderboard[0]['rank'], 1)
         self.assertEqual(leaderboard[1]['user']['id'], self.reader.id)
         self.assertEqual(leaderboard[1]['rank'], 2)
         self.assertEqual(leaderboard[1]['completed_days'], 0)
