@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -8,7 +9,7 @@ from rest_framework.test import APIClient
 from .models import (
     BibleReadingPlan, DailyBibleSchedule, PlanSubscription, UserBibleProgress,
 )
-from .scoreboard_views import calculate_progress_rate, calculate_progress_rates_bulk
+from .scoreboard_views import calculate_progress_rate, calculate_progress_rates_bulk, rank_leaderboard
 
 User = get_user_model()
 
@@ -132,3 +133,107 @@ class ProgressRateBulkTest(ProgressTestBase):
     def test_bulk_without_plan_filter(self):
         bulk = calculate_progress_rates_bulk([self.user])
         self.assertEqual(bulk[self.user.id], calculate_progress_rate(self.user))
+
+
+class ScoreboardRankingTest(TestCase):
+    SCOREBOARD_URL = '/api/v1/todos/scoreboard/'
+    MY_RANKING_URL = '/api/v1/todos/scoreboard/my-ranking/'
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.reader = User.objects.create_user(
+            username='reader', nickname='가나', password='pw-test-1234',
+        )
+        self.other = User.objects.create_user(
+            username='other-reader', nickname='다라', password='pw-test-1234',
+        )
+        self.selected_plan = BibleReadingPlan.objects.create(name='선택 플랜', created_by=self.reader)
+        self.other_plan = BibleReadingPlan.objects.create(name='다른 플랜', created_by=self.reader)
+        self.reader_selected_sub = PlanSubscription.objects.create(
+            user=self.reader, plan=self.selected_plan, start_date=date.today(), is_active=True,
+        )
+        self.reader_other_sub = PlanSubscription.objects.create(
+            user=self.reader, plan=self.other_plan, start_date=date.today(), is_active=True,
+        )
+        self.other_selected_sub = PlanSubscription.objects.create(
+            user=self.other, plan=self.selected_plan, start_date=date.today(), is_active=True,
+        )
+        self.selected_schedules = [
+            DailyBibleSchedule.objects.create(
+                plan=self.selected_plan,
+                date=date.today() - timedelta(days=offset),
+                book='창세기',
+                start_chapter=offset + 1,
+                end_chapter=offset + 1,
+            )
+            for offset in range(2)
+        ]
+        self.other_plan_schedules = [
+            DailyBibleSchedule.objects.create(
+                plan=self.other_plan,
+                date=date.today() - timedelta(days=offset),
+                book='출애굽기',
+                start_chapter=offset + 1,
+                end_chapter=offset + 1,
+            )
+            for offset in range(2)
+        ]
+
+    def _complete(self, subscription, schedule):
+        return UserBibleProgress.objects.create(
+            subscription=subscription,
+            schedule=schedule,
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+
+    def test_rank_leaderboard_splits_equal_completed_days_by_progress_rate(self):
+        leaderboard = [
+            {'user': {'nickname': '가나'}, 'completed_days': 0, 'progress_rate': 0},
+            {'user': {'nickname': '다라'}, 'completed_days': 0, 'progress_rate': 50},
+        ]
+
+        ranked = rank_leaderboard(leaderboard)
+
+        self.assertEqual(ranked[0]['user']['nickname'], '다라')
+        self.assertEqual(ranked[0]['rank'], 1)
+        self.assertEqual(ranked[1]['user']['nickname'], '가나')
+        self.assertEqual(ranked[1]['rank'], 2)
+
+    def test_scoreboard_uses_selected_plan_completed_days_for_all_period(self):
+        for schedule in self.other_plan_schedules:
+            self._complete(self.reader_other_sub, schedule)
+        self._complete(self.other_selected_sub, self.selected_schedules[0])
+
+        response = self.client.get(self.SCOREBOARD_URL, {
+            'period': 'all',
+            'plan_id': self.selected_plan.id,
+            'limit': 10,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        leaderboard = response.data['leaderboard']
+        self.assertEqual(leaderboard[0]['user']['id'], self.other.id)
+        self.assertEqual(leaderboard[0]['rank'], 1)
+        self.assertEqual(leaderboard[0]['completed_days'], 1)
+        self.assertEqual(leaderboard[1]['user']['id'], self.reader.id)
+        self.assertEqual(leaderboard[1]['rank'], 2)
+        self.assertEqual(leaderboard[1]['completed_days'], 0)
+        self.assertEqual(leaderboard[1]['progress_rate'], 0)
+
+    def test_my_ranking_uses_selected_plan_completed_days_for_all_period(self):
+        for schedule in self.other_plan_schedules:
+            self._complete(self.reader_other_sub, schedule)
+        self._complete(self.other_selected_sub, self.selected_schedules[0])
+        self.client.force_authenticate(user=self.reader)
+
+        response = self.client.get(self.MY_RANKING_URL, {
+            'period': 'all',
+            'plan_id': self.selected_plan.id,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        ranking = response.data['ranking']
+        self.assertEqual(ranking['rank'], 2)
+        self.assertEqual(ranking['completed_days'], 0)
