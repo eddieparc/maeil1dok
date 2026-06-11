@@ -101,8 +101,6 @@ services:
         sync: false
       - key: GOOGLE_REDIRECT_URI
         value: https://maeil1dok.app/auth/google/callback
-      - key: API_BIBLE_KEY
-        sync: false
       - key: APPLE_CLIENT_ID
         sync: false
       - key: APPLE_TEAM_ID
@@ -181,8 +179,6 @@ services:
         sync: false
       - key: KAKAO_REDIRECT_URI
         value: https://maeil1dok.app/auth/kakao/callback
-      - key: API_BIBLE_KEY
-        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: YOUTUBE_API_KEY
@@ -247,8 +243,6 @@ services:
         sync: false
       - key: KAKAO_REDIRECT_URI
         value: https://maeil1dok.app/auth/kakao/callback
-      - key: API_BIBLE_KEY
-        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: YOUTUBE_API_KEY

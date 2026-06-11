@@ -45,7 +45,7 @@ class RenderBlueprintTest(unittest.TestCase):
         self.assertEqual(backend_env["REDIS_URL"]["fromService"]["type"], "keyvalue")
         self.assertEqual(backend_env["CELERY_BROKER_URL"]["fromService"]["type"], "keyvalue")
         self.assertEqual(backend_env["SECRET_KEY"]["sync"], False)
-        self.assertEqual(backend_env["API_BIBLE_KEY"]["sync"], False)
+        self.assertNotIn("API_BIBLE_KEY", backend_env)
 
         frontend_env = self._env_by_key(by_name["maeil1dok-frontend"])
         self.assertEqual(
@@ -63,6 +63,7 @@ class RenderBlueprintTest(unittest.TestCase):
             worker_env = self._env_by_key(by_name[service_name])
             self.assertEqual(worker_env["RUN_MIGRATIONS"]["value"], "false")
             self.assertEqual(worker_env["RUN_COLLECTSTATIC"]["value"], "false")
+            self.assertNotIn("API_BIBLE_KEY", worker_env)
             for env_var in worker_env.values():
                 from_service = env_var.get("fromService")
                 if from_service is None:
