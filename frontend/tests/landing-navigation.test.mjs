@@ -23,6 +23,11 @@ test('does not render tongdok plan item in landing floating nav', () => {
   assert.doesNotMatch(floatingNavSource, />통독표</, 'landing floating nav should not include 통독표');
 });
 
+test('does not render management item in landing floating nav', () => {
+  assert.doesNotMatch(floatingNavSource, /to="\/plans"/, 'landing floating nav should not include /plans');
+  assert.doesNotMatch(floatingNavSource, />관리</, 'landing floating nav should not include 관리');
+});
+
 test('keeps expected adjacent route links', () => {
   assert.match(quickAccessSource, /to="\/plans"/, 'landing quick access should keep /plans');
   assert.match(quickAccessSource, /to="\/bible"/, 'landing quick access should keep /bible');
