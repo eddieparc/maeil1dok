@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes, throttle_classes
+from .throttles import LoginThrottle, PasswordResetThrottle, EmailVerificationThrottle
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -18,6 +19,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.db import transaction
 from django.db.models import Q
 import requests
+
+# 외부 OAuth/소셜 API 호출 타임아웃(초): 무한 대기 방지
+OAUTH_TIMEOUT = 10
 from django.conf import settings
 from django.core import signing
 from django.utils import timezone
@@ -158,7 +162,8 @@ def get_kakao_user_info(code, redirect_uri=None):
             'client_id': settings.KAKAO_CLIENT_ID,
             'redirect_uri': redirect_uri,
             'code': code,
-        }
+        },
+        timeout=OAUTH_TIMEOUT,
     )
     logger.debug(f"Kakao token response status: {token_response.status_code}")
     
@@ -172,7 +177,8 @@ def get_kakao_user_info(code, redirect_uri=None):
     # 사용자 정보 받기
     user_response = requests.get(
         'https://kapi.kakao.com/v2/user/me',
-        headers={'Authorization': f'Bearer {access_token}'}
+        headers={'Authorization': f'Bearer {access_token}'},
+        timeout=OAUTH_TIMEOUT,
     )
     logger.debug(f"Kakao user info response status: {user_response.status_code}")
     
@@ -194,7 +200,8 @@ def get_kakao_user_info_by_token(access_token):
     logger.debug("Fetching Kakao user info by token")
     response = requests.get(
         'https://kapi.kakao.com/v2/user/me',
-        headers={'Authorization': f'Bearer {access_token}'}
+        headers={'Authorization': f'Bearer {access_token}'},
+        timeout=OAUTH_TIMEOUT,
     )
     logger.debug(f"Kakao user info by token response status: {response.status_code}")
     data = response.json()
@@ -221,7 +228,8 @@ def get_google_user_info(code, redirect_uri=None):
             'client_secret': settings.GOOGLE_CLIENT_SECRET,
             'redirect_uri': redirect_uri,
             'grant_type': 'authorization_code',
-        }
+        },
+        timeout=OAUTH_TIMEOUT,
     )
     
     token_data = token_response.json()
@@ -236,7 +244,8 @@ def get_google_user_info(code, redirect_uri=None):
     # 사용자 정보 받기
     user_info = requests.get(
         'https://www.googleapis.com/oauth2/v3/userinfo',
-        headers={'Authorization': f'Bearer {access_token}'}
+        headers={'Authorization': f'Bearer {access_token}'},
+        timeout=OAUTH_TIMEOUT,
     ).json()
     
     return user_info
@@ -469,6 +478,7 @@ def email_register(request):
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
+@throttle_classes([LoginThrottle])
 def email_login(request):
     """이메일 또는 아이디/비밀번호로 로그인 (레거시 아이디 로그인 지원)"""
     identifier = request.data.get('email')
@@ -1148,7 +1158,8 @@ def get_google_user_info_by_token(access_token):
     """Google access_token으로 사용자 정보 조회"""
     response = requests.get(
         'https://www.googleapis.com/oauth2/v3/userinfo',
-        headers={'Authorization': f'Bearer {access_token}'}
+        headers={'Authorization': f'Bearer {access_token}'},
+        timeout=OAUTH_TIMEOUT,
     )
     return response.json()
 
@@ -1168,38 +1179,6 @@ def _create_default_subscription(user):
         logger.warning("기본 플랜이 설정되어 있지 않음")
 
 
-def _transfer_user_data(from_user, to_user):
-    """사용자 데이터 이전 (계정 병합용)"""
-    from todos.models import UserBibleProgress
-    
-    # 성경 읽기 진행 상황 이전 (중복 제외)
-    existing_progress = set(UserBibleProgress.objects.filter(user=to_user).values_list(
-        'schedule_id', 'plan_id', flat=False
-    ))
-    
-    for progress in UserBibleProgress.objects.filter(user=from_user):
-        key = (progress.schedule_id, progress.plan_id)
-        if key not in existing_progress:
-            progress.user = to_user
-            progress.save()
-    
-    # 프로필 통계 병합
-    try:
-        from_profile = from_user.profile
-        to_profile = to_user.profile
-        to_profile.total_completed_days = max(
-            to_profile.total_completed_days, 
-            from_profile.total_completed_days
-        )
-        to_profile.longest_streak = max(
-            to_profile.longest_streak,
-            from_profile.longest_streak
-        )
-        to_profile.save()
-    except Exception:
-        pass
-
-
 # ========================================
 # 이메일 인증
 # ========================================
@@ -1207,28 +1186,36 @@ def _transfer_user_data(from_user, to_user):
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
+@throttle_classes([EmailVerificationThrottle])
 def send_verification_email_view(request):
-    """이메일 인증 메일 발송"""
+    """이메일 인증 메일 발송
+
+    계정 존재 여부가 응답으로 드러나지 않도록 항상 동일한 성공 응답을 반환한다.
+    """
     email = request.data.get('email')
-    
+
     if not email:
         return Response({'error': '이메일을 입력해주세요.'}, status=400)
-    
+
+    generic_response = Response({
+        'success': True,
+        'message': '가입된 이메일이라면 인증 메일이 발송됩니다. 메일함을 확인해주세요.'
+    })
+
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
-        return Response({'error': '해당 이메일로 가입된 계정이 없습니다.'}, status=404)
-    
+        return generic_response
+
     if user.email_verified:
-        return Response({'error': '이미 인증된 이메일입니다.'}, status=400)
-    
+        return generic_response
+
     token_obj = EmailVerificationToken.create_token(user, email)
-    
+
     if send_verification_email(email, token_obj.token, user.nickname):
-        logger.info(f"이메일 인증 메일 발송: user_id={user.id}, email={email}")
-        return Response({'success': True, 'message': '인증 메일이 발송되었습니다.'})
-    else:
-        return Response({'error': '메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'}, status=500)
+        logger.info(f"이메일 인증 메일 발송: user_id={user.id}")
+
+    return generic_response
 
 
 @api_view(['POST'])
@@ -1295,6 +1282,7 @@ def resend_verification_email(request):
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
+@throttle_classes([PasswordResetThrottle])
 def request_password_reset(request):
     """비밀번호 재설정 요청"""
     email = request.data.get('email')
@@ -1487,11 +1475,21 @@ def session_bridge_consume(request):
     
     frontend_url = 'https://maeil1dok.app'
     code = request.GET.get('code')
-    next_url = request.GET.get('next', frontend_url)
-    
-    if not next_url.startswith('http'):
-        next_url = frontend_url + next_url
-    
+    raw_next = request.GET.get('next', '/')
+
+    # Open redirect 방지: 프론트엔드 도메인 내부의 경로만 허용한다.
+    # 절대 URL, protocol-relative(//), 백슬래시 트릭을 모두 차단하고
+    # 앱 내부 경로(/로 시작, //가 아님)만 frontend_url에 이어 붙인다.
+    def _safe_next(value):
+        if not isinstance(value, str):
+            return frontend_url
+        value = value.strip()
+        if value.startswith('/') and not value.startswith('//') and '\\' not in value:
+            return frontend_url + value
+        return frontend_url
+
+    next_url = _safe_next(raw_next)
+
     try:
         if not code:
             logger.warning("세션 브리지: 코드 없음")
@@ -1518,12 +1516,17 @@ def session_bridge_consume(request):
         refresh_token = str(refresh)
         
         from django.http import HttpResponse
+        from django.utils.html import escape
+        import json as _json
+        # JS 컨텍스트: JSON 인코딩으로 따옴표/스크립트 종료 태그 주입 차단
+        next_url_js = _json.dumps(next_url).replace('</', '<\\/')
+        next_url_attr = escape(next_url)  # noscript meta refresh 속성용
         html_content = f'''<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>Redirecting...</title></head>
 <body>
-<script>window.location.replace("{next_url}");</script>
-<noscript><meta http-equiv="refresh" content="0;url={next_url}"></noscript>
+<script>window.location.replace({next_url_js});</script>
+<noscript><meta http-equiv="refresh" content="0;url={next_url_attr}"></noscript>
 </body>
 </html>'''
         response = HttpResponse(html_content, content_type='text/html')

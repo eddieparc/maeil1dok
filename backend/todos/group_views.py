@@ -143,9 +143,9 @@ def get_groups(request):
                 Q(name__icontains=search) | Q(description__icontains=search)
             )
         
-        # 플랜 필터
+        # 플랜 필터 (plans는 ManyToMany이므로 plans__id로 조회)
         if plan_id:
-            groups = groups.filter(plan_id=plan_id)
+            groups = groups.filter(plans__id=plan_id)
         
         # 공개 그룹만
         if only_public or not request.user.is_authenticated:

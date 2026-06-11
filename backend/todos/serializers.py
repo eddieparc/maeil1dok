@@ -17,7 +17,10 @@ class DailyBibleScheduleSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = DailyBibleSchedule
-        fields = '__all__'
+        fields = [
+            'id', 'plan', 'plan_name', 'date', 'book',
+            'start_chapter', 'end_chapter', 'audio_link', 'guide_link',
+        ]
         
     def validate_audio_link(self, value):
         # None 값 처리
@@ -337,7 +340,9 @@ BIBLE_BOOKS_KOR = {
     'php': '빌립보서', 'col': '골로새서', '1th': '데살로니가전서', '2th': '데살로니가후서',
     '1ti': '디모데전서', '2ti': '디모데후서', 'tit': '디도서', 'phm': '빌레몬서', 'heb': '히브리서',
     'jas': '야고보서', '1pe': '베드로전서', '2pe': '베드로후서', '1jn': '요한일서',
-    '2jn': '요한이서', '3jn': '요한삼서', 'jud': '유다서', 'rev': '요한계시록'
+    '2jn': '요한이서', '3jn': '요한삼서', 'jud': '유다서', 'rev': '요한계시록',
+    # 요나서 코드 별칭: fetch 레이어는 'jnh', 일부 프론트는 'jon'을 사용하므로 둘 다 인식
+    'jnh': '요나',
 }
 
 

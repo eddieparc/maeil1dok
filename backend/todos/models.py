@@ -111,6 +111,12 @@ class UserBibleProgress(models.Model):
         self.save()
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['subscription', 'schedule'],
+                name='unique_progress_per_schedule',
+            ),
+        ]
         indexes = [
             models.Index(fields=['subscription', 'is_completed'], name='progress_sub_completed_idx'),
         ]

@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Sum
 from collections import defaultdict
 
@@ -218,12 +219,6 @@ def catchup_create(request, subscription_id):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # 세션 생성
-    session = CatchupSession.objects.create(
-        subscription=subscription,
-        **data
-    )
-
     # 스케줄 분배
     today = timezone.now().date()
     distributed, remaining = calculate_catchup_schedule(
@@ -235,17 +230,27 @@ def catchup_create(request, subscription_id):
         weekend_multiplier=float(data.get('weekend_multiplier', 1.0))
     )
 
-    # CatchupSchedule 생성
-    for day_data in distributed:
-        for original_schedule in day_data['items']:
-            CatchupSchedule.objects.create(
+    # 세션·스케줄 생성과 진도 복사를 한 트랜잭션으로 묶어 고아 세션을 방지
+    with transaction.atomic():
+        session = CatchupSession.objects.create(
+            subscription=subscription,
+            **data
+        )
+
+        catchup_schedules = [
+            CatchupSchedule(
                 session=session,
                 original_schedule=original_schedule,
-                scheduled_date=day_data['date']
+                scheduled_date=day_data['date'],
             )
+            for day_data in distributed
+            for original_schedule in day_data['items']
+        ]
+        if catchup_schedules:
+            CatchupSchedule.objects.bulk_create(catchup_schedules)
 
-    # 이미 완료된 진도 복사
-    copy_completed_progress(subscription, session)
+        # 이미 완료된 진도 복사
+        copy_completed_progress(subscription, session)
 
     return Response(
         CatchupSessionSerializer(session).data,

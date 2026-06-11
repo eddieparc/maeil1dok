@@ -13,6 +13,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from django.db import transaction
+from django.db.models import Q
 from django.utils.dateparse import parse_date
 import re
 from io import BytesIO
@@ -50,7 +51,6 @@ book_to_code = {
 
 # 성경별 총 장 수를 반환하는 함수 필요
 def get_last_chapter(book_name):
-    print(f"Debug: Looking up last chapter for book: '{book_name}'")
     book_chapters = {
         '창세기': 50, '출애굽기': 40, '레위기': 27,
         '민수기': 36, '신명기': 34, '여호수아': 24,
@@ -77,7 +77,6 @@ def get_last_chapter(book_name):
         '요한계시록': 22
     }
     result = book_chapters.get(book_name, 1)  # 기본값 1
-    print(f"Debug: Last chapter for '{book_name}' is {result}")
     return result
 
 @api_view(['POST'])
@@ -167,34 +166,37 @@ def update_bible_progress(request):
 
         # 4. 진도 업데이트 또는 생성 (bulk 연산으로 최적화)
         is_completed = action == 'complete'
+        now = timezone.now()
         with transaction.atomic():
-            # 기존 진도 레코드 조회 (1 쿼리)
-            existing_progress = UserBibleProgress.objects.filter(
+            existing_qs = UserBibleProgress.objects.filter(
                 subscription=subscription,
                 schedule__in=daily_schedules
-            ).select_related('schedule')
-
-            existing_schedule_ids = set(p.schedule_id for p in existing_progress)
+            )
+            existing_schedule_ids = set(existing_qs.values_list('schedule_id', flat=True))
 
             # 기존 레코드 bulk update (1 쿼리)
-            if existing_progress.exists():
-                UserBibleProgress.objects.filter(
-                    subscription=subscription,
-                    schedule__in=daily_schedules
-                ).update(is_completed=is_completed)
+            # 완료 시각은 최초 완료 시점을 보존하고, 취소 시에는 초기화한다.
+            if is_completed:
+                existing_qs.filter(
+                    Q(is_completed=False) | Q(completed_at__isnull=True)
+                ).update(is_completed=True, completed_at=now)
+            else:
+                existing_qs.update(is_completed=False, completed_at=None)
 
             # 새 레코드 bulk create (1 쿼리)
+            # ignore_conflicts: 동시 요청이 같은 진도를 만들어도 중복 생성되지 않음
             new_progress = [
                 UserBibleProgress(
                     subscription=subscription,
                     schedule=schedule,
-                    is_completed=is_completed
+                    is_completed=is_completed,
+                    completed_at=now if is_completed else None
                 )
                 for schedule in daily_schedules
                 if schedule.id not in existing_schedule_ids
             ]
             if new_progress:
-                UserBibleProgress.objects.bulk_create(new_progress)
+                UserBibleProgress.objects.bulk_create(new_progress, ignore_conflicts=True)
 
         return Response({
             'success': True,
@@ -2854,7 +2856,8 @@ BIBLE_CHAPTER_COUNTS = {
     'php': 4, 'col': 4, '1th': 5, '2th': 3,
     '1ti': 6, '2ti': 4, 'tit': 3, 'phm': 1, 'heb': 13,
     'jas': 5, '1pe': 5, '2pe': 3, '1jn': 5,
-    '2jn': 1, '3jn': 1, 'jud': 1, 'rev': 22
+    '2jn': 1, '3jn': 1, 'jud': 1, 'rev': 22,
+    'jnh': 4,  # 요나서 코드 별칭 ('jon'과 동일)
 }
 
 

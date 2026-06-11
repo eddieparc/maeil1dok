@@ -29,9 +29,13 @@ if not SECRET_KEY:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 'yes']
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
-if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['']:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend', '192.168.0.41']
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
+if not ALLOWED_HOSTS:
+    # 환경변수 미설정 시: 개발에서는 로컬 호스트, 프로덕션에서는 운영 도메인만 허용
+    if DEBUG:
+        ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend', '192.168.0.41']
+    else:
+        ALLOWED_HOSTS = ['maeil1dok.app', 'www.maeil1dok.app']
 
 # Application definition
 
@@ -58,6 +62,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise: gunicorn 등 WSGI 서버에서 정적 파일 직접 서빙 (SecurityMiddleware 바로 뒤)
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -137,6 +143,7 @@ USE_TZ = False
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.environ.get('STATIC_ROOT', os.path.join(BASE_DIR, 'staticfiles'))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -201,6 +208,17 @@ CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 
+# 프로덕션 보안 헤더 (DEBUG=False일 때만 적용; 로컬 HTTP 개발 방해 방지)
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() in ['true', '1', 'yes']
+    # 리버스 프록시(예: nginx, Vercel) 뒤에서 HTTPS 판별
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
 _cookie_domain = os.environ.get('COOKIE_DOMAIN') or ('.maeil1dok.app' if not DEBUG else None)
 _cookie_samesite = os.environ.get('COOKIE_SAMESITE') or 'Lax'
 
@@ -258,7 +276,10 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
-        'user': '1000/hour'
+        'user': '1000/hour',
+        'login': '10/min',
+        'password_reset': '5/hour',
+        'email_verification': '5/hour',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,

@@ -92,7 +92,59 @@ def calculate_progress_rate(user, plan_id=None):
         return 0
 
 
-def build_leaderboard_entry(user, completed_count, plan_id=None, is_me=False, extra_fields=None):
+def calculate_progress_rates_bulk(users, plan_id=None):
+    """사용자 목록의 진행률을 일괄 계산 (리더보드 N+1 쿼리 방지)
+
+    calculate_progress_rate와 동일한 규칙:
+    plan_id가 있으면 해당 플랜 구독 기준, 없으면 첫 번째 활성 구독 기준.
+    사용자 수와 무관하게 쿼리 3개로 계산한다.
+    """
+    user_ids = [u.id for u in users]
+    if not user_ids:
+        return {}
+
+    subs = PlanSubscription.objects.filter(user_id__in=user_ids, is_active=True)
+    if plan_id:
+        subs = subs.filter(plan_id=plan_id)
+
+    # 사용자별 기준 구독 1개 선택 (id 오름차순 → first()와 동일)
+    sub_by_user = {}
+    for sub in subs.order_by('user_id', 'id'):
+        sub_by_user.setdefault(sub.user_id, sub)
+
+    if not sub_by_user:
+        return {uid: 0 for uid in user_ids}
+
+    plan_ids = {sub.plan_id for sub in sub_by_user.values()}
+    totals = {
+        row['plan_id']: row['cnt']
+        for row in DailyBibleSchedule.objects
+        .filter(plan_id__in=plan_ids, date__lte=timezone.now().date())
+        .values('plan_id')
+        .annotate(cnt=Count('id'))
+    }
+
+    sub_ids = [sub.id for sub in sub_by_user.values()]
+    completed = {
+        row['subscription_id']: row['cnt']
+        for row in UserBibleProgress.objects
+        .filter(subscription_id__in=sub_ids, is_completed=True)
+        .values('subscription_id')
+        .annotate(cnt=Count('id'))
+    }
+
+    rates = {}
+    for uid in user_ids:
+        sub = sub_by_user.get(uid)
+        total = totals.get(sub.plan_id, 0) if sub else 0
+        if not sub or not total:
+            rates[uid] = 0
+            continue
+        rates[uid] = round(completed.get(sub.id, 0) / total * 100, 2)
+    return rates
+
+
+def build_leaderboard_entry(user, completed_count, plan_id=None, is_me=False, extra_fields=None, progress_rate=None):
     """리더보드 엔트리 생성"""
     profile = getattr(user, 'profile', None)
 
@@ -113,7 +165,7 @@ def build_leaderboard_entry(user, completed_count, plan_id=None, is_me=False, ex
             'is_me': is_me
         },
         'completed_days': completed_count,
-        'progress_rate': calculate_progress_rate(user, plan_id),
+        'progress_rate': progress_rate if progress_rate is not None else calculate_progress_rate(user, plan_id),
         'current_streak': current_streak,
         'longest_streak': longest_streak
     }
@@ -200,9 +252,12 @@ def get_scoreboard(request):
         # 정렬 (DB 레벨에서 처리)
         users_query = users_query.order_by('-completed_count')[:limit * 2]  # 여유있게 가져오기
 
-        # 리더보드 구성
+        # 리더보드 구성 (진행률은 일괄 계산)
+        users = list(users_query)
+        progress_rates = calculate_progress_rates_bulk(users, plan_id)
+
         leaderboard = []
-        for user in users_query:
+        for user in users:
             # completed_count가 0인 사용자는 제외 (선택사항)
             if user.completed_count == 0 and len(leaderboard) >= limit:
                 continue
@@ -211,7 +266,8 @@ def get_scoreboard(request):
                 user=user,
                 completed_count=user.completed_count,
                 plan_id=plan_id,
-                is_me=(user == request.user if request.user.is_authenticated else False)
+                is_me=(user == request.user if request.user.is_authenticated else False),
+                progress_rate=progress_rates.get(user.id, 0)
             )
             leaderboard.append(entry)
 
@@ -286,14 +342,18 @@ def get_friends_scoreboard(request):
         # 정렬
         users_query = users_query.order_by('-completed_count')
 
-        # 리더보드 구성
+        # 리더보드 구성 (진행률은 일괄 계산)
+        users = list(users_query)
+        progress_rates = calculate_progress_rates_bulk(users, plan_id)
+
         leaderboard = []
-        for user in users_query:
+        for user in users:
             entry = build_leaderboard_entry(
                 user=user,
                 completed_count=user.completed_count,
                 plan_id=plan_id,
-                is_me=(user.id == request.user.id)
+                is_me=(user.id == request.user.id),
+                progress_rate=progress_rates.get(user.id, 0)
             )
             leaderboard.append(entry)
 
@@ -417,7 +477,10 @@ def get_group_scoreboard(request, group_id):
         # 정렬
         members = members.order_by('-completed_count')
 
-        # 리더보드 구성
+        # 리더보드 구성 (진행률은 일괄 계산)
+        members = list(members)
+        progress_rates = calculate_progress_rates_bulk(members, plan.id)
+
         leaderboard = []
         for user in members:
             # 플랜 구독 확인
@@ -440,7 +503,8 @@ def get_group_scoreboard(request, group_id):
                 is_me=(user == request.user if request.user.is_authenticated else False),
                 extra_fields={
                     'joined_at': membership.joined_at
-                }
+                },
+                progress_rate=progress_rates.get(user.id, 0)
             )
 
             # role 추가
