@@ -15,6 +15,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+SCOREBOARD_CACHE_VERSION = 'v2'
+
 
 # ===== Helper Functions =====
 
@@ -45,6 +47,14 @@ def get_completed_days_annotation(period, plan_id=None):
         filter=progress_filter,
         distinct=True
     )
+
+
+def get_completed_count_annotation(period, plan_id=None):
+    """리더보드 완료 일수 계산 기준 생성"""
+    if period == 'all' and not plan_id:
+        return F('profile__total_completed_days')
+
+    return get_completed_days_annotation(period, plan_id)
 
 
 def calculate_progress_rate(user, plan_id=None):
@@ -177,6 +187,11 @@ def build_leaderboard_entry(user, completed_count, plan_id=None, is_me=False, ex
     return entry
 
 
+def get_leaderboard_rank_key(item):
+    """순위 동점 여부를 판단하는 키"""
+    return item['completed_days'], item['progress_rate']
+
+
 def rank_leaderboard(leaderboard, limit=None):
     """리더보드 정렬 및 순위 부여"""
     # 정렬: 완료 일수(내림차순) → 진행률(내림차순) → 닉네임(오름차순)
@@ -189,7 +204,7 @@ def rank_leaderboard(leaderboard, limit=None):
     # 순위 부여 (동점자 처리)
     current_rank = 1
     for i, item in enumerate(leaderboard):
-        if i > 0 and item['completed_days'] < leaderboard[i-1]['completed_days']:
+        if i > 0 and get_leaderboard_rank_key(item) != get_leaderboard_rank_key(leaderboard[i-1]):
             current_rank = i + 1
         item['rank'] = current_rank
 
@@ -214,7 +229,7 @@ def get_scoreboard(request):
         limit = int(request.query_params.get('limit', 100))
 
         # 캐시 키 생성
-        cache_key = f'scoreboard:global:{period}:{plan_id}:{limit}'
+        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:global:{period}:{plan_id}:{limit}'
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -238,16 +253,9 @@ def get_scoreboard(request):
             users_query = users_query.filter(profile__is_public=True)
 
         # 완료 일수 annotate 추가 (N+1 쿼리 해결)
-        if period == 'all':
-            # 전체 기간은 UserProfile의 total_completed_days 사용
-            users_query = users_query.annotate(
-                completed_count=F('profile__total_completed_days')
-            )
-        else:
-            # 기간별로는 annotate로 계산
-            users_query = users_query.annotate(
-                completed_count=get_completed_days_annotation(period, plan_id)
-            )
+        users_query = users_query.annotate(
+            completed_count=get_completed_count_annotation(period, plan_id)
+        )
 
         # 정렬 (DB 레벨에서 처리)
         users_query = users_query.order_by('-completed_count')[:limit * 2]  # 여유있게 가져오기
@@ -304,7 +312,7 @@ def get_friends_scoreboard(request):
         follow_type = request.query_params.get('type', 'mutual')  # mutual 또는 following
 
         # 캐시 키 생성
-        cache_key = f'scoreboard:friends:{request.user.id}:{follow_type}:{period}:{plan_id}'
+        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:friends:{request.user.id}:{follow_type}:{period}:{plan_id}'
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -330,14 +338,9 @@ def get_friends_scoreboard(request):
         users_query = User.objects.filter(id__in=user_ids).select_related('profile')
 
         # 완료 일수 annotate 추가
-        if period == 'all':
-            users_query = users_query.annotate(
-                completed_count=F('profile__total_completed_days')
-            )
-        else:
-            users_query = users_query.annotate(
-                completed_count=get_completed_days_annotation(period, plan_id)
-            )
+        users_query = users_query.annotate(
+            completed_count=get_completed_count_annotation(period, plan_id)
+        )
 
         # 정렬
         users_query = users_query.order_by('-completed_count')
@@ -437,7 +440,7 @@ def get_group_scoreboard(request, group_id):
                 }, status=status.HTTP_404_NOT_FOUND)
 
         # 캐시 키
-        cache_key = f'scoreboard:group:{group_id}:{plan.id}:{period}'
+        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:group:{group_id}:{plan.id}:{period}'
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -449,14 +452,9 @@ def get_group_scoreboard(request, group_id):
         ).distinct().select_related('profile')
 
         # 완료 일수 annotate
-        if period == 'all':
-            members = members.annotate(
-                completed_count=F('profile__total_completed_days')
-            )
-        else:
-            members = members.annotate(
-                completed_count=get_completed_days_annotation(period, plan.id)
-            )
+        members = members.annotate(
+            completed_count=get_completed_count_annotation(period, plan.id)
+        )
 
         # 멤버십 정보 Prefetch
         members = members.prefetch_related(
@@ -552,7 +550,7 @@ def get_my_ranking(request):
         period = request.query_params.get('period', 'all')
 
         # 캐시 키
-        cache_key = f'scoreboard:my_ranking:{request.user.id}:{period}:{plan_id}'
+        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:my_ranking:{request.user.id}:{period}:{plan_id}'
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -575,72 +573,53 @@ def get_my_ranking(request):
                 'plan_id': plan_id
             })
 
-        # 내 완료 일수
-        if period == 'all':
-            my_completed_days = profile.total_completed_days
-        else:
-            completed_filter = {
-                'subscription__user': request.user,
-                'is_completed': True
-            }
-            start_date = get_period_filter(period)
-            if start_date:
-                completed_filter['completed_at__gte'] = start_date
+        users_query = User.objects.filter(is_active=True).select_related('profile')
 
-            if plan_id:
-                completed_filter['subscription__plan_id'] = plan_id
+        if plan_id:
+            users_query = users_query.filter(
+                plansubscription__plan_id=plan_id,
+                plansubscription__is_active=True
+            ).distinct()
 
-            my_completed_days = UserBibleProgress.objects.filter(**completed_filter).count()
+        users_query = users_query.filter(
+            Q(profile__is_public=True) | Q(id=request.user.id)
+        ).annotate(
+            completed_count=get_completed_count_annotation(period, plan_id)
+        )
 
-        # 나보다 많이 완료한 사용자 수 계산 (최적화)
-        if period == 'all':
-            # 전체 기간은 UserProfile 사용
-            users_ahead = UserProfile.objects.filter(
-                total_completed_days__gt=my_completed_days,
-                is_public=True
-            ).count()
-        else:
-            # 기간별은 Subquery 사용 (대폭 최적화)
-            from django.db.models import Subquery, OuterRef
-
-            # 각 사용자의 완료 일수를 서브쿼리로 계산
-            progress_filter = Q(
-                subscription__user=OuterRef('pk'),
-                is_completed=True
+        users = list(users_query)
+        progress_rates = calculate_progress_rates_bulk(users, plan_id)
+        leaderboard = [
+            build_leaderboard_entry(
+                user=user,
+                completed_count=user.completed_count,
+                plan_id=plan_id,
+                is_me=(user.id == request.user.id),
+                progress_rate=progress_rates.get(user.id, 0)
             )
+            for user in users
+        ]
+        ranked_leaderboard = rank_leaderboard(leaderboard)
+        my_entry = next((entry for entry in ranked_leaderboard if entry['user']['id'] == request.user.id), None)
 
-            start_date = get_period_filter(period)
-            if start_date:
-                progress_filter &= Q(completed_at__gte=start_date)
-
-            if plan_id:
-                progress_filter &= Q(subscription__plan_id=plan_id)
-
-            users_ahead = User.objects.filter(
-                is_active=True,
-                profile__is_public=True
-            ).exclude(
-                id=request.user.id
-            ).annotate(
-                completed_count=get_completed_days_annotation(period, plan_id)
-            ).filter(
-                completed_count__gt=my_completed_days
-            ).count()
-
-        my_rank = users_ahead + 1
+        if my_entry:
+            my_rank = my_entry['rank']
+            my_completed_days = my_entry['completed_days']
+        else:
+            my_rank = None
+            my_completed_days = 0
 
         # 전체 활성 사용자 수
         if plan_id:
-            total_users = PlanSubscription.objects.filter(
+            plan_user_count = PlanSubscription.objects.filter(
                 plan_id=plan_id,
                 is_active=True,
-                user__is_active=True
-            ).values('user').distinct().count()
-        else:
-            total_users = UserProfile.objects.filter(
                 user__is_active=True,
-                is_public=True
-            ).count()
+                user__profile__is_public=True
+            ).values('user').distinct().count()
+            total_users = max(plan_user_count, 1 if my_entry else 0)
+        else:
+            total_users = len(ranked_leaderboard)
 
         result = {
             'success': True,
@@ -650,7 +629,7 @@ def get_my_ranking(request):
                 'completed_days': my_completed_days,
                 'current_streak': profile.current_streak,
                 'longest_streak': profile.longest_streak,
-                'percentile': round((1 - (my_rank / total_users)) * 100, 2) if total_users > 0 else 0
+                'percentile': round((1 - (my_rank / total_users)) * 100, 2) if my_rank and total_users > 0 else 0
             },
             'period': period,
             'plan_id': plan_id
