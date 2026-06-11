@@ -12,8 +12,7 @@ export default defineNuxtConfig({
   ],
   // 이미지 최적화 설정
   image: {
-    // Vercel에서 자동 이미지 최적화 사용
-    provider: 'vercel',
+    provider: 'ipx',
     domains: [
       'k.kakaocdn.net',
       't1.kakaocdn.net',
@@ -146,6 +145,6 @@ export default defineNuxtConfig({
     }
   },
   // Nitro 설정 - preset은 배포 환경에 따라 자동 감지됨
-  // (Vercel: 'vercel', Node.js: 'node-server', Cloudflare: 'cloudflare' 등)
+  // (Node.js: 'node-server', Cloudflare: 'cloudflare' 등)
   nitro: {}
 })

@@ -16,3 +16,14 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
             source = path.read_text(encoding="utf-8")
             self.assertIn("internalApiBase", source)
             self.assertNotIn("http://localhost:8019", source)
+
+    def test_frontend_uses_railway_safe_runtime_config(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(
+            encoding="utf-8",
+        )
+
+        self.assertFalse((repo_root / "frontend" / "vercel.json").exists())
+        self.assertIn("provider: 'ipx'", nuxt_config)
+        self.assertNotIn("provider: 'vercel'", nuxt_config)
+        self.assertNotIn("Vercel", nuxt_config)
