@@ -1,7 +1,7 @@
 [build]
 builder = "RAILPACK"
 buildCommand = "npm ci && npm run build"
-watchPatterns = ["frontend/**"]
+watchPatterns = ["frontend/**", "railway/frontend.toml"]
 
 [deploy]
 startCommand = "npm run start"

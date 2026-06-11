@@ -60,7 +60,11 @@ Preferred automatic deployment line:
 
 When GitHub integration is connected, set each Railway service root/config path
 to the matching source file above and enable automatic deploys for the
-production branch.
+production branch. Use Railway root directories `/backend` for the backend,
+worker, beat, and backup services, and `/frontend` for the frontend service.
+Keep the Railway config file paths absolute from the repo root, for example
+`/railway/backend.web.toml`, because Railway config file paths do not follow
+the service root directory.
 
 ## Backend Variables
 

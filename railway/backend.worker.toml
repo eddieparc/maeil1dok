@@ -1,7 +1,7 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "backend/Dockerfile.worker"
-watchPatterns = ["backend/**"]
+dockerfilePath = "Dockerfile.worker"
+watchPatterns = ["backend/**", "railway/backend.worker.toml"]
 
 [deploy]
 restartPolicyType = "ON_FAILURE"

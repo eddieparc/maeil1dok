@@ -25,14 +25,16 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         configs = {name: self._load_toml(path) for name, path in services.items()}
 
         self.assertEqual(configs["backend-web"]["build"]["builder"], "DOCKERFILE")
-        self.assertEqual(configs["backend-web"]["build"]["dockerfilePath"], "backend/Dockerfile")
+        self.assertEqual(configs["backend-web"]["build"]["dockerfilePath"], "Dockerfile")
         self.assertEqual(configs["backend-web"]["deploy"]["healthcheckPath"], "/admin/login/")
         self.assertEqual(configs["backend-web"]["deploy"]["restartPolicyType"], "ON_FAILURE")
 
-        self.assertEqual(configs["backend-worker"]["build"]["dockerfilePath"], "backend/Dockerfile.worker")
-        self.assertEqual(configs["backend-beat"]["build"]["dockerfilePath"], "backend/Dockerfile.beat")
-        self.assertEqual(configs["backend-backup"]["build"]["dockerfilePath"], "backend/Dockerfile.backup")
+        self.assertEqual(configs["backend-worker"]["build"]["dockerfilePath"], "Dockerfile.worker")
+        self.assertEqual(configs["backend-beat"]["build"]["dockerfilePath"], "Dockerfile.beat")
+        self.assertEqual(configs["backend-backup"]["build"]["dockerfilePath"], "Dockerfile.backup")
         self.assertEqual(configs["backend-backup"]["deploy"]["cronSchedule"], "0 18 * * *")
+        self.assertIn("railway/backend.web.toml", configs["backend-web"]["build"]["watchPatterns"])
+        self.assertIn("railway/frontend.toml", configs["frontend"]["build"]["watchPatterns"])
         self.assertIn('CMD ["celery", "-A", "config", "worker", "-l", "info"]', (repo_root / "backend" / "Dockerfile.worker").read_text(encoding="utf-8"))
         self.assertIn('CMD ["celery", "-A", "config", "beat", "-l", "info"]', (repo_root / "backend" / "Dockerfile.beat").read_text(encoding="utf-8"))
         self.assertIn("mysql.sql.gz.sha256", (repo_root / "backend" / "scripts" / "railway_mysql_backup.sh").read_text(encoding="utf-8"))

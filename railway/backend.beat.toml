@@ -1,7 +1,7 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "backend/Dockerfile.beat"
-watchPatterns = ["backend/**"]
+dockerfilePath = "Dockerfile.beat"
+watchPatterns = ["backend/**", "railway/backend.beat.toml"]
 
 [deploy]
 restartPolicyType = "ON_FAILURE"
