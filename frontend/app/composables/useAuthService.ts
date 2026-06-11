@@ -42,10 +42,13 @@ export interface SocialLoginResult {
 let _refreshInterval: ReturnType<typeof setInterval> | null = null
 
 function getBaseUrl(): string {
-  if (import.meta.server) {
-    return process.env.DOCKER_ENV === 'true' ? 'http://backend:8000' : 'http://localhost:8019'
-  }
   const config = useRuntimeConfig()
+  if (import.meta.server) {
+    if (config.internalApiBase) {
+      return config.internalApiBase as string
+    }
+    return config.public.apiBase as string
+  }
   return config.public.apiBase as string
 }
 

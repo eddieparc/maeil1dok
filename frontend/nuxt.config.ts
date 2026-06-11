@@ -62,6 +62,7 @@ export default defineNuxtConfig({
     '~/assets/css/bible-page.css'
   ],
   runtimeConfig: {
+    internalApiBase: process.env.NUXT_INTERNAL_API_BASE || '',
     cronSecret: process.env.CRON_SECRET || '',
     hasenaCronSecret: process.env.HASENA_CRON_SECRET || '',
     youtubeApiKey: process.env.YOUTUBE_API_KEY || '',

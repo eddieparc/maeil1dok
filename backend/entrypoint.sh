@@ -2,16 +2,31 @@
 set -e
 
 echo "Waiting for database..."
-while ! nc -z db 3306; do
+DB_WAIT_HOST="${DB_HOST:-db}"
+DB_WAIT_PORT="${DB_PORT:-3306}"
+while ! nc -z "$DB_WAIT_HOST" "$DB_WAIT_PORT"; do
   sleep 1
 done
 echo "Database is ready!"
 
-echo "Running migrations..."
-python manage.py migrate --noinput
+if [ "${RUN_MIGRATIONS:-true}" = "true" ] || [ "${RUN_MIGRATIONS:-true}" = "1" ]; then
+  echo "Running migrations..."
+  python manage.py migrate --noinput
+else
+  echo "Skipping migrations."
+fi
 
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
+if [ "${RUN_COLLECTSTATIC:-true}" = "true" ] || [ "${RUN_COLLECTSTATIC:-true}" = "1" ]; then
+  echo "Collecting static files..."
+  python manage.py collectstatic --noinput
+else
+  echo "Skipping collectstatic."
+fi
+
+if [ "$#" -gt 0 ]; then
+  echo "Starting custom command: $*"
+  exec "$@"
+fi
 
 # 개발에서는 자동 리로드되는 runserver, 운영에서는 gunicorn 사용
 if [ "$DEBUG" = "True" ] || [ "$DEBUG" = "true" ] || [ "$DEBUG" = "1" ]; then
