@@ -22,6 +22,8 @@ Services:
   `railway/backend.worker.toml`
 - `maeil1dok-celery-beat`: deployed with `/railway.toml` copied from
   `railway/backend.beat.toml`
+- `maeil1dok-db-backup`: scheduled backup service with `/railway.toml` copied
+  from `railway/backend.backup.toml`
 - `maeil1dok-frontend`: deployed with `/railway.toml` copied from
   `railway/frontend.toml`
 
@@ -42,6 +44,23 @@ Current Railway-generated domains:
 
 - Backend: `https://maeil1dok-backend-production.up.railway.app`
 - Frontend: `https://maeil1dok-frontend-production.up.railway.app`
+
+## Railway Auto Deploy
+
+Preferred automatic deployment line:
+
+- GitHub repo: `eddieparc/maeil1dok`
+- Branch: `codex/railway-migration` until merged, then the production branch.
+- Service config sources: `railway/backend.web.toml`,
+  `railway/backend.worker.toml`, `railway/backend.beat.toml`,
+  `railway/backend.backup.toml`, and `railway/frontend.toml`.
+- Live upload fallback: if Railway cannot access the GitHub repo integration,
+  keep deploying service-root bundles with `railway up --path-as-root` and copy
+  the matching service config into the bundle as `/railway.toml`.
+
+When GitHub integration is connected, set each Railway service root/config path
+to the matching source file above and enable automatic deploys for the
+production branch.
 
 ## Backend Variables
 
@@ -91,6 +110,18 @@ RUN_COLLECTSTATIC=false
 `healthcheck.railway.app` and `SECURE_SSL_REDIRECT=False` are required for the
 Railway internal HTTP healthcheck. Public traffic still terminates HTTPS at the
 Railway edge and receives the Django HSTS/security headers.
+
+Set these variables on `maeil1dok-db-backup`:
+
+```text
+DB_NAME=${{MySQL.MYSQLDATABASE}}
+DB_USER=${{MySQL.MYSQLUSER}}
+DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
+DB_HOST=${{MySQL.MYSQLHOST}}
+DB_PORT=${{MySQL.MYSQLPORT}}
+BACKUP_DIR=/backups/maeil1dok
+BACKUP_RETENTION_DAYS=14
+```
 
 ## Frontend Variables
 
@@ -187,17 +218,46 @@ All returned HTTP 200 after the first Railway restore.
 
 ## Custom Domains
 
-These custom domains have been created in Railway and are waiting for DNS:
+These custom domains have been created in Railway. The production cutover only
+requires the apex and API host:
 
 ```text
 maeil1dok.app      CNAME 3brjtmda.up.railway.app
-www.maeil1dok.app  CNAME h6qxy9d5.up.railway.app
 api.maeil1dok.app  CNAME jj9xe8wf.up.railway.app
 ```
+
+`www.maeil1dok.app is intentionally out of scope` for the current cutover.
 
 Railway also issued TXT verification tokens for each domain. Add the CNAME
 records first; if Railway still requests ownership verification, add the TXT
 records shown in the Railway dashboard for the same custom domains.
+
+## Cloudflare DNS
+
+Set only these Cloudflare DNS traffic records for production:
+
+```text
+maeil1dok.app      CNAME 3brjtmda.up.railway.app
+api.maeil1dok.app  CNAME jj9xe8wf.up.railway.app
+```
+
+After Cloudflare/Railway verification, set frontend API variables to:
+
+```text
+NUXT_PUBLIC_API_BASE=https://api.maeil1dok.app
+NUXT_INTERNAL_API_BASE=https://api.maeil1dok.app
+NUXT_PUBLIC_BIBLE_CACHE_URL=https://api.maeil1dok.app
+```
+
+## Scheduled Backups
+
+Use the `maeil1dok-db-backup` Railway service. It runs
+`/app/scripts/railway_mysql_backup.sh` on cron schedule `0 18 * * *`, writes
+compressed dumps under `/backups/maeil1dok`, creates `mysql.sql.gz.sha256`, and
+verifies each backup with `sha256sum -c`.
+
+Attach a persistent Railway volume at `/backups` before accepting the backup
+service. Keep at least 14 days via `BACKUP_RETENTION_DAYS=14`.
 
 ## Final cutover
 
@@ -208,8 +268,7 @@ records shown in the Railway dashboard for the same custom domains.
 5. Re-run the count query on source and Railway and compare.
 6. Set frontend variables to `https://api.maeil1dok.app` and redeploy the
    frontend.
-7. Update DNS for `maeil1dok.app`, `www.maeil1dok.app`, and
-   `api.maeil1dok.app` to Railway.
+7. Update DNS for `maeil1dok.app` and `api.maeil1dok.app` to Railway.
 8. Update Kakao, Google, and Apple OAuth callback allowlists if those providers
    require explicit domain or callback verification.
 9. Verify the production domains with the smoke checks above.
@@ -217,9 +276,23 @@ records shown in the Railway dashboard for the same custom domains.
 Do not delete the source Docker volumes or VPS backups until Railway has served
 production traffic and login/reading flows have been verified.
 
+## Old Stack Shutdown
+
+After final Railway counts match and production domains pass smoke checks, stop
+only the old Maeil1Dok application containers on `192.168.0.10`:
+
+```sh
+docker stop maeil1dok_backend maeil1dok_celery_worker maeil1dok_celery_beat
+```
+
+Do not stop maeil1dok_db until final Railway counts match, scheduled Railway
+backups have produced a checksum-verified dump, and at least one post-cutover
+login/reading smoke pass is recorded. Do not remove Docker volumes during the
+cutover window.
+
 ## User Handoff Items
 
-- DNS records for `maeil1dok.app`, `www.maeil1dok.app`, and `api.maeil1dok.app`
-  if the DNS provider requires account-owner authentication.
+- DNS records for `maeil1dok.app` and `api.maeil1dok.app` if the DNS provider
+  requires account-owner authentication.
 - OAuth callback/domain verification in Kakao, Google, and Apple developer
   consoles when those consoles require direct account-owner access.

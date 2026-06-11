@@ -1,0 +1,14 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    default-mysql-client \
+    gzip \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY scripts/railway_mysql_backup.sh /app/scripts/railway_mysql_backup.sh
+RUN chmod +x /app/scripts/railway_mysql_backup.sh
+
+CMD ["/app/scripts/railway_mysql_backup.sh"]
