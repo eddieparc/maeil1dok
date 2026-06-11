@@ -132,7 +132,7 @@ export default defineEventHandler(async (event) => {
   try {
     const candidates = query.video_id
       ? [{ videoId: String(query.video_id), title: '', publishedAt: '' }]
-      : await getLatestVideos(config)
+      : await getLatestVideos(config).catch(() => [])
     if (!candidates.every((candidate) => YOUTUBE_ID_PATTERN.test(candidate.videoId))) {
       setResponseStatus(event, 400)
       return { success: false, error: 'Invalid video_id' }
@@ -145,7 +145,7 @@ export default defineEventHandler(async (event) => {
     const callbackSecret = getConfigValue(config.hasenaCronSecret) || cronSecret
 
     const attempts = []
-    for (const latest of candidates) {
+    for (const latest of candidates.length ? candidates : [null]) {
       const response = await fetch(`${apiBase}/api/v1/todos/hasena/summary/cron/`, {
         method: 'POST',
         headers: {
@@ -153,9 +153,9 @@ export default defineEventHandler(async (event) => {
           ...(callbackSecret ? { 'X-Cron-Secret': callbackSecret } : {}),
         },
         body: JSON.stringify({
-          video_id: latest.videoId,
+          ...(latest ? { video_id: latest.videoId } : {}),
           video_date: new Date().toISOString().slice(0, 10),
-          title: latest.title,
+          ...(latest?.title ? { title: latest.title } : {}),
         }),
       })
       const body = await response.json().catch(() => ({}))

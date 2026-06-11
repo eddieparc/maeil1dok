@@ -2443,12 +2443,6 @@ def generate_hasena_summary_from_cron(request):
     video_date = request.data.get('video_date')
     title = request.data.get('title')
 
-    if not video_id:
-        return Response({
-            'success': False,
-            'error': 'video_id가 필요합니다.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
     parsed_date = None
     if video_date:
         try:
@@ -2460,7 +2454,22 @@ def generate_hasena_summary_from_cron(request):
             }, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        from .services.hasena_summary_service import get_hasena_summary as fetch_summary
+        from .services.hasena_summary_service import (
+            get_hasena_summary as fetch_summary,
+            get_latest_hasena_video,
+        )
+
+        if not video_id:
+            latest = get_latest_hasena_video()
+            if not latest:
+                return Response({
+                    'success': False,
+                    'error': '최신 하세나 영상을 찾을 수 없습니다.'
+                }, status=status.HTTP_502_BAD_GATEWAY)
+            video_id = latest.get('video_id')
+            title = title or latest.get('title')
+            if not parsed_date and latest.get('published_at'):
+                parsed_date = datetime.fromisoformat(latest['published_at'].replace('Z', '+00:00')).date()
 
         result = fetch_summary(video_id, video_date=parsed_date, title=title)
         if result['success']:
