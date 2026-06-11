@@ -16,14 +16,20 @@ Services:
 
 - `MySQL`: Railway MySQL service
 - `Redis`: Railway Redis service
-- `maeil1dok-backend`: GitHub repo service using config path `/railway/backend.web.toml`
-- `maeil1dok-celery-worker`: GitHub repo service using config path `/railway/backend.worker.toml`
-- `maeil1dok-celery-beat`: GitHub repo service using config path `/railway/backend.beat.toml`
-- `maeil1dok-frontend`: GitHub repo service using root directory `/frontend`
-  and config path `/railway/frontend.toml`
+- `maeil1dok-backend`: deployed with `/railway.toml` copied from
+  `railway/backend.web.toml`
+- `maeil1dok-celery-worker`: deployed with `/railway.toml` copied from
+  `railway/backend.worker.toml`
+- `maeil1dok-celery-beat`: deployed with `/railway.toml` copied from
+  `railway/backend.beat.toml`
+- `maeil1dok-frontend`: deployed with `/railway.toml` copied from
+  `railway/frontend.toml`
 
-Railway monorepo services need root directories set per service, while config
-file paths are absolute from the repo root.
+The repo keeps service-specific Railway config sources under `railway/`.
+Because the initial Railway GitHub repo connection could not find the repo,
+the live services were deployed with `railway up --path-as-root` from
+service-root upload bundles. In those bundles Railway reads the config as
+`/railway.toml`.
 
 For a fresh recreation, add the managed data services first:
 
