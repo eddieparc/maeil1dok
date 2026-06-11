@@ -267,7 +267,7 @@
                 <td>{{ schedule.book }}</td>
                 <td>{{ schedule.start_chapter }}장 ~ {{ schedule.end_chapter }}장</td>
                 <td>
-                  <a v-if="schedule.audio_link" :href="schedule.audio_link" target="_blank" class="link-icon">
+                  <a v-if="schedule.audio_link" :href="schedule.audio_link" target="_blank" rel="noopener noreferrer" class="link-icon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -276,7 +276,7 @@
                   <span v-else>-</span>
                 </td>
                 <td>
-                  <a v-if="schedule.guide_link" :href="schedule.guide_link" target="_blank" class="link-icon">
+                  <a v-if="schedule.guide_link" :href="schedule.guide_link" target="_blank" rel="noopener noreferrer" class="link-icon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
@@ -350,7 +350,7 @@
               <li>URL은 반드시 <strong>http://</strong> 또는 <strong>https://</strong>로 시작해야 함</li>
             </ul>
             <div class="mt-3">
-              <a href="/sample-schedule.xlsx" class="text-xs text-blue-600 flex items-center hover:underline" target="_blank">
+              <a href="/sample-schedule.xlsx" class="text-xs text-blue-600 flex items-center hover:underline" target="_blank" rel="noopener noreferrer">
                 <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z"
@@ -479,12 +479,6 @@
 
     <!-- Toast 컴포넌트 사용 -->
     <Toast ref="toast" />
-
-    <!-- 디버깅 버튼 추가 (개발 중에만 사용) -->
-    <div v-if="!isStaff && authStore.isAuthenticated.value" class="debug-section">
-      <p>현재 권한 확인에 문제가 있습니다.</p>
-      <button @click="debugAuth" class="debug-button">권한 정보 확인</button>
-    </div>
   </div>
 </template>
 
@@ -523,18 +517,7 @@ const isStaff = computed(() => {
   return authStore.isAuthenticated.value && Boolean(authStore.user.value?.is_staff);
 })
 
-// 마운트 시 디버깅 정보 출력
 onMounted(() => {
-  // 디버깅: 현재 인증 상태 로그 (실제 값 출력)
-  const user = authStore.user.value
-  console.log('[Admin] Auth state:', {
-    isAuthenticated: authStore.isAuthenticated.value,
-    isInitialized: authStore.isInitialized.value,
-    user: user ? { id: user.id, username: user.username, is_staff: user.is_staff } : null,
-    isStaff: isStaff.value
-  });
-  
-  // 기존 데이터 로드 로직 유지
   if (authStore.isAuthenticated.value && isStaff.value) {
     fetchPlans();
   }
@@ -979,8 +962,8 @@ const saveSchedule = async () => {
   }
   
   try {
-    loadingSchedules.value = true
-    
+    savingSchedule.value = true
+
     if (editingSchedule.value) {
       // 기존 일정 수정
       await api.put(`/api/v1/todos/schedules/${editingSchedule.value.id}/`, {
@@ -996,17 +979,17 @@ const saveSchedule = async () => {
       })
       showToastMessage('새 일정이 추가되었습니다.')
     }
-    
+
     closeAddScheduleModal()
     await fetchSchedules(selectedPlan.value.id)
   } catch (error) {
     let errorMessage = '일정 저장에 실패했습니다.'
-    if (error.message.includes('500')) {
+    if (error.message && error.message.includes('500')) {
       errorMessage = '서버 오류가 발생했습니다. 관리자에게 문의하세요.'
     }
     showToastMessage(errorMessage, 'error')
   } finally {
-    loadingSchedules.value = false
+    savingSchedule.value = false
   }
 }
 
@@ -1020,17 +1003,18 @@ watch(showScheduleModal, (newVal) => {
 
 <style scoped>
 /* 기본 스타일 */
-:root {
-  --primary-color: #4F6F52;
-  --primary-light: #D2E3C8;
-  --primary-dark: #3A5341;
-  --text-primary: #2D3748;
-  --text-secondary: #4A5568;
-  --background-light: #F8FAFC;
-  --border-color: #E2E8F0;
-  --success-color: var(--success);
-  --warning-color: var(--warning);
-  --error-color: var(--error);
+/* 페이지 로컬 변수 — 전역 :root를 덮어쓰지 않도록 컨테이너로 스코프 */
+.container {
+  --primary-color: var(--color-accent-primary);
+  --primary-light: var(--color-accent-primary-light);
+  --primary-dark: var(--color-accent-primary-hover);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --background-light: var(--color-bg-tertiary);
+  --border-color: var(--color-border-default);
+  --success-color: var(--color-success);
+  --warning-color: var(--color-warning);
+  --error-color: var(--color-error);
 }
 
 .container {

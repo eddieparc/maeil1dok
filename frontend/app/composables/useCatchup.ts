@@ -140,7 +140,8 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      status.value = await api.get(`/api/v1/todos/subscriptions/${id}/catchup-status/`)
+      const res = await api.get(`/api/v1/todos/subscriptions/${id}/catchup-status/`)
+      status.value = res.data
     } catch (e: any) {
       error.value = e.message || '현황을 불러올 수 없습니다'
       status.value = null
@@ -196,7 +197,8 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      activeSessions.value = await api.get('/api/v1/todos/catchup-sessions/active/')
+      const res = await api.get('/api/v1/todos/catchup-sessions/active/')
+      activeSessions.value = res.data
     } catch (e: any) {
       error.value = e.message || '세션 목록을 불러올 수 없습니다'
       activeSessions.value = []
@@ -210,7 +212,8 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      currentSession.value = await api.get(`/api/v1/todos/catchup-sessions/${sessionId}/`)
+      const res = await api.get(`/api/v1/todos/catchup-sessions/${sessionId}/`)
+      currentSession.value = res.data
     } catch (e: any) {
       error.value = e.message || '세션 정보를 불러올 수 없습니다'
       currentSession.value = null
@@ -227,7 +230,8 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
       const url = date
         ? `/api/v1/todos/catchup-sessions/${sessionId}/schedules/?date=${date}`
         : `/api/v1/todos/catchup-sessions/${sessionId}/schedules/`
-      schedules.value = await api.get(url)
+      const res = await api.get(url)
+      schedules.value = res.data
     } catch (e: any) {
       error.value = e.message || '스케줄을 불러올 수 없습니다'
       schedules.value = null

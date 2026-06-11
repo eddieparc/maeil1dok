@@ -53,13 +53,15 @@ export const useApi = () => {
     return headers
   }
 
-  // API 에러 클래스 - 상태 코드 포함
+  // API 에러 클래스 - 상태 코드 + 응답 본문 포함
   class ApiError extends Error {
     status: number
-    constructor(message: string, status: number) {
+    data: any
+    constructor(message: string, status: number, data: any = null) {
       super(message)
       this.name = 'ApiError'
       this.status = status
+      this.data = data
     }
   }
 
@@ -109,7 +111,16 @@ export const useApi = () => {
     }
 
     if (!response.ok) {
-      throw new ApiError(`API request failed: ${response.status}`, response.status)
+      // 백엔드 에러 본문(error/detail/message)을 ApiError.data로 전달해
+      // 호출 측에서 사용자에게 구체적 메시지를 보여줄 수 있게 한다.
+      let body: any = null
+      try {
+        body = await response.clone().json()
+      } catch {
+        body = null
+      }
+      const message = body?.error || body?.detail || body?.message || `API request failed: ${response.status}`
+      throw new ApiError(message, response.status, body)
     }
 
     return response

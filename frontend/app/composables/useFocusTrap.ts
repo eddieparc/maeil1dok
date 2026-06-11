@@ -86,6 +86,8 @@ export function useFocusTrap(
   }
 
   function activate(): void {
+    // SSR 가드: 서버에는 document가 없다
+    if (typeof document === 'undefined') return
     if (!containerRef.value) return
 
     // 현재 포커스된 요소 저장
@@ -104,6 +106,9 @@ export function useFocusTrap(
   }
 
   function deactivate(): void {
+    // SSR 가드: 서버에는 document가 없다
+    if (typeof document === 'undefined') return
+
     // 이벤트 리스너 제거
     document.removeEventListener('keydown', handleKeyDown)
 

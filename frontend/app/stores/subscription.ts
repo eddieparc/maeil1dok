@@ -52,7 +52,7 @@ export const useSubscriptionStore = defineStore('subscription', {
       const api = useApi()
       
       try {
-        const response = await api.post(`/api/v1/todos/plan/${subscriptionId}/toggle_active/`)
+        const response = await api.post(`/api/v1/todos/plan/${subscriptionId}/toggle-active/`)
         
         // 상태 업데이트
         const index = this.subscriptions.findIndex(sub => sub.id === subscriptionId)
