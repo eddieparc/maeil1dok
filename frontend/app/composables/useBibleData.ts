@@ -1,3 +1,5 @@
+/// <reference lib="es2019" />
+
 /**
  * Bible Data Composable
  *
@@ -5,6 +7,12 @@
  */
 
 import { VERSE_COUNTS, getVerseCount, isValidReference } from './bibleVerseData';
+import {
+  extractChosung,
+  isChosungOnly,
+  parseBibleSearchQuery,
+  type BibleSearchResult,
+} from '../utils/bibleSearch';
 
 export interface BibleBook {
   id: string;
@@ -12,13 +20,7 @@ export interface BibleBook {
   chapters: number;
 }
 
-export interface SearchResult {
-  bookId: string;
-  chapter: number | null;
-  verse: number | null;
-  bookName: string;
-  maxChapters: number;
-}
+export type SearchResult = BibleSearchResult;
 
 export const VERSION_NAMES = Object.freeze({
   GAE: "개역개정",
@@ -212,44 +214,6 @@ export const BOOK_ALIASES: Record<string, string> = {
   계: "rev", 요한계시록: "rev", 계시록: "rev",
 };
 
-// 한글 초성 리스트
-const CHOSUNG_LIST = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
-
-/**
- * 한글 문자열에서 초성만 추출
- */
-export const extractChosung = (str: string): string => {
-  let result = '';
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-    if (!char) continue;
-    const code = char.charCodeAt(0);
-    // 한글 완성형 범위 (가 ~ 힣)
-    if (code >= 0xAC00 && code <= 0xD7A3) {
-      const chosungIndex = Math.floor((code - 0xAC00) / 588);
-      result += CHOSUNG_LIST[chosungIndex];
-    } else if (CHOSUNG_LIST.includes(char)) {
-      // 이미 초성인 경우 그대로 추가
-      result += char;
-    }
-  }
-  return result;
-};
-
-/**
- * 입력이 초성으로만 구성되어 있는지 확인
- */
-export const isChosungOnly = (str: string): boolean => {
-  if (!str) return false;
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-    if (!char || !CHOSUNG_LIST.includes(char)) {
-      return false;
-    }
-  }
-  return str.length > 0;
-};
-
 export const useBibleData = () => {
   // 모든 책 배열
   const allBooks = [...BIBLE_BOOKS.old, ...BIBLE_BOOKS.new];
@@ -293,175 +257,13 @@ export const useBibleData = () => {
    * 스마트 검색 - 여러 후보 결과 반환 (초성 및 절 지원)
    */
   const parseSearchQuery = (query: string): SearchResult[] => {
-    if (!query || query.trim() === "") return [];
-
-    const trimmed = query.trim();
-    const results: SearchResult[] = [];
-
-    // 패턴들 (절 지원 추가)
-    // 구분자가 있는 패턴들 (장:절 형태)
-    const pattern1 = /^(.+?)\s*(\d+)\s*(?:장\s*)?[:\s절]\s*(\d+)\s*절?$/;  // 구분자 필수
-    const pattern2 = /^(.+?)\s+(\d+)\s*(?:장|편)?$/;  // 책 이름 + 공백 + 숫자
-    const pattern3 = /^([가-힣ㄱ-ㅎ]+)(\d+)\s*(?:장\s*)?[:\s절]\s*(\d+)\s*절?$/;
-    // 초성 + 숫자 조합 (장절 해석)
-    const pattern3b = /^([ㄱ-ㅎ]+)(\d{4})$/;  // 초성 + 4자리
-    const pattern3c = /^([ㄱ-ㅎ]+)(\d{3})$/;  // 초성 + 3자리
-    // 책이름 + 숫자만 (장/편 번호로 해석) - 시편 150편 지원을 위해 \d+ 사용
-    const pattern4 = /^([가-힣ㄱ-ㅎ]+)(\d+)$/;
-    const pattern5 = /^([가-힣ㄱ-ㅎ]+)$/;
-    const pattern6 = /^([a-z0-9]+)\s*(\d+)[:\s](\d+)$/i;
-    const pattern7 = /^([a-z0-9]+)\s*(\d*)$/i;
-
-    let bookName: string | null = null;
-    let chapter: number | null = null;
-    let verse: number | null = null;
-    let alternativeInterpretations: Array<{ chapter: number; verse: number }> = [];
-
-    // 패턴 매칭 - 우선순위: 명시적 장절 > 책이름+숫자 > 책이름만
-    let match = trimmed.match(pattern3b);
-    if (match && match[1] && match[2]) {
-      bookName = match[1];
-      const digits = match[2];
-      chapter = parseInt(digits.slice(0, 2), 10);
-      verse = parseInt(digits.slice(2), 10);
-    } else if ((match = trimmed.match(pattern3c)) && match[1] && match[2]) {
-      bookName = match[1];
-      const digits = match[2];
-      chapter = parseInt(digits.slice(0, 1), 10);
-      verse = parseInt(digits.slice(1), 10);
-      alternativeInterpretations.push({
-        chapter: parseInt(digits.slice(0, 2), 10),
-        verse: parseInt(digits.slice(2), 10)
-      });
-    } else if ((match = trimmed.match(pattern3)) && match[1] && match[2] && match[3]) {
-      bookName = match[1];
-      chapter = parseInt(match[2], 10);
-      verse = parseInt(match[3], 10);
-    } else if ((match = trimmed.match(pattern1)) && match[1] && match[2] && match[3]) {
-      bookName = match[1].trim();
-      chapter = parseInt(match[2], 10);
-      verse = parseInt(match[3], 10);
-    } else if ((match = trimmed.match(pattern6)) && match[1] && match[2] && match[3]) {
-      bookName = match[1].toLowerCase();
-      chapter = parseInt(match[2], 10);
-      verse = parseInt(match[3], 10);
-    } else if ((match = trimmed.match(pattern2)) && match[1] && match[2]) {
-      bookName = match[1].trim();
-      chapter = parseInt(match[2], 10);
-    } else if ((match = trimmed.match(pattern4)) && match[1] && match[2]) {
-      bookName = match[1];
-      chapter = parseInt(match[2], 10);
-    } else if ((match = trimmed.match(pattern5)) && match[1]) {
-      bookName = match[1];
-    } else if ((match = trimmed.match(pattern7)) && match[1]) {
-      bookName = match[1].toLowerCase();
-      chapter = match[2] ? parseInt(match[2], 10) : null;
-    }
-
-    if (!bookName) return [];
-
-    // 매칭되는 책 찾기
-    const matchedBookIds = new Set<string>();
-    const bookNameLower = bookName.toLowerCase();
-
-    // 초성 검색
-    if (isChosungOnly(bookName)) {
-      allBooks.forEach(book => {
-        const bookChosung = extractChosung(book.name);
-        if (bookChosung.startsWith(bookName) || bookChosung === bookName) {
-          matchedBookIds.add(book.id);
-        }
-      });
-      Object.entries(BOOK_ALIASES).forEach(([alias, bookId]) => {
-        const aliasChosung = extractChosung(alias);
-        if (aliasChosung.startsWith(bookName) || aliasChosung === bookName) {
-          matchedBookIds.add(bookId);
-        }
-      });
-    }
-
-    // 약어 매핑에서 직접 찾기
-    if (BOOK_ALIASES[bookNameLower]) {
-      matchedBookIds.add(BOOK_ALIASES[bookNameLower]);
-    }
-
-    // 영문 id로 직접 매칭
-    const directMatch = allBooks.find(b => b.id === bookNameLower);
-    if (directMatch) {
-      matchedBookIds.add(directMatch.id);
-    }
-
-    // 부분 매칭
-    if (!isChosungOnly(bookName)) {
-      allBooks.forEach(book => {
-        const name = book.name.toLowerCase();
-        if (name.startsWith(bookNameLower) || name.includes(bookNameLower)) {
-          matchedBookIds.add(book.id);
-        }
-      });
-
-      Object.entries(BOOK_ALIASES).forEach(([alias, bookId]) => {
-        if (alias.startsWith(bookNameLower) || bookNameLower.startsWith(alias)) {
-          matchedBookIds.add(bookId);
-        }
-      });
-    }
-
-    matchedBookIds.forEach(bookId => {
-      const maxChapters = bookChapters[bookId] || 1;
-      const bookNameResult = bookNames[bookId] || bookId;
-      
-      const interpretations: Array<{ chapter: number | null; verse: number | null }> = [
-        { chapter, verse },
-        ...alternativeInterpretations.map(alt => ({ chapter: alt.chapter, verse: alt.verse }))
-      ];
-      
-      interpretations.forEach(interp => {
-        let validChapter = interp.chapter;
-        let validVerse = interp.verse;
-        
-        if (validChapter !== null) {
-          validChapter = Math.max(1, Math.min(validChapter, maxChapters));
-          
-          if (validVerse !== null) {
-            const maxVerse = getVerseCount(bookId, validChapter);
-            if (maxVerse === 0 || validVerse < 1 || validVerse > maxVerse) {
-              return;
-            }
-          }
-        }
-        
-        const isDuplicate = results.some(
-          r => r.bookId === bookId && r.chapter === validChapter && r.verse === validVerse
-        );
-        
-        if (!isDuplicate) {
-          results.push({
-            bookId,
-            chapter: validChapter,
-            verse: validVerse,
-            bookName: bookNameResult,
-            maxChapters,
-          });
-        }
-      });
+    return parseBibleSearchQuery(query, {
+      allBooks,
+      aliases: BOOK_ALIASES,
+      bookNames,
+      bookChapters,
+      getVerseCount,
     });
-
-    // 정렬
-    const bookOrder = allBooks.map(b => b.id);
-    results.sort((a, b) => {
-      const aExact = a.bookName.toLowerCase() === bookNameLower ||
-                     BOOK_ALIASES[bookNameLower] === a.bookId ||
-                     (isChosungOnly(bookName!) && extractChosung(a.bookName) === bookName);
-      const bExact = b.bookName.toLowerCase() === bookNameLower ||
-                     BOOK_ALIASES[bookNameLower] === b.bookId ||
-                     (isChosungOnly(bookName!) && extractChosung(b.bookName) === bookName);
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      return bookOrder.indexOf(a.bookId) - bookOrder.indexOf(b.bookId);
-    });
-
-    return results;
   };
 
   return {

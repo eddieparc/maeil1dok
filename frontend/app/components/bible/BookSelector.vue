@@ -58,6 +58,15 @@
         >
           <XCircleIcon :size="16" />
         </button>
+        <button
+          v-if="inputMode !== 'search'"
+          class="search-submit-button"
+          type="button"
+          aria-label="입력한 장/절로 이동"
+          @click="handleSubmitButton"
+        >
+          <ArrowRightIcon :size="17" />
+        </button>
       </div>
 
       <!-- 검색 결과 미리보기 (검색 모드일 때만) -->
@@ -316,9 +325,6 @@ const enterVerseMode = (chapter: number) => {
   inputMode.value = 'verse';
   verseInput.value = '';
   
-  // 바로 해당 위치로 이동 (미리보기)
-  emit('select', confirmedBookId.value, chapter);
-  
   nextTick(() => {
     searchInputRef.value?.focus();
   });
@@ -409,6 +415,10 @@ const handleSearchKeydown = (event: KeyboardEvent) => {
   }
 };
 
+const handleSubmitButton = () => {
+  handleEnterKey();
+};
+
 // 엔터 키 처리
 const handleEnterKey = () => {
   if (inputMode.value === 'search') {
@@ -418,7 +428,7 @@ const handleEnterKey = () => {
     }
   } else if (inputMode.value === 'chapter') {
     // 장 입력 모드
-    const chapter = parseInt(chapterInput.value);
+    const chapter = parseInt(chapterInput.value, 10);
     const maxChapter = getChaptersArray(confirmedBookId.value).length;
     
     if (chapter > 0 && chapter <= maxChapter) {
@@ -426,11 +436,11 @@ const handleEnterKey = () => {
     }
   } else if (inputMode.value === 'verse') {
     // 절 입력 모드: 절 입력이 있으면 해당 절로, 없으면 그냥 닫기
-    const verse = parseInt(verseInput.value);
+    const verse = parseInt(verseInput.value, 10);
     if (verse > 0) {
       confirmAndClose(verse);
     } else {
-      close();
+      confirmAndClose();
     }
   }
 };
@@ -606,6 +616,7 @@ const scrollToSearchedChapter = (chapter: number) => {
 
 .search-input.numeric-input {
   padding-left: 2rem;
+  padding-right: 4.75rem;
   font-size: 1.125rem;
   font-weight: 500;
   letter-spacing: 0.025em;
@@ -639,6 +650,34 @@ const scrollToSearchedChapter = (chapter: number) => {
   cursor: pointer;
   border-radius: 50%;
   transition: all 0.2s;
+}
+
+.numeric-input ~ .search-clear-button {
+  right: 2.75rem;
+}
+
+.search-submit-button {
+  position: absolute;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  background: var(--primary-color, #6366f1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-submit-button:hover {
+  background: var(--primary-hover, #4f46e5);
+}
+
+.search-submit-button:active {
+  transform: scale(0.96);
 }
 
 .search-clear-button:hover {
