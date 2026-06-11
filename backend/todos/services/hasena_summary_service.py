@@ -26,9 +26,9 @@ def get_latest_hasena_video() -> dict | None:
     try:
         url = 'https://www.googleapis.com/youtube/v3/playlistItems'
         params = {
-            'part': 'snippet',
+            'part': 'snippet,status',
             'playlistId': HASENA_PLAYLIST_ID,
-            'maxResults': 1,
+            'maxResults': 10,
             'key': api_key
         }
         
@@ -40,14 +40,24 @@ def get_latest_hasena_video() -> dict | None:
             logger.warning("No videos found in playlist")
             return None
         
-        item = data['items'][0]
-        snippet = item.get('snippet', {})
+        for item in data['items']:
+            snippet = item.get('snippet', {})
+            status = item.get('status', {})
+            video_id = snippet.get('resourceId', {}).get('videoId')
+            title = snippet.get('title') or ''
+            privacy_status = status.get('privacyStatus')
+
+            if not video_id or title.lower() == 'private video' or privacy_status == 'private':
+                continue
+
+            return {
+                'video_id': video_id,
+                'title': title,
+                'published_at': snippet.get('publishedAt'),
+            }
         
-        return {
-            'video_id': snippet.get('resourceId', {}).get('videoId'),
-            'title': snippet.get('title'),
-            'published_at': snippet.get('publishedAt'),
-        }
+        logger.warning("No public videos found in playlist")
+        return None
         
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching playlist: {str(e)}")
