@@ -6,10 +6,16 @@ validated and DNS is ready to switch.
 
 ## Railway Services
 
-Create one Railway project named `maeil1dok-production` with these services:
+Railway project:
 
-- `maeil1dok-mysql`: `railway add --database mysql`
-- `maeil1dok-redis`: `railway add --database redis`
+- Name: `maeil1dok-production`
+- Project ID: `d6c3fd88-204f-4736-a40b-f55c24f34c36`
+- Environment ID: `9ff3d9ed-ad1f-46cc-ae8b-eda5baac5784`
+
+Services:
+
+- `MySQL`: Railway MySQL service
+- `Redis`: Railway Redis service
 - `maeil1dok-backend`: GitHub repo service using config path `/railway/backend.web.toml`
 - `maeil1dok-celery-worker`: GitHub repo service using config path `/railway/backend.worker.toml`
 - `maeil1dok-celery-beat`: GitHub repo service using config path `/railway/backend.beat.toml`
@@ -19,6 +25,18 @@ Create one Railway project named `maeil1dok-production` with these services:
 Railway monorepo services need root directories set per service, while config
 file paths are absolute from the repo root.
 
+For a fresh recreation, add the managed data services first:
+
+```sh
+railway add --database mysql
+railway add --database redis
+```
+
+Current Railway-generated domains:
+
+- Backend: `https://maeil1dok-backend-production.up.railway.app`
+- Frontend: `https://maeil1dok-frontend-production.up.railway.app`
+
 ## Backend Variables
 
 Set these variables on `maeil1dok-backend`:
@@ -26,17 +44,17 @@ Set these variables on `maeil1dok-backend`:
 ```text
 DEBUG=False
 SECRET_KEY=<existing SECRET_KEY>
-DB_NAME=${{maeil1dok-mysql.MYSQLDATABASE}}
-DB_USER=${{maeil1dok-mysql.MYSQLUSER}}
-DB_PASSWORD=${{maeil1dok-mysql.MYSQLPASSWORD}}
-DB_HOST=${{maeil1dok-mysql.MYSQLHOST}}
-DB_PORT=${{maeil1dok-mysql.MYSQLPORT}}
-REDIS_URL=${{maeil1dok-redis.REDIS_URL}}
-CELERY_BROKER_URL=${{maeil1dok-redis.REDIS_URL}}
-CELERY_RESULT_BACKEND=${{maeil1dok-redis.REDIS_URL}}
-ALLOWED_HOSTS=maeil1dok.app,www.maeil1dok.app,${{RAILWAY_PUBLIC_DOMAIN}}
-CORS_ALLOWED_ORIGINS=["https://maeil1dok.app","https://www.maeil1dok.app","https://${{maeil1dok-frontend.RAILWAY_PUBLIC_DOMAIN}}"]
-CSRF_TRUSTED_ORIGINS=["https://maeil1dok.app","https://www.maeil1dok.app","https://${{RAILWAY_PUBLIC_DOMAIN}}","https://${{maeil1dok-frontend.RAILWAY_PUBLIC_DOMAIN}}"]
+DB_NAME=${{MySQL.MYSQLDATABASE}}
+DB_USER=${{MySQL.MYSQLUSER}}
+DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
+DB_HOST=${{MySQL.MYSQLHOST}}
+DB_PORT=${{MySQL.MYSQLPORT}}
+REDIS_URL=${{Redis.REDIS_URL}}
+CELERY_BROKER_URL=${{Redis.REDIS_URL}}
+CELERY_RESULT_BACKEND=${{Redis.REDIS_URL}}
+ALLOWED_HOSTS=maeil1dok.app,www.maeil1dok.app,api.maeil1dok.app,maeil1dok-backend-production.up.railway.app
+CORS_ALLOWED_ORIGINS=["https://maeil1dok.app","https://www.maeil1dok.app","https://maeil1dok-frontend-production.up.railway.app"]
+CSRF_TRUSTED_ORIGINS=["https://maeil1dok.app","https://www.maeil1dok.app","https://api.maeil1dok.app","https://maeil1dok-backend-production.up.railway.app","https://maeil1dok-frontend-production.up.railway.app"]
 COOKIE_DOMAIN=.maeil1dok.app
 FRONTEND_URL=https://maeil1dok.app
 KAKAO_CLIENT_ID=<existing KAKAO_CLIENT_ID>
@@ -86,6 +104,11 @@ GEMINI_API_KEY=<existing GEMINI_API_KEY>
 YOUTUBE_API_KEY=<existing GEMINI_API_KEY unless a dedicated key is added>
 ```
 
+The current staging values use
+`https://maeil1dok-backend-production.up.railway.app`. After DNS is verified,
+switch these three values to `https://api.maeil1dok.app` and redeploy the
+frontend.
+
 ## Fresh Staging Dump
 
 Capture the latest source data before the first Railway restore:
@@ -97,6 +120,12 @@ ssh 192.168.0.10 "mkdir -p ${BACKUP_DIR} && chmod 700 ${BACKUP_DIR}"
 ssh 192.168.0.10 "docker exec maeil1dok_db mysqldump --single-transaction --routines --triggers --events -uroot -p\"\$DB_ROOT_PASSWORD\" dailybible | gzip -9 > ${BACKUP_DIR}/mysql.sql.gz"
 ssh 192.168.0.10 "sha256sum ${BACKUP_DIR}/mysql.sql.gz > ${BACKUP_DIR}/mysql.sql.gz.sha256"
 ssh 192.168.0.10 "sha256sum -c ${BACKUP_DIR}/mysql.sql.gz.sha256"
+```
+
+The first Railway restore used this source dump:
+
+```text
+/home/jgp/maeil1dok-backups/railway-migration-20260611-212557/mysql.sql.gz
 ```
 
 Capture source counts:
@@ -135,6 +164,30 @@ curl -i "https://<backend Railway domain>/api/v1/todos/plans/"
 curl -i "https://<frontend Railway domain>/"
 ```
 
+Validated staging endpoints:
+
+```text
+https://maeil1dok-backend-production.up.railway.app/admin/login/
+https://maeil1dok-backend-production.up.railway.app/api/v1/todos/plans/
+https://maeil1dok-frontend-production.up.railway.app/
+```
+
+All returned HTTP 200 after the first Railway restore.
+
+## Custom Domains
+
+These custom domains have been created in Railway and are waiting for DNS:
+
+```text
+maeil1dok.app      CNAME 3brjtmda.up.railway.app
+www.maeil1dok.app  CNAME h6qxy9d5.up.railway.app
+api.maeil1dok.app  CNAME jj9xe8wf.up.railway.app
+```
+
+Railway also issued TXT verification tokens for each domain. Add the CNAME
+records first; if Railway still requests ownership verification, add the TXT
+records shown in the Railway dashboard for the same custom domains.
+
 ## Final cutover
 
 1. Freeze write traffic or accept a short maintenance window.
@@ -142,7 +195,8 @@ curl -i "https://<frontend Railway domain>/"
 3. Re-run `sha256sum -c`.
 4. Restore that final dump into Railway MySQL with `mysql --host`.
 5. Re-run the count query on source and Railway and compare.
-6. Set frontend/backend variables to the production domains.
+6. Set frontend variables to `https://api.maeil1dok.app` and redeploy the
+   frontend.
 7. Update DNS for `maeil1dok.app`, `www.maeil1dok.app`, and
    `api.maeil1dok.app` to Railway.
 8. Update Kakao, Google, and Apple OAuth callback allowlists if those providers
