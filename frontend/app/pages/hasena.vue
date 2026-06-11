@@ -675,7 +675,7 @@ onMounted(async () => {
 /* AI Summary Section - Accordion */
 .summary-card {
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* 아코디언 헤더 */
@@ -925,6 +925,7 @@ onMounted(async () => {
   display: inline-flex;
   margin-left: 0.5rem;
   cursor: help;
+  z-index: 60;
 }
 
 .beta-tag {
@@ -954,7 +955,7 @@ onMounted(async () => {
   font-weight: 500;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 10;
+  z-index: 61;
   transition: all 0.2s ease;
   pointer-events: none;
   text-align: center;
