@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 
 
-class FrontendRenderConfigTest(unittest.TestCase):
-    def test_server_api_clients_do_not_fall_back_to_localhost_on_render(self) -> None:
+class FrontendDeploymentConfigTest(unittest.TestCase):
+    def test_server_api_clients_do_not_fall_back_to_localhost_in_production(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         client_files = (
             repo_root / "frontend" / "app" / "composables" / "useApi.ts",

@@ -18,6 +18,7 @@ class EntrypointTest(unittest.TestCase):
                     "DB_HOST": "maeil1dok-mysql",
                     "DB_PORT": "3306",
                     "DEBUG": "false",
+                    "PORT": "8123",
                 },
             )
 
@@ -25,7 +26,7 @@ class EntrypointTest(unittest.TestCase):
         self.assertIn("nc -z maeil1dok-mysql 3306", log)
         self.assertIn("python manage.py migrate --noinput", log)
         self.assertIn("python manage.py collectstatic --noinput", log)
-        self.assertIn("gunicorn config.wsgi:application --bind 0.0.0.0:8000", log)
+        self.assertIn("gunicorn config.wsgi:application --bind 0.0.0.0:8123", log)
 
     def test_executes_custom_service_command_after_optional_startup_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
