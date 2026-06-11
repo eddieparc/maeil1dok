@@ -23,7 +23,6 @@
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.5.0",
     "vue": "latest",
-    "vue-cal": "^4.10.2",
     "vue-router": "latest"
   },
   "devDependencies": {
