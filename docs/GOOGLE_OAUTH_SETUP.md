@@ -50,7 +50,7 @@ GOOGLE_CLIENT_SECRET=your-actual-client-secret
 GOOGLE_REDIRECT_URI=https://maeil1dok.app/auth/google/callback
 ```
 
-### Frontend (Vercel 환경 변수)
+### Frontend (Railway 환경 변수)
 ```env
 GOOGLE_CLIENT_ID=your-actual-client-id.apps.googleusercontent.com
 GOOGLE_REDIRECT_URI=https://maeil1dok.app/auth/google/callback
@@ -63,8 +63,8 @@ GOOGLE_REDIRECT_URI=https://maeil1dok.app/auth/google/callback
 docker-compose restart backend
 ```
 
-### Frontend (Vercel)
-Vercel 대시보드에서 환경 변수 설정 후 재배포
+### Frontend (Railway)
+Railway `maeil1dok-frontend` 서비스에 환경 변수를 설정한 뒤 재배포
 
 ## 6. 테스트
 
@@ -86,4 +86,4 @@ Vercel 대시보드에서 환경 변수 설정 후 재배포
 
 ### 토큰 교환 실패
 - GOOGLE_CLIENT_SECRET이 백엔드에 올바르게 설정되었는지 확인
-- Docker 컨테이너 재시작 필요
+- Railway 백엔드 서비스 재시작 필요

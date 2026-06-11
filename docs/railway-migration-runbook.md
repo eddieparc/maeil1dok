@@ -52,11 +52,12 @@ DB_PORT=${{MySQL.MYSQLPORT}}
 REDIS_URL=${{Redis.REDIS_URL}}
 CELERY_BROKER_URL=${{Redis.REDIS_URL}}
 CELERY_RESULT_BACKEND=${{Redis.REDIS_URL}}
-ALLOWED_HOSTS=maeil1dok.app,www.maeil1dok.app,api.maeil1dok.app,maeil1dok-backend-production.up.railway.app
+ALLOWED_HOSTS=maeil1dok.app,www.maeil1dok.app,api.maeil1dok.app,maeil1dok-backend-production.up.railway.app,healthcheck.railway.app
 CORS_ALLOWED_ORIGINS=["https://maeil1dok.app","https://www.maeil1dok.app","https://maeil1dok-frontend-production.up.railway.app"]
 CSRF_TRUSTED_ORIGINS=["https://maeil1dok.app","https://www.maeil1dok.app","https://api.maeil1dok.app","https://maeil1dok-backend-production.up.railway.app","https://maeil1dok-frontend-production.up.railway.app"]
 COOKIE_DOMAIN=.maeil1dok.app
 FRONTEND_URL=https://maeil1dok.app
+SECURE_SSL_REDIRECT=False
 KAKAO_CLIENT_ID=<existing KAKAO_CLIENT_ID>
 KAKAO_REDIRECT_URI=https://maeil1dok.app/auth/kakao/callback
 GOOGLE_CLIENT_ID=<existing GOOGLE_CLIENT_ID>
@@ -80,6 +81,10 @@ Set the same Django/Redis variables on both worker services, plus:
 RUN_MIGRATIONS=false
 RUN_COLLECTSTATIC=false
 ```
+
+`healthcheck.railway.app` and `SECURE_SSL_REDIRECT=False` are required for the
+Railway internal HTTP healthcheck. Public traffic still terminates HTTPS at the
+Railway edge and receives the Django HSTS/security headers.
 
 ## Frontend Variables
 
