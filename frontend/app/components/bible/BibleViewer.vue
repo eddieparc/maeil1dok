@@ -28,86 +28,16 @@
       <slot name="bottom"></slot>
     </template>
 
-    <!-- 절 클릭 복사 메뉴 (액션 메뉴 아래에 표시) -->
-    <Teleport to="body">
-      <Transition name="copy-menu-fade">
-        <div v-if="showCopyMenu" class="copy-menu" ref="copyMenuRef" :style="copyMenuPosition">
-          <span class="copy-menu-label">
-            {{ clickSelectedVerses.length === 1 ? '복사' : '구간 복사' }}
-          </span>
-          <div class="copy-menu-buttons">
-            <template v-if="clickSelectedVerses.length === 1">
-              <button class="copy-button" @click="handleClickCopy('includeLocation')">
-                위치 포함
-              </button>
-              <span class="action-divider">|</span>
-              <button class="copy-button" @click="handleClickCopy('numOnly')">
-                절 번호만
-              </button>
-              <span class="action-divider">|</span>
-              <button class="copy-button" @click="handleClickCopy('textOnly')">
-                내용만
-              </button>
-            </template>
-            <template v-else>
-              <button class="copy-button" @click="handleClickCopy('includeLocationRange')">
-                위치 포함
-              </button>
-              <span class="action-divider">|</span>
-              <button class="copy-button" @click="handleClickCopy('excludeLocationRange')">
-                절 번호만
-              </button>
-            </template>
-            <button class="copy-button cancel" aria-label="복사 메뉴 닫기" @click="clearClickSelection">
-              <XMarkIcon :size="14" />
-            </button>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- 텍스트 드래그 선택 액션 메뉴 (기존) -->
-    <Teleport to="body">
-      <Transition name="action-menu">
-        <div
-          v-if="showActionMenu"
-          ref="actionMenuRef"
-          class="verse-action-menu"
-          :style="actionMenuPosition"
-          @click.stop
-        >
-          <button class="action-button" @click="handleHighlightOrRemove">
-            <PenIcon :size="16" />
-            <span>{{ isSelectedVerseHighlighted ? '제거' : '하이라이트' }}</span>
-          </button>
-          <button class="action-button" @click="handleCopy">
-            <CopyIcon :size="16" />
-            <span>복사</span>
-          </button>
-          <button class="action-button" @click="handleShare">
-            <ShareIcon :size="16" />
-            <span>공유</span>
-          </button>
-          <button class="action-button close" @click="hideActionMenu(); clearAllSelections();">
-            <XMarkIcon :size="16" />
-          </button>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/readingSettings';
-import { ACTION_MENU, TIMING } from '~/constants/bible';
+import { TIMING } from '~/constants/bible';
 import { useSwipe } from '~/composables/useSwipe';
 import { useSanitize } from '~/composables/useSanitize';
 import BibleViewerSkeleton from '~/components/bible/BibleViewerSkeleton.vue';
-import XMarkIcon from '~/components/icons/XMarkIcon.vue';
-import PenIcon from '~/components/icons/PenIcon.vue';
-import CopyIcon from '~/components/icons/CopyIcon.vue';
-import ShareIcon from '~/components/icons/ShareIcon.vue';
 
 interface Highlight {
   id: number;
@@ -115,6 +45,13 @@ interface Highlight {
   end_verse: number;
   color: string;
   memo?: string;
+}
+
+export interface SelectionMenuState {
+  visible: boolean;
+  mode: 'action' | 'copy' | null;
+  isHighlighted: boolean;
+  isSingleVerse: boolean;
 }
 
 interface Props {
@@ -140,6 +77,7 @@ const emit = defineEmits<{
   'highlight-delete': [highlightId: number];
   copy: [text: string];
   share: [text: string];
+  'selection-menu-change': [state: SelectionMenuState];
   'swipe-left': [];
   'swipe-right': [];
 }>();
@@ -151,8 +89,6 @@ const effectiveTheme = computed(() => settingsStore.effectiveTheme);
 
 // Refs
 const viewerRef = ref<HTMLElement | null>(null);
-const copyMenuRef = ref<HTMLElement | null>(null);
-const actionMenuRef = ref<HTMLElement | null>(null);
 
 // Swipe navigation
 useSwipe(viewerRef, {
@@ -176,11 +112,15 @@ const clickSelectedVerses = ref<Array<{ number: number; text: string }>>([]);
 const showActionMenu = ref(false);
 const selectedVerses = ref({ start: 0, end: 0 });
 const selectedText = ref('');
-const actionMenuPosition = ref({ top: '0px', left: '0px' });
-const copyMenuPosition = ref({ top: '0px', left: '0px' });
 
-// 클릭된 절 요소 참조 (액션 메뉴 위치 계산용)
-const clickedVerseElement = ref<Element | null>(null);
+const emitSelectionMenuChange = () => {
+  emit('selection-menu-change', {
+    visible: showActionMenu.value || showCopyMenu.value,
+    mode: showActionMenu.value ? 'action' : showCopyMenu.value ? 'copy' : null,
+    isHighlighted: isSelectedVerseHighlighted.value,
+    isSingleVerse: clickSelectedVerses.value.length === 1,
+  });
+};
 
 // 스타일 계산
 const viewerStyle = computed(() => ({
@@ -273,7 +213,9 @@ const handleScroll = () => {
 const clearVerseHighlight = () => {
   if (!viewerRef.value) return;
   viewerRef.value.querySelectorAll('.verse.selected-verse')
-    .forEach(el => el.classList.remove('selected-verse', 'selected-first', 'selected-middle', 'selected-last'));
+    .forEach((el) => {
+      el.classList.remove('selected-verse', 'selected-first', 'selected-middle', 'selected-last');
+    });
 };
 
 // 절 클릭 선택 초기화
@@ -286,6 +228,7 @@ const clearClickSelection = () => {
   if (selectionMode.value === 'click') {
     selectionMode.value = null;
   }
+  emitSelectionMenuChange();
 };
 
 // 텍스트 드래그 선택 초기화
@@ -297,6 +240,7 @@ const clearDragSelection = () => {
   if (selectionMode.value === 'drag') {
     selectionMode.value = null;
   }
+  emitSelectionMenuChange();
 };
 
 // 모든 선택 초기화
@@ -433,10 +377,8 @@ const handleVerseClick = (event: MouseEvent | TouchEvent) => {
     // 액션 메뉴용 데이터 설정
     selectedVerses.value = { start: num, end: num };
     selectedText.value = txt;
-    clickedVerseElement.value = verseEl;
-    
-    // 절 요소 위치에 액션 메뉴 표시
-    showActionMenuAtElement(verseEl);
+    showActionMenu.value = true;
+    emitSelectionMenuChange();
   } else if (clickSelectedEnd.value === null) {
     // 끝점 설정 및 범위 선택
     clickSelectedEnd.value = num;
@@ -466,8 +408,8 @@ const handleVerseClick = (event: MouseEvent | TouchEvent) => {
     selectedVerses.value = { start, end };
     selectedText.value = combinedText;
     
-    // 클릭한 절 위치에 액션 메뉴 표시
-    showActionMenuAtElement(verseEl);
+    showActionMenu.value = true;
+    emitSelectionMenuChange();
   } else {
     // 재선택: 메뉴를 닫고 새로 열기
     clearClickSelection();
@@ -480,9 +422,8 @@ const handleVerseClick = (event: MouseEvent | TouchEvent) => {
       // 액션 메뉴용 데이터 설정
       selectedVerses.value = { start: num, end: num };
       selectedText.value = txt;
-      clickedVerseElement.value = verseEl;
-      
-      showActionMenuAtElement(verseEl);
+      showActionMenu.value = true;
+      emitSelectionMenuChange();
     }, TIMING.VERSE_RESELECT_DELAY);
   }
 };
@@ -527,7 +468,8 @@ const handleTextSelection = () => {
   if (verses.start > 0) {
     selectedVerses.value = verses;
     selectedText.value = text;
-    showActionMenuAt(range);
+    showActionMenu.value = true;
+    emitSelectionMenuChange();
   }
 };
 
@@ -569,43 +511,13 @@ const extractVerseNumbers = (range: Range): { start: number; end: number } => {
   return { start, end };
 };
 
-// 액션 메뉴 표시 (Range 기반 - 드래그 선택용)
-const showActionMenuAt = (range: Range) => {
-  const rect = range.getBoundingClientRect();
-  positionActionMenu(rect);
-};
-
-// 액션 메뉴 표시 (Element 기반 - 클릭 선택용)
-const showActionMenuAtElement = (element: Element) => {
-  const rect = element.getBoundingClientRect();
-  positionActionMenu(rect);
-};
-
-// 액션 메뉴 위치 계산 공통 함수
-const positionActionMenu = (rect: DOMRect) => {
-  const viewportWidth = window.innerWidth;
-
-  // 메뉴 위치 계산 (선택 영역 위, 화면 정중앙)
-  let top = rect.top - ACTION_MENU.TOP_OFFSET;
-
-  // 화면 경계 처리 (상단)
-  if (top < ACTION_MENU.EDGE_MARGIN) {
-    top = rect.bottom + ACTION_MENU.EDGE_MARGIN;
-  }
-
-  actionMenuPosition.value = {
-    top: `${top}px`,
-    left: `${viewportWidth / 2}px`, // 화면 정중앙 (CSS transform으로 보정)
-  };
-  showActionMenu.value = true;
-};
-
 // 액션 메뉴 숨기기
 const hideActionMenu = () => {
   showActionMenu.value = false;
   if (selectionMode.value === 'drag') {
     selectionMode.value = null;
   }
+  emitSelectionMenuChange();
 };
 
 // 액션 핸들러
@@ -634,18 +546,13 @@ const handleHighlightOrRemove = () => {
 };
 
 const handleCopy = async () => {
-  // 현재 액션 메뉴 위치를 저장하고 복사 메뉴 위치 계산
-  const actionMenuTop = parseInt(actionMenuPosition.value.top) || 0;
-  const actionMenuLeft = parseInt(actionMenuPosition.value.left) || 0;
-  
   // 액션 메뉴를 숨기고 복사 메뉴 표시
   hideActionMenu();
   
   // 클릭 선택 모드에서는 복사 메뉴 표시
   if (selectionMode.value === 'click') {
-    // 복사 메뉴를 액션 메뉴 위치 아래에 표시
-    positionCopyMenu(actionMenuTop, actionMenuLeft);
     showCopyMenu.value = true;
+    emitSelectionMenuChange();
     return;
   }
   
@@ -684,32 +591,9 @@ const handleCopy = async () => {
     }
     
     selectionMode.value = 'click'; // 복사 메뉴는 클릭 모드로 처리
-    // 복사 메뉴를 액션 메뉴 위치 아래에 표시
-    positionCopyMenu(actionMenuTop, actionMenuLeft);
     showCopyMenu.value = true;
+    emitSelectionMenuChange();
   }
-};
-
-// 복사 메뉴 위치 계산 (액션 메뉴 아래, 화면 정중앙)
-const positionCopyMenu = (actionTop: number, _actionLeft: number) => {
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const copyMenuHeight = 50; // 예상 복사 메뉴 높이
-  const actionMenuHeight = 50; // 액션 메뉴 높이 (한 줄로 변경됨)
-  const gap = 8; // 메뉴 간 간격
-  
-  // 액션 메뉴 아래에 표시
-  let top = actionTop + actionMenuHeight + gap;
-  
-  // 화면 하단을 벗어나면 액션 메뉴 위에 표시
-  if (top + copyMenuHeight > viewportHeight - 20) {
-    top = actionTop - copyMenuHeight - gap;
-  }
-  
-  copyMenuPosition.value = {
-    top: `${top}px`,
-    left: `${viewportWidth / 2}px`, // 화면 정중앙 (CSS transform으로 보정)
-  };
 };
 
 const handleShare = async () => {
@@ -765,7 +649,9 @@ const scrollToVerse = (verseNumber: number) => {
     searchHighlightTimeout = null;
   }
   viewerRef.value.querySelectorAll('.verse.search-highlight')
-    .forEach(el => el.classList.remove('search-highlight'));
+    .forEach((el) => {
+      el.classList.remove('search-highlight');
+    });
 
   // .verse-number 요소에서 해당 절 번호를 가진 것을 찾음
   const verseElements = viewerRef.value.querySelectorAll('.verse');
@@ -809,13 +695,13 @@ const handleDocumentClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
 
   // 액션 메뉴 외부 클릭 시 닫기
-  if (showActionMenu.value && !target.closest('.verse-action-menu') && !target.closest('.verse')) {
+  if (showActionMenu.value && !target.closest('.selection-action-menu') && !target.closest('.verse')) {
     hideActionMenu();
     clearClickSelection();
   }
 
   // 복사 메뉴 외부 클릭 시 닫기
-  if (showCopyMenu.value && !target.closest('.copy-menu') && !target.closest('.verse')) {
+  if (showCopyMenu.value && !target.closest('.selection-copy-menu') && !target.closest('.verse')) {
     clearClickSelection();
   }
 };
@@ -862,6 +748,12 @@ watch(() => props.content, () => {
 defineExpose({
   scrollToVerse,
   restoreScrollPosition,
+  handleHighlightOrRemove,
+  handleCopy,
+  handleShare,
+  clearAllSelections,
+  handleClickCopy,
+  clearClickSelection,
 });
 </script>
 
@@ -1136,106 +1028,11 @@ defineExpose({
   background: var(--primary-dark, #4f46e5);
 }
 
-/* 액션 메뉴 */
-.verse-action-menu {
-  position: fixed;
-  display: flex;
-  align-items: center;
-  gap: 0.125rem;
-  padding: 0.375rem 0.5rem;
-  background: var(--color-bg-card, #fff);
-  border-radius: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  transform: translateX(-50%); /* 정중앙 보정 */
-  /* 시스템 폰트 강제 적용 */
-  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.action-button {
-  display: flex;
-  flex-direction: row; /* 아이콘+레이블 한 줄 배치 */
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  background: transparent;
-  border-radius: 16px;
-  color: var(--text-primary, #1f2937);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  transition: background 0.2s;
-  white-space: nowrap;
-}
-
-/* 닫기 버튼 스타일 */
-.action-button.close {
-  padding: 0.375rem;
-  margin-left: 0.125rem;
-  color: var(--text-secondary, #6b7280);
-}
-
-.action-button.close:hover {
-  color: var(--text-primary, #1f2937);
-  background: var(--color-bg-hover, #f3f4f6);
-}
-
-.action-button:hover {
-  background: var(--color-bg-hover, #f3f4f6);
-}
-
-.action-button:active {
-  background: var(--color-bg-active, #e5e7eb);
-}
-
-.action-button svg {
-  color: var(--text-secondary, #6b7280);
-}
-
-/* 액션 메뉴 애니메이션 */
-.action-menu-enter-active,
-.action-menu-leave-active {
-  transition: opacity 0.15s, transform 0.15s;
-}
-
-.action-menu-enter-from,
-.action-menu-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(8px);
-}
-
-.action-menu-enter-to,
-.action-menu-leave-from {
-  transform: translateX(-50%) translateY(0);
-}
-
 /* iOS 안전영역 */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .bible-viewer {
     padding-bottom: calc(max(100px, 15vh) + env(safe-area-inset-bottom));
   }
-}
-
-/* 다크모드 액션 메뉴 */
-.theme-dark .verse-action-menu {
-  background: var(--color-bg-card-dark, #2d2d2d);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-.theme-dark .action-button {
-  color: var(--text-primary-dark, #e5e5e5);
-}
-
-.theme-dark .action-button:hover {
-  background: var(--color-bg-hover-dark, #3d3d3d);
-}
-
-.theme-dark .action-button.close {
-  color: var(--text-secondary-dark, #9ca3af);
-}
-
-.theme-dark .action-button.close:hover {
-  color: var(--text-primary-dark, #e5e5e5);
-  background: var(--color-bg-hover-dark, #3d3d3d);
 }
 
 /* 다크모드 인명/지명 색상 - themes.css에서 정의된 CSS 변수 사용 */
@@ -1353,114 +1150,6 @@ defineExpose({
       background-color: inherit !important;
     }
   }
-}
-
-/* 복사 메뉴 */
-.copy-menu {
-  position: fixed;
-  background: var(--color-bg-card, #fff);
-  padding: 0.5rem 0.75rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  z-index: 1001;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--color-border, #e5e7eb);
-  min-width: 200px;
-  width: max-content;
-  max-width: 95vw;
-  gap: 0.75rem;
-  transform: translateX(-50%); /* 정중앙 보정 */
-  /* 시스템 폰트 강제 적용 (본문 폰트 상속 방지) */
-  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.theme-dark .copy-menu {
-  background: var(--color-bg-card-dark, #2d2d2d);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-.copy-menu-label {
-  font-size: 0.875rem;
-  color: var(--primary-color, #6366f1);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.theme-dark .copy-menu-label {
-  color: var(--primary-color-light, #818cf8);
-}
-
-.copy-menu-buttons {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.copy-button {
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-  padding: 0.25rem 0.5rem;
-  border: none;
-  background: none;
-  color: var(--text-secondary, #6b7280);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.copy-button:hover {
-  color: var(--text-primary, #1f2937);
-}
-
-.theme-dark .copy-button {
-  color: var(--text-secondary-dark, #9ca3af);
-}
-
-.theme-dark .copy-button:hover {
-  color: var(--text-primary-dark, #e5e5e5);
-}
-
-.copy-button.cancel {
-  color: var(--color-error);
-  padding: 0.25rem;
-}
-
-.copy-button.cancel:hover {
-  color: var(--color-error-text);
-}
-
-.action-divider {
-  color: var(--color-border, #d1d5db);
-  font-size: 0.75rem;
-}
-
-.theme-dark .action-divider {
-  color: var(--color-border-dark, #4b5563);
-}
-
-/* 복사 메뉴 애니메이션 */
-.copy-menu-fade-enter-active,
-.copy-menu-fade-leave-active {
-  transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.copy-menu-fade-enter-from,
-.copy-menu-fade-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(-8px) scale(0.98);
-}
-
-.copy-menu-fade-enter-to,
-.copy-menu-fade-leave-from {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
 }
 
 /* ====== 새한글(KNT) 전용 스타일 ====== */
