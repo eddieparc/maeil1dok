@@ -133,89 +133,62 @@ services:
     dockerCommand: celery -A config worker -l info
     envVars:
       - key: DEBUG
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: DEBUG
+        value: "False"
       - key: RUN_MIGRATIONS
         value: "false"
       - key: RUN_COLLECTSTATIC
         value: "false"
       - key: SECRET_KEY
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: SECRET_KEY
+        sync: false
       - key: DB_NAME
         fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: DB_NAME
+          type: pserv
+          name: maeil1dok-mysql
+          envVarKey: MYSQL_DATABASE
       - key: DB_USER
         fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: DB_USER
+          type: pserv
+          name: maeil1dok-mysql
+          envVarKey: MYSQL_USER
       - key: DB_PASSWORD
         fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: DB_PASSWORD
+          type: pserv
+          name: maeil1dok-mysql
+          envVarKey: MYSQL_PASSWORD
       - key: DB_HOST
         fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: DB_HOST
+          type: pserv
+          name: maeil1dok-mysql
+          property: host
       - key: DB_PORT
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: DB_PORT
+        value: "3306"
       - key: REDIS_URL
         fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: REDIS_URL
+          type: keyvalue
+          name: maeil1dok-redis
+          property: connectionString
       - key: CELERY_BROKER_URL
         fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: CELERY_BROKER_URL
+          type: keyvalue
+          name: maeil1dok-redis
+          property: connectionString
       - key: CELERY_RESULT_BACKEND
         fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: CELERY_RESULT_BACKEND
+          type: keyvalue
+          name: maeil1dok-redis
+          property: connectionString
       - key: KAKAO_CLIENT_ID
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: KAKAO_CLIENT_ID
+        sync: false
       - key: KAKAO_REDIRECT_URI
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: KAKAO_REDIRECT_URI
+        value: https://maeil1dok.app/auth/kakao/callback
       - key: API_BIBLE_KEY
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: API_BIBLE_KEY
+        sync: false
       - key: GEMINI_API_KEY
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: GEMINI_API_KEY
+        sync: false
       - key: YOUTUBE_API_KEY
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: YOUTUBE_API_KEY
+        sync: false
       - key: HASENA_CRON_SECRET
-        fromService:
-          type: web
-          name: maeil1dok-backend
-          envVarKey: HASENA_CRON_SECRET
+        sync: false
 
   - type: worker
     name: maeil1dok-celery-beat
@@ -226,89 +199,62 @@ services:
     dockerCommand: celery -A config beat -l info
     envVars:
       - key: DEBUG
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: DEBUG
+        value: "False"
       - key: RUN_MIGRATIONS
         value: "false"
       - key: RUN_COLLECTSTATIC
         value: "false"
       - key: SECRET_KEY
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: SECRET_KEY
+        sync: false
       - key: DB_NAME
         fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: DB_NAME
+          type: pserv
+          name: maeil1dok-mysql
+          envVarKey: MYSQL_DATABASE
       - key: DB_USER
         fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: DB_USER
+          type: pserv
+          name: maeil1dok-mysql
+          envVarKey: MYSQL_USER
       - key: DB_PASSWORD
         fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: DB_PASSWORD
+          type: pserv
+          name: maeil1dok-mysql
+          envVarKey: MYSQL_PASSWORD
       - key: DB_HOST
         fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: DB_HOST
+          type: pserv
+          name: maeil1dok-mysql
+          property: host
       - key: DB_PORT
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: DB_PORT
+        value: "3306"
       - key: REDIS_URL
         fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: REDIS_URL
+          type: keyvalue
+          name: maeil1dok-redis
+          property: connectionString
       - key: CELERY_BROKER_URL
         fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: CELERY_BROKER_URL
+          type: keyvalue
+          name: maeil1dok-redis
+          property: connectionString
       - key: CELERY_RESULT_BACKEND
         fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: CELERY_RESULT_BACKEND
+          type: keyvalue
+          name: maeil1dok-redis
+          property: connectionString
       - key: KAKAO_CLIENT_ID
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: KAKAO_CLIENT_ID
+        sync: false
       - key: KAKAO_REDIRECT_URI
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: KAKAO_REDIRECT_URI
+        value: https://maeil1dok.app/auth/kakao/callback
       - key: API_BIBLE_KEY
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: API_BIBLE_KEY
+        sync: false
       - key: GEMINI_API_KEY
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: GEMINI_API_KEY
+        sync: false
       - key: YOUTUBE_API_KEY
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: YOUTUBE_API_KEY
+        sync: false
       - key: HASENA_CRON_SECRET
-        fromService:
-          type: worker
-          name: maeil1dok-celery-worker
-          envVarKey: HASENA_CRON_SECRET
+        sync: false
 
   - type: web
     name: maeil1dok-frontend

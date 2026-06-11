@@ -63,6 +63,11 @@ class RenderBlueprintTest(unittest.TestCase):
             worker_env = self._env_by_key(by_name[service_name])
             self.assertEqual(worker_env["RUN_MIGRATIONS"]["value"], "false")
             self.assertEqual(worker_env["RUN_COLLECTSTATIC"]["value"], "false")
+            for env_var in worker_env.values():
+                from_service = env_var.get("fromService")
+                if from_service is None:
+                    continue
+                self.assertNotIn(from_service["type"], {"web", "worker"})
 
         rendered = (repo_root / "render.yaml").read_text(encoding="utf-8")
         forbidden_literals = (
