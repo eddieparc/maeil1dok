@@ -58,7 +58,7 @@
                 절 번호만
               </button>
             </template>
-            <button class="copy-button cancel" @click="clearClickSelection">
+            <button class="copy-button cancel" aria-label="복사 메뉴 닫기" @click="clearClickSelection">
               <XMarkIcon :size="14" />
             </button>
           </div>
@@ -892,9 +892,10 @@ defineExpose({
   color: var(--text-primary, #1f2937);
 }
 
+/* 읽기 전용 다크 모드: 앱 테마와 독립적인 고정 본문 색상 (눈 피로 최소화) */
 .theme-dark {
-  background: var(--color-bg-primary-dark, #1a1a1a);
-  color: var(--text-primary-dark, #e5e5e5);
+  background: #1a1a1a;
+  color: #e5e5e5;
 }
 
 /* 성경 본문 */
@@ -1426,12 +1427,12 @@ defineExpose({
 }
 
 .copy-button.cancel {
-  color: #dc2626;
+  color: var(--color-error);
   padding: 0.25rem;
 }
 
 .copy-button.cancel:hover {
-  color: #b91c1c;
+  color: var(--color-error-text);
 }
 
 .action-divider {

@@ -596,13 +596,13 @@ onUnmounted(() => {
 }
 
 .btn-danger {
-  background: #FEF2F2;
-  color: #DC2626;
-  border: 1px solid #FEE2E2;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border: 1px solid var(--color-error-bg);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #FEE2E2;
+  filter: brightness(0.96);
 }
 
 .btn-action:disabled {

@@ -222,8 +222,8 @@ watch(() => props.groupId, () => {
 
 .rank-1 {
   order: 2;
-  border-color: #FEF3C7;
-  background: linear-gradient(to bottom, #FFFBEB, var(--color-bg-card, white));
+  border-color: var(--color-warning-bg);
+  background: linear-gradient(to bottom, var(--color-warning-bg), var(--color-bg-card));
   transform: scale(1.05);
   z-index: 1;
 }
@@ -271,8 +271,8 @@ watch(() => props.groupId, () => {
   right: -4px;
   width: 1.125rem;
   height: 1.125rem;
-  background: #1E293B;
-  color: white;
+  background: var(--color-slate-800);
+  color: var(--color-bg-card);
   border-radius: 50%;
   font-size: 0.6875rem;
   font-weight: 700;

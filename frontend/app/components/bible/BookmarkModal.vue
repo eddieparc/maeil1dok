@@ -1,9 +1,9 @@
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="modelValue" class="modal-overlay" @click.self="close">
-        <div class="modal-content">
-          <h2 class="modal-title">
+      <div v-if="modelValue" class="modal-overlay" @click.self="close" @keydown.esc="close">
+        <div ref="modalRef" class="modal-content" role="dialog" aria-modal="true" aria-labelledby="bookmark-modal-title">
+          <h2 class="modal-title" id="bookmark-modal-title">
             {{ isEdit ? '북마크 수정' : '북마크 추가' }}
           </h2>
 
@@ -69,6 +69,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
+import { useFocusTrap } from '~/composables/useFocusTrap';
 import type { Bookmark } from '~/composables/useBookmark';
 
 const props = defineProps<{
@@ -85,6 +86,10 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   save: [data: { title: string; color: string; memo: string }];
 }>();
+
+const modalRef = ref<HTMLElement | null>(null);
+const isModalOpen = computed(() => props.modelValue);
+useFocusTrap(modalRef, { enabled: isModalOpen });
 
 const isEdit = computed(() => !!props.bookmark);
 

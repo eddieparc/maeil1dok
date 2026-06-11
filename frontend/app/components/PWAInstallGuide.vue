@@ -342,7 +342,7 @@ const handleTouchEnd = () => {
 <style scoped>
 .pwa-install-guide {
   margin: 0 auto;
-  background-color: white;
+  background-color: var(--color-bg-card);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);

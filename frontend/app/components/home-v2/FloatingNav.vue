@@ -7,6 +7,11 @@
       </svg>
       <span class="nav-label">홈</span>
     </NuxtLink>
+
+    <NuxtLink to="/plans" class="nav-item" :class="{ active: route.path.startsWith('/plans') }">
+      <CalendarIcon size="20" />
+      <span class="nav-label">관리</span>
+    </NuxtLink>
     
     <NuxtLink to="/bible" class="nav-item" :class="{ active: route.path.startsWith('/bible') }">
       <BookIcon size="20" />
@@ -28,6 +33,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthService } from '~/composables/useAuthService';
 import BookIcon from '~/components/icons/BookIcon.vue';
+import CalendarIcon from '~/components/icons/CalendarIcon.vue';
 
 const route = useRoute();
 const auth = useAuthService();
@@ -86,15 +92,15 @@ const profileLink = computed(() => {
 }
 
 .nav-item:hover:not(.active) {
-  color: var(--primary-color, #6366f1);
-  background: rgba(99, 102, 241, 0.08);
+  color: var(--color-accent-primary);
+  background: var(--color-accent-primary-light);
 }
 
 .nav-item.active {
-  background: var(--primary-color, #6366f1);
-  color: white;
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .nav-label {
@@ -139,12 +145,12 @@ const profileLink = computed(() => {
 
 [data-theme="dark"] .nav-item:hover:not(.active) {
   color: var(--color-accent-primary, #6bc99f);
-  background: rgba(107, 201, 159, 0.1);
+  background: var(--color-accent-primary-light);
 }
 
 [data-theme="dark"] .nav-item.active {
   background: var(--color-accent-primary, #6bc99f);
   color: var(--color-text-inverse, #1f2937);
-  box-shadow: 0 2px 8px rgba(107, 201, 159, 0.3);
+  box-shadow: var(--shadow-md);
 }
 </style>

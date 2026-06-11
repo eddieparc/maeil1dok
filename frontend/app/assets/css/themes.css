@@ -72,6 +72,10 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 
+  /* Transitions (여러 컴포넌트에서 참조 — 미정의 시 transition 무효화 방지) */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+
   /* Third-party (Kakao) */
   --color-kakao-bg: #FEE500;
   --color-kakao-hover: #FDD835;

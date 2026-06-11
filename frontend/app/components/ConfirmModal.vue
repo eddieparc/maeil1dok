@@ -1,11 +1,11 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="show" class="modal-overlay" @click="handleOverlayClick">
-        <div class="modal-container" @click.stop>
+      <div v-if="show" class="modal-overlay" @click="handleOverlayClick" @keydown.esc="emit('cancel')">
+        <div ref="modalRef" class="modal-container" role="dialog" aria-modal="true" :aria-label="title" @click.stop>
           <div class="modal-header">
             <h3>{{ title }}</h3>
-            <button @click="emit('cancel')" class="close-button">
+            <button @click="emit('cancel')" class="close-button" aria-label="닫기">
               <XMarkIcon :size="20" />
             </button>
           </div>
@@ -30,7 +30,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import XMarkIcon from '~/components/icons/XMarkIcon.vue';
+import { useFocusTrap } from '~/composables/useFocusTrap';
 
 interface Props {
   show: boolean;
@@ -54,6 +56,10 @@ const emit = defineEmits<{
   confirm: [];
   cancel: [];
 }>();
+
+const modalRef = ref<HTMLElement | null>(null);
+const isOpen = computed(() => props.show);
+useFocusTrap(modalRef, { enabled: isOpen });
 
 const handleOverlayClick = () => {
   if (props.closeOnOverlay) {
@@ -158,7 +164,7 @@ const handleOverlayClick = () => {
 }
 
 .modal-button.danger:hover {
-  background-color: #dc2626;
+  filter: brightness(0.92);
 }
 
 /* Transition animations */

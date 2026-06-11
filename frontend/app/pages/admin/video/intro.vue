@@ -60,7 +60,7 @@
                     플랜: {{ intro.plan_name }}
                   </p>
                   <div class="video-intro-link">
-                    <a :href="intro.url_link" target="_blank" class="link-button">
+                    <a :href="intro.url_link" target="_blank" rel="noopener noreferrer" class="link-button">
                       영상 보기
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
@@ -124,7 +124,7 @@
           </ul>
           <div class="mt-3">
             <a href="/sample-video-intro.xlsx" class="text-xs text-blue-600 flex items-center hover:underline"
-              target="_blank">
+              target="_blank" rel="noopener noreferrer">
               <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z"
@@ -729,12 +729,13 @@ watch(() => authStore.user.value, async (newUser) => {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
-:root {
-  --primary-color: #617475;
-  --primary-light: #E9ECEC;
-  --primary-dark: #4A5A5B;
-  --text-primary: #2C3E50;
-  --text-secondary: #666666;
+/* 페이지 로컬 변수 — 전역 :root를 덮어쓰지 않도록 컨테이너로 스코프 */
+.container {
+  --primary-color: var(--color-accent-primary);
+  --primary-light: var(--color-accent-primary-light);
+  --primary-dark: var(--color-accent-primary-hover);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
 }
 
 .label {

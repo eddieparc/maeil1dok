@@ -87,7 +87,8 @@
                   <th class="th-user">사용자</th>
                   <th class="text-center">완료</th>
                   <th class="text-center">진행률</th>
-                  <th class="text-center mobile-hide">연속</th>
+                  <th class="text-center">연속</th>
+                  <th class="text-center mobile-hide">최장</th>
                 </tr>
               </thead>
               <tbody>
@@ -125,6 +126,15 @@ import LeaderboardItem from '~/components/leaderboard/LeaderboardItem.vue'
 
 const scoreboardStore = useScoreboardStore()
 const auth = useAuthService()
+
+useHead({
+  title: '리더보드 · 매일일독',
+  meta: [
+    { property: 'og:title', content: '리더보드 · 매일일독' },
+    { property: 'og:description', content: '함께 통독하는 이들의 꾸준함을 확인해 보세요.' },
+    { name: 'description', content: '매일일독 리더보드 — 완료 일수와 연속 기록으로 함께 통독을 이어갑니다.' },
+  ],
+})
 
 const activeView = ref<'global' | 'friends' | 'following'>('global')
 const currentPeriod = computed(() => scoreboardStore.currentPeriod)
@@ -210,11 +220,11 @@ onUnmounted(() => {
 
 /* 내 순위 카드 */
 .my-ranking-card {
-  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  background: var(--color-accent-primary-light);
   border-radius: 16px;
   padding: 1.5rem;
-  color: white;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .ranking-content {
@@ -230,7 +240,7 @@ onUnmounted(() => {
 
 .ranking-label {
   font-size: 0.875rem;
-  color: #94A3B8;
+  color: var(--color-text-secondary);
   margin: 0 0 0.25rem 0;
   font-weight: 500;
 }
@@ -251,12 +261,12 @@ onUnmounted(() => {
 .ranking-unit {
   font-size: 1rem;
   font-weight: 500;
-  color: #CBD5E1;
+  color: var(--color-text-secondary);
 }
 
 .ranking-sub {
   font-size: 0.875rem;
-  color: #60A5FA;
+  color: var(--color-accent-primary);
   margin: 0.5rem 0 0 0;
   font-weight: 500;
 }
@@ -275,7 +285,7 @@ onUnmounted(() => {
 
 .stat-label {
   font-size: 0.75rem;
-  color: #94A3B8;
+  color: var(--color-slate-400);
   margin: 0;
 }
 
@@ -332,8 +342,8 @@ onUnmounted(() => {
 
 .rank-1 {
   order: 2;
-  border-color: #FEF3C7;
-  background: linear-gradient(to bottom, #FFFBEB, var(--color-bg-card));
+  border-color: var(--color-warning-bg);
+  background: linear-gradient(to bottom, var(--color-warning-bg), var(--color-bg-card));
   transform: scale(1.05);
   z-index: 1;
 }
@@ -377,7 +387,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   background: var(--color-slate-100);
-  color: var(--primary-color, #3B82F6);
+  color: var(--color-accent-primary);
   font-size: 1.25rem;
 }
 
@@ -387,8 +397,8 @@ onUnmounted(() => {
   right: -4px;
   width: 1.25rem;
   height: 1.25rem;
-  background: #1E293B;
-  color: white;
+  background: var(--color-slate-800);
+  color: var(--color-bg-card);
   border-radius: 50%;
   font-size: 0.75rem;
   font-weight: 700;

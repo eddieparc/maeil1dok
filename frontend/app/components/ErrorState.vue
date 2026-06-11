@@ -54,20 +54,20 @@ defineEmits<{
 }
 
 .error-icon {
-  color: #EF4444;
+  color: var(--color-error);
   margin-bottom: 1rem;
 }
 
 .error-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary, #2C3E50);
+  color: var(--color-text-primary);
   margin: 0 0 0.5rem 0;
 }
 
 .error-message {
   font-size: 0.875rem;
-  color: var(--text-secondary, #666666);
+  color: var(--color-text-secondary);
   margin: 0 0 1.5rem 0;
   max-width: 400px;
 }
@@ -77,8 +77,9 @@ defineEmits<{
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
-  background: var(--primary-color, #617475);
-  color: white;
+  min-height: 44px;
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 0.375rem;
   font-size: 0.875rem;
@@ -88,7 +89,7 @@ defineEmits<{
 }
 
 .retry-button:hover {
-  background: var(--primary-dark, #4A5A5B);
+  background: var(--color-accent-primary-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }

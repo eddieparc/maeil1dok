@@ -105,7 +105,7 @@
         }}장</span>
       </p>
       <p class="guide-text">
-        <span class="sub-text">혹시 읽음 상태를 변경하려고 하셨나요?<br>왼쪽 체크박스를 직접 클릭하거나,<br>우측 상단 일괄수정 버튼을 누른 후 변경할 수 있어요.</span>
+        <span class="sub-text">읽음 표시는 왼쪽 체크박스를 누르거나,<br>오른쪽 위 일괄수정으로 바꿀 수 있어요.</span>
       </p>
     </ConfirmModal>
 
@@ -134,7 +134,7 @@
 
     <!-- 최상단 이동 버튼 -->
     <Transition name="fade">
-      <button v-show="showScrollTop" class="scroll-top-button" @click="scrollToTop">
+      <button v-show="showScrollTop" class="scroll-top-button" aria-label="최상단으로 이동" @click="scrollToTop">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
           <path d="M12 19V5M12 5l-7 7M12 5l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
             stroke-linejoin="round" />

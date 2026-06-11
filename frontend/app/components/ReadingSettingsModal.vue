@@ -71,7 +71,7 @@
 
       <!-- Section 2: Typography (Collapsible) -->
       <section class="settings-section">
-        <button class="section-header" @click="toggleSection('typography')">
+        <button class="section-header" :aria-expanded="expandedSections.typography" @click="toggleSection('typography')">
           <span class="section-title-text">글꼴 설정</span>
           <span class="section-summary" v-if="!expandedSections.typography">
             {{ fontFamilies[settings.fontFamily].name }} · {{ settings.fontSize }}px · {{ settings.lineHeight.toFixed(1) }}
@@ -107,16 +107,18 @@
             <!-- Font Size + Weight (Inline row) -->
             <div class="setting-row">
               <div class="setting-group flex-1">
-                <label class="setting-label">크기</label>
+                <label class="setting-label" for="reading-font-size">크기</label>
                 <div class="slider-compact">
-                  <span class="slider-icon small">가</span>
+                  <span class="slider-icon small" aria-hidden="true">가</span>
                   <input
+                    id="reading-font-size"
                     type="range"
                     :value="settings.fontSize"
                     min="14"
                     max="24"
                     step="1"
                     class="font-size-slider"
+                    aria-label="글꼴 크기"
                     @input="updateSetting('fontSize', Number(($event.target as HTMLInputElement).value))"
                   />
                   <span class="slider-icon large">가</span>
@@ -127,16 +129,18 @@
 
             <!-- Line Height Slider -->
             <div class="setting-group">
-              <label class="setting-label">줄간격</label>
+              <label class="setting-label" for="reading-line-height">줄간격</label>
               <div class="slider-compact">
-                <span class="slider-icon small">좁</span>
+                <span class="slider-icon small" aria-hidden="true">좁</span>
                 <input
+                  id="reading-line-height"
                   type="range"
                   :value="settings.lineHeight"
                   :min="LINE_HEIGHT_MIN"
                   :max="LINE_HEIGHT_MAX"
                   :step="LINE_HEIGHT_STEP"
                   class="font-size-slider"
+                  aria-label="줄 간격"
                   @input="updateSetting('lineHeight', Number(($event.target as HTMLInputElement).value))"
                 />
                 <span class="slider-icon large">넓</span>
@@ -181,7 +185,7 @@
 
       <!-- Section 3: Reading Mode (Collapsible) -->
       <section class="settings-section">
-        <button class="section-header" @click="toggleSection('readingMode')">
+        <button class="section-header" :aria-expanded="expandedSections.readingMode" @click="toggleSection('readingMode')">
           <span class="section-title-text">읽기 모드</span>
           <span class="section-summary" v-if="!expandedSections.readingMode">
             {{ settings.verseJoining ? '절 붙임' : '기본' }}{{ settings.highlightNames ? ' · 강조' : '' }}

@@ -106,8 +106,8 @@ const toggleFollow = async () => {
 
 <style scoped>
 .user-card {
-  background: white;
-  border: 1px solid #E5E7EB;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-default);
   border-radius: 0.5rem;
   padding: 1rem;
   display: flex;
@@ -204,7 +204,7 @@ const toggleFollow = async () => {
 
 .follow-button.not-following {
   background: var(--primary-color);
-  color: white;
+  color: var(--color-text-inverse);
   border: 1px solid var(--primary-color);
 }
 
@@ -214,15 +214,15 @@ const toggleFollow = async () => {
 }
 
 .follow-button.following {
-  background: white;
+  background: var(--color-bg-card);
   color: var(--text-primary);
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--color-border-default);
 }
 
 .follow-button.following:hover {
-  background: #FEE2E2;
-  color: #DC2626;
-  border-color: #DC2626;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .follow-button:disabled {

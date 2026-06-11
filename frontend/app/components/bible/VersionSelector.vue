@@ -191,8 +191,8 @@ const selectVersion = (version: string) => {
   padding: 0.125rem 0.375rem;
   font-size: 0.625rem;
   font-weight: 600;
-  color: white;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: var(--color-text-inverse);
+  background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-primary-hover) 100%);
   border-radius: 4px;
   vertical-align: middle;
 }

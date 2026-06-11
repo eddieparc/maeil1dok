@@ -77,12 +77,12 @@ const handleClick = (event) => {
 
 .card-gradient {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-  color: white;
+  color: var(--color-text-inverse);
   box-shadow: var(--shadow-md);
 }
 
 .card-primary {
-  background: linear-gradient(135deg, var(--primary-light) 0%, #D5DBDB 100%);
+  background: linear-gradient(135deg, var(--color-accent-primary-light) 0%, var(--color-bg-tertiary) 100%);
   color: var(--text-primary);
   box-shadow: var(--shadow-sm);
 }

@@ -1,9 +1,9 @@
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="modelValue" class="modal-overlay" @click.self="close">
-        <div class="modal-content">
-          <h2 class="modal-title">빠른 메모</h2>
+      <div v-if="modelValue" class="modal-overlay" @click.self="close" @keydown.esc="close">
+        <div ref="modalRef" class="modal-content" role="dialog" aria-modal="true" aria-labelledby="note-quick-modal-title">
+          <h2 class="modal-title" id="note-quick-modal-title">빠른 메모</h2>
 
           <div class="note-location">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -52,7 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, computed } from 'vue';
+import { useFocusTrap } from '~/composables/useFocusTrap';
 import type { Note } from '~/composables/useNote';
 
 const props = defineProps<{
@@ -72,6 +73,10 @@ const emit = defineEmits<{
 const content = ref('');
 const isSaving = ref(false);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const modalRef = ref<HTMLElement | null>(null);
+const isModalOpen = computed(() => props.modelValue);
+// autoFocus는 끔: 아래 watch에서 textarea로 직접 포커스를 옮기기 때문
+useFocusTrap(modalRef, { enabled: isModalOpen, autoFocus: false });
 
 // 기존 노트가 있으면 로드
 watch(() => props.existingNote, (val) => {

@@ -15,7 +15,7 @@
       <div>
         <NuxtImg
           class="mx-auto h-8 w-auto object-contain"
-          src="/images/로고_투명.png"
+          src="/images/logo-transparent.png"
           alt="매일일독"
           loading="lazy"
           format="webp"
@@ -63,7 +63,7 @@
         <div>
           <button
             type="submit"
-            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#4B9F7E] hover:bg-[#3B7E63] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4B9F7E] transition-all duration-200"
+            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-accent-primary hover:bg-accent-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-primary transition-all duration-200"
             :class="{'opacity-50 cursor-not-allowed': loading || !isNicknameChecked}"
             :disabled="loading || !isNicknameChecked"
           >

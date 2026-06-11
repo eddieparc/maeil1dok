@@ -341,7 +341,7 @@ const formattedSummary = computed(() => {
   
   // 3. 내용이 없으면 원본 텍스트 반환 (fallback)
   if (!bibleContent && !commentaryContent && !actionContent) {
-    return text.replace(/\n/g, '<br>')
+    return sanitize(text.replace(/\n/g, '<br>'))
   }
   
   // 4. 각 섹션 내부 스타일링 함수
@@ -360,7 +360,7 @@ const formattedSummary = computed(() => {
       `<div class="checklist-item">
          <span class="check-icon">
            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-             <polyline points="20 6 9 17 4 12"></polyline>
+             <path d="M20 6 9 17 4 12"></path>
            </svg>
          </span>
          <span class="checklist-text">$2</span>
@@ -398,8 +398,8 @@ const formattedSummary = computed(() => {
        </div>
      </div>`
   }
-  
-  return html
+
+  return sanitize(html)
 })
 
 // AI 요약 조회 (생성 없이)
@@ -454,8 +454,7 @@ const generateAISummary = async () => {
       summaryError.value = data.error || '요약을 생성할 수 없습니다.'
     }
   } catch (err) {
-    console.error('[Hasena] Generate summary error:', err)
-    summaryError.value = err.response?.data?.error || '요약 생성 중 오류가 발생했습니다.'
+    summaryError.value = err?.data?.error || err?.response?.data?.error || '요약 생성 중 오류가 발생했습니다.'
   } finally {
     summaryLoading.value = false
   }
@@ -839,8 +838,8 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-primary-hover) 100%);
+  color: var(--color-text-inverse);
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
   font-size: 0.8rem;

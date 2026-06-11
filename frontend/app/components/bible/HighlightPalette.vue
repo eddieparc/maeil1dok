@@ -9,6 +9,8 @@
         :class="{ active: modelValue === color.value }"
         :style="{ background: color.value }"
         :title="color.name"
+        :aria-label="`${color.name} 형광펜`"
+        :aria-pressed="modelValue === color.value"
         @click="$emit('update:modelValue', color.value)"
       />
 
@@ -19,11 +21,13 @@
         class="color-btn custom"
         :class="{ active: modelValue === color }"
         :style="{ background: color }"
+        aria-label="사용자 지정 형광펜 색상"
+        :aria-pressed="modelValue === color"
         @click="$emit('update:modelValue', color)"
       />
 
       <!-- 색상 추가 버튼 -->
-      <button class="color-btn add" @click="openColorPicker" title="색상 추가">
+      <button class="color-btn add" @click="openColorPicker" title="색상 추가" aria-label="형광펜 색상 추가">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round"/>
           <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round"/>
@@ -80,6 +84,7 @@ const handleCustomColor = (e: Event) => {
 }
 
 .color-btn {
+  position: relative;
   width: 32px;
   height: 32px;
   border: 2px solid transparent;
@@ -90,6 +95,13 @@ const handleCustomColor = (e: Event) => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 시각 크기는 32px로 유지하되 터치 영역을 44px로 확장 (WCAG 2.5.5) */
+.color-btn::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
 }
 
 .color-btn:hover {

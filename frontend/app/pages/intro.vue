@@ -43,7 +43,7 @@
                     allowfullscreen
                   ></iframe>
                 </div>
-                <a :href="videoIntro.url_link" target="_blank" class="youtube-deep-link">
+                <a :href="videoIntro.url_link" target="_blank" rel="noopener noreferrer" class="youtube-deep-link">
                   <span class="youtube-icon">▶</span>
                   YouTube 앱으로 시청하기
                 </a>

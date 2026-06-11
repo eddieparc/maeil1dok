@@ -18,7 +18,7 @@
       <Transition name="slide-fade">
         <div v-if="showDefaultPlanMessage && !auth.isAuthenticated.value"
           class="bulk-edit-indicator default-plan-indicator">
-          <span class="bulk-edit-message">비로그인 사용자는 <strong>{{ defaultPlanName }}</strong>이 기본 선택되요.</span>
+          <span class="bulk-edit-message">로그인하지 않으면 <strong>{{ defaultPlanName }}</strong>이 기본으로 선택돼요.</span>
         </div>
       </Transition>
     </div>
@@ -26,7 +26,7 @@
     <div class="schedule-body">
       <div v-if="loading" class="loading-state">
         <div class="loading-spinner"></div>
-        <span>목록을 불러오는 중입니다...</span>
+        <span>목록을 불러오고 있어요</span>
       </div>
       <div v-else-if="error" class="no-schedules">
         <span>{{ error }}</span>
@@ -266,8 +266,7 @@ const fetchIntroductions = async () => {
       error.value = "데이터 형식이 올바르지 않습니다.";
     }
   } catch (err) {
-    error.value =
-      "소개 목록을 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.";
+    error.value = "목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
   } finally {
     loading.value = false;
   }

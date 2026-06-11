@@ -78,8 +78,8 @@ defineExpose({ show })
   font-weight: 500;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   pointer-events: auto;
-  min-width: 200px;
-  max-width: 100%;
+  min-width: min(200px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
   margin: 0 auto;
 }
 

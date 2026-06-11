@@ -6,6 +6,8 @@
       :class="{ active: isOpen, 'has-indicator': hasIndicator }"
       @click="togglePopover"
       title="도구"
+      aria-label="도구 메뉴"
+      :aria-expanded="isOpen"
     >
       <EllipsisIcon />
       <span v-if="hasIndicator" class="indicator-dot"></span>
@@ -25,7 +27,7 @@
         </button>
 
         <!-- 가이드 (통독모드, 좁은 화면에서만 표시) -->
-        <a v-if="guideLink" :href="guideLink" target="_blank" class="popover-item mobile-only" @click="closePopover">
+        <a v-if="guideLink" :href="guideLink" target="_blank" rel="noopener noreferrer" class="popover-item mobile-only" @click="closePopover">
           <div class="item-icon">
             <GuideIcon />
           </div>
@@ -299,6 +301,7 @@ onUnmounted(() => {
   top: calc(100% + 8px);
   right: 0;
   min-width: 180px;
+  max-width: calc(100vw - 32px);
   background: var(--color-bg-card, #fff);
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);

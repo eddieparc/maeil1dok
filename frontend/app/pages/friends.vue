@@ -147,6 +147,16 @@ import UserCard from '~/components/UserCard.vue'
 
 const auth = useAuthService()
 const socialStore = useSocialStore()
+
+useHead({
+  title: '친구 · 매일일독',
+  meta: [
+    { property: 'og:title', content: '친구 · 매일일독' },
+    { property: 'og:description', content: '함께 통독하는 친구를 찾고 서로의 기록을 응원해 보세요.' },
+    { name: 'description', content: '매일일독에서 친구를 팔로우하고 함께 통독을 이어갑니다.' },
+  ],
+})
+
 const activeTab = ref('friends')
 const searchQuery = ref('')
 

@@ -1,9 +1,9 @@
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="modelValue" class="modal-overlay" @click.self="close">
-        <div class="modal-content">
-          <h2 class="modal-title">하이라이트</h2>
+      <div v-if="modelValue" class="modal-overlay" @click.self="close" @keydown.esc="close">
+        <div ref="modalRef" class="modal-content" role="dialog" aria-modal="true" aria-labelledby="highlight-modal-title">
+          <h2 class="modal-title" id="highlight-modal-title">하이라이트</h2>
 
           <div class="verse-info">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -59,7 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
+import { useFocusTrap } from '~/composables/useFocusTrap';
 import HighlightPalette from './HighlightPalette.vue';
 import type { Highlight } from '~/composables/useHighlight';
 
@@ -80,6 +81,10 @@ const emit = defineEmits<{
   delete: [highlightId: number];
   'add-custom-color': [color: string];
 }>();
+
+const modalRef = ref<HTMLElement | null>(null);
+const isModalOpen = computed(() => props.modelValue);
+useFocusTrap(modalRef, { enabled: isModalOpen });
 
 const selectedColor = ref('#FEF3C7');
 const memo = ref('');

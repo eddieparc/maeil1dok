@@ -976,12 +976,12 @@ onUnmounted(() => {
 }
 
 .action-button.danger {
-  color: #dc2626;
-  border-color: #fecaca;
+  color: var(--color-error);
+  border-color: var(--color-error-bg);
 }
 
 .action-button.danger:hover:not(:disabled) {
-  background: #fef2f2;
+  background: var(--color-error-bg);
 }
 
 .section-note {
@@ -1010,19 +1010,19 @@ onUnmounted(() => {
 .warning-icon {
   width: 1.25rem;
   height: 1.25rem;
-  color: #f59e0b;
+  color: var(--color-warning);
   flex-shrink: 0;
 }
 
 .check-icon {
   width: 1.25rem;
   height: 1.25rem;
-  color: #10b981;
+  color: var(--color-success);
   flex-shrink: 0;
 }
 
 .verification-status.verified .setting-label {
-  color: #10b981;
+  color: var(--color-success);
 }
 
 .logout-button {
@@ -1030,7 +1030,7 @@ onUnmounted(() => {
   padding: 0.875rem;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: #dc2626;
+  color: var(--color-error);
   background: var(--color-bg-card);
   border: 1px solid var(--color-slate-200);
   border-radius: 12px;
@@ -1039,8 +1039,8 @@ onUnmounted(() => {
 }
 
 .logout-button:hover {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: var(--color-error-bg);
+  border-color: var(--color-error-bg);
 }
 
 .delete-account-button {
@@ -1048,21 +1048,21 @@ onUnmounted(() => {
   padding: 0.875rem;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: #dc2626;
+  color: var(--color-error);
   background: var(--color-bg-card);
-  border: 1px solid #fecaca;
+  border: 1px solid var(--color-error-bg);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .delete-account-button:hover {
-  background: #fef2f2;
+  background: var(--color-error-bg);
   border-color: #f87171;
 }
 
 .danger-note {
-  color: #dc2626;
+  color: var(--color-error);
 }
 
 /* Modal */
@@ -1130,7 +1130,7 @@ onUnmounted(() => {
 
 .error-text {
   font-size: 0.8125rem;
-  color: #dc2626;
+  color: var(--color-error);
   margin: 0;
 }
 
@@ -1360,8 +1360,8 @@ onUnmounted(() => {
 
 .merge-warning {
   font-size: 0.8125rem;
-  color: #dc2626;
-  background: #fef2f2;
+  color: var(--color-error);
+  background: var(--color-error-bg);
   padding: 0.75rem;
   border-radius: 8px;
   margin-bottom: 1rem;

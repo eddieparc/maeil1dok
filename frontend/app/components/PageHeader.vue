@@ -1,6 +1,6 @@
 <template>
   <div class="header">
-    <button v-if="showBack" class="back-button" @click="handleBack">
+    <button v-if="showBack" class="back-button" aria-label="뒤로 가기" @click="handleBack">
       <ChevronLeftIcon :size="20" />
     </button>
     <div v-else class="back-placeholder"></div>
@@ -91,7 +91,11 @@ const handleBack = () => {
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.2s ease;
-  min-width: 32px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .back-button:hover {

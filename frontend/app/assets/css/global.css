@@ -148,7 +148,7 @@ html {
 }
 
 .btn-primary {
-  @apply bg-blue-500 text-white hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  @apply bg-accent-primary text-txt-inverse hover:bg-accent-primary-hover focus:ring-2 focus:ring-accent-primary focus:ring-offset-2;
 }
 
 .btn-kakao {
@@ -156,21 +156,22 @@ html {
 }
 
 .input-field {
-  @apply appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm 
-  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+  @apply appearance-none block w-full px-4 py-3 border border-input-border rounded-lg shadow-sm
+  bg-input-bg text-txt-primary placeholder:text-txt-muted
+  focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-accent-primary
   transition-all duration-200 text-base;
 }
 
 .form-label {
-  @apply block text-sm font-medium text-gray-700 mb-2;
+  @apply block text-sm font-medium text-txt-secondary mb-2;
 }
 
 .error-text {
-  @apply text-red-500 text-sm mt-1;
+  @apply text-status-error-text text-sm mt-1;
 }
 
 .success-text {
-  @apply text-green-500 text-sm mt-1;
+  @apply text-status-success-text text-sm mt-1;
 }
 
 /* Responsive Container Styles */

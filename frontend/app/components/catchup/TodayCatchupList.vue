@@ -27,10 +27,10 @@
           </span>
         </div>
         <div class="item-links" @click.stop>
-          <a v-if="schedule.audio_link" :href="schedule.audio_link" target="_blank" class="link-button">
+          <a v-if="schedule.audio_link" :href="schedule.audio_link" target="_blank" rel="noopener noreferrer" class="link-button">
             🎧
           </a>
-          <a v-if="schedule.guide_link" :href="schedule.guide_link" target="_blank" class="link-button">
+          <a v-if="schedule.guide_link" :href="schedule.guide_link" target="_blank" rel="noopener noreferrer" class="link-button">
             📖
           </a>
         </div>

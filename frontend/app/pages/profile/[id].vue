@@ -383,7 +383,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--color-accent-primary, #4A5D53) 0%, #6B8F71 100%);
+  background: linear-gradient(135deg, var(--color-accent-primary, #4A5D53) 0%, var(--color-accent-primary-hover) 100%);
   color: white;
   font-size: 1.75rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -456,7 +456,7 @@ onUnmounted(() => {
 
 [data-theme="dark"] .btn-primary {
   background: var(--color-accent-primary, #6bc99f);
-  color: #1f2937;
+  color: var(--color-text-inverse);
 }
 
 .btn-primary:hover {
@@ -536,21 +536,16 @@ onUnmounted(() => {
 }
 
 .mutual-follow {
-  color: #059669;
+  color: var(--color-success-text);
   font-size: 0.75rem;
   font-weight: 500;
   display: flex;
   align-items: center;
   gap: 0.25rem;
   margin-left: auto;
-  background: #ECFDF5;
+  background: var(--color-success-bg);
   padding: 0.375rem 0.625rem;
   border-radius: 999px;
-}
-
-[data-theme="dark"] .mutual-follow {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
 }
 
 /* ========================================
@@ -594,25 +589,16 @@ onUnmounted(() => {
   color: var(--color-text-primary); 
 }
 
-.stat-value.success { 
-  color: #059669; 
-}
-[data-theme="dark"] .stat-value.success { 
-  color: #34d399; 
+.stat-value.success {
+  color: var(--color-success);
 }
 
-.stat-value.purple { 
-  color: #7C3AED; 
-}
-[data-theme="dark"] .stat-value.purple { 
-  color: #a78bfa; 
+.stat-value.purple {
+  color: var(--color-accent-secondary);
 }
 
-.stat-value.orange { 
-  color: #EA580C; 
-}
-[data-theme="dark"] .stat-value.orange { 
-  color: #fb923c; 
+.stat-value.orange {
+  color: var(--color-warning);
 }
 
 .stat-label {

@@ -9,10 +9,11 @@
           <span class="book-chapter-text tongdok-text book-name-full">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
           <span class="book-chapter-text tongdok-text book-name-short">{{ shortBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
         </button>
-        <button 
-          class="tongdok-exit-btn" 
-          @click="$emit('exit-tongdok')" 
+        <button
+          class="tongdok-exit-btn"
+          @click="$emit('exit-tongdok')"
           title="통독모드 종료"
+          aria-label="통독모드 종료"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -29,8 +30,12 @@
           <span
             class="bookmark-toggle-icon"
             :class="{ 'is-bookmarked': isBookmarked }"
+            role="button"
+            tabindex="0"
             @click.stop="$emit('bookmark-toggle')"
+            @keydown.enter.stop.prevent="$emit('bookmark-toggle')"
             :title="isBookmarked ? '북마크 삭제' : '북마크 추가'"
+            :aria-label="isBookmarked ? '북마크 삭제' : '북마크 추가'"
           >
             <BookmarkFilledIcon v-if="isBookmarked" :size="18" />
             <BookmarkOutlineIcon v-else :size="18" />
@@ -59,6 +64,7 @@
           v-if="tongdokGuideLink"
           :href="tongdokGuideLink"
           target="_blank"
+          rel="noopener noreferrer"
           class="tongdok-action-btn"
           title="가이드"
         >
@@ -188,8 +194,8 @@
 
       <nav class="bible-navigation">
         <!-- 홈 아이콘 (왼쪽 끝) -->
-        <NuxtLink to="/" class="side-nav-item">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <NuxtLink to="/" class="side-nav-item" aria-label="홈으로 이동">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke-linecap="round" stroke-linejoin="round"/>
             <polyline points="9 22 9 12 15 12 15 22" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -200,6 +206,7 @@
           <button
             class="nav-button prev"
             :disabled="!hasPrevChapter"
+            aria-label="이전 장"
             @click="$emit('prev-chapter')"
           >
             <ChevronLeftIcon />
@@ -229,6 +236,7 @@
           <button
             class="nav-button next"
             :disabled="!hasNextChapter"
+            aria-label="다음 장"
             @click="$emit('next-chapter')"
           >
             <ChevronRightIcon />
@@ -236,8 +244,8 @@
         </div>
 
         <!-- 프로필 아이콘 (오른쪽 끝) -->
-        <NuxtLink :to="profileLink" class="side-nav-item">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <NuxtLink :to="profileLink" class="side-nav-item" aria-label="내 프로필">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
             <circle cx="12" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>

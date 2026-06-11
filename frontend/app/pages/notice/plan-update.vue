@@ -59,7 +59,7 @@ const navigateToPlans = () => {
 .container {
   max-width: 768px;
   margin: 0 auto;
-  background: #f5f5f5;
+  background: var(--color-bg-primary);
   min-height: 100vh;
 }
 
@@ -125,10 +125,10 @@ h3 {
 }
 
 .feature-list li {
-  background: #f8f9fa;
+  background: var(--color-bg-tertiary);
   padding: 1.25rem;
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border-light);
 }
 
 .feature-list li strong {

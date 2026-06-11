@@ -6,6 +6,7 @@
       <button
         v-if="showCurrentLocation"
         class="control-button"
+        aria-label="현재 읽는 위치로 이동"
         @click="$emit('scrollTo', 'currentLocation')"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -19,7 +20,7 @@
         </svg>
         현재위치
       </button>
-      <button class="control-button" @click="$emit('scrollTo', 'today')">
+      <button class="control-button" aria-label="오늘 일정으로 이동" @click="$emit('scrollTo', 'today')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
           <path
             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
@@ -30,7 +31,7 @@
         </svg>
         오늘
       </button>
-      <button class="control-button" @click="$emit('scrollTo', 'lastIncomplete')">
+      <button class="control-button" aria-label="마지막 미완료 일정으로 이동" @click="$emit('scrollTo', 'lastIncomplete')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
           <path
             d="M3 7h18M3 12h18M3 17h18"

@@ -47,7 +47,7 @@
     <td class="text-center">
       <span class="streak current">{{ currentStreak }}일</span>
     </td>
-    <td class="text-center">
+    <td class="text-center mobile-hide">
       <span class="streak longest">{{ longestStreak }}일</span>
     </td>
   </tr>
@@ -268,6 +268,10 @@ tr:hover {
 }
 
 @media (max-width: 768px) {
+  .mobile-hide {
+    display: none;
+  }
+
   .rank-cell,
   .user-cell,
   .text-center {

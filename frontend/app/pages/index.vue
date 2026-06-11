@@ -5,7 +5,7 @@
     <div class="container">
       <header class="home-header">
         <div class="logo-wrapper">
-          <NuxtImg src="/images/로고_투명.png" alt="Maeil1dok" class="logo-img" loading="lazy" />
+          <NuxtImg src="/images/logo-transparent.png" alt="Maeil1dok" class="logo-img" loading="lazy" />
         </div>
         <div class="header-actions">
           <button class="theme-toggle-btn" @click="toggleTheme" :aria-label="isDark ? '라이트 모드로 전환' : '다크 모드로 전환'">
@@ -184,13 +184,13 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, var(--bg-color) 0%, #EFEFEA 100%);
+  background: linear-gradient(180deg, var(--bg-color) 0%, var(--color-bg-tertiary) 100%);
   z-index: 0;
   pointer-events: none;
 }
 
 [data-theme="dark"] .bg-pattern {
-  background: linear-gradient(180deg, var(--bg-color) 0%, #222222 100%);
+  background: linear-gradient(180deg, var(--bg-color) 0%, var(--color-bg-secondary) 100%);
 }
 
 [data-theme="dark"] .logo-img {

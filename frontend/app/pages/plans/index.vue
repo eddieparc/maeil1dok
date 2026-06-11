@@ -121,21 +121,6 @@
     </div>
 
     <Toast />
-
-    <!-- 완전 삭제 확인 모달 -->
-    <ConfirmModal
-      :show="showDeleteModal"
-      title="완전 삭제 확인"
-      confirm-text="완전 삭제"
-      confirm-variant="danger"
-      @confirm="handleDelete"
-      @cancel="closeDeleteModal"
-    >
-      <p class="delete-warning">정말 삭제하시겠어요?</p>
-      <p class="delete-description">
-        지금까지 진행된 읽기 기록이 전부 삭제되며, <strong>복구할 수 없습니다.</strong>
-      </p>
-    </ConfirmModal>
   </div>
 </template>
 
@@ -147,21 +132,29 @@ import { usePlanApi } from '~/composables/usePlanApi';
 import { useToast } from '~/composables/useToast';
 import { formatKoreanDate } from '~/utils/dateFormat';
 import PageHeader from '~/components/PageHeader.vue';
-import ConfirmModal from '~/components/ConfirmModal.vue';
 import Toast from '~/components/Toast.vue';
+import { useModal } from '~/composables/useModal';
 import type { Plan, Subscription } from '~/types/plan';
 
 const router = useRouter();
 const auth = useAuthService();
 const planApi = usePlanApi();
+
+useHead({
+  title: '내 통독 플랜 · 매일일독',
+  meta: [
+    { property: 'og:title', content: '내 통독 플랜 · 매일일독' },
+    { property: 'og:description', content: '구독 중인 통독 플랜을 관리하고 진행 상황을 확인하세요.' },
+    { name: 'description', content: '매일일독에서 통독 플랜을 구독하고 관리합니다.' },
+  ],
+});
 const toast = useToast();
 
 const subscriptions = ref<Subscription[]>([]);
 const availablePlans = ref<Plan[]>([]);
 const isLoading = ref(true);
 
-const showDeleteModal = ref(false);
-const currentSubscription = ref<Subscription | null>(null);
+const modal = useModal();
 
 // 날짜 포맷팅
 function formatDate(dateString: string): string {
@@ -200,27 +193,21 @@ async function handleToggleHide(subscription: Subscription) {
   }
 }
 
-// 완전 삭제 확인 모달 표시
-function confirmDelete(subscription: Subscription) {
-  currentSubscription.value = subscription;
-  showDeleteModal.value = true;
-}
+// 완전 삭제 (확인 모달 → 실행)
+async function confirmDelete(subscription: Subscription) {
+  const confirmed = await modal.confirm({
+    title: '플랜을 완전히 삭제할까요?',
+    description: '지금까지 진행된 읽기 기록이 전부 삭제되며, 복구할 수 없습니다.',
+    confirmText: '완전 삭제',
+    confirmVariant: 'danger',
+    icon: 'warning',
+  });
+  if (!confirmed) return;
 
-// 삭제 모달 닫기
-function closeDeleteModal() {
-  showDeleteModal.value = false;
-  currentSubscription.value = null;
-}
-
-// 완전 삭제 실행
-async function handleDelete() {
-  if (!currentSubscription.value) return;
-
-  const success = await planApi.deletePlanSubscription(currentSubscription.value.id);
+  const success = await planApi.deletePlanSubscription(subscription.id);
   if (success) {
-    toast.success(`${currentSubscription.value.plan_name} 플랜을 완전히 삭제했습니다.`);
+    toast.success(`${subscription.plan_name} 플랜을 완전히 삭제했습니다.`);
     await fetchUserPlans();
-    closeDeleteModal();
   }
 }
 
@@ -462,20 +449,6 @@ onMounted(async () => {
   background: var(--primary-light);
   color: var(--primary-color);
   border: 1px solid var(--primary-color);
-}
-
-.delete-warning {
-  margin-bottom: 1rem;
-  color: var(--color-red-600);
-  font-weight: 600;
-}
-
-.delete-description {
-  color: var(--text-secondary);
-}
-
-.delete-description strong {
-  color: var(--text-primary);
 }
 
 /* Animations */

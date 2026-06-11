@@ -16,7 +16,7 @@
           <div class="notice-highlights">
             <div class="highlight-item">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
@@ -24,7 +24,7 @@
             </div>
             <div class="highlight-item">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
@@ -32,7 +32,7 @@
             </div>
             <div class="highlight-item">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
@@ -101,7 +101,7 @@ const navigateToNoticeDetail = (path) => {
 .container {
   max-width: 768px;
   margin: 0 auto;
-  background: #f5f5f5;
+  background: var(--color-bg-primary);
   min-height: 100vh;
 }
 
@@ -109,7 +109,7 @@ const navigateToNoticeDetail = (path) => {
   display: flex;
   align-items: center;
   padding: 0.75rem 1rem;
-  background: white;
+  background: var(--color-bg-card);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -143,43 +143,24 @@ const navigateToNoticeDetail = (path) => {
 .notice-item {
   padding-bottom: 1.5rem;
   margin-bottom: 1.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .notice-date {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--color-text-tertiary);
 }
 
 .notice-content {
   font-size: 0.95rem;
   line-height: 1.6;
-  color: #4B5563;
+  color: var(--color-text-secondary);
 }
 
 .notice-action {
   margin-top: 1rem;
   display: flex;
   justify-content: flex-end;
-}
-
-.action-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #617475;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.action-button:hover {
-  background: #4A5A5B;
 }
 
 @keyframes fadeIn {
@@ -199,11 +180,6 @@ const navigateToNoticeDetail = (path) => {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
-:root {
-  --text-primary: #2C3E50;
-  --text-secondary: #666666;
-}
-
 .notice-header {
   display: flex;
   align-items: center;
@@ -214,12 +190,12 @@ const navigateToNoticeDetail = (path) => {
 
 .notice-date {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-tertiary);
 }
 
 .new-badge {
-  background: #FF4B4B;
-  color: white;
+  background: var(--color-error);
+  color: var(--color-text-inverse);
   font-size: 0.6rem;
   font-weight: 600;
   padding: 0.1rem 0.3rem;
@@ -227,7 +203,7 @@ const navigateToNoticeDetail = (path) => {
 }
 
 .notice-item {
-  background: white;
+  background: var(--color-bg-card);
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 1rem;
@@ -249,12 +225,12 @@ const navigateToNoticeDetail = (path) => {
 .notice-summary {
   font-size: 0.95rem;
   line-height: 1.6;
-  color: #4B5563;
+  color: var(--color-text-secondary);
   margin-bottom: 1.25rem;
 }
 
 .notice-highlights {
-  background: #f8f9fa;
+  background: var(--color-bg-tertiary);
   border-radius: 12px;
   padding: 0.75rem 1rem;
   margin-bottom: 1.25rem;

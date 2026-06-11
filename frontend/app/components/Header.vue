@@ -3,7 +3,7 @@
     <header class="header">
       <NuxtLink to="/" class="logo-link">
         <NuxtImg
-          src="/images/로고_투명.png"
+          src="/images/logo-transparent.png"
           alt="매일일독"
           class="logo"
           loading="lazy"
@@ -16,10 +16,12 @@
             <ClientOnly>
               <!-- 프로필 드롭다운 -->
               <div v-if="user" class="profile-dropdown" ref="profileDropdown">
-                <button 
+                <button
                   @click="toggleProfileMenu"
                   class="profile-button"
                   title="프로필 메뉴"
+                  aria-label="프로필 메뉴"
+                  :aria-expanded="isProfileMenuOpen"
                 >
                   <NuxtImg
                     v-if="user.profile_image"
@@ -142,6 +144,7 @@
             class="theme-toggle-button"
             @click="toggleTheme"
             :title="currentTheme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'"
+            :aria-label="currentTheme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'"
           >
             <!-- Sun icon (shown in dark mode) -->
             <svg v-if="currentTheme === 'dark'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -161,7 +164,7 @@
             </svg>
           </button>
         </ClientOnly>
-        <button class="menu-button" @click="isMenuOpen = true">
+        <button class="menu-button" aria-label="메뉴 열기" @click="isMenuOpen = true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M4 6H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <path d="M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
