@@ -150,22 +150,34 @@
         </div>
       </main>
 
-      <!-- 하단 플로팅 버튼 -->
-      <div class="floating-footer fade-in" style="animation-delay: 0.3s">
-        <div class="footer-inner">
-          <button 
-            class="action-button" 
-            :class="{ 'completed': isButtonCompleted }" 
+      <!-- 하단 플로팅 바 -->
+      <div class="hasena-bottom-area fade-in" style="animation-delay: 0.3s">
+        <nav class="hasena-navigation">
+          <NuxtLink to="/" class="side-nav-item" aria-label="홈으로 이동">
+            <HomeIcon :size="18" aria-hidden="true" />
+          </NuxtLink>
+
+          <button
+            class="hasena-complete-info"
+            :class="{ completed: isButtonCompleted }"
             :disabled="hasenaStore.isLoading"
+            :aria-label="buttonText"
             @click="handleComplete"
           >
-            <span v-if="hasenaStore.isLoading" class="loading-spinner small"></span>
-            <template v-else>
-              <CheckCircleIcon class="btn-icon" />
-              <span>{{ buttonText }}</span>
-            </template>
+            <span class="hasena-date">{{ shortFormattedDate }}</span>
+            <span class="hasena-completion-group">
+              <span v-if="hasenaStore.isLoading" class="loading-spinner nav-spinner" aria-hidden="true"></span>
+              <span v-else class="hasena-custom-checkbox" aria-hidden="true">
+                <CheckCircleIcon v-if="isButtonCompleted" :size="16" />
+              </span>
+              <span class="hasena-range">{{ bibleTitle || '하세나하시조' }}</span>
+            </span>
           </button>
-        </div>
+
+          <NuxtLink :to="profileLink" class="side-nav-item" aria-label="내 프로필">
+            <UserIcon :size="18" aria-hidden="true" />
+          </NuxtLink>
+        </nav>
       </div>
 
       <!-- Toast 컴포넌트 -->
@@ -190,17 +202,19 @@ import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/r
 import { useRouter } from 'vue-router'
 import { useSanitize } from '~/composables/useSanitize'
 import Toast from '~/components/Toast.vue'
-import CheckCircleIcon from '~/components/icons/CheckCircleIcon.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
 import {
   CalendarDaysIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   FlameIcon,
+  CheckCircleIcon,
+  HomeIcon,
   PlayIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
   TrophyIcon,
+  UserIcon,
 } from '@lucide/vue'
 import { formatHasenaSummary, parseHasenaContent } from '~/utils/hasenaFormatters'
 
@@ -355,6 +369,12 @@ const formattedDate = ref(new Intl.DateTimeFormat('ko-KR', {
   day: 'numeric',
   weekday: 'long'
 }).format(today))
+const shortFormattedDate = computed(() => new Intl.DateTimeFormat('ko-KR', {
+  month: 'long',
+  day: 'numeric',
+  weekday: 'short'
+}).format(today))
+const profileLink = computed(() => auth.user.value ? `/profile/${auth.user.value.id}` : '/login')
 
 // API 날짜 포맷
 const formatApiDate = (date) => {
@@ -1166,82 +1186,174 @@ onMounted(async () => {
   transition: all 0.2s ease;
 }
 
-/* Floating Footer */
-.floating-footer {
+/* 하단 플로팅 바 */
+.hasena-bottom-area {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: min(400px, calc(100vw - 32px));
   z-index: 100;
-  padding-bottom: env(safe-area-inset-bottom);
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.footer-inner {
-  width: 100%;
-  max-width: 768px;
+.hasena-navigation {
   display: flex;
-  justify-content: flex-end;
-  padding: 0 1.5rem 2rem 0;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  gap: 0.5rem;
+  padding: 0.5rem;
 }
 
-@media (min-width: 768px) {
-  .footer-inner {
-    justify-content: center;
-    padding-right: 0;
-  }
-}
-
-.action-button {
-  pointer-events: auto;
-  width: auto;
-  background: var(--color-success);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.25rem;
-  border-radius: 999px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.side-nav-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+  width: 32px;
+  height: 32px;
+  color: var(--color-slate-500, #64748b);
+  border-radius: 8px;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
-.btn-icon {
-  width: 20px;
-  height: 20px;
+.side-nav-item:hover {
+  color: var(--color-accent-primary);
+  background: rgba(75, 159, 126, 0.08);
 }
 
-.action-button:hover {
-  background: var(--color-success-dark);
+.side-nav-item:active {
+  transform: scale(0.92);
 }
 
-.action-button:active {
-  transform: scale(0.95);
+.hasena-complete-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  flex: 1;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--color-border-light);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.action-button:disabled {
-  opacity: 0.7;
+.hasena-complete-info:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-default);
+}
+
+.hasena-complete-info:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.hasena-complete-info:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
-.action-button.completed {
-  background: #ef4444;
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+.hasena-date {
+  color: var(--color-text-tertiary);
+  font-size: clamp(0.5625rem, 2vw, 0.6875rem);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.action-button.completed:hover {
-  background: #dc2626;
+.hasena-completion-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.hasena-custom-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-text-secondary);
+  border-radius: 50%;
+  color: white;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.hasena-complete-info.completed .hasena-custom-checkbox {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.hasena-range {
+  color: var(--color-text-primary);
+  font-size: clamp(0.6875rem, 2.5vw, 0.8125rem);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-spinner {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .hasena-bottom-area {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+[data-theme="dark"] .hasena-bottom-area {
+  background: rgba(31, 41, 55, 0.82);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .side-nav-item {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .side-nav-item:hover {
+  color: var(--color-accent-primary);
+  background: rgba(107, 201, 159, 0.1);
+}
+
+[data-theme="dark"] .hasena-complete-info {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .hasena-complete-info:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .hasena-custom-checkbox {
+  background: transparent;
+  border-color: var(--color-text-secondary);
 }
 
 /* Animations */
