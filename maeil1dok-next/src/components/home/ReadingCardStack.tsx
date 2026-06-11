@@ -352,7 +352,7 @@ export default function ReadingCardStack({
   })
 
   const handleNavigate = () => {
-    router.push('/reading')
+    router.push('/bible')
   }
 
   const handleLoginNavigate = () => {

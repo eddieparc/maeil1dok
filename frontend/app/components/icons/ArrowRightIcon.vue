@@ -1,10 +1,10 @@
 <template>
-  <svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M5 12h14M12 5l7 7-7 7" />
-  </svg>
+  <ArrowRightIcon :size="size" />
 </template>
 
 <script setup lang="ts">
+import { ArrowRightIcon } from '@lucide/vue';
+
 withDefaults(defineProps<{
   size?: number | string;
 }>(), {

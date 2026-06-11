@@ -239,7 +239,7 @@ export default function BibleHome({
           isAuthenticated={isAuthenticated}
           isLoading={isLoading}
           onStart={handleStartTongdok}
-          onPlanClick={() => router.push('/plan')}
+          onPlanClick={() => router.push('/plans')}
         />
 
          {lastPosition && (
@@ -256,7 +256,7 @@ export default function BibleHome({
           <WelcomeGuide
             isAuthenticated={isAuthenticated}
             onViewTOC={() => setIsBookSelectorOpen(true)}
-            onPlanClick={() => router.push('/plan')}
+            onPlanClick={() => router.push('/plans')}
           />
         )}
 

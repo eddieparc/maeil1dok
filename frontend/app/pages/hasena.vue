@@ -27,7 +27,7 @@
               class="youtube-deep-link"
               @click="openYouTubeApp"
             >
-              <span class="youtube-icon">▶</span>
+              <PlayIcon class="youtube-icon" :size="16" />
               YouTube 앱으로 시청하기
             </button>
           </div>
@@ -43,15 +43,7 @@
           >
             <div class="accordion-title">
               <span class="ai-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M15 4V10M15 10V16M15 10H9M15 10H21M6 16V20M6 20V24M6 20H2M6 20H10" stroke="url(#paint0_linear)" stroke-width="2" stroke-linecap="round"/>
-                  <defs>
-                    <linearGradient id="paint0_linear" x1="2" y1="4" x2="21" y2="24" gradientUnits="userSpaceOnUse">
-                      <stop stop-color="#6366f1"/>
-                      <stop offset="1" stop-color="#a855f7"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
+                <SparklesIcon :size="20" />
                 AI 요약
               </span>
               <div class="beta-tooltip-container" @click.stop>
@@ -59,18 +51,7 @@
                 <div class="tooltip">실험 중인 기능입니다.<br>내용이 정확하지 않을 수 있습니다.</div>
               </div>
             </div>
-            <svg 
-              class="accordion-chevron" 
-              :class="{ 'expanded': isSummaryExpanded }"
-              width="20" 
-              height="20" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              stroke-width="2"
-            >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
+            <ChevronDownIcon class="accordion-chevron" :class="{ 'expanded': isSummaryExpanded }" :size="20" />
           </button>
           
           <!-- 아코디언 콘텐츠 -->
@@ -123,10 +104,7 @@
                 <span class="date-badge">{{ formattedDate }}</span>
                 <!-- 읽기 설정 바로가기 -->
                 <button class="settings-btn" @click="goToReadingSettings" title="읽기 설정">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 6h16M4 12h16M4 18h7" />
-                    <circle cx="17" cy="18" r="3" />
-                  </svg>
+                  <SlidersHorizontalIcon :size="18" />
                 </button>
               </div>
               <h2>{{ bibleTitle }}</h2>
@@ -141,21 +119,21 @@
           <!-- 스트릭 통계 -->
           <div class="streak-stats">
             <div class="streak-item current">
-              <span class="streak-icon">🔥</span>
+              <FlameIcon class="streak-icon" :size="20" />
               <div class="streak-info">
                 <span class="streak-value">{{ hasenaStore.stats.current_streak }}</span>
                 <span class="streak-label">현재 연속</span>
               </div>
             </div>
             <div class="streak-item longest">
-              <span class="streak-icon">🏆</span>
+              <TrophyIcon class="streak-icon" :size="20" />
               <div class="streak-info">
                 <span class="streak-value">{{ hasenaStore.stats.longest_streak }}</span>
                 <span class="streak-label">최장 연속</span>
               </div>
             </div>
             <div class="streak-item total">
-              <span class="streak-icon">📅</span>
+              <CalendarDaysIcon class="streak-icon" :size="20" />
               <div class="streak-info">
                 <span class="streak-value">{{ hasenaStore.stats.total_completed }}</span>
                 <span class="streak-label">총 완료</span>
@@ -165,16 +143,9 @@
 
           <!-- 달력 버튼 -->
           <button class="calendar-btn" @click="isCalendarOpen = true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
+            <CalendarDaysIcon :size="20" />
             <span>전체 기록 보기</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
+            <ChevronRightIcon :size="16" />
           </button>
         </div>
       </main>
@@ -219,9 +190,19 @@ import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/r
 import { useRouter } from 'vue-router'
 import { useSanitize } from '~/composables/useSanitize'
 import Toast from '~/components/Toast.vue'
-import ChevronLeftIcon from '~/components/icons/ChevronLeftIcon.vue'
 import CheckCircleIcon from '~/components/icons/CheckCircleIcon.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
+import {
+  CalendarDaysIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  FlameIcon,
+  PlayIcon,
+  SlidersHorizontalIcon,
+  SparklesIcon,
+  TrophyIcon,
+} from '@lucide/vue'
+import { formatHasenaSummary, parseHasenaContent } from '~/utils/hasenaFormatters'
 
 const api = useApi()
 const auth = useAuthService()
@@ -305,101 +286,7 @@ const summaryContent = ref('')
 const formattedSummary = computed(() => {
   if (!summaryContent.value) return ''
   
-  let text = summaryContent.value
-  
-  // 1. 텍스트 전처리 (줄바꿈 정규화)
-  text = text.replace(/\r\n/g, '\n')
-  
-  // 2. 섹션별 내용 추출 (비탐욕적 매칭 사용)
-  // 본문: **오늘의 본문** 부터 **교역자 해설** 전까지
-  const bibleMatch = text.match(/\*\*오늘의 본문\*\*([\s\S]*?)(?=\*\*교역자 해설\*\*)/)
-  let bibleContent = bibleMatch ? bibleMatch[1].trim() : ''
-  
-  // 해설: **교역자 해설** 부터 **오늘의 하시조** (또는 하시조) 전까지
-  const commentaryMatch = text.match(/\*\*교역자 해설\*\*([\s\S]*?)(?=\*\*.*하시조.*\*\*)/)
-  let commentaryContent = commentaryMatch ? commentaryMatch[1].trim() : ''
-  
-  // 하시조: **오늘의 하시조** (또는 하시조) 부터 끝까지
-  const actionMatch = text.match(/\*\*.*하시조.*\*\*([\s\S]*)$/)
-  let actionContent = actionMatch ? actionMatch[1].trim() : ''
-  
-  // 만약 파싱에 실패했다면 (구형 포맷 등), 전체를 그냥 텍스트로 보여주기보다
-  // 최소한의 포맷팅이라도 적용
-  if (!bibleContent && !commentaryContent && !actionContent) {
-     // 기존 1. **오늘의 본문** 포맷일 수 있음
-     const oldFormatBible = text.match(/1\.\s*\*\*오늘의 본문\*\*[:\s]*([\s\S]*?)(?=2\.\s*\*\*교역자 해설\*\*)/)
-     if (oldFormatBible) {
-       bibleContent = oldFormatBible[1].trim()
-       
-       const oldFormatComm = text.match(/2\.\s*\*\*교역자 해설\*\*[:\s]*([\s\S]*?)(?=3\.\s*\*\*.*하시조.*\*\*)/)
-       commentaryContent = oldFormatComm ? oldFormatComm[1].trim() : ''
-       
-       const oldFormatAction = text.match(/3\.\s*\*\*.*하시조.*\*\*[:\s]*([\s\S]*)$/)
-       actionContent = oldFormatAction ? oldFormatAction[1].trim() : ''
-     }
-  }
-  
-  // 3. 내용이 없으면 원본 텍스트 반환 (fallback)
-  if (!bibleContent && !commentaryContent && !actionContent) {
-    return sanitize(text.replace(/\n/g, '<br>'))
-  }
-  
-  // 4. 각 섹션 내부 스타일링 함수
-  const processText = (str) => {
-    if (!str) return ''
-    return str
-      .replace(/\*\*(.+?)\*\*/g, '<span class="highlight-text">$1</span>') // 볼드 강조
-      .replace(/\n/g, '<br>') // 줄바꿈
-  }
-  
-  const processChecklist = (str) => {
-    if (!str) return ''
-    // 체크리스트 항목 파싱 (- [ ] 또는 - 또는 *)
-    return str.replace(
-      /^\s*[-*]\s*(\[\s*\])?\s*(.+)$/gm,
-      `<div class="checklist-item">
-         <span class="check-icon">
-           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-             <path d="M20 6 9 17 4 12"></path>
-           </svg>
-         </span>
-         <span class="checklist-text">$2</span>
-       </div>`
-    ).replace(/\n/g, '') // 체크리스트 사이 줄바꿈 제거 (flex gap으로 처리)
-  }
-
-  // 5. HTML 조립 (미니멀 디자인)
-  let html = ''
-  
-  if (bibleContent) {
-    html += `<div class="summary-section bible-section">
-       <h4 class="section-title">오늘의 본문</h4>
-       <div class="section-body">
-         <p class="section-text">${processText(bibleContent)}</p>
-       </div>
-     </div>`
-  }
-  
-  if (commentaryContent) {
-    html += `<div class="summary-section commentary-section">
-       <h4 class="section-title">교역자 해설</h4>
-       <div class="section-body">
-         <p class="section-text">${processText(commentaryContent)}</p>
-       </div>
-     </div>`
-  }
-  
-  if (actionContent) {
-    html += `<div class="summary-divider"></div>
-     <div class="summary-section action-section">
-       <h4 class="section-title">오늘의 하시조</h4>
-       <div class="checklist-container">
-         ${processChecklist(actionContent)}
-       </div>
-     </div>`
-  }
-
-  return sanitize(html)
+  return sanitize(formatHasenaSummary(summaryContent.value))
 })
 
 // AI 요약 조회 (생성 없이)
@@ -474,38 +361,6 @@ const formatApiDate = (date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-// 하세나 본문 파싱
-const parseHasenaContent = (html) => {
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-
-  // 성경 제목 추출
-  const titleElement = doc.querySelector('.bible_tit')
-  if (titleElement) {
-    bibleTitle.value = titleElement.textContent
-  }
-
-  // 본문 내용 추출 및 변환
-  const verses = []
-  const contentElements = doc.querySelectorAll('.bible_contents p')
-
-  contentElements.forEach(verse => {
-    const number = verse.querySelector('.bullet_number')?.textContent.trim()
-    const text = verse.querySelector('.bullet_txt')?.textContent.trim()
-
-    if (number && text) {
-      verses.push(`
-        <div class="hasena-verse">
-          <span class="hasena-verse-number">${number}</span>
-          <span class="hasena-verse-text">${text}</span>
-        </div>
-      `)
-    }
-  })
-
-  return verses.join('')
-}
-
 // 하세나 본문 가져오기
 const fetchHasenaContent = async () => {
   try {
@@ -520,7 +375,9 @@ const fetchHasenaContent = async () => {
     }
 
     const html = await response.text()
-    parsedContent.value = parseHasenaContent(html)
+    const content = parseHasenaContent(html)
+    bibleTitle.value = content.title
+    parsedContent.value = content.html
 
     // 로그인한 경우에만 완료 상태 조회
     if (auth.isAuthenticated.value) {

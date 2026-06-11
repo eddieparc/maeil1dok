@@ -9,7 +9,7 @@
         :title="achievement.description"
       >
         <div class="achievement-icon">
-          <i :class="achievement.icon"></i>
+          <component :is="getAchievementIcon(achievement.icon)" :size="24" />
         </div>
         <h4 class="achievement-title">{{ achievement.title }}</h4>
         <p class="achievement-description">{{ achievement.description }}</p>
@@ -17,7 +17,7 @@
           {{ formatDate(achievement.unlockedAt) }}
         </div>
         <div v-else class="locked-overlay">
-          <i class="fa-solid fa-lock"></i>
+          <LockIcon :size="20" />
         </div>
       </div>
     </div>
@@ -28,7 +28,7 @@
       description="잠시 후 다시 시도해주세요."
     >
       <template #icon>
-        <i class="fa-solid fa-trophy empty-icon"></i>
+        <TrophyIcon class="empty-icon" :size="48" />
       </template>
     </EmptyState>
   </div>
@@ -36,6 +36,15 @@
 
 <script setup lang="ts">
 import EmptyState from '../common/EmptyState.vue'
+import {
+  AwardIcon,
+  BookOpenIcon,
+  CalendarCheckIcon,
+  FlameIcon,
+  LockIcon,
+  StarIcon,
+  TrophyIcon,
+} from '@lucide/vue'
 
 interface Achievement {
   id: number | null
@@ -55,6 +64,15 @@ const props = defineProps<{
 
 // 실제 API 데이터만 사용 (Mock 데이터 제거)
 const achievements = computed(() => props.achievementsData)
+
+const getAchievementIcon = (icon: string) => {
+  if (icon.includes('book')) return BookOpenIcon
+  if (icon.includes('calendar')) return CalendarCheckIcon
+  if (icon.includes('fire') || icon.includes('flame')) return FlameIcon
+  if (icon.includes('star')) return StarIcon
+  if (icon.includes('trophy')) return TrophyIcon
+  return AwardIcon
+}
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return ''

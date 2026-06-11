@@ -1,10 +1,10 @@
 <template>
-  <svg :width="size" :height="size" viewBox="0 0 24 24" fill="none">
-    <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-  </svg>
+  <MenuIcon :size="size" />
 </template>
 
 <script setup lang="ts">
+import { MenuIcon } from '@lucide/vue';
+
 withDefaults(defineProps<{
   size?: number | string;
 }>(), {

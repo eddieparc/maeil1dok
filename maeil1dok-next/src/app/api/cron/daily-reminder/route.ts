@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       tokens,
       '매일일독',
       '오늘의 성경 본문을 읽어보세요!',
-      { url: '/reading' }
+      { url: '/bible' }
     )
 
     // Clean up stale tokens

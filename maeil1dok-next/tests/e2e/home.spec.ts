@@ -26,6 +26,7 @@ test.describe('Home page', () => {
     await expect(planCard).toBeVisible()
     await expect(planCard).toHaveAttribute('href', '/plan')
     await expect(planCard.getByText('통독표')).toBeVisible()
+    await expect(planCard.getByText('플랜 관리')).toHaveCount(0)
   })
 
   test('"플랜 관리" card links to /plans', async ({ page }) => {

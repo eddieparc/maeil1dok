@@ -13,9 +13,9 @@ const floatingNavSource = await readFile(
 );
 
 test('renders hasena card on landing quick access', () => {
-  assert.match(quickAccessSource, /to:\s*'\/hasena'/, 'landing quick access should link to /hasena');
-  assert.match(quickAccessSource, /title:\s*'하세나'/, 'landing quick access should show Hasena');
-  assert.match(quickAccessSource, /testId:\s*'card-hasena'/, 'landing Hasena card should have a stable test id');
+  assert.match(quickAccessSource, /to="\/hasena"/, 'landing quick access should link to /hasena');
+  assert.match(quickAccessSource, />하세나하시조</, 'landing quick access should show HasenaHasijo');
+  assert.match(quickAccessSource, /data-testid="card-hasena"/, 'landing Hasena card should have a stable test id');
 });
 
 test('does not render tongdok plan item in landing floating nav', () => {
@@ -24,7 +24,7 @@ test('does not render tongdok plan item in landing floating nav', () => {
 });
 
 test('keeps expected adjacent route links', () => {
-  assert.match(quickAccessSource, /to:\s*'\/plans'/, 'landing quick access should keep /plans');
-  assert.match(quickAccessSource, /to:\s*'\/bible'/, 'landing quick access should keep /bible');
-  assert.match(quickAccessSource, /to:\s*'\/intro'/, 'landing quick access should keep /intro');
+  assert.match(quickAccessSource, /to="\/plans"/, 'landing quick access should keep /plans');
+  assert.match(quickAccessSource, /to="\/bible"/, 'landing quick access should keep /bible');
+  assert.match(quickAccessSource, /to="\/intro"/, 'landing quick access should keep /intro');
 });

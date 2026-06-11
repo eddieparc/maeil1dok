@@ -1,10 +1,10 @@
 <template>
-  <svg :width="size" :height="size" viewBox="0 0 24 24" fill="none">
-    <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-  </svg>
+  <ChevronRightIcon :size="size" />
 </template>
 
 <script setup lang="ts">
+import { ChevronRightIcon } from '@lucide/vue';
+
 withDefaults(defineProps<{
   size?: number | string;
 }>(), {

@@ -34,6 +34,7 @@
         :tongdok-audio-link="tongdokAudioLink"
         :tongdok-guide-link="tongdokGuideLink"
         :tongdok-progress="tongdokProgress"
+        :is-tongdok-audio-player-open="showTongdokAudioPlayer"
         :is-completing="isCompleting"
         :is-current-chapter-read="isCurrentChapterRead"
         :is-marking-read="isMarkingRead"
@@ -60,7 +61,10 @@
         @exit-tongdok="handleExitTongdok"
         @tongdok-complete-click="showTongdokCompleteModal = true"
         @today-tongdok="handleTodayTongdok"
-        @audio-link-click="handleAudioLink"
+        @audio-link-click="handleEmbeddedAudioLink"
+        @audio-external-click="handleAudioLink"
+        @audio-player-open-change="showTongdokAudioPlayer = $event"
+        @audio-ended="handleTongdokAudioEnded"
         @reading-plan-click="showScheduleModal = true"
       />
 
@@ -167,6 +171,7 @@
 
       <!-- 토스트 -->
       <Toast />
+
     </template>
   </div>
 </template>
@@ -395,6 +400,7 @@ const bibleReaderViewRef = ref<InstanceType<typeof BibleReaderView> | null>(null
 const scrollPosition = ref(0);
 const showScheduleModal = ref(false);
 const showTongdokPlanModal = ref(false);
+const showTongdokAudioPlayer = ref(false);
 
 // 페이지 타이틀 동적 설정
 const pageTitle = computed(() => {
@@ -693,6 +699,10 @@ const handleExitTongdok = async () => {
   }
 };
 
+const handleEmbeddedAudioLink = (_audioLink: string) => {
+  showTongdokAudioPlayer.value = true;
+};
+
 // 통독모드: 오디오 링크 핸들러
 const handleAudioLink = (audioLink: string) => {
   const videoId = audioLink.match(
@@ -724,6 +734,21 @@ const handleAudioLink = (audioLink: string) => {
     } else {
       window.open(webUrl, '_blank');
     }
+  }
+};
+
+const handleTongdokAudioEnded = async () => {
+  if (!isTongdokMode.value || isCompleting.value) return;
+  if (!requireAuth('로그인해야 통독 기록을 저장할 수 있습니다')) return;
+
+  const success = await completeReading();
+
+  if (success) {
+    showTongdokAudioPlayer.value = false;
+    toast.success('통독 오디오를 완료했습니다!');
+    router.push('/plan');
+  } else {
+    toast.error('완료 처리에 실패했습니다');
   }
 };
 

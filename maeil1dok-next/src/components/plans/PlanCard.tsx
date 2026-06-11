@@ -44,7 +44,7 @@ export function SubscribedPlanCard({ plan, subscription }: SubscribedPlanCardPro
   }
 
   function handleGoToReading() {
-    router.push(`/reading?plan=${subscription.planId}`)
+    router.push('/plan')
   }
 
   return (

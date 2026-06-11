@@ -2,15 +2,11 @@
   <div class="profile-calendar fade-in">
     <div class="calendar-header">
       <button @click="previousMonth" class="month-nav-button">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 18l-6-6 6-6"/>
-        </svg>
+        <ChevronLeftIcon :size="20" />
       </button>
       <h3 class="current-month">{{ currentMonthLabel }}</h3>
       <button @click="nextMonth" class="month-nav-button" :disabled="isCurrentMonth">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 18l6-6-6-6"/>
-        </svg>
+        <ChevronRightIcon :size="20" />
       </button>
     </div>
 
@@ -73,6 +69,7 @@
 import { ref, computed, watch } from 'vue'
 import CalendarDayCell from '~/components/calendar/CalendarDayCell.vue'
 import ScheduleDetailModal from '~/components/calendar/ScheduleDetailModal.vue'
+import { ChevronLeftIcon, ChevronRightIcon } from '@lucide/vue'
 import type { ScheduleDisplay } from '~/components/calendar/CalendarDayCell.vue'
 import type { ScheduleDetail } from '~/components/calendar/ScheduleDetailModal.vue'
 

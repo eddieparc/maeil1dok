@@ -10,7 +10,7 @@
       >
         <div class="group-header">
           <div class="group-icon">
-            <i class="fa-solid fa-users"></i>
+            <UsersIcon :size="20" />
           </div>
           <div class="group-info">
             <h4 class="group-name">{{ group.name }}</h4>
@@ -32,7 +32,7 @@
 
         <div class="group-footer">
           <div class="member-count">
-            <i class="fa-solid fa-user-group"></i>
+            <UserRoundPlusIcon :size="14" />
             <span>{{ group.member_count }}/{{ group.max_members }}명</span>
           </div>
           <div class="group-actions">
@@ -46,7 +46,8 @@
               :title="group.show_in_profile !== false ? '프로필에서 숨기기' : '프로필에 표시하기'"
               @click.stop="toggleVisibility(group)"
             >
-              <i :class="group.show_in_profile !== false ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i>
+              <EyeIcon v-if="group.show_in_profile !== false" :size="16" />
+              <EyeOffIcon v-else :size="16" />
             </button>
           </div>
         </div>
@@ -57,7 +58,8 @@
     <div v-if="isOwnProfile && hiddenGroups.length > 0" class="hidden-groups-section">
       <button class="hidden-groups-toggle" @click="showHiddenGroups = !showHiddenGroups">
         <span>프로필에 숨겨진 그룹 ({{ hiddenGroups.length }})</span>
-        <i :class="showHiddenGroups ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"></i>
+        <ChevronUpIcon v-if="showHiddenGroups" :size="16" />
+        <ChevronDownIcon v-else :size="16" />
       </button>
 
       <div v-if="showHiddenGroups" class="groups-list hidden-groups">
@@ -69,7 +71,7 @@
         >
           <div class="group-header">
             <div class="group-icon">
-              <i class="fa-solid fa-users"></i>
+              <UsersIcon :size="20" />
             </div>
             <div class="group-info">
               <h4 class="group-name">{{ group.name }}</h4>
@@ -80,15 +82,15 @@
 
           <div class="group-footer">
             <div class="member-count">
-              <i class="fa-solid fa-user-group"></i>
+              <UserRoundPlusIcon :size="14" />
               <span>{{ group.member_count }}/{{ group.max_members }}명</span>
             </div>
             <button
               class="visibility-toggle show-btn"
               title="프로필에 표시하기"
-              @click.stop="toggleVisibility(group)"
-            >
-              <i class="fa-solid fa-eye"></i>
+            @click.stop="toggleVisibility(group)"
+          >
+              <EyeIcon :size="14" />
               <span>표시하기</span>
             </button>
           </div>
@@ -105,7 +107,7 @@
       @action="navigateToGroups"
     >
       <template #icon>
-        <i class="fa-solid fa-users empty-icon"></i>
+        <UsersIcon class="empty-icon" :size="48" />
       </template>
     </EmptyState>
   </div>
@@ -115,6 +117,14 @@
 import EmptyState from '../common/EmptyState.vue'
 import { useGroupsStore } from '~/stores/groups'
 import { useToast } from '~/composables/useToast'
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EyeIcon,
+  EyeOffIcon,
+  UserRoundPlusIcon,
+  UsersIcon,
+} from '@lucide/vue'
 
 interface BibleReadingPlan {
   id: number

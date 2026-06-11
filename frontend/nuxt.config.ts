@@ -120,18 +120,13 @@ export default defineNuxtConfig({
         {
           innerHTML: `(function(){var t='light';try{var s=localStorage.getItem('readingSettings');if(s){var p=JSON.parse(s);if(p.theme){t=p.theme==='system'?window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light':p.theme}}}catch(e){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})();`,
           tagPosition: 'head',
-        },
-        {
-          src: 'https://kit.fontawesome.com/addd9ad2f2.js',
-          defer: true,
-          crossorigin: 'anonymous'
         }
       ]
     }
   },
   devServer: {
     host: '0.0.0.0',
-    port: 3000
+    port: 3019
   },
   // Vite 설정 추가
   vite: {
@@ -140,7 +135,7 @@ export default defineNuxtConfig({
       hmr: process.env.NODE_ENV === 'production' ? false : {
         protocol: 'ws',
         host: '0.0.0.0',
-        port: 3000
+        port: 3019
       }
     }
   },

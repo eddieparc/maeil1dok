@@ -1,15 +1,13 @@
 <template>
-  <svg
-    :width="size"
-    :height="size"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M8 5.14v14l11-7-11-7z" />
-  </svg>
+  <PlayIcon :size="size" />
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{ size?: number }>(), { size: 24 });
+import { PlayIcon } from '@lucide/vue';
+
+withDefaults(defineProps<{
+  size?: number | string;
+}>(), {
+  size: 20
+});
 </script>

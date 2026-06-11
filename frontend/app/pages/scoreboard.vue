@@ -66,7 +66,7 @@
                   @error="() => handleAvatarError(entry.user.id)"
                 />
                 <div v-else class="top-avatar-placeholder">
-                  <i class="fa-solid fa-user"></i>
+                  <UserIcon :size="24" />
                 </div>
                 <div class="rank-badge">{{ index + 1 }}</div>
               </div>
@@ -123,6 +123,7 @@ import FilterButtonGroup from '~/components/common/FilterButtonGroup.vue'
 import EmptyState from '~/components/common/EmptyState.vue'
 import LoadingState from '~/components/LoadingState.vue'
 import LeaderboardItem from '~/components/leaderboard/LeaderboardItem.vue'
+import { UserIcon } from '@lucide/vue'
 
 const scoreboardStore = useScoreboardStore()
 const auth = useAuthService()

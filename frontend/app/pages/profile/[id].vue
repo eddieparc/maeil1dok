@@ -19,7 +19,7 @@
                   @error="handleAvatarError"
                 />
                 <div v-else class="profile-avatar-placeholder">
-                  <i class="fa-solid fa-user"></i>
+                  <UserIcon :size="36" />
                 </div>
               </div>
               <div class="profile-info">
@@ -59,13 +59,7 @@
               <span class="follow-count">{{ profile.following_count }}</span> 팔로잉
             </button>
             <div v-if="profile.is_mutual_follow" class="mutual-follow">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                <polyline points="9 11 12 14 22 4"/>
-              </svg>
+              <UserRoundCheckIcon :size="16" />
               서로 팔로우 중
             </div>
           </div>
@@ -190,6 +184,7 @@ import ProfileGroups from '~/components/profile/ProfileGroups.vue'
 import FollowersModal from '~/components/profile/FollowersModal.vue'
 import FollowingModal from '~/components/profile/FollowingModal.vue'
 import ProfileEditModal from '~/components/profile/ProfileEditModal.vue'
+import { UserIcon, UserRoundCheckIcon } from '@lucide/vue'
 
 const route = useRoute()
 const auth = useAuthService()

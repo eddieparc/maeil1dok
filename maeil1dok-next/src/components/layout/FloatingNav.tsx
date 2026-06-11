@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, BookOpen, User } from 'lucide-react'
+import { BookOpen, CalendarDays, ClipboardList, Home, Settings, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface FloatingNavProps {
@@ -20,6 +20,27 @@ export default function FloatingNav({ userId }: FloatingNavProps) {
       testId: 'nav-home',
       isActive: (p: string) => p === '/',
       icon: <Home size={20} aria-hidden="true" />,
+    },
+    {
+      href: '/calendar',
+      label: '달력',
+      testId: 'nav-calendar',
+      isActive: (p: string) => p.startsWith('/calendar'),
+      icon: <CalendarDays size={19} aria-hidden="true" />,
+    },
+    {
+      href: '/plan',
+      label: '통독표',
+      testId: 'nav-schedule',
+      isActive: (p: string) => p.startsWith('/plan') && !p.startsWith('/plans'),
+      icon: <ClipboardList size={19} aria-hidden="true" />,
+    },
+    {
+      href: '/plans',
+      label: '관리',
+      testId: 'nav-plans',
+      isActive: (p: string) => p.startsWith('/plans'),
+      icon: <Settings size={19} aria-hidden="true" />,
     },
     {
       href: '/bible',
@@ -61,8 +82,9 @@ export default function FloatingNav({ userId }: FloatingNavProps) {
               key={item.testId}
               href={item.href}
               data-testid={item.testId}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex flex-1 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium whitespace-nowrap transition-all duration-200',
+                'flex flex-1 items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[11px] font-medium whitespace-nowrap transition-all duration-200 sm:gap-1 sm:text-xs',
                 active
                   ? 'bg-[var(--color-ink)] font-semibold text-white shadow-[0_2px_8px_rgba(75,159,126,0.3)] dark:text-[var(--color-text-primary)]'
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-brand-faint)] hover:text-[var(--color-brand)]',

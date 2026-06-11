@@ -23,7 +23,7 @@
               @error="handleImageError"
             />
             <div v-else class="avatar-placeholder">
-              <i class="fa-solid fa-user"></i>
+              <UserIcon :size="32" />
             </div>
           </div>
           <p class="form-hint">소셜 로그인 계정에서 가져옵니다.</p>
@@ -98,6 +98,7 @@ import { ref, onMounted } from 'vue'
 import { useProfileStore } from '~/stores/profile'
 import { useModal } from '~/composables/useModal'
 import BaseModal from '~/components/ui/modal/BaseModal.vue'
+import { UserIcon } from '@lucide/vue'
 
 interface ProfileData {
   user: {

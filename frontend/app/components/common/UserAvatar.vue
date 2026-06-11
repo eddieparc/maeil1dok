@@ -8,12 +8,13 @@
     @error="handleError"
   />
   <div v-else :class="['user-avatar-placeholder', sizeClass]">
-    <i class="fa-solid fa-user"></i>
+    <UserIcon :size="iconSize" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { UserIcon } from '@lucide/vue'
 
 const props = withDefaults(defineProps<{
   src?: string | null
@@ -28,6 +29,12 @@ const props = withDefaults(defineProps<{
 const hasError = ref(false)
 
 const sizeClass = computed(() => `size-${props.size}`)
+const iconSize = computed(() => {
+  if (props.size === 'sm') return 16
+  if (props.size === 'lg') return 28
+  if (props.size === 'xl') return 36
+  return 22
+})
 
 const handleError = () => {
   hasError.value = true

@@ -36,6 +36,17 @@ function IconSettings() {
   )
 }
 
+function IconCalendar() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+      <line x1="16" x2="16" y1="2" y2="6" />
+      <line x1="8" x2="8" y1="2" y2="6" />
+      <line x1="3" x2="21" y1="10" y2="10" />
+    </svg>
+  )
+}
+
 function IconVideo() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -81,6 +92,14 @@ const cards = (userId?: string): CardItem[] => [
     description: '전체 계획 보기',
     icon: <IconBookOpen />,
     href: '/plan',
+  },
+  {
+    id: 'plans',
+    testId: 'card-plans',
+    title: '플랜 관리',
+    description: '구독과 표시 설정',
+    icon: <IconCalendar />,
+    href: '/plans',
   },
   {
     id: 'intro',
@@ -140,15 +159,10 @@ export default function QuickAccessGrid({ userId }: QuickAccessGridProps) {
                   'group-hover:-translate-y-0.5 group-hover:border-[var(--color-ink)] group-hover:shadow-[var(--shadow-card)]',
                 )}
               >
-                <div className={cn('mb-2', card.id === 'plan' && 'mb-3 flex items-start justify-between gap-2')}>
+                <div className="mb-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-brand-faint)] text-[var(--color-brand)] transition-colors">
                     {card.icon}
                   </div>
-                  {card.id === 'plan' && (
-                    <span className="inline-flex shrink-0 rounded-full bg-[var(--color-brand-faint)] px-2 py-[3px] text-[11px] font-semibold text-[var(--color-brand)]">
-                      플랜 관리
-                    </span>
-                  )}
                 </div>
                 <p className="text-[15px] font-semibold text-[var(--color-ink)] -tracking-[0.012em]">{card.title}</p>
                 <p className="mt-1 text-[12px] text-[var(--color-mute)] -tracking-[0.005em]">{card.description}</p>

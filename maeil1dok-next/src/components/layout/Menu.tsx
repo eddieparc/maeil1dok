@@ -18,7 +18,7 @@ interface ActiveMenuItem {
 }
 
 const menuItems: ActiveMenuItem[] = [
-  { href: '/reading', label: '오늘일독', icon: <BookOpen size={22} /> },
+  { href: '/bible', label: '오늘일독', icon: <BookOpen size={22} /> },
   { href: '/plan', label: '성경통독표', icon: <ClipboardList size={22} /> },
   { href: '/plans', label: '플랜 관리', icon: <Calendar size={22} /> },
   { href: '/settings', label: '계정 설정', icon: <Settings size={22} /> },

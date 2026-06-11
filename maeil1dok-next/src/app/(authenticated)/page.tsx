@@ -46,7 +46,7 @@ export default async function HomePage() {
     let displayName: string
     try {
       const profile = await repositories.profile.getProfile(user.id)
-      displayName = profile.nickname || user.email?.split('@')[0] ?? '성도'
+      displayName = profile.nickname || (user.email?.split('@')[0] ?? '성도')
     } catch {
       displayName = user.email?.split('@')[0] ?? '성도'
     }

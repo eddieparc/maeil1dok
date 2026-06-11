@@ -1,10 +1,7 @@
 <template>
   <nav class="floating-nav">
     <NuxtLink to="/" class="nav-item" :class="{ active: route.path === '/' || route.path === '/temp-home' }">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke-linecap="round" stroke-linejoin="round"/>
-        <polyline points="9 22 9 12 15 12 15 22" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <HomeIcon :size="20" />
       <span class="nav-label">홈</span>
     </NuxtLink>
 
@@ -19,10 +16,7 @@
     </NuxtLink>
     
     <NuxtLink :to="profileLink" class="nav-item" :class="{ active: route.path.startsWith('/profile') }">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="12" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <UserIcon :size="20" />
       <span class="nav-label">프로필</span>
     </NuxtLink>
   </nav>
@@ -34,6 +28,7 @@ import { useRoute } from 'vue-router';
 import { useAuthService } from '~/composables/useAuthService';
 import BookIcon from '~/components/icons/BookIcon.vue';
 import CalendarIcon from '~/components/icons/CalendarIcon.vue';
+import { HomeIcon, UserIcon } from '@lucide/vue';
 
 const route = useRoute();
 const auth = useAuthService();

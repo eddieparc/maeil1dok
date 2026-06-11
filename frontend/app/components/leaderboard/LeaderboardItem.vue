@@ -16,7 +16,7 @@
           @error="handleImageError"
         />
         <div v-else class="user-avatar-placeholder">
-          <i class="fa-solid fa-user"></i>
+          <UserIcon :size="18" />
         </div>
         <div>
           <NuxtLink
@@ -55,6 +55,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { UserIcon } from '@lucide/vue'
 
 const imageError = ref(false)
 

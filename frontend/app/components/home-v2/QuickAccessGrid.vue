@@ -1,112 +1,127 @@
 <template>
-  <section class="quick-access" aria-labelledby="quick-access-title">
-    <h2 id="quick-access-title">바로가기</h2>
-    <div class="quick-grid">
-      <NuxtLink
-        v-for="item in items"
-        :key="item.to"
-        :to="item.to"
-        class="quick-card"
-        :data-testid="item.testId"
-      >
-        <component :is="item.icon" :size="24" />
-        <span class="quick-title">{{ item.title }}</span>
-        <span class="quick-description">{{ item.description }}</span>
+  <section class="quick-access">
+    <h3 class="section-title">Explore</h3>
+
+    <div class="grid-2">
+      <NuxtLink to="/hasena" class="sub-card" data-testid="card-hasena">
+        <ListIcon size="24" />
+        <strong>하세나하시조</strong>
+        <span>오늘 말씀 묵상</span>
+      </NuxtLink>
+
+      <NuxtLink to="/plan" class="sub-card">
+        <CalendarIcon size="24" />
+        <strong>통독표</strong>
+        <span>전체 계획 보기</span>
+      </NuxtLink>
+
+      <NuxtLink to="/plans" class="sub-card" data-testid="card-plans">
+        <SettingsIcon size="24" />
+        <strong>플랜 관리</strong>
+        <span>구독과 표시 설정</span>
+      </NuxtLink>
+
+      <NuxtLink to="/bible" class="sub-card" data-testid="card-bible">
+        <BookIcon size="24" />
+        <strong>성경</strong>
+        <span>본문 읽기</span>
+      </NuxtLink>
+
+      <NuxtLink to="/intro" class="sub-card">
+        <MonitorIcon size="24" />
+        <strong>개론 영상</strong>
+        <span>깊이 있는 이해</span>
+      </NuxtLink>
+
+      <NuxtLink to="/groups" class="sub-card">
+        <UsersIcon :size="24" />
+        <strong>커뮤니티</strong>
+        <span>함께 읽는 기쁨</span>
+      </NuxtLink>
+
+      <NuxtLink :to="profileLink" class="sub-card">
+        <HistoryIcon size="24" />
+        <strong>내 활동</strong>
+        <span>기록과 통계</span>
       </NuxtLink>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { UsersIcon } from '@lucide/vue';
+import { useAuthService } from '~/composables/useAuthService';
 import BookIcon from '~/components/icons/BookIcon.vue';
 import CalendarIcon from '~/components/icons/CalendarIcon.vue';
+import HistoryIcon from '~/components/icons/HistoryIcon.vue';
 import ListIcon from '~/components/icons/ListIcon.vue';
-import PlayIcon from '~/components/icons/PlayIcon.vue';
+import MonitorIcon from '~/components/icons/MonitorIcon.vue';
+import SettingsIcon from '~/components/icons/SettingsIcon.vue';
 
-const items = [
-  {
-    to: '/hasena',
-    title: '하세나',
-    description: '오늘 말씀 묵상',
-    icon: ListIcon,
-    testId: 'card-hasena',
-  },
-  {
-    to: '/plans',
-    title: '플랜 관리',
-    description: '구독과 표시 설정',
-    icon: CalendarIcon,
-    testId: 'card-plans',
-  },
-  {
-    to: '/bible',
-    title: '성경',
-    description: '본문 읽기',
-    icon: BookIcon,
-    testId: 'card-bible',
-  },
-  {
-    to: '/intro',
-    title: '성경개론',
-    description: '개론 영상 보기',
-    icon: PlayIcon,
-    testId: 'card-intro',
-  },
-] as const;
+const auth = useAuthService();
+
+const profileLink = computed(() => {
+  return auth.user.value ? `/profile/${auth.user.value.id}` : '/login';
+});
 </script>
 
 <style scoped>
 .quick-access {
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
 }
 
-h2 {
-  margin: 0 0 0.75rem;
+.section-title {
   color: var(--text-main);
   font-family: var(--font-serif);
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 700;
+  margin: 0 0 1.5rem;
 }
 
-.quick-grid {
+.grid-2 {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
 }
 
-.quick-card {
-  display: flex;
-  min-height: 8rem;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 1rem;
-  color: var(--text-main);
-  text-decoration: none;
+.sub-card {
   background: var(--card-bg);
-  border: 1px solid var(--color-border-subtle, rgba(74, 93, 83, 0.12));
-  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  border-radius: 20px;
   box-shadow: var(--paper-shadow);
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  color: var(--text-main);
+  display: grid;
+  gap: 0.35rem;
+  min-height: 128px;
+  padding: 1.4rem;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.quick-card:hover {
+.sub-card:hover {
+  box-shadow: 0 8px 20px rgba(44, 51, 51, 0.06);
   transform: translateY(-2px);
-  border-color: var(--accent);
 }
 
-.quick-card :deep(svg) {
-  color: var(--accent);
-  margin-bottom: 0.2rem;
+.sub-card svg {
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
 }
 
-.quick-title {
-  font-size: 0.9375rem;
+.sub-card strong {
+  font-size: 1rem;
   font-weight: 700;
 }
 
-.quick-description {
+.sub-card span {
   color: var(--text-sub);
-  font-size: 0.75rem;
-  line-height: 1.45;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 480px) {
+  .sub-card {
+    padding: 1.2rem;
+  }
 }
 </style>

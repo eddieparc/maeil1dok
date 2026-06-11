@@ -15,10 +15,7 @@
           title="통독모드 종료"
           aria-label="통독모드 종료"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+          <XMarkIcon :size="14" />
         </button>
       </div>
 
@@ -51,12 +48,9 @@
           href="#"
           class="tongdok-action-btn"
           @click.prevent="$emit('audio-link-click', tongdokAudioLink)"
-          title="오디오"
+          title="오디오 플레이어"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-          </svg>
+          <HeadphonesIcon :size="16" />
           <span>듣기</span>
         </a>
         <!-- 가이드 -->
@@ -68,15 +62,7 @@
           class="tongdok-action-btn"
           title="가이드"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <BookOpenIcon :size="16" />
           <span>가이드</span>
         </a>
       </div>
@@ -93,6 +79,7 @@
           @reading-plan-click="$emit('reading-plan-click')"
           @bookmark-toggle="$emit('bookmark-toggle')"
           @audio-link-click="$emit('audio-link-click', $event)"
+          @audio-external-click="$emit('audio-external-click', $event)"
         />
         <!-- 통독모드 버튼 (로그인 사용자, 비통독 모드일 때) -->
         <button
@@ -101,13 +88,7 @@
           @click="$emit('today-tongdok')"
           title="통독모드"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-            <path d="M9 16l2 2 4-4"/>
-          </svg>
+          <CalendarCheckIcon :size="14" />
           <span>통독모드</span>
         </button>
       </div>
@@ -174,6 +155,17 @@
 
     <!-- 하단 플로팅 네비게이션 -->
     <div class="bible-bottom-area">
+      <TongdokAudioPlayer
+        v-if="isTongdokMode && tongdokAudioLink"
+        :audio-link="tongdokAudioLink"
+        :is-open="isTongdokAudioPlayerOpen"
+        :schedule-range="tongdokScheduleRange"
+        :is-completing="isCompleting"
+        @update:is-open="$emit('audio-player-open-change', $event)"
+        @ended="$emit('audio-ended')"
+        @open-external="$emit('audio-external-click', $event)"
+      />
+
       <!-- 통독모드: 진행률 바 영역 -->
       <div v-if="isTongdokMode && tongdokProgress" class="tongdok-progress-area">
         <div class="story-progress-bar">
@@ -195,10 +187,7 @@
       <nav class="bible-navigation">
         <!-- 홈 아이콘 (왼쪽 끝) -->
         <NuxtLink to="/" class="side-nav-item" aria-label="홈으로 이동">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="9 22 9 12 15 12 15 22" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <HomeIcon :size="18" aria-hidden="true" />
         </NuxtLink>
 
         <!-- 중앙: 이전/장정보/다음 그룹 -->
@@ -245,10 +234,7 @@
 
         <!-- 프로필 아이콘 (오른쪽 끝) -->
         <NuxtLink :to="profileLink" class="side-nav-item" aria-label="내 프로필">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="12" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <UserIcon :size="18" aria-hidden="true" />
         </NuxtLink>
       </nav>
     </div>
@@ -257,8 +243,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon, HomeIcon, UserIcon } from '@lucide/vue';
 import BibleViewer from '~/components/bible/BibleViewer.vue';
 import BibleToolPopover from '~/components/bible/BibleToolPopover.vue';
+import TongdokAudioPlayer from '~/components/bible/TongdokAudioPlayer.vue';
 import ChevronLeftIcon from '~/components/icons/ChevronLeftIcon.vue';
 import ChevronRightIcon from '~/components/icons/ChevronRightIcon.vue';
 import ChevronDownIcon from '~/components/icons/ChevronDownIcon.vue';
@@ -302,6 +290,7 @@ interface Props {
   tongdokAudioLink?: string | null;
   tongdokGuideLink?: string | null;
   tongdokProgress?: { current: number; total: number } | null;
+  isTongdokAudioPlayerOpen?: boolean;
   isCompleting?: boolean;
 
   // 읽기모드
@@ -325,6 +314,7 @@ const props = withDefaults(defineProps<Props>(), {
   tongdokAudioLink: null,
   tongdokGuideLink: null,
   tongdokProgress: null,
+  isTongdokAudioPlayerOpen: false,
   isCompleting: false,
   isMarkingRead: false,
   highlights: () => [],
@@ -417,6 +407,9 @@ const emit = defineEmits<{
   'tongdok-complete-click': [];
   'today-tongdok': [];
   'audio-link-click': [url: string];
+  'audio-external-click': [url: string];
+  'audio-player-open-change': [value: boolean];
+  'audio-ended': [];
   'reading-plan-click': [];
 }>();
 
