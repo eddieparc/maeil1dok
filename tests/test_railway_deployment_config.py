@@ -28,14 +28,10 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         self.assertEqual(configs["backend-web"]["deploy"]["healthcheckPath"], "/admin/login/")
         self.assertEqual(configs["backend-web"]["deploy"]["restartPolicyType"], "ON_FAILURE")
 
-        self.assertEqual(
-            configs["backend-worker"]["deploy"]["startCommand"],
-            "celery -A config worker -l info",
-        )
-        self.assertEqual(
-            configs["backend-beat"]["deploy"]["startCommand"],
-            "celery -A config beat -l info",
-        )
+        self.assertEqual(configs["backend-worker"]["build"]["dockerfilePath"], "backend/Dockerfile.worker")
+        self.assertEqual(configs["backend-beat"]["build"]["dockerfilePath"], "backend/Dockerfile.beat")
+        self.assertIn('CMD ["celery", "-A", "config", "worker", "-l", "info"]', (repo_root / "backend" / "Dockerfile.worker").read_text(encoding="utf-8"))
+        self.assertIn('CMD ["celery", "-A", "config", "beat", "-l", "info"]', (repo_root / "backend" / "Dockerfile.beat").read_text(encoding="utf-8"))
         self.assertEqual(configs["frontend"]["build"]["builder"], "RAILPACK")
         self.assertEqual(configs["frontend"]["build"]["buildCommand"], "npm ci && npm run build")
         self.assertEqual(configs["frontend"]["deploy"]["startCommand"], "npm run start")
