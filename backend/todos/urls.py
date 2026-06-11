@@ -47,6 +47,7 @@ urlpatterns = [
     path('hasena/update/', views.hasena_record_update, name='hasena-record-update'),
     path('hasena/status/', views.get_user_hasena_status, name='hasena-user-status'),
     path('hasena/summary/', views.get_hasena_summary, name='hasena-summary'),
+    path('hasena/summary/cron/', views.generate_hasena_summary_from_cron, name='hasena-summary-cron'),
     path('hasena/stats/', views.get_hasena_stats, name='hasena-stats'),
     path('hasena/summaries/', views.list_hasena_summaries, name='hasena-summaries-list'),
     path('hasena/summaries/regenerate/', views.regenerate_hasena_summary, name='hasena-summary-regenerate'),

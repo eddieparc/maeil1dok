@@ -182,7 +182,7 @@ def get_existing_summary(video_id: str) -> dict:
         }
 
 
-def get_hasena_summary(video_id: str, video_date: date = None) -> dict:
+def get_hasena_summary(video_id: str, video_date: date = None, title: str = None) -> dict:
     from ..models import HasenaSummary
     
     try:
@@ -233,6 +233,7 @@ def get_hasena_summary(video_id: str, video_date: date = None) -> dict:
                 'transcript': transcript,
                 'model_used': summary_result['model'],
                 'video_date': video_date,
+                'title': title or '',
                 'is_edited': False,
             }
         )

@@ -147,3 +147,4 @@ maeil1dok-next/scripts/migrate/*.log
 maeil1dok-next/test-results/
 maeil1dok-next/playwright-report/.auth-state.json
 .vercel
+.env*.local

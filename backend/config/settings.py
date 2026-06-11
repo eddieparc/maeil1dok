@@ -26,6 +26,8 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("No SECRET_KEY set in environment")
 
+CRON_SECRET = os.environ.get('CRON_SECRET') or os.environ.get('HASENA_CRON_SECRET')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 'yes']
 

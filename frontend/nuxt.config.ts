@@ -62,6 +62,11 @@ export default defineNuxtConfig({
     '~/assets/css/bible-page.css'
   ],
   runtimeConfig: {
+    cronSecret: process.env.CRON_SECRET || '',
+    hasenaCronSecret: process.env.HASENA_CRON_SECRET || '',
+    youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
+    geminiApiKey: process.env.GEMINI_API_KEY || '',
+    hasenaPlaylistId: process.env.HASENA_PLAYLIST_ID || '',
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8019',
       bibleCacheUrl: process.env.NUXT_PUBLIC_BIBLE_CACHE_URL || '',  // 성경 캐시 서버 URL (failback용)

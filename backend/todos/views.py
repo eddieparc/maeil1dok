@@ -3,6 +3,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 import pandas as pd
 from datetime import datetime
+from django.conf import settings
 from .models import DailyBibleSchedule, UserBibleProgress, BibleReadingPlan, PlanSubscription, VideoBibleIntro, HasenaRecord, UserVideoIntroProgress, VisitorCount
 from .serializers import DailyBibleScheduleSerializer, UserBibleProgressSerializer, BibleProgressResponse, BibleReadingPlanSerializer, PlanSubscriptionSerializer, VideoBibleIntroSerializer
 import logging
@@ -2417,6 +2418,59 @@ def get_hasena_summary(request):
         return Response({
             'success': False,
             'error': 'AI 요약 조회 중 오류가 발생했습니다.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def generate_hasena_summary_from_cron(request):
+    cron_secret = getattr(settings, 'CRON_SECRET', None)
+    request_secret = request.headers.get('X-Cron-Secret') or request.headers.get('Authorization', '').removeprefix('Bearer ').strip()
+
+    if not cron_secret:
+        return Response({
+            'success': False,
+            'error': 'CRON_SECRET이 설정되어 있지 않습니다.'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    if request_secret != cron_secret:
+        return Response({
+            'success': False,
+            'error': 'Unauthorized'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    video_id = request.data.get('video_id')
+    video_date = request.data.get('video_date')
+    title = request.data.get('title')
+
+    if not video_id:
+        return Response({
+            'success': False,
+            'error': 'video_id가 필요합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    parsed_date = None
+    if video_date:
+        try:
+            parsed_date = datetime.strptime(video_date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({
+                'success': False,
+                'error': 'video_date 형식은 YYYY-MM-DD 이어야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .services.hasena_summary_service import get_hasena_summary as fetch_summary
+
+        result = fetch_summary(video_id, video_date=parsed_date, title=title)
+        if result['success']:
+            return Response(result)
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Error in generate_hasena_summary_from_cron: {str(e)}", exc_info=True)
+        return Response({
+            'success': False,
+            'error': 'AI 요약 생성 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

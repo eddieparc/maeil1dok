@@ -1,5 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/hasena-summary",
+      "schedule": "0 0-1 * * 1-6"
+    },
+    {
+      "path": "/api/cron/hasena-summary",
+      "schedule": "*/30 1-6 * * 1-6"
+    }
+  ],
   "headers": [
     {
       "source": "/_nuxt/(.*)",

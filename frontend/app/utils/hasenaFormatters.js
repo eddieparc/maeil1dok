@@ -1,6 +1,8 @@
 const BLOCK_TAG_PATTERN = /<\/?(?:article|div|p|section|li|tr|br|h[1-6])\b[^>]*>/gi;
 const SCRIPT_STYLE_PATTERN = /<(?:script|style)\b[\s\S]*?<\/(?:script|style)>/gi;
 const VERSE_MARKER_PATTERN = /(^|[\n\r]|(?<=[.!?。！？다요오니라”"']))\s*(\d{1,3})\s+(?=[가-힣A-Za-z"“'‘])/g;
+const TITLE_RANGE_PATTERN = /(\d{1,3})\s*[:장]\s*(\d{1,3})\s*[-~–]\s*(\d{1,3})/;
+const SENTENCE_END_PATTERN = /[^.!?。！？]+(?:[.!?。！？]+[”"']?|$)/g;
 
 const decodeEntities = (value) => value
   .replace(/&nbsp;/g, ' ')
@@ -65,6 +67,67 @@ const parseClassBasedVerses = (html) => {
     .filter((verse) => verse.number && verse.text);
 };
 
+const getVerseRangeFromTitle = (title) => {
+  const match = title.match(TITLE_RANGE_PATTERN);
+  if (!match) return null;
+
+  const start = Number(match[2]);
+  const end = Number(match[3]);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || end <= start || end - start > 80) {
+    return null;
+  }
+
+  return { start, end, count: end - start + 1 };
+};
+
+const splitSentences = (text) => {
+  const matches = text.match(SENTENCE_END_PATTERN) || [];
+  return matches
+    .map((sentence) => sentence.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+};
+
+const distributeSentencesAcrossRange = (sentences, range) => {
+  if (sentences.length < 2 || range.count < 2) return [];
+
+  const verses = [];
+  let cursor = 0;
+
+  for (let index = 0; index < range.count; index += 1) {
+    const remainingSentences = sentences.length - cursor;
+    const remainingVerses = range.count - index;
+    const take = Math.max(1, Math.ceil(remainingSentences / remainingVerses));
+    const chunk = sentences.slice(cursor, cursor + take).join(' ').trim();
+    cursor += take;
+
+    if (!chunk) return [];
+    verses.push({
+      number: String(range.start + index),
+      text: chunk,
+    });
+  }
+
+  if (cursor < sentences.length) {
+    verses[verses.length - 1].text = `${verses[verses.length - 1].text} ${sentences.slice(cursor).join(' ')}`.trim();
+  }
+
+  return verses;
+};
+
+const splitSingleLongVerseByTitleRange = (verses, title) => {
+  if (verses.length !== 1) return verses;
+
+  const range = getVerseRangeFromTitle(title);
+  if (!range || verses[0].number !== String(range.start)) return verses;
+
+  const embeddedVerses = parseTextVerses(`${verses[0].number} ${verses[0].text}`);
+  if (embeddedVerses.length > 1) return embeddedVerses;
+
+  const sentences = splitSentences(verses[0].text);
+  const distributed = distributeSentencesAcrossRange(sentences, range);
+  return distributed.length === range.count ? distributed : verses;
+};
+
 const parseTextVerses = (text) => {
   const normalized = text.replace(/[ \t\f\v]+/g, ' ').trim();
   const matches = [...normalized.matchAll(VERSE_MARKER_PATTERN)];
@@ -97,9 +160,10 @@ export const parseHasenaContent = (html) => {
   const title = extractFirstClassText(html, 'bible_tit');
   const contentScope = extractContentScope(html);
   const classBasedVerses = parseClassBasedVerses(contentScope);
-  const verses = classBasedVerses.length > 0
+  const initialVerses = classBasedVerses.length > 0
     ? classBasedVerses
     : parseTextVerses(stripTags(contentScope));
+  const verses = splitSingleLongVerseByTitleRange(initialVerses, title);
 
   return {
     title,
