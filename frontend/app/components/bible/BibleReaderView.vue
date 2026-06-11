@@ -154,99 +154,87 @@
     </BibleViewer>
 
     <!-- 하단 플로팅 네비게이션 -->
-    <div class="bible-bottom-area">
-      <TongdokAudioPlayer
-        v-if="isTongdokMode && tongdokAudioLink"
-        :audio-link="tongdokAudioLink"
-        :is-open="isTongdokAudioPlayerOpen"
-        :schedule-range="tongdokScheduleRange"
-        :is-completing="isCompleting"
-        @update:is-open="$emit('audio-player-open-change', $event)"
-        @ended="$emit('audio-ended')"
-        @open-external="$emit('audio-external-click', $event)"
-      />
+    <FloatingBottomBar>
+      <template #above>
+        <TongdokAudioPlayer
+          v-if="isTongdokMode && tongdokAudioLink"
+          :audio-link="tongdokAudioLink"
+          :is-open="isTongdokAudioPlayerOpen"
+          :schedule-range="tongdokScheduleRange"
+          :is-completing="isCompleting"
+          @update:is-open="$emit('audio-player-open-change', $event)"
+          @ended="$emit('audio-ended')"
+          @open-external="$emit('audio-external-click', $event)"
+        />
 
-      <!-- 통독모드: 진행률 바 영역 -->
-      <div v-if="isTongdokMode && tongdokProgress" class="tongdok-progress-area">
-        <div class="story-progress-bar">
-          <div
-            v-for="i in tongdokProgress.total"
-            :key="i"
-            class="progress-segment"
-            :class="{
-              'filled': i < tongdokProgress.current,
-              'current': i === tongdokProgress.current
-            }"
-          ></div>
+        <!-- 통독모드: 진행률 바 영역 -->
+        <div v-if="isTongdokMode && tongdokProgress" class="tongdok-progress-area">
+          <div class="story-progress-bar">
+            <div
+              v-for="i in tongdokProgress.total"
+              :key="i"
+              class="progress-segment"
+              :class="{
+                'filled': i < tongdokProgress.current,
+                'current': i === tongdokProgress.current
+              }"
+            ></div>
+          </div>
+          <div class="progress-text-indicator">
+            {{ tongdokProgress.current }}/{{ tongdokProgress.total }}
+          </div>
         </div>
-        <div class="progress-text-indicator">
-          {{ tongdokProgress.current }}/{{ tongdokProgress.total }}
-        </div>
-      </div>
+      </template>
 
-      <nav class="bible-navigation">
-        <!-- 홈 아이콘 (왼쪽 끝) -->
-        <NuxtLink to="/" class="side-nav-item" aria-label="홈으로 이동">
-          <HomeIcon :size="18" aria-hidden="true" />
-        </NuxtLink>
+      <template #center>
+        <button
+          class="nav-button prev"
+          :disabled="!hasPrevChapter"
+          aria-label="이전 장"
+          @click="$emit('prev-chapter')"
+        >
+          <ChevronLeftIcon />
+        </button>
 
-        <!-- 중앙: 이전/장정보/다음 그룹 -->
-        <div class="center-nav-group">
-          <button
-            class="nav-button prev"
-            :disabled="!hasPrevChapter"
-            aria-label="이전 장"
-            @click="$emit('prev-chapter')"
-          >
-            <ChevronLeftIcon />
-          </button>
-
-          <button 
-            class="chapter-info" 
-            :class="{ 'is-tongdok': isTongdokMode && shortScheduleDate }" 
-            @click="isTongdokMode && shortScheduleDate ? $emit('reading-plan-click') : $emit('open-book-selector')"
-          >
+        <button
+          class="chapter-info"
+          :class="{ 'is-tongdok': isTongdokMode && shortScheduleDate }"
+          @click="isTongdokMode && shortScheduleDate ? $emit('reading-plan-click') : $emit('open-book-selector')"
+        >
           <template v-if="isTongdokMode && shortScheduleDate">
-              <span class="schedule-short-date">{{ shortScheduleDate }}</span>
-              <div 
-                class="tongdok-completion-group"
-              >
-                <div class="tongdok-checkbox-wrapper" @click.stop="$emit('tongdok-complete-click')" title="통독 완료하기">
-                  <div class="tongdok-custom-checkbox"></div>
-                </div>
-                <span class="schedule-range">{{ tongdokScheduleRange }}</span>
+            <span class="schedule-short-date">{{ shortScheduleDate }}</span>
+            <div class="tongdok-completion-group">
+              <div class="tongdok-checkbox-wrapper" @click.stop="$emit('tongdok-complete-click')" title="통독 완료하기">
+                <div class="tongdok-custom-checkbox"></div>
               </div>
-            </template>
-            <template v-else>
-              <span class="chapter-info-text">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
-            </template>
-          </button>
+              <span class="schedule-range">{{ tongdokScheduleRange }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <span class="chapter-info-text">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
+          </template>
+        </button>
 
-          <button
-            class="nav-button next"
-            :disabled="!hasNextChapter"
-            aria-label="다음 장"
-            @click="$emit('next-chapter')"
-          >
-            <ChevronRightIcon />
-          </button>
-        </div>
-
-        <!-- 프로필 아이콘 (오른쪽 끝) -->
-        <NuxtLink :to="profileLink" class="side-nav-item" aria-label="내 프로필">
-          <UserIcon :size="18" aria-hidden="true" />
-        </NuxtLink>
-      </nav>
-    </div>
+        <button
+          class="nav-button next"
+          :disabled="!hasNextChapter"
+          aria-label="다음 장"
+          @click="$emit('next-chapter')"
+        >
+          <ChevronRightIcon />
+        </button>
+      </template>
+    </FloatingBottomBar>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon, HomeIcon, UserIcon } from '@lucide/vue';
+import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon } from '@lucide/vue';
 import BibleViewer from '~/components/bible/BibleViewer.vue';
 import BibleToolPopover from '~/components/bible/BibleToolPopover.vue';
 import TongdokAudioPlayer from '~/components/bible/TongdokAudioPlayer.vue';
+import FloatingBottomBar from '~/components/common/FloatingBottomBar.vue';
 import ChevronLeftIcon from '~/components/icons/ChevronLeftIcon.vue';
 import ChevronRightIcon from '~/components/icons/ChevronRightIcon.vue';
 import ChevronDownIcon from '~/components/icons/ChevronDownIcon.vue';
@@ -255,7 +243,6 @@ import CheckCircleOutlineIcon from '~/components/icons/CheckCircleOutlineIcon.vu
 import XMarkIcon from '~/components/icons/XMarkIcon.vue';
 import BookmarkFilledIcon from '~/components/icons/BookmarkFilledIcon.vue';
 import BookmarkOutlineIcon from '~/components/icons/BookmarkOutlineIcon.vue';
-import { useAuthService } from '~/composables/useAuthService';
 
 // Highlight 인터페이스
 interface Highlight {
@@ -318,12 +305,6 @@ const props = withDefaults(defineProps<Props>(), {
   isCompleting: false,
   isMarkingRead: false,
   highlights: () => [],
-});
-
-// Auth service for profile link
-const auth = useAuthService();
-const profileLink = computed(() => {
-  return auth.user.value ? `/profile/${auth.user.value.id}` : '/login';
 });
 
 const formatScheduleDate = (dateString: string | null): string => {
@@ -985,32 +966,6 @@ defineExpose({
   color: var(--text-primary, #1f2937);
 }
 
-/* 하단 영역 - 글래스모피즘 플로팅 디자인 */
-.bible-bottom-area {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 32px);
-  max-width: min(400px, calc(100vw - 32px));
-  z-index: 20;
-
-  /* 글래스모피즘 */
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 20px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-
-
-
-
 /* 본문 하단 읽음 표시 영역 (인라인) */
 .content-bottom-action {
   display: flex;
@@ -1139,55 +1094,6 @@ defineExpose({
   background: linear-gradient(90deg, var(--primary-color, #6366f1) 0%, #818cf8 100%);
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 4px;
-}
-
-/* 네비게이션 */
-.bible-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.5rem;
-  min-height: 46px;
-  gap: 0.5rem;
-}
-
-/* 중앙 네비게이션 그룹 (이전/장정보/다음) */
-.center-nav-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  flex: 1;
-  min-width: 0; /* flex item 축소 허용 */
-  overflow: hidden;
-}
-
-/* 사이드 네비게이션 아이템 (홈/프로필) */
-.side-nav-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  color: var(--color-slate-500, #64748b);
-  border-radius: 8px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  text-decoration: none;
-  flex-shrink: 0;
-}
-
-.side-nav-item svg {
-  width: 16px;
-  height: 16px;
-}
-
-.side-nav-item:hover {
-  color: var(--primary-color, #6366f1);
-  background: rgba(99, 102, 241, 0.08);
-}
-
-.side-nav-item:active {
-  transform: scale(0.92);
 }
 
 .nav-button {
@@ -1364,20 +1270,6 @@ defineExpose({
   background-color: rgba(75, 159, 126, 0.1);
 }
 
-/* iOS 안전영역 */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .bible-bottom-area {
-    bottom: calc(16px + env(safe-area-inset-bottom));
-  }
-}
-
-/* iOS Safari 전용 - safe-area만 사용 (추가 마진 최소화) */
-@supports (-webkit-touch-callout: none) {
-  .bible-bottom-area {
-    bottom: max(8px, env(safe-area-inset-bottom));
-  }
-}
-
 /* ==========================================
    다크모드 스타일 - [data-theme="dark"] 셀렉터 사용
    프로젝트 전체 테마 시스템과 일관성 유지
@@ -1493,21 +1385,6 @@ defineExpose({
   color: var(--color-text-inverse);
 }
 
-/* ==========================================
-   플로팅 하단 네비게이션 다크모드 (핵심)
-   글래스모피즘 스타일 유지
-   ========================================== */
-[data-theme="dark"] .bible-bottom-area {
-  background: rgba(36, 36, 36, 0.88);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 -4px 24px rgba(0, 0, 0, 0.4),
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
 /* 네비게이션 버튼 다크모드 */
 [data-theme="dark"] .nav-button {
   color: var(--color-text-secondary);
@@ -1521,16 +1398,6 @@ defineExpose({
 [data-theme="dark"] .nav-button:disabled {
   color: var(--color-text-muted);
   opacity: 0.4;
-}
-
-/* 사이드 네비게이션 아이템 다크모드 (홈/프로필) */
-[data-theme="dark"] .side-nav-item {
-  color: var(--color-text-secondary, #9ca3af);
-}
-
-[data-theme="dark"] .side-nav-item:hover {
-  color: var(--color-accent-primary, #6bc99f);
-  background: rgba(107, 201, 159, 0.1);
 }
 
 /* 챕터 정보 버튼 다크모드 */

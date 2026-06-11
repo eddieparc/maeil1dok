@@ -4,7 +4,7 @@
     
     <div class="container">
       <!-- Header -->
-      <PageHeader title="하세나하시조" fallback-path="/" />
+      <PageHeader title="하세나하시조" back-path="/" />
 
       <main class="main-content">
         <!-- 비디오 섹션 -->
@@ -151,12 +151,8 @@
       </main>
 
       <!-- 하단 플로팅 바 -->
-      <div class="hasena-bottom-area fade-in" style="animation-delay: 0.3s">
-        <nav class="hasena-navigation">
-          <NuxtLink to="/" class="side-nav-item" aria-label="홈으로 이동">
-            <HomeIcon :size="18" aria-hidden="true" />
-          </NuxtLink>
-
+      <FloatingBottomBar>
+        <template #center>
           <button
             class="hasena-complete-info"
             :class="{ completed: isButtonCompleted }"
@@ -173,12 +169,8 @@
               <span class="hasena-range">{{ bibleTitle || '하세나하시조' }}</span>
             </span>
           </button>
-
-          <NuxtLink :to="profileLink" class="side-nav-item" aria-label="내 프로필">
-            <UserIcon :size="18" aria-hidden="true" />
-          </NuxtLink>
-        </nav>
-      </div>
+        </template>
+      </FloatingBottomBar>
 
       <!-- Toast 컴포넌트 -->
       <Toast ref="toast" />
@@ -203,18 +195,17 @@ import { useRouter } from 'vue-router'
 import { useSanitize } from '~/composables/useSanitize'
 import Toast from '~/components/Toast.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
+import FloatingBottomBar from '~/components/common/FloatingBottomBar.vue'
 import {
   CalendarDaysIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   FlameIcon,
   CheckCircleIcon,
-  HomeIcon,
   PlayIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
   TrophyIcon,
-  UserIcon,
 } from '@lucide/vue'
 import { formatHasenaSummary, parseHasenaContent } from '~/utils/hasenaFormatters'
 
@@ -374,7 +365,6 @@ const shortFormattedDate = computed(() => new Intl.DateTimeFormat('ko-KR', {
   day: 'numeric',
   weekday: 'short'
 }).format(today))
-const profileLink = computed(() => auth.user.value ? `/profile/${auth.user.value.id}` : '/login')
 
 // API 날짜 포맷
 const formatApiDate = (date) => {
@@ -1186,57 +1176,6 @@ onMounted(async () => {
   transition: all 0.2s ease;
 }
 
-/* 하단 플로팅 바 */
-.hasena-bottom-area {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 32px);
-  max-width: min(400px, calc(100vw - 32px));
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 20px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-.hasena-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 46px;
-  gap: 0.5rem;
-  padding: 0.5rem;
-}
-
-.side-nav-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  color: var(--color-slate-500, #64748b);
-  border-radius: 8px;
-  text-decoration: none;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.side-nav-item:hover {
-  color: var(--color-accent-primary);
-  background: rgba(75, 159, 126, 0.08);
-}
-
-.side-nav-item:active {
-  transform: scale(0.92);
-}
-
 .hasena-complete-info {
   display: flex;
   align-items: center;
@@ -1315,30 +1254,6 @@ onMounted(async () => {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-}
-
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .hasena-bottom-area {
-    bottom: calc(16px + env(safe-area-inset-bottom));
-  }
-}
-
-[data-theme="dark"] .hasena-bottom-area {
-  background: rgba(31, 41, 55, 0.82);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.35),
-    0 2px 8px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-[data-theme="dark"] .side-nav-item {
-  color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .side-nav-item:hover {
-  color: var(--color-accent-primary);
-  background: rgba(107, 201, 159, 0.1);
 }
 
 [data-theme="dark"] .hasena-complete-info {
