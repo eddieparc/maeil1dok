@@ -9,7 +9,7 @@
 
       <div class="logo-container">
         <NuxtImg
-          src="/images/로고_투명.png"
+          src="/images/logo-transparent.png"
           alt="매일일독"
           class="logo"
           loading="lazy"

@@ -47,7 +47,7 @@
         <div v-if="!hasPlan && isAuthenticated" class="no-plan-hint">
           <InfoIcon :size="16" />
           <span>플랜을 구독하면 매일 통독 일정을 받을 수 있어요</span>
-          <NuxtLink to="/plan" class="plan-link">플랜 보기</NuxtLink>
+          <NuxtLink to="/plans" class="plan-link">플랜 보기</NuxtLink>
         </div>
       </section>
 
@@ -74,7 +74,7 @@
               <ListIcon :size="18" />
               성경 목차에서 시작하기
             </button>
-            <NuxtLink v-if="isAuthenticated" to="/plan" class="welcome-btn secondary">
+            <NuxtLink v-if="isAuthenticated" to="/plans" class="welcome-btn secondary">
               <CalendarIcon :size="18" />
               통독 플랜 구독하기
             </NuxtLink>

@@ -12,7 +12,7 @@
       <div>
         <NuxtImg
           class="mx-auto h-8 w-auto object-contain"
-          src="/images/로고_투명.png"
+          src="/images/logo-transparent.png"
           alt="매일일독"
           loading="lazy"
           format="webp"
