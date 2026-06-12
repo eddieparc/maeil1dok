@@ -19,13 +19,14 @@ export const saveCsrfToken = (token: string): void => {
 export const useApi = () => {
   const config = useRuntimeConfig()
 
-  const auth = useAuthService()
-
   const getBaseUrl = () => {
-    if (process.server) {
-      return process.env.DOCKER_ENV === 'true' ? 'http://backend:8000' : 'http://localhost:8019'
+    if (import.meta.server) {
+      if (config.internalApiBase) {
+        return config.internalApiBase as string
+      }
+      return config.public.apiBase as string
     }
-    return config.public.apiBase
+    return config.public.apiBase as string
   }
 
   const getCsrfToken = (): string | null => {
@@ -171,7 +172,7 @@ export const useApi = () => {
     }
   }
 
-  const post = async (url: string, data?: any, config?: AxiosRequestConfig) => {
+  const post = async (url: string, data?: any, _config?: AxiosRequestConfig) => {
     const fullUrl = `${getBaseUrl()}${url}`
 
     try {
