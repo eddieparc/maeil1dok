@@ -8,8 +8,10 @@ from rest_framework.test import APIClient
 
 from .models import (
     BibleReadingPlan, DailyBibleSchedule, PlanSubscription, UserBibleProgress,
+    UserReadingPosition,
 )
 from .scoreboard_views import calculate_progress_rate, calculate_progress_rates_bulk, rank_leaderboard
+from .serializers import UserReadingPositionSerializer
 
 User = get_user_model()
 
@@ -35,6 +37,98 @@ class ProgressTestBase(TestCase):
         ]
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
+
+
+class UserReadingPositionSerializerTest(TestCase):
+    def _valid_data(self, **overrides):
+        data = {
+            'book': 'exo',
+            'chapter': 3,
+            'scroll_position': 0.42,
+            'version': 'KNT',
+        }
+        data.update(overrides)
+        return data
+
+    def test_normalizes_supported_book_and_version_codes(self):
+        serializer = UserReadingPositionSerializer(data=self._valid_data(
+            book='jon',
+            version='knt',
+        ))
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['book'], 'jnh')
+        self.assertEqual(serializer.validated_data['version'], 'KNT')
+
+    def test_rejects_scroll_position_outside_zero_to_one(self):
+        for scroll_position in (-0.01, 1.01):
+            with self.subTest(scroll_position=scroll_position):
+                serializer = UserReadingPositionSerializer(data=self._valid_data(
+                    scroll_position=scroll_position,
+                ))
+
+                self.assertFalse(serializer.is_valid())
+                self.assertIn('scroll_position', serializer.errors)
+
+    def test_rejects_unsupported_book_code(self):
+        serializer = UserReadingPositionSerializer(data=self._valid_data(book='bad'))
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('book', serializer.errors)
+
+    def test_rejects_chapter_beyond_book_bounds(self):
+        serializer = UserReadingPositionSerializer(data=self._valid_data(
+            book='exo',
+            chapter=41,
+        ))
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('chapter', serializer.errors)
+
+    def test_rejects_unsupported_version_code(self):
+        serializer = UserReadingPositionSerializer(data=self._valid_data(version='KJV'))
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('version', serializer.errors)
+
+
+class UserReadingPositionApiTest(TestCase):
+    URL = '/api/v1/todos/bible/reading-position/'
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='position-reader',
+            nickname='위치독자',
+            password='pw-test-1234',
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_first_save_creates_position_after_validation(self):
+        response = self.client.post(self.URL, {
+            'book': 'jon',
+            'chapter': 3,
+            'scroll_position': 0.42,
+            'version': 'knt',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        position = UserReadingPosition.objects.get(user=self.user)
+        self.assertEqual(position.book, 'jnh')
+        self.assertEqual(position.chapter, 3)
+        self.assertEqual(position.scroll_position, 0.42)
+        self.assertEqual(position.version, 'KNT')
+
+    def test_first_save_rejects_invalid_payload_without_creating_position(self):
+        response = self.client.post(self.URL, {
+            'book': 'exo',
+            'chapter': 41,
+            'scroll_position': 0.42,
+            'version': 'KNT',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(UserReadingPosition.objects.filter(user=self.user).exists())
 
 
 class UpdateBibleProgressTest(ProgressTestBase):

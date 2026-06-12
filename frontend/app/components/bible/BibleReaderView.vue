@@ -511,6 +511,9 @@ defineExpose({
   scrollToTop: () => {
     bibleViewerRef.value?.restoreScrollPosition();
   },
+  restoreScrollPosition: () => {
+    bibleViewerRef.value?.restoreScrollPosition();
+  },
   scrollToVerse: (verseNumber: number) => {
     bibleViewerRef.value?.scrollToVerse(verseNumber);
   },

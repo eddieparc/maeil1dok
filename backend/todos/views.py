@@ -2687,10 +2687,14 @@ def reading_position_view(request):
 
     elif request.method == 'POST':
         try:
-            position, created = UserReadingPosition.objects.get_or_create(user=request.user)
-            serializer = UserReadingPositionSerializer(position, data=request.data, partial=True)
+            position = UserReadingPosition.objects.filter(user=request.user).first()
+            serializer = UserReadingPositionSerializer(
+                position,
+                data=request.data,
+                partial=position is not None,
+            )
             if serializer.is_valid():
-                serializer.save()
+                serializer.save(user=request.user)
                 return Response({'success': True, 'message': '위치가 저장되었습니다'})
             return Response({
                 'success': False,

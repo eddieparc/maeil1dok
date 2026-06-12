@@ -345,6 +345,32 @@ BIBLE_BOOKS_KOR = {
     'jnh': '요나',
 }
 
+BIBLE_BOOK_CHAPTERS = {
+    'gen': 50, 'exo': 40, 'lev': 27, 'num': 36, 'deu': 34,
+    'jos': 24, 'jdg': 21, 'rut': 4, '1sa': 31, '2sa': 24,
+    '1ki': 22, '2ki': 25, '1ch': 29, '2ch': 36, 'ezr': 10,
+    'neh': 13, 'est': 10, 'job': 42, 'psa': 150, 'pro': 31,
+    'ecc': 12, 'sng': 8, 'isa': 66, 'jer': 52, 'lam': 5,
+    'ezk': 48, 'dan': 12, 'hos': 14, 'jol': 3, 'amo': 9,
+    'oba': 1, 'jnh': 4, 'mic': 7, 'nam': 3, 'hab': 3,
+    'zep': 3, 'hag': 2, 'zec': 14, 'mal': 4,
+    'mat': 28, 'mrk': 16, 'luk': 24, 'jhn': 21, 'act': 28,
+    'rom': 16, '1co': 16, '2co': 13, 'gal': 6, 'eph': 6,
+    'php': 4, 'col': 4, '1th': 5, '2th': 3,
+    '1ti': 6, '2ti': 4, 'tit': 3, 'phm': 1, 'heb': 13,
+    'jas': 5, '1pe': 5, '2pe': 3, '1jn': 5,
+    '2jn': 1, '3jn': 1, 'jud': 1, 'rev': 22,
+}
+
+SUPPORTED_READING_VERSIONS = frozenset({
+    'GAE', 'KNT', 'WOORI', 'SAENEW', 'HAN', 'SAE', 'COG', 'COGNEW',
+})
+
+
+def normalize_bible_book_code(value):
+    normalized = value.strip().lower()
+    return 'jnh' if normalized == 'jon' else normalized
+
 
 class UserReadingPositionSerializer(serializers.ModelSerializer):
     """마지막 읽기 위치 Serializer"""
@@ -352,6 +378,52 @@ class UserReadingPositionSerializer(serializers.ModelSerializer):
         model = UserReadingPosition
         fields = ['book', 'chapter', 'verse', 'scroll_position', 'version', 'updated_at']
         read_only_fields = ['updated_at']
+
+    def validate_book(self, value):
+        if not isinstance(value, str) or not value.strip():
+            raise serializers.ValidationError('성경책 코드가 올바르지 않습니다.')
+
+        normalized = normalize_bible_book_code(value)
+        if normalized not in BIBLE_BOOK_CHAPTERS:
+            raise serializers.ValidationError('지원하지 않는 성경책 코드입니다.')
+
+        return normalized
+
+    def validate_chapter(self, value):
+        if value < 1:
+            raise serializers.ValidationError('장 번호는 1 이상이어야 합니다.')
+        return value
+
+    def validate_scroll_position(self, value):
+        if value < 0 or value > 1:
+            raise serializers.ValidationError('스크롤 위치는 0과 1 사이여야 합니다.')
+        return value
+
+    def validate_version(self, value):
+        if not isinstance(value, str) or not value.strip():
+            raise serializers.ValidationError('역본 코드가 올바르지 않습니다.')
+
+        normalized = value.strip().upper()
+        if normalized not in SUPPORTED_READING_VERSIONS:
+            raise serializers.ValidationError('지원하지 않는 역본 코드입니다.')
+
+        return normalized
+
+    def validate(self, attrs):
+        book = attrs.get('book') or getattr(self.instance, 'book', None)
+        chapter = attrs.get('chapter') or getattr(self.instance, 'chapter', None)
+
+        if book is None or chapter is None:
+            return attrs
+
+        normalized_book = normalize_bible_book_code(book)
+        max_chapter = BIBLE_BOOK_CHAPTERS.get(normalized_book)
+        if max_chapter is not None and chapter > max_chapter:
+            raise serializers.ValidationError({
+                'chapter': f'{BIBLE_BOOKS_KOR.get(normalized_book, normalized_book)}은 {max_chapter}장까지 있습니다.'
+            })
+
+        return attrs
 
 
 class BibleBookmarkSerializer(serializers.ModelSerializer):
@@ -416,4 +488,4 @@ class PersonalReadingRecordSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
     def get_book_name(self, obj):
-        return BIBLE_BOOKS_KOR.get(obj.book, obj.book) 
+        return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
