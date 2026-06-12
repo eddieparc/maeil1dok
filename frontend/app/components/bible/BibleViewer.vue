@@ -629,11 +629,12 @@ const clearSelection = () => {
 
 // 스크롤 위치 복원
 const restoreScrollPosition = () => {
-  if (props.initialScrollPosition && viewerRef.value) {
-    const { scrollHeight, clientHeight } = viewerRef.value;
-    const maxScroll = scrollHeight - clientHeight;
-    viewerRef.value.scrollTop = props.initialScrollPosition * maxScroll;
-  }
+  if (!viewerRef.value) return;
+
+  const { scrollHeight, clientHeight } = viewerRef.value;
+  const maxScroll = scrollHeight - clientHeight;
+  const scrollPosition = Math.min(1, Math.max(0, props.initialScrollPosition));
+  viewerRef.value.scrollTop = scrollPosition * maxScroll;
 };
 
 // 검색 결과 강조용 타이머

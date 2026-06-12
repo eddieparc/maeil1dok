@@ -113,7 +113,11 @@ export function useBibleFetch() {
     const timeoutId = setTimeout(() => controller.abort(), PROXY_TIMEOUT);
 
     try {
-      const url = `/bible-proxy/KNT/get_chapter.php?version=d7a4326402395391-01&chapter=${book.toUpperCase()}.${chapter}`;
+      const params = new URLSearchParams({
+        version: 'd7a4326402395391-01',
+        chapter: `${book.toUpperCase()}.${chapter}`,
+      });
+      const url = `/bible-proxy/KNT/get_chapter.php?${params.toString()}`;
 
       const response = await fetch(url, {
         signal: controller.signal,
@@ -155,7 +159,15 @@ export function useBibleFetch() {
     const timeoutId = setTimeout(() => controller.abort(), PROXY_TIMEOUT);
 
     try {
-      const url = `/bible-proxy/bible/korbibReadpage.php?version=${version}&book=${book}&chap=${chapter}&cVersion=&fontSize=15px&fontWeight=normal`;
+      const params = new URLSearchParams({
+        version,
+        book,
+        chap: String(chapter),
+        cVersion: '',
+        fontSize: '15px',
+        fontWeight: 'normal',
+      });
+      const url = `/bible-proxy/bible/korbibReadpage.php?${params.toString()}`;
 
       const response = await fetch(url, {
         signal: controller.signal,

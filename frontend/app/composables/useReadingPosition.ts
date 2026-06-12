@@ -9,6 +9,7 @@
  */
 import { ref, type Ref } from 'vue';
 import { useAuthService } from '~/composables/useAuthService';
+import { BIBLE_BOOKS, VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';
 import { useApi } from './useApi';
 
 export interface ReadingPosition {
@@ -20,6 +21,64 @@ export interface ReadingPosition {
 }
 
 const STORAGE_KEY = 'lastReadingPosition';
+const BIBLE_BOOK_CHAPTERS = new Map(
+  [...BIBLE_BOOKS.old, ...BIBLE_BOOKS.new].map(book => [book.id, book.chapters])
+);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isValidScrollPosition = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+
+const normalizeBookCode = (book: string): string => {
+  const normalizedBook = book.trim().toLowerCase();
+  return normalizedBook === 'jon' ? 'jnh' : normalizedBook;
+};
+
+const normalizeVersionCode = (version: string): string => version.trim().toUpperCase();
+
+const isValidVersionCode = (version: string): boolean =>
+  Object.prototype.hasOwnProperty.call(VISIBLE_VERSION_NAMES, version);
+
+const parseReadingPosition = (value: unknown): ReadingPosition | null => {
+  if (!isRecord(value)) return null;
+
+  const { book, chapter, scroll_position, version, updated_at } = value;
+
+  if (typeof book !== 'string' || book.trim() === '') return null;
+  if (typeof chapter !== 'number' || !Number.isInteger(chapter) || chapter < 1) return null;
+  if (!isValidScrollPosition(scroll_position)) return null;
+  if (typeof version !== 'string' || version.trim() === '') return null;
+  if (updated_at !== undefined && typeof updated_at !== 'string') return null;
+
+  const normalizedBook = normalizeBookCode(book);
+  const maxChapter = BIBLE_BOOK_CHAPTERS.get(normalizedBook);
+  if (maxChapter === undefined || chapter > maxChapter) return null;
+
+  const normalizedVersion = normalizeVersionCode(version);
+  if (!isValidVersionCode(normalizedVersion)) return null;
+
+  return {
+    book: normalizedBook,
+    chapter,
+    scroll_position,
+    version: normalizedVersion,
+    ...(typeof updated_at === 'string' ? { updated_at } : {})
+  };
+};
+
+const getWindowScrollPosition = (): number => {
+  if (typeof window === 'undefined') return 0;
+
+  const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+  if (maxScroll <= 0) return 0;
+
+  const position = window.scrollY / maxScroll;
+  if (!Number.isFinite(position)) return 0;
+
+  return Math.min(1, Math.max(0, position));
+};
 
 export const useReadingPosition = () => {
   const auth = useAuthService();
@@ -49,9 +108,11 @@ export const useReadingPosition = () => {
     if (typeof window === 'undefined') return null;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
+      return stored ? parseReadingPosition(JSON.parse(stored)) : null;
+    } catch (error) {
+      if (error instanceof SyntaxError) return null;
+      if (typeof DOMException !== 'undefined' && error instanceof DOMException) return null;
+      throw error;
     }
   };
 
@@ -62,8 +123,12 @@ export const useReadingPosition = () => {
     if (typeof window === 'undefined') return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(position));
-    } catch (e) {
-      console.warn('Failed to save reading position to localStorage:', e);
+    } catch (error) {
+      if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+        console.warn('Failed to save reading position to localStorage:', error);
+        return;
+      }
+      throw error;
     }
   };
 
@@ -80,13 +145,16 @@ export const useReadingPosition = () => {
       const serverPosition = response.data?.success ? response.data.position : null;
 
       if (serverPosition) {
-        const mergedPosition: ReadingPosition = {
+        const mergedPosition = parseReadingPosition({
           ...serverPosition,
           version: serverPosition.version || localPosition?.version || 'GAE',
-        };
-        lastReadingPosition.value = mergedPosition;
-        saveToLocalStorage(mergedPosition);
-        return mergedPosition;
+        });
+
+        if (mergedPosition) {
+          lastReadingPosition.value = mergedPosition;
+          saveToLocalStorage(mergedPosition);
+          return mergedPosition;
+        }
       }
 
       lastReadingPosition.value = localPosition;
@@ -102,13 +170,14 @@ export const useReadingPosition = () => {
     book: string,
     chapter: number,
     version: string,
-    immediate = false
+    immediate = false,
+    explicitScrollPosition?: number
   ): Promise<void> => {
     if (!isSavingEnabled.value && !immediate) return;
 
-    const scrollPosition = typeof window !== 'undefined'
-      ? window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) || 0
-      : 0;
+    const scrollPosition = isValidScrollPosition(explicitScrollPosition)
+      ? explicitScrollPosition
+      : getWindowScrollPosition();
 
     const isSameLocation = lastSavedPosition.value &&
       lastSavedPosition.value.book === book &&
@@ -120,18 +189,24 @@ export const useReadingPosition = () => {
       return;
     }
 
-    const position: ReadingPosition = {
+    const position = parseReadingPosition({
       book,
       chapter,
       scroll_position: scrollPosition,
       version,
       updated_at: new Date().toISOString()
-    };
+    });
+
+    if (!position) return;
 
     saveToLocalStorage(position);
     lastReadingPosition.value = position;
     lastSavedScrollPosition.value = scrollPosition;
-    lastSavedPosition.value = { book, chapter, version };
+    lastSavedPosition.value = {
+      book: position.book,
+      chapter: position.chapter,
+      version: position.version
+    };
 
     // 비로그인 시 localStorage만 저장하고 종료
     if (!auth.isAuthenticated.value) return;
@@ -145,10 +220,10 @@ export const useReadingPosition = () => {
       isSavingPosition.value = true;
       try {
         await api.post('/api/v1/todos/bible/reading-position/', {
-          book,
-          chapter,
+          book: position.book,
+          chapter: position.chapter,
           scroll_position: scrollPosition,
-          version
+          version: position.version
         });
       } catch (error) {
         console.error('읽기 위치 저장 실패:', error);

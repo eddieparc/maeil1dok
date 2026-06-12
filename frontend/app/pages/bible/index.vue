@@ -276,6 +276,7 @@ const {
 const {
   loadReadingPosition,
   saveReadingPosition,
+  restoreScrollPosition: restoreReadingScrollPosition,
   cleanup: cleanupReadingPosition,
   enableSaving: enablePositionSaving,
 } = useReadingPosition();
@@ -398,6 +399,7 @@ const saveNextScheduleAction = (action: SavedNextScheduleAction): void => {
 // Refs
 const bibleReaderViewRef = ref<InstanceType<typeof BibleReaderView> | null>(null);
 const scrollPosition = ref(0);
+const hasReaderScrollPosition = ref(false);
 const showScheduleModal = ref(false);
 const showTongdokPlanModal = ref(false);
 const showTongdokAudioPlayer = ref(false);
@@ -480,6 +482,27 @@ const loadBibleContent = async (book: string, chapter: number) => {
   await loadBibleContentFromComposable(book, chapter, currentVersion.value);
 };
 
+const setReaderScrollPosition = (position: number, fromReaderScroll = false) => {
+  scrollPosition.value = position;
+  hasReaderScrollPosition.value = fromReaderScroll;
+};
+
+const resetReaderScrollPosition = () => {
+  setReaderScrollPosition(0);
+};
+
+const restoreSavedScrollPosition = async (position: number | undefined) => {
+  if (typeof position !== 'number') return;
+  setReaderScrollPosition(position);
+  await nextTick();
+  bibleReaderViewRef.value?.restoreScrollPosition();
+  restoreReadingScrollPosition(position);
+};
+
+const getExplicitReaderScrollPosition = () => {
+  return hasReaderScrollPosition.value ? scrollPosition.value : undefined;
+};
+
 // 이벤트 핸들러 (composable wrapper)
 // goBack은 useBiblePageState에서 직접 사용
 
@@ -487,6 +510,7 @@ const loadBibleContent = async (book: string, chapter: number) => {
 // verse가 있으면 콘텐츠 로드 후 해당 절로 스크롤
 const handleBookSelect = async (book: string, chapter: number, verse?: number) => {
   selectBook(book, chapter);
+  resetReaderScrollPosition();
   await loadBibleContent(book, chapter);
   
   // 절 정보가 있으면 해당 절로 스크롤 및 강조
@@ -499,12 +523,14 @@ const handleBookSelect = async (book: string, chapter: number, verse?: number) =
 
 const handleVersionSelect = (version: string) => {
   selectVersion(version);
+  resetReaderScrollPosition();
   loadBibleContent(currentBook.value, currentChapter.value);
 };
 
 // 네비게이션 (composable wrapper with content loading)
 const goToPrevChapter = () => {
   goToPrevChapterBase();
+  resetReaderScrollPosition();
   loadBibleContent(currentBook.value, currentChapter.value);
   scrollToTop();
 };
@@ -534,6 +560,7 @@ const goToNextChapter = async () => {
   }
 
   goToNextChapterBase();
+  resetReaderScrollPosition();
   loadBibleContent(currentBook.value, currentChapter.value);
   scrollToTop();
 };
@@ -547,7 +574,8 @@ const scrollToTop = () => {
 
 // BibleViewer 이벤트 핸들러
 const handleScrollPosition = (position: number) => {
-  scrollPosition.value = position;
+  setReaderScrollPosition(position, true);
+  saveReadingPosition(currentBook.value, currentChapter.value, currentVersion.value, false, position);
 };
 
 const handleBookmarkAction = (_verses: VerseSelection) => {
@@ -1036,20 +1064,23 @@ const handleContinueReading = async () => {
   const lastPos = await loadReadingPosition();
   if (lastPos) {
     currentVersion.value = lastPos.version || 'GAE';
-    scrollPosition.value = lastPos.scroll_position || 0;
     await enterReaderMode(lastPos.book, lastPos.chapter);
+    await restoreSavedScrollPosition(lastPos.scroll_position);
   } else {
+    resetReaderScrollPosition();
     await enterReaderMode(currentBook.value, currentChapter.value);
   }
 };
 
 // 진입점 모드 핸들러: 홈에서 책 선택
 const handleHomeBookSelect = async (bookId: string, chapter: number = 1) => {
+  resetReaderScrollPosition();
   await enterReaderMode(bookId, chapter);
 };
 
 // 진입점 모드 핸들러: 목차에서 책 선택
 const handleTocBookSelect = async (bookId: string, chapter: number = 1) => {
+  resetReaderScrollPosition();
   await enterReaderMode(bookId, chapter);
 };
 
@@ -1073,6 +1104,7 @@ onMounted(async () => {
   if (hasQueryParams) {
     viewMode.value = 'reader';
     initFromQuery();
+    resetReaderScrollPosition();
     loadBibleContent(currentBook.value, currentChapter.value);
     
     // URL 파라미터를 상태에 반영한 후 URL 정리 (상태 관리에 위임)
@@ -1085,9 +1117,9 @@ onMounted(async () => {
       currentBook.value = lastPos.book;
       currentChapter.value = lastPos.chapter;
       currentVersion.value = lastPos.version || 'GAE';
-      scrollPosition.value = lastPos.scroll_position || 0;
     }
-    loadBibleContent(currentBook.value, currentChapter.value);
+    await loadBibleContent(currentBook.value, currentChapter.value);
+    await restoreSavedScrollPosition(lastPos?.scroll_position);
   } else {
     // tongdokMode가 true이고 query params가 없는 경우 (새로고침 후)
     // 반드시 저장된 reading position에서 복원해야 함
@@ -1098,10 +1130,10 @@ onMounted(async () => {
       currentBook.value = lastPos.book;
       currentChapter.value = lastPos.chapter;
       currentVersion.value = lastPos.version || 'GAE';
-      scrollPosition.value = lastPos.scroll_position || 0;
     }
     
-    loadBibleContent(currentBook.value, currentChapter.value);
+    await loadBibleContent(currentBook.value, currentChapter.value);
+    await restoreSavedScrollPosition(lastPos?.scroll_position);
     
     // 통독모드 진입 시에도 URL 정리 (상태는 localStorage에서 관리)
     if (Object.keys(route.query).length > 0) {
@@ -1135,11 +1167,23 @@ onBeforeUnmount(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('beforeunload', handleBeforeUnload);
   }
-  saveReadingPosition(currentBook.value, currentChapter.value, currentVersion.value, true);
+  saveReadingPosition(
+    currentBook.value,
+    currentChapter.value,
+    currentVersion.value,
+    true,
+    getExplicitReaderScrollPosition()
+  );
 });
 
 const handleBeforeUnload = () => {
-  saveReadingPosition(currentBook.value, currentChapter.value, currentVersion.value, true);
+  saveReadingPosition(
+    currentBook.value,
+    currentChapter.value,
+    currentVersion.value,
+    true,
+    getExplicitReaderScrollPosition()
+  );
 };
 
 // route.query 변경 감지 (딥링크 처리)
@@ -1149,6 +1193,7 @@ watch(
     // 쿼리 파라미터가 있으면 처리 (딥링크로 접근한 경우)
     if (newQuery.book || newQuery.chapter || newQuery.tongdok) {
       initFromQuery();
+      resetReaderScrollPosition();
       loadBibleContent(currentBook.value, currentChapter.value);
       
       // URL 파라미터를 상태에 반영한 후 URL 정리
@@ -1182,7 +1227,13 @@ watch(
 watch(
   [() => currentBook.value, () => currentChapter.value, () => currentVersion.value],
   () => {
-    saveReadingPosition(currentBook.value, currentChapter.value, currentVersion.value);
+    saveReadingPosition(
+      currentBook.value,
+      currentChapter.value,
+      currentVersion.value,
+      false,
+      getExplicitReaderScrollPosition()
+    );
   },
   { flush: 'post' }
 );
