@@ -27,3 +27,15 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         self.assertIn("provider: 'ipx'", nuxt_config)
         self.assertNotIn("provider: 'vercel'", nuxt_config)
         self.assertNotIn("Vercel", nuxt_config)
+
+    def test_frontend_sets_safe_cache_headers_for_public_assets(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(
+            encoding="utf-8",
+        )
+
+        self.assertIn("'/_nuxt/**'", nuxt_config)
+        self.assertIn("max-age=31536000, immutable", nuxt_config)
+        self.assertIn("s-maxage=300, stale-while-revalidate=86400", nuxt_config)
+        self.assertIn("'/api/**'", nuxt_config)
+        self.assertIn("no-store", nuxt_config)

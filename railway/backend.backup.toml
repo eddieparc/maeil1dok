@@ -13,3 +13,6 @@ startCommand = "/app/scripts/railway_mysql_backup.sh"
 cronSchedule = "0 18 * * *"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+[deploy.multiRegionConfig.asia-southeast1-eqsg3a]
+numReplicas = 1

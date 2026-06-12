@@ -144,7 +144,38 @@ export default defineNuxtConfig({
       }
     }
   },
-  // Nitro 설정 - preset은 배포 환경에 따라 자동 감지됨
-  // (Node.js: 'node-server', Cloudflare: 'cloudflare' 등)
-  nitro: {}
+  nitro: {
+    routeRules: {
+      '/': {
+        headers: {
+          'cache-control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400'
+        }
+      },
+      '/_nuxt/**': {
+        headers: {
+          'cache-control': 'public, max-age=31536000, immutable'
+        }
+      },
+      '/favicon.ico': {
+        headers: {
+          'cache-control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400'
+        }
+      },
+      '/apple-touch-icon.png': {
+        headers: {
+          'cache-control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400'
+        }
+      },
+      '/manifest.json': {
+        headers: {
+          'cache-control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400'
+        }
+      },
+      '/api/**': {
+        headers: {
+          'cache-control': 'no-store'
+        }
+      }
+    }
+  }
 })

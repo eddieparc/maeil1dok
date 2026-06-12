@@ -35,6 +35,9 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         self.assertEqual(configs["backend-backup"]["deploy"]["cronSchedule"], "0 18 * * *")
         self.assertIn("railway/backend.web.toml", configs["backend-web"]["build"]["watchPatterns"])
         self.assertIn("railway/frontend.toml", configs["frontend"]["build"]["watchPatterns"])
+        for config in configs.values():
+            regions = config["deploy"]["multiRegionConfig"]
+            self.assertEqual(regions, {"asia-southeast1-eqsg3a": {"numReplicas": 1}})
         self.assertIn('CMD ["celery", "-A", "config", "worker", "-l", "info"]', (repo_root / "backend" / "Dockerfile.worker").read_text(encoding="utf-8"))
         self.assertIn('CMD ["celery", "-A", "config", "beat", "-l", "info"]', (repo_root / "backend" / "Dockerfile.beat").read_text(encoding="utf-8"))
         self.assertIn("mysql.sql.gz.sha256", (repo_root / "backend" / "scripts" / "railway_mysql_backup.sh").read_text(encoding="utf-8"))
