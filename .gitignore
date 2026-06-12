@@ -43,6 +43,8 @@ yarn-error.log*
 .nuxt/
 .output/
 dist/
+*.tsbuildinfo
+next-env.d.ts
 
 # Testing & QA
 test-results/
@@ -51,6 +53,9 @@ coverage/
 screenshots/
 *-snapshot.md
 prod-*.md
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 # IDE
 .idea/

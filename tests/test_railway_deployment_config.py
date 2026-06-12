@@ -90,7 +90,8 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         required_fragments = (
             "Railway Auto Deploy",
             "GitHub repo",
-            "railway up --path-as-root",
+            "Branch: `main`",
+            "Do not deploy service-root upload bundles",
             "Scheduled Backups",
             "sha256sum -c",
             "Old Stack Shutdown",

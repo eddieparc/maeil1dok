@@ -16,22 +16,17 @@ Services:
 
 - `MySQL`: Railway MySQL service
 - `Redis`: Railway Redis service
-- `maeil1dok-backend`: deployed with `/railway.toml` copied from
-  `railway/backend.web.toml`
-- `maeil1dok-celery-worker`: deployed with `/railway.toml` copied from
-  `railway/backend.worker.toml`
-- `maeil1dok-celery-beat`: deployed with `/railway.toml` copied from
-  `railway/backend.beat.toml`
-- `maeil1dok-db-backup`: scheduled backup service with `/railway.toml` copied
-  from `railway/backend.backup.toml`
-- `maeil1dok-frontend`: deployed with `/railway.toml` copied from
-  `railway/frontend.toml`
+- `maeil1dok-backend`: deploys from `railway/backend.web.toml`
+- `maeil1dok-celery-worker`: deploys from `railway/backend.worker.toml`
+- `maeil1dok-celery-beat`: deploys from `railway/backend.beat.toml`
+- `maeil1dok-db-backup`: scheduled backup service from
+  `railway/backend.backup.toml`
+- `maeil1dok-frontend`: deploys from `railway/frontend.toml`
 
 The repo keeps service-specific Railway config sources under `railway/`.
-Because the initial Railway GitHub repo connection could not find the repo,
-the live services were deployed with `railway up --path-as-root` from
-service-root upload bundles. In those bundles Railway reads the config as
-`/railway.toml`.
+Deployment must flow through GitHub pull requests and Railway's GitHub
+integration. Do not deploy service-root upload bundles from a local Railway CLI
+session.
 
 For a fresh recreation, add the managed data services first:
 
@@ -50,21 +45,17 @@ Current Railway-generated domains:
 Preferred automatic deployment line:
 
 - GitHub repo: `eddieparc/maeil1dok`
-- Branch: `codex/railway-migration` until merged, then the production branch.
+- Branch: `main`.
 - Service config sources: `railway/backend.web.toml`,
   `railway/backend.worker.toml`, `railway/backend.beat.toml`,
   `railway/backend.backup.toml`, and `railway/frontend.toml`.
-- Live upload fallback: if Railway cannot access the GitHub repo integration,
-  keep deploying service-root bundles with `railway up --path-as-root` and copy
-  the matching service config into the bundle as `/railway.toml`.
 
-When GitHub integration is connected, set each Railway service root/config path
-to the matching source file above and enable automatic deploys for the
-production branch. Use Railway root directories `/backend` for the backend,
-worker, beat, and backup services, and `/frontend` for the frontend service.
-Keep the Railway config file paths absolute from the repo root, for example
-`/railway/backend.web.toml`, because Railway config file paths do not follow
-the service root directory.
+Set each Railway service root/config path to the matching source file above and
+enable automatic deploys for `main`. Use Railway root directories `/backend`
+for the backend, worker, beat, and backup services, and `/frontend` for the
+frontend service. Keep the Railway config file paths absolute from the repo
+root, for example `/railway/backend.web.toml`, because Railway config file
+paths do not follow the service root directory.
 
 ## Backend Variables
 
