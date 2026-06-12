@@ -43,6 +43,29 @@ Notifications.setNotificationHandler({
 const WEB_APP_URL = Constants.expoConfig?.extra?.webAppUrl || 'https://maeil1dok.app';
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://api.maeil1dok.app';
 const APP_SCHEME = 'maeil1dok';
+const SENSITIVE_QUERY_KEYS = new Set(['access', 'code', 'refresh', 'signup_token', 'token']);
+
+const redactSensitiveUrl = (rawUrl?: string | null): string => {
+  if (!rawUrl) return 'unknown';
+
+  try {
+    const parsedUrl = new URL(rawUrl);
+    SENSITIVE_QUERY_KEYS.forEach((key) => {
+      if (parsedUrl.searchParams.has(key)) {
+        parsedUrl.searchParams.set(key, '[redacted]');
+      }
+    });
+    return parsedUrl.toString();
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return rawUrl.replace(
+        /([?&](?:access|code|refresh|signup_token|token)=)[^&#]*/gi,
+        '$1[redacted]',
+      );
+    }
+    throw error;
+  }
+};
 
 const GOOGLE_CLIENT_ID = Constants.expoConfig?.extra?.googleClientId || '';
 
@@ -107,8 +130,7 @@ function AppContent() {
   };
 
   const initiateSessionBridge = async (accessToken: string, refreshToken: string): Promise<boolean> => {
-    console.log('[SessionBridge] Starting with accessToken:', accessToken?.substring(0, 20) + '...');
-    console.log('[SessionBridge] refreshToken:', refreshToken?.substring(0, 20) + '...');
+    console.log('[SessionBridge] Starting');
     
     try {
       console.log('[SessionBridge] Saving to SecureStore...');
@@ -134,12 +156,11 @@ function AppContent() {
       }
 
       const issueData = await issueResponse.json();
-      console.log('[SessionBridge] session/issue data:', JSON.stringify(issueData));
       const code = issueData.code;
 
       if (code) {
         const consumeUrl = `${API_URL}/api/v1/auth/session/consume/?code=${code}&next=${encodeURIComponent(WEB_APP_URL + '/')}`;
-        console.log('[SessionBridge] Setting pendingUrl:', consumeUrl);
+        console.log('[SessionBridge] Session code issued');
         pendingUrlRef.current = consumeUrl;
         setPendingUrl(consumeUrl);
         return true;
@@ -148,6 +169,57 @@ function AppContent() {
       return false;
     } catch (error) {
       console.error('[SessionBridge] Error:', error);
+      return false;
+    }
+  };
+
+  const navigateToPendingUrl = () => {
+    const urlToNavigate = pendingUrlRef.current;
+    if (!urlToNavigate) return;
+
+    pendingUrlRef.current = null;
+    setPendingUrl(null);
+    webViewRef.current?.injectJavaScript(`window.location.href = ${JSON.stringify(urlToNavigate)}; true;`);
+  };
+
+  const clearStoredAuth = async () => {
+    await CookieManager.clearAll();
+    await SecureStore.deleteItemAsync('maeil1dok_access_token');
+    await SecureStore.deleteItemAsync('maeil1dok_refresh_token');
+  };
+
+  const restoreStoredSession = async (): Promise<boolean> => {
+    try {
+      const storedRefreshToken = await SecureStore.getItemAsync('maeil1dok_refresh_token');
+      if (!storedRefreshToken) {
+        return false;
+      }
+
+      const response = await fetch(`${API_URL}/api/v1/auth/token/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh: storedRefreshToken }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        await clearStoredAuth();
+        return false;
+      }
+
+      const data = await response.json();
+      if (!data.access || !data.refresh) {
+        await clearStoredAuth();
+        return false;
+      }
+
+      const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
+      if (bridgeSuccess) {
+        navigateToPendingUrl();
+      }
+      return bridgeSuccess;
+    } catch (error) {
+      console.error('[SessionRestore] Error:', error);
       return false;
     }
   };
@@ -290,10 +362,10 @@ function AppContent() {
       });
 
       const data = await response.json();
-      console.log('[Apple Login] Response:', JSON.stringify(data).substring(0, 200));
+      console.log('[Apple Login] Response received');
 
       if (data.access) {
-        console.log('[Apple Login] Has access token, calling initiateSessionBridge');
+        console.log('[Apple Login] Auth response accepted');
         const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
         console.log('[Apple Login] bridgeSuccess:', bridgeSuccess);
         setShowLogin(false);
@@ -332,8 +404,11 @@ function AppContent() {
       const data = await response.json();
 
       if (data.access) {
+        const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
         setShowLogin(false);
-        setWebViewKey((prev) => prev + 1);
+        if (!bridgeSuccess) {
+          setWebViewKey((prev) => prev + 1);
+        }
       } else if (data.needsSignup) {
         const signupUrl = `${WEB_APP_URL}/auth/${provider}/setup?provider=${provider}&provider_id=${data.provider_id}&email=${data.email || ''}&suggested_nickname=${encodeURIComponent(data.suggested_nickname || '')}&profile_image=${encodeURIComponent(data.profile_image || '')}&signup_token=${encodeURIComponent(data.signup_token || '')}`;
         pendingUrlRef.current = signupUrl;
@@ -429,7 +504,7 @@ function AppContent() {
   }, [canGoBack, showLogin]);
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
-    console.log('[WebView] NavigationState:', navState.url, 'loading:', navState.loading);
+    console.log('[WebView] NavigationState:', redactSensitiveUrl(navState.url), 'loading:', navState.loading);
     setCanGoBack(navState.canGoBack);
     if (navState.url.includes('/login') && navState.url.startsWith(WEB_APP_URL)) {
       showNativeLogin();
@@ -438,7 +513,7 @@ function AppContent() {
 
   const handleShouldStartLoadWithRequest = (request: { url: string }) => {
     const { url } = request;
-    console.log('[WebView] ShouldStartLoad:', url);
+    console.log('[WebView] ShouldStartLoad:', redactSensitiveUrl(url));
     if (url.includes('/login') && url.startsWith(WEB_APP_URL)) {
       console.log('[WebView] Blocked: login page, showing native login');
       showNativeLogin();
@@ -492,23 +567,17 @@ function AppContent() {
 
   const handleLoadEnd = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
-    console.log('[WebView] LoadEnd:', nativeEvent?.url || 'unknown');
+    console.log('[WebView] LoadEnd:', redactSensitiveUrl(nativeEvent?.url));
     setIsLoading(false);
     setIsError(false);
     SplashScreen.hideAsync();
     injectPushToken();
-    const urlToNavigate = pendingUrlRef.current;
-    if (urlToNavigate) {
-      pendingUrlRef.current = null;
-      setPendingUrl(null);
-      console.log('[WebView] Navigating to pendingUrl:', urlToNavigate);
-      webViewRef.current?.injectJavaScript(`window.location.href = '${urlToNavigate}'; true;`);
-    }
+    navigateToPendingUrl();
   };
 
   const handleError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
-    console.log('[WebView] Error:', nativeEvent?.description || 'unknown', 'url:', nativeEvent?.url);
+    console.log('[WebView] Error:', nativeEvent?.description || 'unknown', 'url:', redactSensitiveUrl(nativeEvent?.url));
     setIsLoading(false);
     setIsError(true);
     SplashScreen.hideAsync();
@@ -516,7 +585,7 @@ function AppContent() {
 
   const handleHttpError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
-    console.log('[WebView] HttpError:', nativeEvent?.statusCode, nativeEvent?.description, 'url:', nativeEvent?.url);
+    console.log('[WebView] HttpError:', nativeEvent?.statusCode, nativeEvent?.description, 'url:', redactSensitiveUrl(nativeEvent?.url));
   };
 
   const handleMessage = (event: { nativeEvent: { data: string } }) => {
@@ -535,26 +604,26 @@ function AppContent() {
               console.error('Logout API error:', error);
             }
             
-            try {
-              // 2. WebView 쿠키 삭제
-              await CookieManager.clearAll();
-              console.log('[Logout] Cookies cleared');
-              
-              // 3. SecureStore 토큰 삭제
-              await SecureStore.deleteItemAsync('maeil1dok_access_token');
-              await SecureStore.deleteItemAsync('maeil1dok_refresh_token');
-              console.log('[Logout] SecureStore tokens cleared');
-            } catch (error) {
+            await clearStoredAuth().catch((error) => {
               console.error('[Logout] Clear storage error:', error);
-            }
+            });
             
             setWebViewKey(prev => prev + 1);
             showNativeLogin();
           })();
           break;
+        case 'auth:request':
+          restoreStoredSession().catch((error) => {
+            console.error('[SessionRestore] Failed:', error);
+          });
+          break;
         case 'auth:logout':
         case 'auth:expired':
         case 'logout':
+          clearStoredAuth().catch((error) => {
+            console.error('[Logout] Clear storage error:', error);
+          });
+          setWebViewKey(prev => prev + 1);
           showNativeLogin();
           break;
         case 'navigate':

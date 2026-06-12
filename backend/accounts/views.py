@@ -15,7 +15,6 @@ from .models import SocialAccount, EmailVerificationToken, PasswordResetToken
 from .email_utils import send_verification_email, send_password_reset_email, send_welcome_email
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.db import transaction
 from django.db.models import Q
 import requests
@@ -111,18 +110,18 @@ def social_login(request):
             social_id = f"kakao_{user_info['id']}"
             user = User.objects.filter(username=social_id).first()
             if user:
-                refresh = RefreshToken.for_user(user)
+                tokens = get_tokens_for_user(user)
                 logger.info(f"카카오 소셜 로그인 성공: user_id={user.id}, username={user.username}")
 
                 # 응답 생성 (하위 호환을 위해 토큰도 본문에 포함)
                 response = Response({
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token),
+                    'refresh': tokens['refresh'],
+                    'access': tokens['access'],
                     'user': UserSerializer(user).data
                 })
 
                 # HttpOnly 쿠키 설정
-                set_auth_cookies(response, str(refresh.access_token), str(refresh))
+                set_auth_cookies(response, tokens['access'], tokens['refresh'])
                 return response
             else:
                 suggested_nickname = user_info.get('properties', {}).get('nickname', '')
@@ -399,18 +398,18 @@ def complete_kakao_signup(request):
         else:
             logger.warning("기본 플랜이 설정되어 있지 않아 구독을 생성할 수 없습니다.")
         
-        refresh = RefreshToken.for_user(user)
+        tokens = get_tokens_for_user(user)
         logger.info(f"카카오 회원가입 및 토큰 발급 성공: user_id={user.id}, username={user.username}")
 
         # 응답 생성 (하위 호환을 위해 토큰도 본문에 포함)
         response = Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+            'refresh': tokens['refresh'],
+            'access': tokens['access'],
             'user': UserSerializer(user).data
         })
 
         # HttpOnly 쿠키 설정
-        set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        set_auth_cookies(response, tokens['access'], tokens['refresh'])
         return response
     except Exception as e:
         # 보안: 내부 에러 상세를 클라이언트에 노출하지 않음
@@ -459,13 +458,13 @@ def email_register(request):
         _create_default_subscription(user)
         
         # 토큰 발급
-        refresh = RefreshToken.for_user(user)
+        tokens = get_tokens_for_user(user)
         response = Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+            'refresh': tokens['refresh'],
+            'access': tokens['access'],
             'user': UserSerializer(user).data
         })
-        set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        set_auth_cookies(response, tokens['access'], tokens['refresh'])
         
         logger.info(f"이메일 회원가입 성공: user_id={user.id}, email={email}")
         return response
@@ -493,13 +492,13 @@ def email_login(request):
         if not user or not user.check_password(password):
             return Response({'error': '이메일/아이디 또는 비밀번호가 올바르지 않습니다.'}, status=400)
         
-        refresh = RefreshToken.for_user(user)
+        tokens = get_tokens_for_user(user)
         response = Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+            'refresh': tokens['refresh'],
+            'access': tokens['access'],
             'user': UserSerializer(user).data
         })
-        set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        set_auth_cookies(response, tokens['access'], tokens['refresh'])
         
         logger.info(f"로그인 성공: user_id={user.id}, identifier={identifier}")
         return response
@@ -609,15 +608,14 @@ def social_login_v2(request):
                 else:
                     return Response({'error': '비활성화된 계정입니다.'}, status=400)
             
-            refresh = RefreshToken.for_user(user)
-            refresh['token_version'] = user.token_version
+            tokens = get_tokens_for_user(user)
             
             response = Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
+                'refresh': tokens['refresh'],
+                'access': tokens['access'],
                 'user': UserSerializer(user).data
             })
-            set_auth_cookies(response, str(refresh.access_token), str(refresh))
+            set_auth_cookies(response, tokens['access'], tokens['refresh'])
             
             logger.info(f"소셜 로그인 성공 (v2): provider={provider}, user_id={user.id}")
             return response
@@ -643,14 +641,13 @@ def social_login_v2(request):
                 legacy_user.email_verified = True
                 legacy_user.save(update_fields=['email', 'email_verified'])
             
-            refresh = RefreshToken.for_user(legacy_user)
-            refresh['token_version'] = legacy_user.token_version
+            tokens = get_tokens_for_user(legacy_user)
             response = Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
+                'refresh': tokens['refresh'],
+                'access': tokens['access'],
                 'user': UserSerializer(legacy_user).data
             })
-            set_auth_cookies(response, str(refresh.access_token), str(refresh))
+            set_auth_cookies(response, tokens['access'], tokens['refresh'])
             
             logger.info(f"레거시 계정 마이그레이션: provider={provider}, user_id={legacy_user.id}")
             return response
@@ -702,14 +699,13 @@ def social_login_v2(request):
             
             _create_default_subscription(user)
             
-            refresh = RefreshToken.for_user(user)
-            refresh['token_version'] = user.token_version
+            tokens = get_tokens_for_user(user)
             response = Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
+                'refresh': tokens['refresh'],
+                'access': tokens['access'],
                 'user': UserSerializer(user).data
             })
-            set_auth_cookies(response, str(refresh.access_token), str(refresh))
+            set_auth_cookies(response, tokens['access'], tokens['refresh'])
             
             logger.info(f"소셜 자동 가입 완료: provider={provider}, user_id={user.id}, nickname={nickname}")
             return response
@@ -806,13 +802,13 @@ def complete_social_signup(request):
             # 기본 플랜 구독 생성
             _create_default_subscription(user)
         
-        refresh = RefreshToken.for_user(user)
+        tokens = get_tokens_for_user(user)
         response = Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
+            'refresh': tokens['refresh'],
+            'access': tokens['access'],
             'user': UserSerializer(user).data
         })
-        set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        set_auth_cookies(response, tokens['access'], tokens['refresh'])
         
         logger.info(f"소셜 회원가입 완료: provider={provider}, user_id={user.id}")
         return response
@@ -1132,10 +1128,9 @@ def merge_accounts(request):
         
         if keep_account == 'other':
             # 다른 계정을 선택한 경우 새 토큰 발급
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(keep_user)
-            result['access'] = str(refresh.access_token)
-            result['refresh'] = str(refresh)
+            tokens = get_tokens_for_user(keep_user)
+            result['access'] = tokens['access']
+            result['refresh'] = tokens['refresh']
             result['user'] = {
                 'id': keep_user.id,
                 'nickname': keep_user.nickname,
@@ -1240,13 +1235,13 @@ def verify_email(request):
         user = token_obj.user
         send_welcome_email(user.email, user.nickname)
         
-        refresh = RefreshToken.for_user(user)
+        tokens = get_tokens_for_user(user)
         response = Response({
             'success': True,
             'message': '이메일 인증이 완료되었습니다.',
             'user': UserSerializer(user).data
         })
-        set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        set_auth_cookies(response, tokens['access'], tokens['refresh'])
         
         logger.info(f"이메일 인증 완료: user_id={user.id}")
         return response
@@ -1365,13 +1360,13 @@ def reset_password(request):
     
     token_obj.use_token()
     
-    refresh = RefreshToken.for_user(user)
+    tokens = get_tokens_for_user(user)
     response = Response({
         'success': True,
         'message': '비밀번호가 변경되었습니다.',
         'user': UserSerializer(user).data
     })
-    set_auth_cookies(response, str(refresh.access_token), str(refresh))
+    set_auth_cookies(response, tokens['access'], tokens['refresh'])
     
     logger.info(f"비밀번호 재설정 완료: user_id={user.id}")
     return response
@@ -1510,10 +1505,9 @@ def session_bridge_consume(request):
             logger.warning(f"세션 브리지: 사용자 없음 user_id={user_id}")
             return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=user_not_found")
         
-        refresh = RefreshToken.for_user(user)
-        refresh['token_version'] = user.token_version
-        access_token = str(refresh.access_token)
-        refresh_token = str(refresh)
+        tokens = get_tokens_for_user(user)
+        access_token = tokens['access']
+        refresh_token = tokens['refresh']
         
         from django.http import HttpResponse
         from django.utils.html import escape

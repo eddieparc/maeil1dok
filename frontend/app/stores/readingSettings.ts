@@ -148,15 +148,15 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
 
       this.loadFromLocalStorage()
       this.migrateOldSettings()
+      this.applyTheme()
+      this.setupSystemThemeListener()
+      this.initialized = true
 
       const auth = useAuthService()
       if (auth.isAuthenticated.value) {
         await this.syncFromServer()
+        this.applyTheme()
       }
-
-      this.applyTheme()
-      this.setupSystemThemeListener()
-      this.initialized = true
     },
 
     async onLogin() {
