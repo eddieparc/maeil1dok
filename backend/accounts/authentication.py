@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 ACCESS_TOKEN_COOKIE = 'access_token'
 REFRESH_TOKEN_COOKIE = 'refresh_token'
+TOKEN_VERSION_CLAIM = 'token_version'
 
 
 class CSRFCheck(CsrfViewMiddleware):
@@ -62,8 +63,8 @@ class CookieJWTAuthentication(JWTAuthentication):
 
         user = self.get_user(validated_token)
         
-        token_version = validated_token.get('token_version', 0)
-        if token_version < user.token_version:
+        if not token_version_is_current(validated_token, user):
+            token_version = validated_token.get(TOKEN_VERSION_CLAIM, 0)
             logger.debug(f"[AUTH] Token version mismatch: token={token_version}, user={user.token_version}")
             return None
 
@@ -153,10 +154,15 @@ def get_tokens_for_user(user):
     사용자에 대한 JWT 토큰 쌍 생성 (token_version 포함)
     """
     refresh = RefreshToken.for_user(user)
-    refresh['token_version'] = user.token_version
+    refresh[TOKEN_VERSION_CLAIM] = user.token_version
     refresh['nickname'] = user.nickname
     refresh['is_social'] = user.is_social
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
+
+
+def token_version_is_current(validated_token, user):
+    token_version = validated_token.get(TOKEN_VERSION_CLAIM)
+    return token_version is not None and token_version == user.token_version

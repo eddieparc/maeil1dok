@@ -19,6 +19,7 @@ from .authentication import (
     set_auth_cookies,
     clear_auth_cookies,
     get_tokens_for_user,
+    token_version_is_current,
     ACCESS_TOKEN_COOKIE,
     REFRESH_TOKEN_COOKIE,
 )
@@ -91,7 +92,30 @@ class CookieTokenRefreshView(TokenRefreshView):
 
         try:
             refresh = RefreshToken(refresh_token)
-            access_token = str(refresh.access_token)
+            User = get_user_model()
+            user_id = refresh.payload.get('user_id')
+            if not user_id:
+                logger.warning("Token refresh failed: missing user_id claim")
+                return Response(
+                    {'error': 'Invalid refresh token'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                logger.warning(f"Token refresh failed: user {user_id} not found")
+                return Response(
+                    {'error': 'User not found'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            if not token_version_is_current(refresh, user):
+                logger.warning(f"Token refresh failed: stale token for user {user_id}")
+                return Response(
+                    {'error': 'Refresh token has been revoked'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
             if settings.SIMPLE_JWT.get('ROTATE_REFRESH_TOKENS', False):
                 if settings.SIMPLE_JWT.get('BLACKLIST_AFTER_ROTATION', False):
@@ -100,19 +124,11 @@ class CookieTokenRefreshView(TokenRefreshView):
                     except AttributeError:
                         pass
 
-                User = get_user_model()
-                user_id = refresh.payload.get('user_id')
-                try:
-                    user = User.objects.get(id=user_id)
-                except User.DoesNotExist:
-                    logger.warning(f"Token refresh failed: user {user_id} not found")
-                    return Response(
-                        {'error': 'User not found'},
-                        status=status.HTTP_401_UNAUTHORIZED
-                    )
-                refresh = RefreshToken.for_user(user)
-                new_refresh_token = str(refresh)
+                tokens = get_tokens_for_user(user)
+                access_token = tokens['access']
+                new_refresh_token = tokens['refresh']
             else:
+                access_token = str(refresh.access_token)
                 new_refresh_token = refresh_token
 
             response_data = {

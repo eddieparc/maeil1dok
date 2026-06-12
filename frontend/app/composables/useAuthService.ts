@@ -19,6 +19,14 @@ export interface AuthUser {
 
 export type AuthState = 'loading' | 'authenticated' | 'unauthenticated'
 
+interface RefreshTokenOptions {
+  logoutOnFailure?: boolean
+}
+
+interface FetchUserWithRefreshOptions {
+  logoutOnFailure?: boolean
+}
+
 export interface LoginResult {
   success: boolean
   error?: string
@@ -196,7 +204,7 @@ export function useAuthService() {
     }
   }
 
-  async function refreshToken(): Promise<boolean> {
+  async function refreshToken(options: RefreshTokenOptions = {}): Promise<boolean> {
     if (_refreshState.value.isRefreshing && _refreshState.value.promise) {
       return _refreshState.value.promise
     }
@@ -207,7 +215,9 @@ export function useAuthService() {
         const result = await apiRequest<{ access?: string }>('POST', '/api/v1/auth/token/refresh/')
         
         if (result.status === 401 || result.status === 403) {
-          await performLogout()
+          if (options.logoutOnFailure ?? true) {
+            await performLogout()
+          }
           return false
         }
 
@@ -225,6 +235,21 @@ export function useAuthService() {
     })()
 
     return _refreshState.value.promise
+  }
+
+  async function fetchUserWithRefresh(options: FetchUserWithRefreshOptions = {}): Promise<AuthUser | null> {
+    const user = await fetchUserFromApi()
+    if (user) return user
+
+    const refreshed = await refreshToken({ logoutOnFailure: false })
+    if (!refreshed) {
+      if (options.logoutOnFailure) {
+        await performLogout()
+      }
+      return null
+    }
+
+    return fetchUserFromApi()
   }
 
   function startRefreshTimer(): void {
@@ -256,7 +281,7 @@ export function useAuthService() {
           _user.value = cachedUser
         }
 
-        const user = await fetchUserFromApi()
+        const user = await fetchUserWithRefresh()
         
         if (user) {
           _user.value = user
@@ -320,7 +345,7 @@ export function useAuthService() {
         }
       }
 
-      const user = await fetchUserFromApi()
+      const user = result.data?.user ?? await fetchUserFromApi()
       if (!user) {
         return { success: false, error: '사용자 정보를 가져올 수 없습니다.' }
       }
@@ -456,7 +481,7 @@ export function useAuthService() {
   }
 
   async function refreshUser(): Promise<boolean> {
-    const user = await fetchUserFromApi()
+    const user = await fetchUserWithRefresh()
     if (user) {
       _user.value = user
       saveUserToStorage(user)
@@ -466,19 +491,16 @@ export function useAuthService() {
   }
 
   async function revalidate(): Promise<boolean> {
-    const user = await fetchUserFromApi()
+    const user = await fetchUserWithRefresh({ logoutOnFailure: true })
     
     if (user) {
       _user.value = user
       _authState.value = 'authenticated'
       saveUserToStorage(user)
       return true
-    } else {
-      _user.value = null
-      _authState.value = 'unauthenticated'
-      saveUserToStorage(null)
-      return false
     }
+
+    return false
   }
 
   // 호환성 메서드
@@ -494,7 +516,7 @@ export function useAuthService() {
   }
 
   async function fetchUserCompat(): Promise<void> {
-    const user = await fetchUserFromApi()
+    const user = await fetchUserWithRefresh()
     if (user) {
       _user.value = user
       _authState.value = 'authenticated'

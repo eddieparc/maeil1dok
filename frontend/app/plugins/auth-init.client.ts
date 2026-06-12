@@ -14,10 +14,8 @@ export default defineNuxtPlugin({
       console.error('[auth-init] Failed to initialize auth:', error)
     }
 
-    try {
-      await readingSettingsStore.initialize()
-    } catch (error) {
+    readingSettingsStore.initialize().catch((error) => {
       console.error('[auth-init] Failed to initialize reading settings:', error)
-    }
+    })
   }
 })
