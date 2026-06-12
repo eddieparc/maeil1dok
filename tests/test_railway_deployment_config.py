@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 from typing import Any
@@ -109,7 +110,7 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
             "print(json.dumps(tomllib.load(open(sys.argv[1], 'rb'))))"
         )
         result = subprocess.run(
-            ["python3", "-c", script, str(path)],
+            [sys.executable, "-c", script, str(path)],
             text=True,
             capture_output=True,
             check=False,
