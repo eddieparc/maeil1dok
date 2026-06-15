@@ -37,6 +37,33 @@
 
       <span class="player-time">{{ formattedCurrentTime }} / {{ formattedDuration }}</span>
 
+      <div class="player-speed-floating" data-testid="tongdok-audio-speed-control">
+        <button
+          class="player-speed-trigger"
+          type="button"
+          :aria-expanded="isSpeedMenuOpen"
+          aria-haspopup="menu"
+          aria-label="오디오 재생 속도 설정"
+          @click.stop="toggleSpeedMenu"
+        >
+          {{ playbackRateLabel }}
+        </button>
+        <div v-if="isSpeedMenuOpen" class="player-speed-menu" role="menu" aria-label="오디오 재생 속도">
+          <button
+            v-for="rate in PLAYBACK_RATES"
+            :key="rate"
+            class="player-speed-option"
+            :class="{ selected: rate === playbackRate }"
+            type="button"
+            role="menuitemradio"
+            :aria-checked="rate === playbackRate"
+            @click.stop="selectPlaybackRate(rate)"
+          >
+            {{ formatPlaybackRate(rate) }}
+          </button>
+        </div>
+      </div>
+
       <button class="player-close" type="button" aria-label="오디오 닫기" @click="close">
         <XIcon :size="14" aria-hidden="true" />
       </button>
@@ -55,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { PauseIcon, PlayIcon, XIcon } from '@lucide/vue';
 
 interface YouTubeStateMessage {
@@ -71,6 +98,7 @@ interface YouTubePlayer {
   playVideo: () => void;
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  setPlaybackRate: (rate: number) => void;
   getCurrentTime: () => number;
   getDuration: () => number;
   getPlayerState: () => number;
@@ -107,6 +135,9 @@ const YOUTUBE_PLAYING_STATE = 1;
 const YOUTUBE_PAUSED_STATE = 2;
 const YOUTUBE_BUFFERING_STATE = 3;
 const PROGRESS_SYNC_INTERVAL_MS = 500;
+const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
+
+type PlaybackRate = (typeof PLAYBACK_RATES)[number];
 
 const props = defineProps<{
   audioLink: string;
@@ -127,7 +158,9 @@ const currentTime = ref(0);
 const duration = ref(0);
 const isPlaying = ref(false);
 const hasEnded = ref(false);
-let progressTimer: ReturnType<typeof window.setInterval> | null = null;
+const playbackRate = ref<PlaybackRate>(1);
+const isSpeedMenuOpen = ref(false);
+let progressTimer: number | null = null;
 
 const extractYouTubeVideoId = (url: string): string | null => {
   return url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1] ?? null;
@@ -161,6 +194,12 @@ const progressLabel = computed(() => {
   const range = props.scheduleRange ? `${props.scheduleRange} ` : '';
   return `${range}오디오 재생 위치 ${formattedCurrentTime.value} / ${formattedDuration.value}`;
 });
+
+const formatPlaybackRate = (rate: PlaybackRate): string => {
+  return `${rate}x`;
+};
+
+const playbackRateLabel = computed(() => formatPlaybackRate(playbackRate.value));
 
 const loadYouTubeApi = (): Promise<void> => {
   if (typeof window === 'undefined') return Promise.resolve();
@@ -251,6 +290,7 @@ const setupPlayer = async (): Promise<void> => {
   player.value = new window.YT.Player(iframeRef.value, {
     events: {
       onReady: () => {
+        player.value?.setPlaybackRate(playbackRate.value);
         syncProgress();
         startProgressSync();
       },
@@ -272,6 +312,19 @@ const togglePlayback = (): void => {
 
   activePlayer.playVideo();
   isPlaying.value = true;
+};
+
+const toggleSpeedMenu = (): void => {
+  isSpeedMenuOpen.value = !isSpeedMenuOpen.value;
+};
+
+const selectPlaybackRate = (rate: PlaybackRate): void => {
+  playbackRate.value = rate;
+  isSpeedMenuOpen.value = false;
+
+  const activePlayer = player.value;
+  if (!activePlayer) return;
+  activePlayer.setPlaybackRate(rate);
 };
 
 const seekFromClick = (event: MouseEvent): void => {
@@ -321,7 +374,12 @@ const handleMessage = (event: MessageEvent): void => {
 };
 
 const close = (): void => {
+  isSpeedMenuOpen.value = false;
   emit('update:is-open', false);
+};
+
+const handleDocumentClick = (): void => {
+  isSpeedMenuOpen.value = false;
 };
 
 watch(
@@ -337,14 +395,17 @@ watch(
   { immediate: true }
 );
 
-if (typeof window !== 'undefined') {
+onMounted(() => {
+  if (typeof window === 'undefined') return;
   window.addEventListener('message', handleMessage);
-}
+  document.addEventListener('click', handleDocumentClick);
+});
 
 onBeforeUnmount(() => {
   destroyPlayer();
   if (typeof window !== 'undefined') {
     window.removeEventListener('message', handleMessage);
+    document.removeEventListener('click', handleDocumentClick);
   }
 });
 </script>
@@ -353,6 +414,65 @@ onBeforeUnmount(() => {
 .tongdok-audio-player {
   position: relative;
   padding: 0.5rem 1rem 0;
+}
+
+.player-speed-floating {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.player-speed-trigger,
+.player-speed-option {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.player-speed-trigger {
+  min-width: 42px;
+  min-height: 24px;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: rgba(75, 159, 126, 0.1);
+  color: var(--color-accent-primary, #4b9f7e);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.player-speed-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.4rem);
+  display: grid;
+  gap: 0.15rem;
+  min-width: 76px;
+  padding: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 18px 40px rgba(31, 41, 55, 0.16),
+    0 6px 16px rgba(31, 41, 55, 0.12);
+}
+
+.player-speed-option {
+  min-height: 30px;
+  padding: 0 0.55rem;
+  border-radius: 10px;
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.player-speed-option:hover,
+.player-speed-option.selected {
+  background: rgba(75, 159, 126, 0.12);
+  color: var(--color-accent-primary, #4b9f7e);
 }
 
 .youtube-player-host {
@@ -464,6 +584,16 @@ onBeforeUnmount(() => {
 
 [data-theme="dark"] .player-control {
   background: rgba(75, 159, 126, 0.18);
+}
+
+[data-theme="dark"] .player-speed-trigger,
+[data-theme="dark"] .player-speed-menu {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(31, 41, 55, 0.94);
+}
+
+[data-theme="dark"] .player-speed-option {
+  color: var(--color-text-secondary, #d1d5db);
 }
 
 [data-theme="dark"] .player-close {

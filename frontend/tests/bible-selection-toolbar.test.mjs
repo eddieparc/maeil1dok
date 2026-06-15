@@ -12,6 +12,11 @@ const viewerSource = await readFile(
   'utf8',
 );
 
+const selectionControlsSource = await readFile(
+  new URL('../app/components/bible/SelectionFloatingControls.vue', import.meta.url),
+  'utf8',
+);
+
 const extractFloatingBottomAboveBlock = (source) => {
   const floatingStart = source.indexOf('<FloatingBottomBar>');
   assert.notEqual(floatingStart, -1, 'reader should render FloatingBottomBar');
@@ -27,8 +32,13 @@ const floatingAboveBlock = extractFloatingBottomAboveBlock(readerSource);
 test('places selection actions in the floating bottom bar above slot', () => {
   assert.match(
     floatingAboveBlock,
-    /data-testid="selection-action-menu"/,
+    /<SelectionFloatingControls/,
     'selection actions should render inside FloatingBottomBar #above',
+  );
+  assert.match(
+    selectionControlsSource,
+    /data-testid="selection-action-menu"/,
+    'selection controls should expose a stable action menu test id',
   );
   assert.match(
     readerSource,
@@ -45,13 +55,18 @@ test('places selection actions in the floating bottom bar above slot', () => {
 test('keeps copy menu in the floating bottom bar above slot', () => {
   assert.match(
     floatingAboveBlock,
-    /data-testid="selection-copy-menu"/,
+    /<SelectionFloatingControls/,
     'copy options should render inside FloatingBottomBar #above',
   );
   assert.match(
-    readerSource,
-    /handleSelectionCopyWithFormat\('includeLocation'\)[\s\S]*handleSelectionCopyWithFormat\('numOnly'\)[\s\S]*handleSelectionCopyWithFormat\('textOnly'\)/,
+    selectionControlsSource,
+    /'includeLocation'[\s\S]*'numOnly'[\s\S]*'textOnly'/,
     'single-verse copy options should preserve existing copy formats',
+  );
+  assert.match(
+    selectionControlsSource,
+    /data-testid="selection-copy-menu"/,
+    'selection controls should expose a stable copy menu test id',
   );
   assert.match(
     viewerSource,
@@ -77,7 +92,7 @@ test('does not teleport selection menus to body coordinates', () => {
     'selection menus should not depend on fixed top/left coordinate calculations',
   );
   assert.doesNotMatch(
-    readerSource,
+    `${readerSource}\n${selectionControlsSource}`,
     /\.selection-floating-stack\s*\{[^}]*position:\s*fixed;/s,
     'selection menus should stack inside FloatingBottomBar #above instead of using a replacement fixed-bottom layer',
   );
