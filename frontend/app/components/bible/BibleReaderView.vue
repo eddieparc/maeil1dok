@@ -186,6 +186,9 @@
           </div>
         </div>
 
+      </template>
+
+      <template #popover>
         <SelectionFloatingControls
           :state="selectionMenuState"
           @highlight-or-remove="handleSelectionHighlightOrRemove"

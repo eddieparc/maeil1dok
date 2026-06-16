@@ -91,7 +91,7 @@ defineEmits<{
 
 <style scoped>
 .selection-floating-stack {
-  margin: 0 auto 0.5rem;
+  margin: 0 auto;
   max-width: min(400px, calc(100vw - 32px));
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }

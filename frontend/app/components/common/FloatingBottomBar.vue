@@ -1,5 +1,9 @@
 <template>
   <div class="floating-bottom-area">
+    <div v-if="$slots.popover" class="floating-above-popover">
+      <slot name="popover" />
+    </div>
+
     <slot name="above" />
 
     <nav class="floating-bottom-navigation">
@@ -50,6 +54,21 @@ const profileLink = computed(() => (
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
+.floating-above-popover {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.75rem);
+  width: 100%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.floating-above-popover :deep(*) {
+  pointer-events: auto;
+}
+
 .floating-bottom-navigation {
   display: flex;
   align-items: center;
@@ -57,6 +76,7 @@ const profileLink = computed(() => (
   min-height: 46px;
   gap: 0.5rem;
   padding: 0.5rem;
+  pointer-events: auto;
 }
 
 .floating-center-nav-group {
