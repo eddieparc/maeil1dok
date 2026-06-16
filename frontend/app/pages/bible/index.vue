@@ -664,16 +664,16 @@ const handleCopyAction = (_text: string) => {
   toast.success('복사 완료');
 };
 
-const handleShareAction = async (text: string) => {
+const handleShareAction = async (_text: string) => {
   const shareUrl = generateShareUrl();
+  const title = `${currentBookName.value} ${currentChapter.value}${chapterSuffix.value}`;
   const shareData = {
-    title: `${currentBookName.value} ${currentChapter.value}${chapterSuffix.value}`,
-    text: text || `${currentBookName.value} ${currentChapter.value}${chapterSuffix.value}`,
+    title,
     url: shareUrl
   };
 
   // Web Share API 지원 시 네이티브 공유
-  if (navigator.share && navigator.canShare?.(shareData)) {
+  if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
     try {
       await navigator.share(shareData);
     } catch (err) {

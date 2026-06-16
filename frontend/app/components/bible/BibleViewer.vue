@@ -596,29 +596,8 @@ const handleCopy = async () => {
   }
 };
 
-const handleShare = async () => {
-  const bookName = props.book;
-  const chapterUnit = bookName === '시편' ? '편' : '장';
-  const verseRef = selectedVerses.value.start === selectedVerses.value.end
-    ? `${selectedVerses.value.start}절`
-    : `${selectedVerses.value.start}-${selectedVerses.value.end}절`;
-  const locationText = `${bookName} ${props.chapter}${chapterUnit} ${verseRef}`;
-
-  if (navigator.share) {
-    try {
-      // title만 위치 정보를 포함, text는 내용만 (중복 방지)
-      await navigator.share({
-        title: locationText,
-        text: selectedText.value,
-      });
-    } catch {
-      // User cancelled or error
-    }
-  } else {
-    // Fallback: copy to clipboard
-    await handleCopy();
-  }
-
+const handleShare = () => {
+  emit('share', selectedText.value);
   hideActionMenu();
   clearSelection();
 };
