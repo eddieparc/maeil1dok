@@ -22,6 +22,11 @@ const floatingBottomBarSource = await readFile(
   'utf8',
 );
 
+const biblePageSource = await readFile(
+  new URL('../app/pages/bible/index.vue', import.meta.url),
+  'utf8',
+);
+
 const extractFloatingBottomBlock = (source) => {
   const floatingStart = source.indexOf('<FloatingBottomBar>');
   assert.notEqual(floatingStart, -1, 'reader should render FloatingBottomBar');
@@ -137,4 +142,27 @@ test('preserves adjacent bottom bar and event wiring', () => {
       `reader should keep forwarding ${eventName}`,
     );
   }
+});
+
+test('shares the Maeil1Dok Bible URL from the floating selection UI', () => {
+  assert.match(
+    viewerSource,
+    /const handleShare = \(\) => \{[\s\S]*emit\('share', selectedText\.value\);[\s\S]*hideActionMenu\(\);[\s\S]*clearSelection\(\);[\s\S]*\};/,
+    'floating share should delegate to the page-level URL share handler',
+  );
+  assert.doesNotMatch(
+    viewerSource,
+    /const handleShare = async \(\) => \{[\s\S]*navigator\.share/s,
+    'BibleViewer should not directly share selected verse text from the floating UI',
+  );
+  assert.match(
+    biblePageSource,
+    /const shareUrl = generateShareUrl\(\);[\s\S]*url: shareUrl/s,
+    'page-level share should include the generated Maeil1Dok Bible URL',
+  );
+  assert.doesNotMatch(
+    biblePageSource,
+    /text:\s*text\s*\|\|/,
+    'page-level share should not use selected verse text as the shared payload body',
+  );
 });
