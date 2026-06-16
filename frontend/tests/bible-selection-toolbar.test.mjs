@@ -17,23 +17,48 @@ const selectionControlsSource = await readFile(
   'utf8',
 );
 
-const extractFloatingBottomAboveBlock = (source) => {
+const floatingBottomBarSource = await readFile(
+  new URL('../app/components/common/FloatingBottomBar.vue', import.meta.url),
+  'utf8',
+);
+
+const extractFloatingBottomBlock = (source) => {
   const floatingStart = source.indexOf('<FloatingBottomBar>');
   assert.notEqual(floatingStart, -1, 'reader should render FloatingBottomBar');
   const centerStart = source.indexOf('<template #center>', floatingStart);
   assert.notEqual(centerStart, -1, 'reader should keep FloatingBottomBar center slot');
-  const aboveBlock = source.slice(floatingStart, centerStart);
-  assert.match(aboveBlock, /<template\s+#above>/, 'reader should render FloatingBottomBar #above slot');
-  return aboveBlock;
+  const bottomBlock = source.slice(floatingStart, centerStart);
+  assert.match(bottomBlock, /<template\s+#above>/, 'reader should render FloatingBottomBar #above slot');
+  return bottomBlock;
 };
 
-const floatingAboveBlock = extractFloatingBottomAboveBlock(readerSource);
+const floatingBeforeCenterBlock = extractFloatingBottomBlock(readerSource);
 
-test('places selection actions in the floating bottom bar above slot', () => {
+test('renders selection actions in the anchored popover layer above the bottom bar', () => {
   assert.match(
-    floatingAboveBlock,
-    /<SelectionFloatingControls/,
-    'selection actions should render inside FloatingBottomBar #above',
+    floatingBeforeCenterBlock,
+    /<template\s+#popover>[\s\S]*<SelectionFloatingControls/,
+    'selection actions should render through FloatingBottomBar #popover',
+  );
+  assert.match(
+    floatingBottomBarSource,
+    /class="floating-above-popover"/,
+    'FloatingBottomBar should expose a dedicated popover layer above the navigation',
+  );
+  assert.match(
+    floatingBottomBarSource,
+    /<slot\s+name="popover"\s*\/>/,
+    'FloatingBottomBar should expose a popover slot for controls that should not expand the bar',
+  );
+  assert.match(
+    floatingBottomBarSource,
+    /\.floating-above-popover\s*\{[\s\S]*position:\s*absolute;[\s\S]*bottom:\s*calc\(100% \+ 0\.75rem\);/s,
+    'popover slot should be absolutely positioned above the bar so it does not expand the bar height',
+  );
+  assert.match(
+    floatingBottomBarSource,
+    /\.floating-bottom-navigation\s*\{[\s\S]*pointer-events:\s*auto;/s,
+    'bottom navigation should remain the compact interactive anchor under the popover',
   );
   assert.match(
     selectionControlsSource,
@@ -52,11 +77,11 @@ test('places selection actions in the floating bottom bar above slot', () => {
   );
 });
 
-test('keeps copy menu in the floating bottom bar above slot', () => {
+test('keeps copy menu in the anchored popover layer above the bottom bar', () => {
   assert.match(
-    floatingAboveBlock,
-    /<SelectionFloatingControls/,
-    'copy options should render inside FloatingBottomBar #above',
+    floatingBeforeCenterBlock,
+    /<template\s+#popover>[\s\S]*<SelectionFloatingControls/,
+    'copy options should render through FloatingBottomBar #popover',
   );
   assert.match(
     selectionControlsSource,
@@ -94,13 +119,13 @@ test('does not teleport selection menus to body coordinates', () => {
   assert.doesNotMatch(
     `${readerSource}\n${selectionControlsSource}`,
     /\.selection-floating-stack\s*\{[^}]*position:\s*fixed;/s,
-    'selection menus should stack inside FloatingBottomBar #above instead of using a replacement fixed-bottom layer',
+    'selection menus should rely on the shared bottom bar popover instead of using a replacement fixed-bottom layer',
   );
 });
 
 test('preserves adjacent bottom bar and event wiring', () => {
-  assert.match(floatingAboveBlock, /<TongdokAudioPlayer/, 'tongdok audio should remain in #above');
-  assert.match(floatingAboveBlock, /class="tongdok-progress-area"/, 'tongdok progress should remain in #above');
+  assert.match(floatingBeforeCenterBlock, /<template\s+#above>[\s\S]*<TongdokAudioPlayer/, 'tongdok audio should remain in #above');
+  assert.match(floatingBeforeCenterBlock, /<template\s+#above>[\s\S]*class="tongdok-progress-area"/, 'tongdok progress should remain in #above');
   assert.match(
     readerSource,
     /<template\s+#center>[\s\S]*aria-label="이전 장"[\s\S]*class="chapter-info"[\s\S]*aria-label="다음 장"/,
