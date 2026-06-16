@@ -28,6 +28,11 @@ test('renders a floating playback speed control for embedded tongdok audio', () 
     /\.player-speed-floating\s*\{[^}]*bottom:\s*calc\(100%/s,
     'speed trigger should not float above the bottom panel over scripture text',
   );
+  assert.match(
+    playerSource,
+    /:deep\(iframe\[src\*="youtube"\]\)/,
+    'rewritten YouTube iframes should remain visually hidden inside the audio host',
+  );
 });
 
 test('applies selected playback rates through the YouTube player API', () => {
