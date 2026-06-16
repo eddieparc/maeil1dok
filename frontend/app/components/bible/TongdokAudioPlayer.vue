@@ -6,6 +6,9 @@
         class="youtube-player-frame"
         :src="embedUrl"
         title="통독 오디오"
+        width="1"
+        height="1"
+        tabindex="-1"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen
       ></iframe>
@@ -475,19 +478,21 @@ onBeforeUnmount(() => {
   color: var(--color-accent-primary, #4b9f7e);
 }
 
-.youtube-player-host {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.youtube-player-frame {
-  width: 1px;
-  height: 1px;
-  border: 0;
+.youtube-player-host,
+.tongdok-audio-player :deep(iframe[src*="youtube"]) {
+  position: absolute !important;
+  inset: 0 auto auto 0 !important;
+  width: 1px !important;
+  min-width: 1px !important;
+  max-width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  max-height: 1px !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  clip-path: inset(50%);
+  pointer-events: none !important;
 }
 
 .youtube-progress-row,
