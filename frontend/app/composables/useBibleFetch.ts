@@ -40,22 +40,18 @@ export function useBibleFetch() {
     book: string,
     chapter: number
   ): Promise<BibleFetchResult> {
-    // 1차: 프록시 시도
-    try {
-      const result = await fetchKntFromProxy(book, chapter);
-      return result;
-    } catch (proxyError) {
-      console.warn('[BibleFetch] 프록시 실패, 캐시 서버 시도:', proxyError);
-
-      // 2차: 캐시 서버 failback
-      if (bibleCacheUrl) {
-        try {
-          const result = await fetchFromCacheServer('KNT', book, chapter);
-          return result;
-        } catch (cacheError) {
-          console.error('[BibleFetch] 캐시 서버도 실패:', cacheError);
-        }
+    if (bibleCacheUrl) {
+      try {
+        return await fetchFromCacheServer('KNT', book, chapter);
+      } catch (cacheError) {
+        console.warn('[BibleFetch] 캐시 서버 실패, 프록시 시도:', cacheError);
       }
+    }
+
+    try {
+      return await fetchKntFromProxy(book, chapter);
+    } catch (proxyError) {
+      console.error('[BibleFetch] 프록시도 실패:', proxyError);
 
       // 모두 실패
       return {
@@ -75,22 +71,18 @@ export function useBibleFetch() {
     book: string,
     chapter: number
   ): Promise<BibleFetchResult> {
-    // 1차: 프록시 시도
-    try {
-      const result = await fetchStandardFromProxy(version, book, chapter);
-      return result;
-    } catch (proxyError) {
-      console.warn('[BibleFetch] 프록시 실패, 캐시 서버 시도:', proxyError);
-
-      // 2차: 캐시 서버 failback
-      if (bibleCacheUrl) {
-        try {
-          const result = await fetchFromCacheServer(version, book, chapter);
-          return result;
-        } catch (cacheError) {
-          console.error('[BibleFetch] 캐시 서버도 실패:', cacheError);
-        }
+    if (bibleCacheUrl) {
+      try {
+        return await fetchFromCacheServer(version, book, chapter);
+      } catch (cacheError) {
+        console.warn('[BibleFetch] 캐시 서버 실패, 프록시 시도:', cacheError);
       }
+    }
+
+    try {
+      return await fetchStandardFromProxy(version, book, chapter);
+    } catch (proxyError) {
+      console.error('[BibleFetch] 프록시도 실패:', proxyError);
 
       // 모두 실패
       return {
