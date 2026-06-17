@@ -20,7 +20,7 @@
  */
 
 import { ref, computed, type Ref, type ComputedRef } from 'vue';
-import type { LocationQuery } from 'vue-router';
+import type { LocationQuery, LocationQueryValue } from 'vue-router';
 import { useBibleData } from '~/composables/useBibleData';
 import { useNavigation } from '~/composables/useNavigation';
 import type { ViewMode } from '~/types/bible';
@@ -66,8 +66,51 @@ export interface UseBiblePageStateReturn {
   initFromQuery: (query: LocationQuery) => void;
 
   // URL Generation
-  generateShareUrl: () => string;
+  generateShareUrl: (verseRange?: BibleVerseRange) => string;
 }
+
+export interface BibleVerseRange {
+  start: number;
+  end: number;
+}
+
+const getFirstQueryValue = (
+  value: LocationQueryValue | LocationQueryValue[] | undefined
+): string | null => {
+  if (Array.isArray(value)) {
+    const [firstValue] = value;
+    return firstValue ?? null;
+  }
+
+  return value ?? null;
+};
+
+export const parseVerseRangeParam = (
+  value: LocationQueryValue | LocationQueryValue[] | undefined
+): BibleVerseRange | null => {
+  const rawValue = getFirstQueryValue(value)?.trim();
+  if (!rawValue) return null;
+
+  const match = rawValue.match(/^(\d+)(?:-(\d+))?$/);
+  if (!match) return null;
+
+  const [, startValue, endValue] = match;
+  if (!startValue) return null;
+
+  const start = Number.parseInt(startValue, 10);
+  const end = endValue ? Number.parseInt(endValue, 10) : start;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start <= 0 || end < start) {
+    return null;
+  }
+
+  return { start, end };
+};
+
+const formatVerseRangeParam = (verseRange: BibleVerseRange): string => {
+  return verseRange.start === verseRange.end
+    ? String(verseRange.start)
+    : `${verseRange.start}-${verseRange.end}`;
+};
 
 /**
  * Bible 페이지 상태 및 네비게이션 composable
@@ -234,7 +277,7 @@ export function useBiblePageState(): UseBiblePageStateReturn {
   // URL Generation
   // ============================================
 
-  const generateShareUrl = (): string => {
+  const generateShareUrl = (verseRange?: BibleVerseRange): string => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const params = new URLSearchParams();
 
@@ -244,6 +287,10 @@ export function useBiblePageState(): UseBiblePageStateReturn {
     // GAE(개역개정)가 아닐 때만 version 포함
     if (currentVersion.value !== 'GAE') {
       params.set('version', currentVersion.value);
+    }
+
+    if (verseRange && verseRange.start > 0 && verseRange.end >= verseRange.start) {
+      params.set('verse', formatVerseRangeParam(verseRange));
     }
 
     return `${baseUrl}/bible?${params.toString()}`;
