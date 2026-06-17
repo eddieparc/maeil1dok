@@ -5,6 +5,7 @@ urlpatterns = [
     # 지원 번역본 목록
     path('versions/', views.get_supported_versions, name='bible-cache-versions'),
 
+    # Keep search before the dynamic content route so it is not parsed as a version.
     path('search/', views.search_cached_content, name='bible-cache-search'),
 
     # 성경 본문 조회
