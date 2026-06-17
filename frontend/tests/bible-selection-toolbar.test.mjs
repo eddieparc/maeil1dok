@@ -198,7 +198,7 @@ test('opens verse-range share URLs with focused verses', () => {
   );
   assert.match(
     biblePageSource,
-    /bibleReaderViewRef\.value\?\.focusVerseRange\(verseRange\.start,\s*verseRange\.end\);/,
+    /bibleReaderViewRef\.value\?\.focusVerseRange\(verseRange\.start,\s*verseRange\.end(?:,\s*[^)]*)?\);/,
     'Bible page should focus the requested verse range after loading content',
   );
   assert.match(
@@ -208,12 +208,12 @@ test('opens verse-range share URLs with focused verses', () => {
   );
   assert.match(
     readerSource,
-    /focusVerseRange:\s*\(startVerse:\s*number,\s*endVerse:\s*number\) => \{[\s\S]*bibleViewerRef\.value\?\.focusVerseRange\(startVerse,\s*endVerse\);[\s\S]*\}/,
+    /focusVerseRange:\s*\(startVerse:\s*number,\s*endVerse:\s*number(?:,\s*searchTerm\?:\s*string \| null)?\) => \{[\s\S]*bibleViewerRef\.value\?\.focusVerseRange\(startVerse,\s*endVerse(?:,\s*searchTerm)?\);[\s\S]*\}/,
     'reader should expose verse-range focus to the page',
   );
   assert.match(
     viewerSource,
-    /const focusVerseRange = \(startVerse: number, endVerse: number\) => \{[\s\S]*highlightVerses\(startVerse,\s*endVerse\);[\s\S]*scrollToVerse\(startVerse\);[\s\S]*\};/,
+    /const focusVerseRange = \(startVerse: number, endVerse: number(?:,\s*searchTerm\?:\s*string \| null)?\) => \{[\s\S]*highlightVerses\(startVerse,\s*endVerse\);[\s\S]*scrollToVerse\(startVerse\);[\s\S]*\};/,
     'viewer should highlight the requested range and scroll to its first verse',
   );
 });

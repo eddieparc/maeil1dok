@@ -151,6 +151,14 @@
   line-height: 1.65;
 }
 
+.result-card .search-hit {
+  border-radius: 4px;
+  background: rgba(250, 204, 21, 0.36);
+  color: inherit;
+  padding: 0 2px;
+  box-shadow: inset 0 -1px 0 rgba(202, 138, 4, 0.35);
+}
+
 @media (max-width: 640px) {
   .search-controls {
     grid-template-columns: 1fr;
