@@ -154,6 +154,11 @@ export default defineNuxtConfig({
           'cache-control': 'no-store'
         }
       },
+      '/bible/search': {
+        headers: {
+          'cache-control': 'no-store'
+        }
+      },
       '/_nuxt/**': {
         headers: {
           'cache-control': 'public, max-age=31536000, immutable'
