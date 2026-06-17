@@ -1,42 +1,94 @@
 <template>
-  <div class="sanctuary-theme">
-    <div class="bg-pattern"></div>
-
-    <div class="container">
-      <header class="home-header">
-        <div class="logo-wrapper">
-          <NuxtImg
+  <div class="sanctuary-theme" :class="{ 'is-shell-ready': isShellReady }">
+    <div class="landing-skeleton" aria-hidden="true">
+      <div class="landing-skeleton__inner">
+        <header class="landing-skeleton__header">
+          <img
             src="/images/logo-transparent.png"
-            alt="Maeil1dok"
-            class="logo-img"
-            loading="eager"
-            fetchpriority="high"
+            alt=""
+            class="landing-skeleton__logo"
             width="376"
             height="99"
-          />
-        </div>
-        <div class="header-actions">
-          <button class="theme-toggle-btn" @click="toggleTheme" :aria-label="isDark ? '라이트 모드로 전환' : '다크 모드로 전환'">
-            <Transition name="theme-icon" mode="out-in">
-              <MoonIcon v-if="!isDark" :size="20" key="moon" />
-              <SunIcon v-else :size="20" key="sun" />
-            </Transition>
-          </button>
-          <button class="menu-btn" @click="showMenu = true" aria-label="메뉴 열기">
-            <MenuIcon size="24" />
-          </button>
-        </div>
-      </header>
+            loading="eager"
+            fetchpriority="high"
+          >
+          <div class="landing-skeleton__actions">
+            <span class="landing-skeleton__icon"></span>
+            <span class="landing-skeleton__icon"></span>
+          </div>
+        </header>
 
-      <main class="home-main">
-        <HomeHero />
-        <ReadingCardStack />
-        <QuickAccessGrid />
-      </main>
+        <section class="landing-skeleton__hero">
+          <span class="landing-skeleton__line landing-skeleton__line--medium"></span>
+          <span class="landing-skeleton__line landing-skeleton__line--title"></span>
+          <span class="landing-skeleton__line landing-skeleton__line--wide"></span>
+        </section>
 
-      <FloatingNav />
+        <section class="landing-skeleton__reading">
+          <div class="landing-skeleton__calendar"></div>
+          <div class="landing-skeleton__copy">
+            <span class="landing-skeleton__line landing-skeleton__line--short"></span>
+            <span class="landing-skeleton__line landing-skeleton__line--wide"></span>
+          </div>
+          <div class="landing-skeleton__progress">
+            <span></span>
+          </div>
+        </section>
 
-      <Menu :is-open="showMenu" @close="showMenu = false" />
+        <section class="landing-skeleton__grid">
+          <div v-for="item in 6" :key="item" class="landing-skeleton__tile">
+            <span class="landing-skeleton__tile-icon"></span>
+            <span class="landing-skeleton__tile-line"></span>
+          </div>
+        </section>
+
+        <nav class="landing-skeleton__nav">
+          <span class="landing-skeleton__nav-item landing-skeleton__nav-item--active"></span>
+          <span class="landing-skeleton__nav-item"></span>
+          <span class="landing-skeleton__nav-item"></span>
+        </nav>
+      </div>
+    </div>
+
+    <div class="landing-content">
+      <div class="bg-pattern"></div>
+
+      <div class="container">
+        <header class="home-header">
+          <div class="logo-wrapper">
+            <NuxtImg
+              src="/images/logo-transparent.png"
+              alt="Maeil1dok"
+              class="logo-img"
+              loading="eager"
+              fetchpriority="high"
+              width="376"
+              height="99"
+            />
+          </div>
+          <div class="header-actions">
+            <button class="theme-toggle-btn" @click="toggleTheme" :aria-label="isDark ? '라이트 모드로 전환' : '다크 모드로 전환'">
+              <Transition name="theme-icon" mode="out-in">
+                <MoonIcon v-if="!isDark" :size="20" key="moon" />
+                <SunIcon v-else :size="20" key="sun" />
+              </Transition>
+            </button>
+            <button class="menu-btn" @click="showMenu = true" aria-label="메뉴 열기">
+              <MenuIcon size="24" />
+            </button>
+          </div>
+        </header>
+
+        <main class="home-main">
+          <HomeHero />
+          <ReadingCardStack />
+          <QuickAccessGrid />
+        </main>
+
+        <FloatingNav />
+
+        <Menu :is-open="showMenu" @close="showMenu = false" />
+      </div>
     </div>
   </div>
 </template>
@@ -63,6 +115,223 @@ useHead({
       fetchpriority: 'high',
     },
   ],
+  style: [
+    {
+      key: 'landing-critical-shell',
+      innerHTML: `
+.landing-content { opacity: 0; }
+.landing-skeleton {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  overflow: hidden;
+  background: #F9F8F6;
+  color: #2C3333;
+  opacity: 1;
+  visibility: visible;
+}
+.landing-skeleton__inner {
+  box-sizing: border-box;
+  max-width: 768px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 8px 16px 112px;
+}
+.landing-skeleton__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+}
+.landing-skeleton__logo {
+  display: block;
+  width: 91px;
+  height: 24px;
+  object-fit: contain;
+}
+.landing-skeleton__actions,
+.landing-skeleton__grid,
+.landing-skeleton__tile {
+  display: flex;
+}
+.landing-skeleton__actions {
+  gap: 4px;
+}
+.landing-skeleton__icon,
+.landing-skeleton__calendar,
+.landing-skeleton__line,
+.landing-skeleton__progress,
+.landing-skeleton__tile,
+.landing-skeleton__nav {
+  background: linear-gradient(110deg, #ECE8E1 8%, #FFFFFF 18%, #ECE8E1 33%);
+  background-size: 200% 100%;
+  animation: landing-shell-shimmer 1.2s ease-in-out infinite;
+}
+.landing-skeleton__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+}
+.landing-skeleton__hero {
+  padding: clamp(40px, 9vh, 76px) 0 clamp(24px, 5vh, 44px);
+}
+.landing-skeleton__line {
+  display: block;
+  height: 18px;
+  border-radius: 999px;
+}
+.landing-skeleton__line--medium {
+  width: min(220px, 46vw);
+  margin: 0 auto 26px;
+}
+.landing-skeleton__line--title {
+  width: min(520px, 86vw);
+  height: clamp(46px, 10vw, 72px);
+  margin: 0 auto 16px;
+}
+.landing-skeleton__line--wide {
+  width: min(460px, 74vw);
+}
+.landing-skeleton__hero .landing-skeleton__line--wide {
+  margin: 0 auto;
+}
+.landing-skeleton__reading {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 18px;
+  min-height: 164px;
+  box-sizing: border-box;
+  margin-bottom: 32px;
+  padding: 24px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.05);
+}
+.landing-skeleton__calendar {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+}
+.landing-skeleton__copy {
+  align-self: center;
+}
+.landing-skeleton__line--short {
+  width: 136px;
+  margin-bottom: 14px;
+}
+.landing-skeleton__progress {
+  grid-column: 1 / -1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+.landing-skeleton__progress span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: #4FA47D;
+}
+.landing-skeleton__grid {
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.landing-skeleton__tile {
+  align-items: center;
+  gap: 14px;
+  width: calc(50% - 7px);
+  min-height: 82px;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 8px;
+  background-color: #FFFFFF;
+}
+.landing-skeleton__tile-icon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(44, 51, 51, 0.13);
+}
+.landing-skeleton__tile-line {
+  width: min(104px, 52%);
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(44, 51, 51, 0.13);
+}
+.landing-skeleton__nav {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 4px;
+  width: min(640px, calc(100vw - 32px));
+  height: 74px;
+  box-sizing: border-box;
+  padding: 8px;
+  border-radius: 24px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 28px rgba(44, 51, 51, 0.11);
+  transform: translateX(-50%);
+}
+.landing-skeleton__nav-item {
+  flex: 1;
+  border-radius: 16px;
+  background: rgba(44, 51, 51, 0.1);
+}
+.landing-skeleton__nav-item--active {
+  background: #4FA47D;
+}
+.sanctuary-theme.is-shell-ready .landing-content {
+  opacity: 1;
+  transition: opacity 160ms ease;
+}
+.sanctuary-theme.is-shell-ready .landing-skeleton {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 160ms ease, visibility 0s linear 160ms;
+}
+@keyframes landing-shell-shimmer {
+  to { background-position-x: -200%; }
+}
+@media (max-width: 520px) {
+  .landing-skeleton__inner { padding-inline: 14px; }
+  .landing-skeleton__reading {
+    grid-template-columns: 44px 1fr;
+    min-height: 148px;
+    padding: 20px;
+  }
+  .landing-skeleton__calendar {
+    width: 40px;
+    height: 40px;
+  }
+  .landing-skeleton__tile {
+    width: 100%;
+    min-height: 74px;
+    padding: 18px;
+  }
+  .landing-skeleton__nav {
+    width: calc(100vw - 28px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-skeleton__icon,
+  .landing-skeleton__calendar,
+  .landing-skeleton__line,
+  .landing-skeleton__progress,
+  .landing-skeleton__tile,
+  .landing-skeleton__nav {
+    animation: none;
+  }
+  .sanctuary-theme.is-shell-ready .landing-content,
+  .sanctuary-theme.is-shell-ready .landing-skeleton {
+    transition: none;
+  }
+}
+      `,
+    },
+  ],
 });
 
 // 페이지 메타 설정
@@ -71,6 +340,7 @@ definePageMeta({
 });
 
 const showMenu = ref(false);
+const isShellReady = ref(false);
 
 const auth = useAuthService();
 const settingsStore = useReadingSettingsStore();
@@ -82,10 +352,36 @@ const toggleTheme = () => {
   isDark.value = !isDark.value;
 };
 
+const waitForLocalStylesheets = async (): Promise<void> => {
+  const localStylesheets = Array.from(
+    document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'),
+  ).filter((link) => link.href.includes('/_nuxt/'));
+
+  await Promise.all(
+    localStylesheets.map((link) => {
+      if (link.sheet) {
+        return Promise.resolve();
+      }
+
+      return new Promise<void>((resolve) => {
+        link.addEventListener('load', () => resolve(), { once: true });
+        link.addEventListener('error', () => resolve(), { once: true });
+      });
+    }),
+  );
+};
+
+const revealShell = (): void => {
+  requestAnimationFrame(() => {
+    isShellReady.value = true;
+  });
+};
+
 onMounted(() => {
   void auth.initialize();
   settingsStore.initialize();
   isDark.value = settingsStore.effectiveTheme === 'dark';
+  void waitForLocalStylesheets().then(revealShell);
 });
 </script>
 

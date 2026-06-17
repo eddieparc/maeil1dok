@@ -152,6 +152,19 @@ test('landing logo is eager and preloaded for first paint', () => {
   assert.match(logoBlock, /height="99"/, 'first viewport landing logo should reserve the source height to keep the logo ratio');
 });
 
+test('landing masks stylesheet delay with a critical skeleton shell', () => {
+  assert.match(landingPageSource, /landing-critical-shell/, 'landing should inline a critical first-paint shell style');
+  assert.match(landingPageSource, /class="landing-skeleton"/, 'landing should render a skeleton before app content');
+  assert.match(landingPageSource, /class="landing-content"/, 'landing content should be wrapped so it can stay hidden until ready');
+  assert.match(landingPageSource, /isShellReady/, 'landing should track when the shell can be dismissed');
+  assert.match(landingPageSource, /waitForLocalStylesheets/, 'landing should wait for local stylesheets before revealing content');
+  assert.match(landingPageSource, /document\.querySelectorAll<HTMLLinkElement>\('link\[rel="stylesheet"\]'\)/, 'landing should inspect stylesheet links at runtime');
+  assert.match(landingPageSource, /\/_nuxt\//, 'landing should specifically wait for local Nuxt CSS chunks');
+  assert.match(landingPageSource, /requestAnimationFrame/, 'landing should reveal content on a clean animation frame');
+  assert.match(landingPageSource, /\.landing-skeleton/, 'critical style should target the skeleton without waiting for scoped CSS');
+  assert.match(landingPageSource, /\.landing-content\s*\{\s*opacity:\s*0;/, 'critical style should hide raw content before styles are ready');
+});
+
 test('above the fold app logos are not lazy loaded', () => {
   for (const { path, source } of logoSurfaceSources) {
     const logoBlock = source.match(/<NuxtImg[\s\S]*?src="\/images\/logo-transparent\.png"[\s\S]*?\/>/)?.[0] ?? '';
