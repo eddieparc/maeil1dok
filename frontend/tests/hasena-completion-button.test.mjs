@@ -20,10 +20,10 @@ const beforeCenterBlock = hasenaSource.slice(floatingStart, centerStart);
 const centerSlotBlock = hasenaSource.slice(centerStart, centerEnd);
 
 test('renders Hasena completion as a standalone button above the bottom bar', () => {
-  assert.match(
+  assert.doesNotMatch(
     hasenaSource,
-    /class="hasena-complete-floating-scrim"[\s\S]*<FloatingBottomBar>/,
-    'Hasena completion should have a backdrop layer before the bottom bar so content does not show through the action',
+    /hasena-complete-floating-scrim/,
+    'Hasena completion should not add an opaque bottom backdrop behind the separated action',
   );
   assert.match(
     beforeCenterBlock,

@@ -154,6 +154,16 @@ export default defineNuxtConfig({
           'cache-control': 'no-store'
         }
       },
+      '/bible': {
+        headers: {
+          'cache-control': 'no-store'
+        }
+      },
+      '/bible/': {
+        headers: {
+          'cache-control': 'no-store'
+        }
+      },
       '/bible/search': {
         headers: {
           'cache-control': 'no-store'

@@ -150,8 +150,6 @@
         </div>
       </main>
 
-      <div class="hasena-complete-floating-scrim" aria-hidden="true"></div>
-
       <!-- 하단 플로팅 바 -->
       <FloatingBottomBar>
         <template #popover>
@@ -1181,22 +1179,6 @@ onMounted(async () => {
   transition: all 0.2s ease;
 }
 
-.hasena-complete-floating-scrim {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 99;
-  height: 9.75rem;
-  pointer-events: none;
-  background: linear-gradient(
-    to top,
-    var(--color-bg-primary) 0%,
-    var(--color-bg-primary) 76%,
-    rgba(255, 255, 255, 0) 100%
-  );
-}
-
 .hasena-complete-floating-btn {
   display: flex;
   align-items: center;
@@ -1292,21 +1274,6 @@ onMounted(async () => {
 [data-theme="dark"] .hasena-status-info {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .hasena-complete-floating-scrim {
-  background: linear-gradient(
-    to top,
-    var(--color-bg-primary) 0%,
-    var(--color-bg-primary) 76%,
-    rgba(17, 24, 39, 0) 100%
-  );
-}
-
-@supports (height: env(safe-area-inset-bottom)) {
-  .hasena-complete-floating-scrim {
-    height: calc(9.75rem + env(safe-area-inset-bottom));
-  }
 }
 
 /* Animations */

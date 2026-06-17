@@ -58,3 +58,13 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         self.assertIn("'/bible/search'", nuxt_config)
         self.assertIn("'/bible/search/'", nuxt_config)
         self.assertIn("'cache-control': 'no-store'", nuxt_config)
+
+    def test_bible_page_html_is_not_edge_cached(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(
+            encoding="utf-8",
+        )
+
+        self.assertIn("'/bible'", nuxt_config)
+        self.assertIn("'/bible/'", nuxt_config)
+        self.assertIn("'cache-control': 'no-store'", nuxt_config)

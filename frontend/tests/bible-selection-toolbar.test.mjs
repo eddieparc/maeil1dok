@@ -110,6 +110,14 @@ test('keeps copy menu in the anchored popover layer above the bottom bar', () =>
   );
 });
 
+test('does not render Tongdok completion as a standalone floating button', () => {
+  assert.doesNotMatch(
+    readerSource,
+    /tongdok-complete-floating-btn|tongdok-complete-floating-scrim/,
+    'Bible reader should not include the unrequested standalone Tongdok completion button or backdrop',
+  );
+});
+
 test('does not teleport selection menus to body coordinates', () => {
   assert.doesNotMatch(
     viewerSource,
