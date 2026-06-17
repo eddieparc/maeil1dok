@@ -13,10 +13,17 @@ const biblePageSource = await readFile(
   'utf8',
 );
 
-const bibleFetchSource = await readFile(
+const bibleFetchWrapperSource = await readFile(
   new URL('../app/composables/useBibleFetch.ts', import.meta.url),
   'utf8',
 );
+
+const bibleFetchClientSource = await readFile(
+  new URL('../app/composables/bible/bibleFetchClient.ts', import.meta.url),
+  'utf8',
+);
+
+const bibleFetchSource = `${bibleFetchWrapperSource}\n${bibleFetchClientSource}`;
 
 const readerViewSource = await readFile(
   new URL('../app/components/bible/BibleReaderView.vue', import.meta.url),

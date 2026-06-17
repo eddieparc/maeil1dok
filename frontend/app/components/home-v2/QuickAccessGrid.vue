@@ -27,6 +27,12 @@
         <span>본문 읽기</span>
       </NuxtLink>
 
+      <NuxtLink to="/bible/search" class="sub-card" data-testid="card-bible-search">
+        <SearchIcon :size="24" />
+        <strong>본문 검색</strong>
+        <span>캐시된 말씀 찾기</span>
+      </NuxtLink>
+
       <NuxtLink to="/intro" class="sub-card">
         <MonitorIcon size="24" />
         <strong>개론 영상</strong>
@@ -50,7 +56,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { UsersIcon } from '@lucide/vue';
+import { SearchIcon, UsersIcon } from '@lucide/vue';
 import { useAuthService } from '~/composables/useAuthService';
 import BookIcon from '~/components/icons/BookIcon.vue';
 import CalendarIcon from '~/components/icons/CalendarIcon.vue';

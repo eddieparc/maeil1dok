@@ -2,8 +2,13 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-const bibleFetchSource = await readFile(
+const bibleFetchWrapperSource = await readFile(
   new URL('../app/composables/useBibleFetch.ts', import.meta.url),
+  'utf8',
+);
+
+const bibleFetchClientSource = await readFile(
+  new URL('../app/composables/bible/bibleFetchClient.ts', import.meta.url),
   'utf8',
 );
 
@@ -29,19 +34,29 @@ const extractFunctionBody = (source, functionName) => {
 };
 
 test('standard Bible fetch checks the cache server before the no-store proxy', () => {
-  const body = extractFunctionBody(bibleFetchSource, 'fetchStandardContent');
+  assert.match(
+    bibleFetchWrapperSource,
+    /fetchStandardContentWithCache\(bibleCacheUrl,\s*version,\s*book,\s*chapter\)/,
+  );
+
+  const body = extractFunctionBody(bibleFetchClientSource, 'fetchWithCacheFallback');
 
   assert.ok(
-    body.indexOf("fetchFromCacheServer(version, book, chapter)") <
-      body.indexOf('fetchStandardFromProxy(version, book, chapter)'),
+    body.indexOf('fetchFromCacheServer(') <
+      body.indexOf('options.proxyFetch()'),
   );
 });
 
 test('KNT Bible fetch checks the cache server before the no-store proxy', () => {
-  const body = extractFunctionBody(bibleFetchSource, 'fetchKntContent');
+  assert.match(
+    bibleFetchWrapperSource,
+    /fetchKntContentWithCache\(bibleCacheUrl,\s*book,\s*chapter\)/,
+  );
+
+  const body = extractFunctionBody(bibleFetchClientSource, 'fetchWithCacheFallback');
 
   assert.ok(
-    body.indexOf("fetchFromCacheServer('KNT', book, chapter)") <
-      body.indexOf('fetchKntFromProxy(book, chapter)'),
+    body.indexOf('fetchFromCacheServer(') <
+      body.indexOf('options.proxyFetch()'),
   );
 });

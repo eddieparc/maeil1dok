@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from bible_cache.services import BibleFetchService
 from bible_cache.services.bible_fetch_service import BibleFetchError, SUPPORTED_VERSIONS
+from bible_cache.services.cache_search_service import BibleCacheSearchService
 
 logger = logging.getLogger(__name__)
 
@@ -177,13 +178,68 @@ def get_supported_versions(request):
     })
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_cached_content(request):
+    query = request.query_params.get('q', '').strip()
+    version_param = request.query_params.get('version')
+    version = version_param.strip() if version_param else None
+    limit_param = request.query_params.get('limit', '20')
+
+    if len(query) < 2:
+        return Response(
+            {
+                'success': False,
+                'error': '검색어는 두 글자 이상 입력해주세요.'
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if version and version.upper() not in SUPPORTED_VERSIONS:
+        return Response(
+            {
+                'success': False,
+                'error': f'지원하지 않는 번역본입니다: {version}',
+                'supported_versions': list(SUPPORTED_VERSIONS)
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        limit = min(max(int(limit_param), 1), 50)
+    except ValueError:
+        limit = 20
+
+    results = BibleCacheSearchService.search(
+        query=query,
+        version=version,
+        limit=limit,
+    )
+
+    return Response({
+        'success': True,
+        'query': query,
+        'count': len(results),
+        'results': [
+            {
+                'version': result.version,
+                'book': result.book,
+                'chapter': result.chapter,
+                'snippet': result.snippet,
+                'updated_at': result.updated_at,
+            }
+            for result in results
+        ],
+    })
+
+
 def _get_fallback_url(version: str, book: str, chapter: int) -> str:
     """직접 링크 생성 (대한성서공회 또는 두라노)"""
     if version == 'KNT':
         return f"https://www.bskorea.or.kr/KNT/index.php?chapter={book.upper()}.{chapter}"
     elif version == 'WOORI':
         # 두라노 우리말성경 직접 링크
-        from bible_cache.services.bible_fetch_service import WOORI_BOOK_CODE_MAP
+        from bible_cache.services.woori_bible_service import WOORI_BOOK_CODE_MAP
         vl = WOORI_BOOK_CODE_MAP.get(book.lower(), 1)
         return f"https://www.duranno.com/bdictionary/result_woori.asp?s=r&kd=104&vl={vl}&ct={chapter}"
     else:

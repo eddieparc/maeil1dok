@@ -2,7 +2,9 @@
 성경 본문 캐시 테스트
 """
 
+from datetime import timedelta
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework import status
 from unittest.mock import patch, MagicMock
@@ -10,6 +12,7 @@ from unittest.mock import patch, MagicMock
 from bible_cache.models import BibleContentCache
 from bible_cache.services import BibleFetchService
 from bible_cache.services.bible_fetch_service import BibleFetchError
+from bible_cache.services.cache_refresh_coordinator import CacheRefreshCoordinator
 
 
 class BibleContentCacheModelTest(TestCase):
@@ -71,6 +74,9 @@ class BibleContentCacheModelTest(TestCase):
 class BibleFetchServiceTest(TestCase):
     """BibleFetchService 테스트"""
 
+    def setUp(self):
+        CacheRefreshCoordinator.clear_for_tests()
+
     def test_unsupported_version(self):
         """지원하지 않는 번역본 테스트"""
         with self.assertRaises(BibleFetchError) as context:
@@ -83,7 +89,7 @@ class BibleFetchServiceTest(TestCase):
         """표준 번역본 fetch 테스트"""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.text = '<html><div id="tdBible1">Bible content</div></html>'
+        mock_response.text = '<html><div id="tdBible1">Bible content Bible content Bible content Bible content Bible content Bible content Bible content</div></html>'
         mock_response.url = 'https://www.bskorea.or.kr/bible/...'
         mock_get.return_value = mock_response
 
@@ -95,7 +101,7 @@ class BibleFetchServiceTest(TestCase):
         self.assertFalse(from_cache)
         self.assertIn('Bible content', content)
 
-    @patch('bible_cache.services.bible_fetch_service.requests.get')
+    @patch('bible_cache.services.knt_bible_service.requests.get')
     def test_fetch_knt_version(self, mock_get):
         """KNT 번역본 fetch 테스트"""
         mock_response = MagicMock()
@@ -134,6 +140,116 @@ class BibleFetchServiceTest(TestCase):
             self.assertTrue(from_cache)
             self.assertEqual(content, 'Cached content')
 
+    @patch('bible_cache.services.bible_fetch_service.BibleFetchService._schedule_refresh')
+    @patch('bible_cache.services.bible_fetch_service.BibleFetchService._fetch_from_source')
+    def test_stale_cache_returns_immediately_and_schedules_refresh(
+        self,
+        mock_fetch,
+        mock_schedule_refresh,
+    ):
+        cached, _ = BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='Old cached content',
+            content_type='html',
+            fetch_success=True
+        )
+        BibleContentCache.objects.filter(pk=cached.pk).update(
+            updated_at=timezone.now() - timedelta(days=120)
+        )
+
+        content, content_type, from_cache = BibleFetchService.get_bible_content(
+            'GAE', 'gen', 1
+        )
+
+        self.assertTrue(from_cache)
+        self.assertEqual(content_type, 'html')
+        self.assertEqual(content, 'Old cached content')
+        mock_fetch.assert_not_called()
+        mock_schedule_refresh.assert_called_once_with('GAE', 'gen', 1)
+
+    @patch('bible_cache.services.bible_fetch_service.threading.Thread')
+    def test_repeated_stale_reads_schedule_one_in_flight_refresh(self, mock_thread):
+        cached, _ = BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='Old cached content',
+            content_type='html',
+            fetch_success=True
+        )
+        BibleContentCache.objects.filter(pk=cached.pk).update(
+            updated_at=timezone.now() - timedelta(days=120)
+        )
+
+        first = BibleFetchService.get_bible_content('GAE', 'gen', 1)
+        second = BibleFetchService.get_bible_content('GAE', 'gen', 1)
+
+        self.assertTrue(first[2])
+        self.assertTrue(second[2])
+        self.assertEqual(first[0], 'Old cached content')
+        self.assertEqual(second[0], 'Old cached content')
+        mock_thread.assert_called_once()
+        mock_thread.return_value.start.assert_called_once()
+
+    @patch('bible_cache.services.bible_fetch_service.threading.Thread')
+    def test_failed_background_refresh_uses_retry_cooldown(self, mock_thread):
+        cache_key = BibleContentCache.generate_cache_key('GAE', 'gen', 1)
+        with patch(
+            'bible_cache.services.bible_fetch_service.BibleFetchService._refresh_cache_from_source',
+            side_effect=Exception('slow source'),
+        ):
+            BibleFetchService._refresh_cache_safely('GAE', 'gen', 1, cache_key)
+
+        self.assertTrue(CacheRefreshCoordinator.has_recent_failure(cache_key))
+
+        BibleFetchService._schedule_refresh('GAE', 'gen', 1)
+
+        mock_thread.assert_not_called()
+
+    @patch('bible_cache.services.bible_fetch_service.threading.Thread')
+    def test_schedule_refresh_releases_claim_when_thread_start_fails(self, mock_thread):
+        cache_key = BibleContentCache.generate_cache_key('GAE', 'gen', 1)
+        mock_thread.return_value.start.side_effect = RuntimeError('thread unavailable')
+
+        with self.assertRaises(RuntimeError):
+            BibleFetchService._schedule_refresh('GAE', 'gen', 1)
+
+        self.assertNotIn(cache_key, CacheRefreshCoordinator._in_flight)
+        self.assertTrue(CacheRefreshCoordinator.has_recent_failure(cache_key))
+
+    @patch('bible_cache.services.bible_fetch_service.BibleFetchService._fetch_from_source')
+    def test_refresh_cache_from_source_updates_stale_cache(self, mock_fetch):
+        cached, _ = BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='Old cached content',
+            content_type='html',
+            fetch_success=True
+        )
+        BibleContentCache.objects.filter(pk=cached.pk).update(
+            updated_at=timezone.now() - timedelta(days=120)
+        )
+        mock_fetch.return_value = (
+            '<html><div>Fresh Bible content</div></html>',
+            'html',
+            'https://www.bskorea.or.kr/bible/fresh'
+        )
+
+        content, content_type, source_url = BibleFetchService._refresh_cache_from_source(
+            'GAE', 'gen', 1
+        )
+
+        self.assertEqual(content_type, 'html')
+        self.assertIn('Fresh Bible content', content)
+        self.assertEqual(source_url, 'https://www.bskorea.or.kr/bible/fresh')
+        self.assertEqual(
+            BibleContentCache.get_cached_content('GAE', 'gen', 1).content,
+            '<html><div>Fresh Bible content</div></html>'
+        )
+
 
 class BibleCacheAPITest(APITestCase):
     """API 엔드포인트 테스트"""
@@ -164,7 +280,7 @@ class BibleCacheAPITest(APITestCase):
         """성경 본문 조회 성공"""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.text = '<html>Bible content</html>'
+        mock_response.text = '<html>Bible content Bible content Bible content Bible content Bible content Bible content Bible content Bible content</html>'
         mock_response.url = 'https://www.bskorea.or.kr/bible/...'
         mock_get.return_value = mock_response
 
@@ -196,3 +312,58 @@ class BibleCacheAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['cached'])
+
+    def test_search_cached_content(self):
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='<p><span>1 태초에 하나님이 천지를 창조하시니라</span></p>',
+            content_type='html'
+        )
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='exo',
+            chapter=1,
+            content='<p><span>1 애굽 왕 바로가 말하였다</span></p>',
+            content_type='html'
+        )
+
+        response = self.client.get('/api/v1/bible-cache/search/?q=하나님&version=GAE')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['book'], 'gen')
+        self.assertIn('하나님', response.data['results'][0]['snippet'])
+
+    def test_search_cached_content_strips_version_filter(self):
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='<p><span>1 태초에 하나님이 천지를 창조하시니라</span></p>',
+            content_type='html'
+        )
+
+        response = self.client.get('/api/v1/bible-cache/search/?q=하나님&version=%20GAE%20')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+
+    def test_search_cached_content_handles_json_list_content(self):
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='["태초에", "하나님이"]',
+            content_type='json'
+        )
+
+        response = self.client.get('/api/v1/bible-cache/search/?q=하나님')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+        self.assertIn('하나님', response.data['results'][0]['snippet'])
