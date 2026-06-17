@@ -148,8 +148,8 @@ test('landing logo is eager and preloaded for first paint', () => {
   assert.match(landingPageSource, /rel:\s*'preload'/, 'first viewport landing logo should be preloaded');
   assert.match(landingPageSource, /href:\s*'\/images\/logo-transparent\.png'/, 'first viewport landing logo preload should target the concrete asset');
   assert.match(logoBlock, /fetchpriority="high"/, 'first viewport landing logo should have a high priority hint');
-  assert.match(logoBlock, /width="/, 'first viewport landing logo should reserve width');
-  assert.match(logoBlock, /height="/, 'first viewport landing logo should reserve height');
+  assert.match(logoBlock, /width="376"/, 'first viewport landing logo should reserve the source width to keep the logo ratio');
+  assert.match(logoBlock, /height="99"/, 'first viewport landing logo should reserve the source height to keep the logo ratio');
 });
 
 test('above the fold app logos are not lazy loaded', () => {

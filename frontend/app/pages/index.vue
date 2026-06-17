@@ -11,8 +11,8 @@
             class="logo-img"
             loading="eager"
             fetchpriority="high"
-            width="112"
-            height="24"
+            width="376"
+            height="99"
           />
         </div>
         <div class="header-actions">
