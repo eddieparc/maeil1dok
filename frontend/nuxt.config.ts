@@ -94,9 +94,7 @@ export default defineNuxtConfig({
         // Google Fonts - Noto Serif KR, Noto Sans KR
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400;500;600&display=swap' },
-        // KoPub Batang (via CDN)
-        { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/gh/niceplugin/KoPub@1.1.0/KoPubWorld-Batang-M.css' }
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400;500;600&display=swap' }
       ],
       meta: [
         { name: 'msapplication-TileColor', content: '#ffffff' },
@@ -157,6 +155,16 @@ export default defineNuxtConfig({
         }
       },
       '/favicon.ico': {
+        headers: {
+          'cache-control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400'
+        }
+      },
+      '/favicon-16x16.png': {
+        headers: {
+          'cache-control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400'
+        }
+      },
+      '/favicon-32x32.png': {
         headers: {
           'cache-control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400'
         }
