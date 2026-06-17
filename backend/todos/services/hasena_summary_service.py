@@ -9,11 +9,7 @@ logger = logging.getLogger(__name__)
 HASENA_PLAYLIST_ID = 'PLMT1AJszhYtXkV936HNuExxjAmtFhp2tL'
 
 
-def get_latest_hasena_video() -> dict | None:
-    """
-    하세나 플레이리스트에서 최신 영상 정보를 가져옴
-    Returns: {'video_id': str, 'title': str, 'published_at': str} or None
-    """
+def get_recent_hasena_videos(max_results: int = 10) -> list[dict]:
     api_key = getattr(settings, 'YOUTUBE_API_KEY', None)
     if not api_key:
         # YOUTUBE_API_KEY가 없으면 GEMINI_API_KEY 시도 (같은 Google Cloud 프로젝트인 경우)
@@ -21,14 +17,14 @@ def get_latest_hasena_video() -> dict | None:
     
     if not api_key:
         logger.error("No YouTube API key configured")
-        return None
+        return []
     
     try:
         url = 'https://www.googleapis.com/youtube/v3/playlistItems'
         params = {
             'part': 'snippet,status',
             'playlistId': HASENA_PLAYLIST_ID,
-            'maxResults': 10,
+            'maxResults': max_results,
             'key': api_key
         }
         
@@ -38,8 +34,9 @@ def get_latest_hasena_video() -> dict | None:
         
         if not data.get('items'):
             logger.warning("No videos found in playlist")
-            return None
+            return []
         
+        videos = []
         for item in data['items']:
             snippet = item.get('snippet', {})
             status = item.get('status', {})
@@ -50,21 +47,27 @@ def get_latest_hasena_video() -> dict | None:
             if not video_id or title.lower() == 'private video' or privacy_status == 'private':
                 continue
 
-            return {
+            videos.append({
                 'video_id': video_id,
                 'title': title,
                 'published_at': snippet.get('publishedAt'),
-            }
+            })
         
-        logger.warning("No public videos found in playlist")
-        return None
+        if not videos:
+            logger.warning("No public videos found in playlist")
+        return videos
         
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching playlist: {str(e)}")
-        return None
+        return []
     except Exception as e:
         logger.error(f"Unexpected error fetching playlist: {str(e)}")
-        return None
+        return []
+
+
+def get_latest_hasena_video() -> dict | None:
+    videos = get_recent_hasena_videos()
+    return videos[0] if videos else None
 
 
 def get_youtube_transcript(video_id: str, languages: list = None) -> str | None:
