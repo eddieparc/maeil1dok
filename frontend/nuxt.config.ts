@@ -149,6 +149,11 @@ export default defineNuxtConfig({
           'cache-control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400'
         }
       },
+      '/hasena': {
+        headers: {
+          'cache-control': 'no-store'
+        }
+      },
       '/_nuxt/**': {
         headers: {
           'cache-control': 'public, max-age=31536000, immutable'
