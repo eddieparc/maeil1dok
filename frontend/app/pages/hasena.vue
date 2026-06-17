@@ -150,25 +150,29 @@
         </div>
       </main>
 
+      <div class="hasena-complete-floating-scrim" aria-hidden="true"></div>
+
       <!-- 하단 플로팅 바 -->
       <FloatingBottomBar>
-        <template #center>
+        <template #popover>
           <button
-            class="hasena-complete-info"
+            class="hasena-complete-floating-btn"
             :class="{ completed: isButtonCompleted }"
             :disabled="hasenaStore.isLoading"
             :aria-label="buttonText"
             @click="handleComplete"
           >
-            <span class="hasena-date">{{ shortFormattedDate }}</span>
-            <span class="hasena-completion-group">
-              <span v-if="hasenaStore.isLoading" class="loading-spinner nav-spinner" aria-hidden="true"></span>
-              <span v-else class="hasena-custom-checkbox" aria-hidden="true">
-                <CheckCircleIcon v-if="isButtonCompleted" :size="16" />
-              </span>
-              <span class="hasena-range">{{ bibleTitle || '하세나하시조' }}</span>
-            </span>
+            <span v-if="hasenaStore.isLoading" class="loading-spinner nav-spinner" aria-hidden="true"></span>
+            <CheckCircleIcon v-else class="hasena-complete-icon" :size="18" aria-hidden="true" />
+            <span>{{ buttonText }}</span>
           </button>
+        </template>
+
+        <template #center>
+          <div class="hasena-status-info">
+            <span class="hasena-date">{{ shortFormattedDate }}</span>
+            <span class="hasena-range">{{ bibleTitle || '하세나하시조' }}</span>
+          </div>
         </template>
       </FloatingBottomBar>
 
@@ -1177,36 +1181,90 @@ onMounted(async () => {
   transition: all 0.2s ease;
 }
 
-.hasena-complete-info {
+.hasena-complete-floating-scrim {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+  height: 9.75rem;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    var(--color-bg-primary) 0%,
+    var(--color-bg-primary) 76%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.hasena-complete-floating-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: calc(100% - 48px);
+  max-width: 360px;
+  min-height: 46px;
+  padding: 0.75rem 1.25rem;
+  color: white;
+  background: linear-gradient(135deg, var(--color-success) 0%, #34d399 100%);
+  border: none;
+  border-radius: 12px;
+  box-shadow:
+    0 10px 24px rgba(16, 185, 129, 0.28),
+    0 3px 8px rgba(16, 185, 129, 0.2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hasena-complete-floating-btn.completed {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  box-shadow:
+    0 10px 24px rgba(239, 68, 68, 0.24),
+    0 3px 8px rgba(239, 68, 68, 0.18);
+}
+
+.hasena-complete-floating-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-success-dark) 0%, var(--color-success) 100%);
+  transform: translateY(-2px);
+}
+
+.hasena-complete-floating-btn.completed:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+}
+
+.hasena-complete-floating-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.hasena-complete-floating-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.hasena-complete-icon {
+  flex-shrink: 0;
+}
+
+.hasena-status-info {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
   flex: 1;
-  max-width: 100%;
   min-width: 0;
+  max-width: 100%;
   padding: 0.25rem 0.5rem;
   color: var(--color-text-primary);
   background: rgba(255, 255, 255, 0.5);
   border: 1px solid var(--color-border-light);
   border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.hasena-complete-info:hover:not(:disabled) {
-  background: var(--color-bg-hover);
-  border-color: var(--color-border-default);
-}
-
-.hasena-complete-info:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.hasena-complete-info:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .hasena-date {
@@ -1215,32 +1273,6 @@ onMounted(async () => {
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-.hasena-completion-group {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-  white-space: nowrap;
-}
-
-.hasena-custom-checkbox {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--color-text-secondary);
-  border-radius: 50%;
-  color: white;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.hasena-complete-info.completed .hasena-custom-checkbox {
-  background: var(--color-success);
-  border-color: var(--color-success);
 }
 
 .hasena-range {
@@ -1257,19 +1289,24 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-[data-theme="dark"] .hasena-complete-info {
+[data-theme="dark"] .hasena-status-info {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-[data-theme="dark"] .hasena-complete-info:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.15);
+[data-theme="dark"] .hasena-complete-floating-scrim {
+  background: linear-gradient(
+    to top,
+    var(--color-bg-primary) 0%,
+    var(--color-bg-primary) 76%,
+    rgba(17, 24, 39, 0) 100%
+  );
 }
 
-[data-theme="dark"] .hasena-custom-checkbox {
-  background: transparent;
-  border-color: var(--color-text-secondary);
+@supports (height: env(safe-area-inset-bottom)) {
+  .hasena-complete-floating-scrim {
+    height: calc(9.75rem + env(safe-area-inset-bottom));
+  }
 }
 
 /* Animations */
