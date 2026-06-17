@@ -37,6 +37,7 @@ test('landing quick access folds plan management into tongdok card', () => {
   assert.match(quickAccessSource, /to="\/plan"/, 'landing quick access should link to /plan');
   assert.match(quickAccessSource, /to="\/plans"/, 'landing tongdok card should expose plan management');
   assert.match(quickAccessSource, /class="plan-pill"/, 'plan management should render as a pill inside the tongdok card');
+  assert.match(quickAccessSource, /<SettingsIcon/, 'plan management pill should show a settings icon');
 });
 
 test('removes bible and search from landing quick access', () => {
@@ -68,10 +69,19 @@ test('floating nav uses an opaque background', () => {
 
   assert.doesNotMatch(floatingNavSource, /backdrop-filter/, 'landing floating nav should not use glass blur');
   assert.doesNotMatch(floatingNavBlock, /background:\s*rgba\(/, 'landing floating nav container should not use a translucent background');
-  assert.match(floatingNavBlock, /background:\s*#2C3333/, 'landing floating nav should use the solid original background');
+  assert.match(floatingNavBlock, /background:\s*#fff/, 'landing floating nav should use an opaque white background');
   assert.doesNotMatch(floatingBottomBarSource, /backdrop-filter/, 'common floating bottom bar should not use glass blur');
   assert.doesNotMatch(floatingBottomBarBlock, /background:\s*rgba\(/, 'common floating bottom bar should not use a translucent background');
-  assert.match(floatingBottomBarBlock, /background:\s*#2C3333/, 'common floating bottom bar should use the solid original background');
+  assert.match(floatingBottomBarBlock, /background:\s*#fff/, 'common floating bottom bar should use an opaque white background');
+});
+
+test('landing quick access cards align icon and title in one row', () => {
+  const subCardBlock = quickAccessSource.match(/\.sub-card\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+  const cardMainBlock = quickAccessSource.match(/\.card-main\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+
+  assert.match(subCardBlock, /display:\s*flex/, 'quick access cards should use a row layout');
+  assert.match(subCardBlock, /align-items:\s*center/, 'quick access card icons and labels should align in one row');
+  assert.match(cardMainBlock, /display:\s*flex/, 'tongdok main link should use a row layout');
 });
 
 test('landing html is not edge cached', () => {

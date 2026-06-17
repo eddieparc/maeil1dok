@@ -14,6 +14,7 @@
           <strong>통독표</strong>
         </NuxtLink>
         <NuxtLink to="/plans" class="plan-pill" data-testid="pill-plans">
+          <SettingsIcon :size="14" aria-hidden="true" />
           플랜 관리
         </NuxtLink>
       </div>
@@ -48,7 +49,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { TrophyIcon, UsersIcon } from '@lucide/vue';
+import { SettingsIcon, TrophyIcon, UsersIcon } from '@lucide/vue';
 import { useAuthService } from '~/composables/useAuthService';
 import CalendarIcon from '~/components/icons/CalendarIcon.vue';
 import HistoryIcon from '~/components/icons/HistoryIcon.vue';
@@ -82,28 +83,33 @@ const profileLink = computed(() => {
 }
 
 .sub-card {
+  align-items: center;
   background: var(--card-bg);
   border: 1px solid rgba(0, 0, 0, 0.02);
   border-radius: 20px;
   box-shadow: var(--paper-shadow);
   color: var(--text-main);
-  display: grid;
-  gap: 0.35rem;
-  min-height: 128px;
+  display: flex;
+  gap: 0.75rem;
+  min-height: 96px;
   padding: 1.4rem;
   text-decoration: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card-main {
+  align-items: center;
   color: inherit;
-  display: grid;
-  gap: 0.35rem;
+  display: flex;
+  flex: 1;
+  gap: 0.75rem;
+  min-width: 0;
   text-decoration: none;
 }
 
 .plan-card {
-  position: relative;
+  gap: 0.75rem;
+  justify-content: space-between;
 }
 
 .plan-pill {
@@ -114,12 +120,11 @@ const profileLink = computed(() => {
   display: inline-flex;
   font-size: 0.75rem;
   font-weight: 700;
+  gap: 0.25rem;
   line-height: 1;
   padding: 0.45rem 0.7rem;
-  position: absolute;
-  right: 1rem;
+  flex-shrink: 0;
   text-decoration: none;
-  top: 1rem;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
@@ -136,18 +141,30 @@ const profileLink = computed(() => {
 .sub-card svg,
 .card-main svg {
   color: var(--text-main);
-  margin-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+.plan-pill svg {
+  color: currentColor;
 }
 
 .sub-card strong,
 .card-main strong {
   font-size: 1rem;
   font-weight: 700;
+  line-height: 1.35;
+  min-width: 0;
 }
 
 @media (max-width: 480px) {
   .sub-card {
-    padding: 1.2rem;
+    min-height: 88px;
+    padding: 1.15rem;
+  }
+
+  .plan-card {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>
