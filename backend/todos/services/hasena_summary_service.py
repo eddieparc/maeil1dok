@@ -1,5 +1,6 @@
 import logging
 import requests
+import time
 from datetime import date
 from django.conf import settings
 
@@ -141,14 +142,22 @@ def summarize_with_gemini(transcript: str) -> dict | None:
 {transcript}
 """
         
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.3,
-                max_output_tokens=16384,
-            )
-        )
+        response = None
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.3,
+                        max_output_tokens=16384,
+                    )
+                )
+                break
+            except Exception as e:
+                if attempt == 2 or not _is_retryable_gemini_error(str(e)):
+                    raise
+                time.sleep(2 ** attempt)
         
         return {
             'summary': response.text,
@@ -164,6 +173,11 @@ def summarize_with_gemini(transcript: str) -> dict | None:
             return {'error': 'quota_exceeded', 'message': 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.'}
         
         return None
+
+
+def _is_retryable_gemini_error(error: str) -> bool:
+    retryable_markers = ('503', 'UNAVAILABLE', '500', 'INTERNAL', '504', 'DEADLINE_EXCEEDED')
+    return any(marker in error for marker in retryable_markers)
 
 
 def summarize_youtube_video_with_gemini(video_id: str) -> dict | None:
@@ -201,24 +215,32 @@ def summarize_youtube_video_with_gemini(video_id: str) -> dict | None:
 5. 핵심 키워드나 중요한 내용은 **볼드**로 강조하세요.
 6. 하시조 항목은 `- [ ]` 형식으로 작성하세요.
 """
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=types.Content(
-                parts=[
-                    types.Part(
-                        file_data=types.FileData(
-                            file_uri=f'https://www.youtube.com/watch?v={video_id}',
-                            mime_type='video/*',
-                        )
+        response = None
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=types.Content(
+                        parts=[
+                            types.Part(
+                                file_data=types.FileData(
+                                    file_uri=f'https://www.youtube.com/watch?v={video_id}',
+                                    mime_type='video/*',
+                                )
+                            ),
+                            types.Part(text=prompt),
+                        ]
                     ),
-                    types.Part(text=prompt),
-                ]
-            ),
-            config=types.GenerateContentConfig(
-                temperature=0.3,
-                max_output_tokens=16384,
-            )
-        )
+                    config=types.GenerateContentConfig(
+                        temperature=0.3,
+                        max_output_tokens=16384,
+                    )
+                )
+                break
+            except Exception as e:
+                if attempt == 2 or not _is_retryable_gemini_error(str(e)):
+                    raise
+                time.sleep(2 ** attempt)
 
         return {
             'summary': response.text,
