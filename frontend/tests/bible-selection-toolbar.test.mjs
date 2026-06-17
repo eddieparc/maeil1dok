@@ -38,6 +38,11 @@ const extractFloatingBottomBlock = (source) => {
 };
 
 const floatingBeforeCenterBlock = extractFloatingBottomBlock(readerSource);
+const centerSlotStart = readerSource.indexOf('<template #center>');
+assert.notEqual(centerSlotStart, -1, 'reader should keep FloatingBottomBar center slot');
+const centerSlotEnd = readerSource.indexOf('</template>', centerSlotStart);
+assert.notEqual(centerSlotEnd, -1, 'reader should close FloatingBottomBar center slot');
+const centerSlotBlock = readerSource.slice(centerSlotStart, centerSlotEnd);
 
 test('renders selection actions in the anchored popover layer above the bottom bar', () => {
   assert.match(
@@ -142,6 +147,24 @@ test('preserves adjacent bottom bar and event wiring', () => {
       `reader should keep forwarding ${eventName}`,
     );
   }
+});
+
+test('renders tongdok completion as a separate floating button above the bottom bar', () => {
+  assert.match(
+    readerSource,
+    /<button[\s\S]*class="tongdok-complete-floating-btn"[\s\S]*@click="\$emit\('tongdok-complete-click'\)"[\s\S]*통독 완료/,
+    'tongdok completion should be a clear button above the bottom bar',
+  );
+  assert.match(
+    readerSource,
+    /class="tongdok-complete-floating-btn"[\s\S]*<\/button>[\s\S]*<FloatingBottomBar>/,
+    'tongdok completion should render before FloatingBottomBar as a separate floating action',
+  );
+  assert.doesNotMatch(
+    centerSlotBlock,
+    /tongdok-complete-click/,
+    'bottom navigation center label should not contain the tongdok completion action',
+  );
 });
 
 test('shares the Maeil1Dok Bible URL from the floating selection UI', () => {

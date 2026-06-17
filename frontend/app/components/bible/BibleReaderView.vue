@@ -154,6 +154,23 @@
       </template>
     </BibleViewer>
 
+    <div
+      v-if="isTongdokMode && shortScheduleDate && !isLoading"
+      class="tongdok-complete-floating-scrim"
+      aria-hidden="true"
+    ></div>
+
+    <button
+      v-if="isTongdokMode && shortScheduleDate && !isLoading"
+      class="tongdok-complete-floating-btn"
+      :disabled="isCompleting"
+      aria-label="통독 완료"
+      @click="$emit('tongdok-complete-click')"
+    >
+      <CheckCircleOutlineIcon aria-hidden="true" />
+      <span>통독 완료</span>
+    </button>
+
     <!-- 하단 플로팅 네비게이션 -->
     <FloatingBottomBar>
       <template #above>
@@ -217,12 +234,7 @@
         >
           <template v-if="isTongdokMode && shortScheduleDate">
             <span class="schedule-short-date">{{ shortScheduleDate }}</span>
-            <div class="tongdok-completion-group">
-              <div class="tongdok-checkbox-wrapper" @click.stop="$emit('tongdok-complete-click')" title="통독 완료하기">
-                <div class="tongdok-custom-checkbox"></div>
-              </div>
-              <span class="schedule-range">{{ tongdokScheduleRange }}</span>
-            </div>
+            <span class="schedule-range">{{ tongdokScheduleRange }}</span>
           </template>
           <template v-else>
             <span class="chapter-info-text">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
@@ -1285,18 +1297,6 @@ defineExpose({
   flex-shrink: 0;
 }
 
-.tongdok-completion-group {
-  display: flex;
-  align-items: center;
-  gap: 0.125rem;
-  cursor: pointer;
-  padding: 0.125rem 0;
-  border-radius: 6px;
-  transition: background 0.2s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
 /* 다크모드 대응 */
 [data-theme="dark"] .tongdok-status-badge {
   /* 상단 헤더와 동일한 변수 사용으로 자동 적용됨 (primary-light/primary-color) */
@@ -1304,20 +1304,6 @@ defineExpose({
 
 [data-theme="dark"] .vertical-divider {
   background-color: var(--color-border-default);
-}
-
-[data-theme="dark"] .tongdok-completion-group:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .tongdok-custom-checkbox {
-  background-color: transparent;
-  border-color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .tongdok-completion-group:hover .tongdok-custom-checkbox {
-  border-color: var(--primary-color);
-  background-color: rgba(75, 159, 126, 0.1);
 }
 
 /* ==========================================
@@ -1474,20 +1460,6 @@ defineExpose({
   color: var(--color-text-tertiary);
 }
 
-[data-theme="dark"] .tongdok-completion-group:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .tongdok-custom-checkbox {
-  background-color: transparent;
-  border-color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .tongdok-completion-group:hover .tongdok-custom-checkbox {
-  border-color: var(--primary-color);
-  background-color: rgba(75, 159, 126, 0.1);
-}
-
 /* 통독 인디케이터 다크모드 */
 [data-theme="dark"] .tongdok-indicator {
   background: rgba(107, 201, 159, 0.1);
@@ -1617,6 +1589,56 @@ defineExpose({
     0 2px 6px rgba(16, 185, 129, 0.2);
 }
 
+.tongdok-complete-floating-btn {
+  position: fixed;
+  left: 50%;
+  bottom: 118px;
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: calc(100% - 48px);
+  max-width: 360px;
+  padding: 0.75rem 1.25rem;
+  color: white;
+  background: linear-gradient(135deg, var(--color-success, #10b981) 0%, #34d399 100%);
+  border: none;
+  border-radius: 12px;
+  box-shadow:
+    0 10px 24px rgba(16, 185, 129, 0.28),
+    0 3px 8px rgba(16, 185, 129, 0.2);
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transform: translateX(-50%);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.tongdok-complete-floating-scrim {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 98px;
+  z-index: 98;
+  height: 7rem;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    var(--color-bg-primary, #ffffff) 0%,
+    var(--color-bg-primary, #ffffff) 86%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.tongdok-complete-floating-btn svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.tongdok-complete-floating-btn:hover:not(:disabled),
 .tongdok-complete-btn-inline:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--color-success-dark, #059669) 0%, #10b981 100%);
   transform: translateY(-2px);
@@ -1625,6 +1647,11 @@ defineExpose({
     0 4px 10px rgba(16, 185, 129, 0.25);
 }
 
+.tongdok-complete-floating-btn:hover:not(:disabled) {
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.tongdok-complete-floating-btn:active:not(:disabled),
 .tongdok-complete-btn-inline:active:not(:disabled) {
   transform: translateY(0) scale(0.98);
   box-shadow: 
@@ -1632,11 +1659,35 @@ defineExpose({
     0 1px 4px rgba(16, 185, 129, 0.2);
 }
 
+.tongdok-complete-floating-btn:active:not(:disabled) {
+  transform: translateX(-50%) scale(0.98);
+}
+
+.tongdok-complete-floating-btn:disabled,
 .tongdok-complete-btn-inline:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+@supports (bottom: env(safe-area-inset-bottom)) {
+  .tongdok-complete-floating-btn {
+    bottom: calc(118px + env(safe-area-inset-bottom));
+  }
+
+  .tongdok-complete-floating-scrim {
+    bottom: calc(98px + env(safe-area-inset-bottom));
+  }
+}
+
+[data-theme="dark"] .tongdok-complete-floating-scrim {
+  background: linear-gradient(
+    to top,
+    var(--color-bg-primary, #111827) 0%,
+    var(--color-bg-primary, #111827) 86%,
+    rgba(17, 24, 39, 0) 100%
+  );
 }
 
 /* 통독 진행률 바 (인스타그램 스토리 스타일) */
@@ -1716,24 +1767,6 @@ defineExpose({
     padding-left: 10px;
     padding-right: 10px;
   }
-}
-
-.tongdok-checkbox-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  cursor: pointer;
-  border-radius: 4px;
-  margin-right: -4px; /* Adjust spacing since we added padding */
-}
-
-.tongdok-checkbox-wrapper:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-[data-theme="dark"] .tongdok-checkbox-wrapper:hover {
-  background-color: rgba(255, 255, 255, 0.1);
 }
 
 </style>
