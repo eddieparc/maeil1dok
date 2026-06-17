@@ -166,6 +166,74 @@ def summarize_with_gemini(transcript: str) -> dict | None:
         return None
 
 
+def summarize_youtube_video_with_gemini(video_id: str) -> dict | None:
+    api_key = getattr(settings, 'GEMINI_API_KEY', None)
+    if not api_key:
+        logger.error("GEMINI_API_KEY not configured")
+        return None
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        prompt = """다음 하세나하시조 YouTube 영상의 음성 내용을 바탕으로 아래 형식에 맞춰 요약해주세요.
+
+## 출력 형식 (반드시 준수)
+
+**오늘의 본문**
+[성경 구절 (예: 마태복음 27장 1-10절)]
+[본문 내용을 2-3문장으로 요약. **핵심 단어**는 볼드 처리]
+
+**교역자 해설**
+[교역자가 전달하는 핵심 메시지를 3-4문장으로 정리. **중요한 개념이나 교훈**은 볼드 처리]
+
+**오늘의 하시조**
+- [ ] [구체적인 실천 항목 1]
+- [ ] [구체적인 실천 항목 2]
+- [ ] [구체적인 실천 항목 3]
+
+## 작성 지침
+1. **정중한 존댓말**(~습니다, ~해요)을 사용하세요.
+2. **간결하고 명확한 문체**를 사용하세요.
+3. 하시조는 **반드시 영상에서 교역자가 제안한 내용만** 작성하세요. AI가 임의로 창작하거나 추가하지 마세요.
+4. 각 섹션 제목은 **볼드**로 표시하세요.
+5. 핵심 키워드나 중요한 내용은 **볼드**로 강조하세요.
+6. 하시조 항목은 `- [ ]` 형식으로 작성하세요.
+"""
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=types.Content(
+                parts=[
+                    types.Part(
+                        file_data=types.FileData(
+                            file_uri=f'https://www.youtube.com/watch?v={video_id}',
+                            mime_type='video/*',
+                        )
+                    ),
+                    types.Part(text=prompt),
+                ]
+            ),
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=16384,
+            )
+        )
+
+        return {
+            'summary': response.text,
+            'model': 'gemini-2.5-flash-video'
+        }
+    except Exception as e:
+        error_str = str(e)
+        logger.error(f"Error calling Gemini video API: {error_str}")
+
+        if '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
+            return {'error': 'quota_exceeded', 'message': 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.'}
+
+        return None
+
+
 def get_existing_summary(video_id: str) -> dict:
     from ..models import HasenaSummary
     
@@ -214,14 +282,7 @@ def get_hasena_summary(video_id: str, video_date: date = None, title: str = None
         logger.error(f"Error checking existing summary: {str(e)}")
     
     transcript = get_youtube_transcript(video_id)
-    if not transcript:
-        return {
-            'success': False,
-            'error': '영상 자막을 가져올 수 없습니다.',
-            'video_id': video_id
-        }
-    
-    summary_result = summarize_with_gemini(transcript)
+    summary_result = summarize_with_gemini(transcript) if transcript else summarize_youtube_video_with_gemini(video_id)
     if not summary_result:
         return {
             'success': False,
@@ -243,7 +304,7 @@ def get_hasena_summary(video_id: str, video_date: date = None, title: str = None
             video_id=video_id,
             defaults={
                 'summary': summary_result['summary'],
-                'transcript': transcript,
+                'transcript': transcript or '',
                 'model_used': summary_result['model'],
                 'video_date': video_date,
                 'title': title or '',
