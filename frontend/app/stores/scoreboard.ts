@@ -11,9 +11,14 @@ interface LeaderboardEntry {
     role?: string
   }
   completed_days: number
+  bible_completed_days: number
+  hasena_completed_days: number
+  activity_score: number
   progress_rate: number
   current_streak: number
   longest_streak: number
+  current_hasena_streak: number
+  longest_hasena_streak: number
   joined_at?: string
 }
 
@@ -21,6 +26,9 @@ interface MyRanking {
   rank: number
   total_users: number
   completed_days: number
+  bible_completed_days: number
+  hasena_completed_days: number
+  activity_score: number
   current_streak: number
   longest_streak: number
   percentile: number
@@ -28,6 +36,34 @@ interface MyRanking {
 
 type Period = 'all' | 'week' | 'month'
 type FollowType = 'mutual' | 'following'
+
+const normalizeLeaderboardEntry = (entry: LeaderboardEntry): LeaderboardEntry => {
+  const bibleCompletedDays = entry.bible_completed_days ?? entry.completed_days ?? 0
+  const hasenaCompletedDays = entry.hasena_completed_days ?? 0
+
+  return {
+    ...entry,
+    completed_days: entry.completed_days ?? bibleCompletedDays,
+    bible_completed_days: bibleCompletedDays,
+    hasena_completed_days: hasenaCompletedDays,
+    activity_score: entry.activity_score ?? bibleCompletedDays + hasenaCompletedDays,
+    current_hasena_streak: entry.current_hasena_streak ?? 0,
+    longest_hasena_streak: entry.longest_hasena_streak ?? 0
+  }
+}
+
+const normalizeMyRanking = (ranking: MyRanking): MyRanking => {
+  const bibleCompletedDays = ranking.bible_completed_days ?? ranking.completed_days ?? 0
+  const hasenaCompletedDays = ranking.hasena_completed_days ?? 0
+
+  return {
+    ...ranking,
+    completed_days: ranking.completed_days ?? bibleCompletedDays,
+    bible_completed_days: bibleCompletedDays,
+    hasena_completed_days: hasenaCompletedDays,
+    activity_score: ranking.activity_score ?? bibleCompletedDays + hasenaCompletedDays
+  }
+}
 
 export const useScoreboardStore = defineStore('scoreboard', {
   state: () => ({
@@ -74,13 +110,13 @@ export const useScoreboardStore = defineStore('scoreboard', {
       this.currentPlanId = planId || null
       
       try {
-        const params: any = { period, limit }
+        const params: Record<string, string | number> = { period, limit }
         if (planId) params.plan_id = planId
         
         const response = await useApi().get('/api/v1/todos/scoreboard/', { params })
 
         if (response.data?.success) {
-          this.globalLeaderboard = response.data.leaderboard
+          this.globalLeaderboard = (response.data.leaderboard ?? []).map(normalizeLeaderboardEntry)
         }
       } catch (error: any) {
         this.error = error.message || '리더보드를 불러올 수 없습니다.'
@@ -96,7 +132,7 @@ export const useScoreboardStore = defineStore('scoreboard', {
       this.currentFollowType = type
 
       try {
-        const params: any = { period, type }
+        const params: Record<string, string | number> = { period, type }
         if (planId) params.plan_id = planId
 
         const response = await useApi().get('/api/v1/todos/scoreboard/friends/', { params })
@@ -104,9 +140,9 @@ export const useScoreboardStore = defineStore('scoreboard', {
         if (response.data?.success) {
           // type에 따라 다른 상태에 저장
           if (type === 'following') {
-            this.followingLeaderboard = response.data.leaderboard
+            this.followingLeaderboard = (response.data.leaderboard ?? []).map(normalizeLeaderboardEntry)
           } else {
-            this.friendsLeaderboard = response.data.leaderboard
+            this.friendsLeaderboard = (response.data.leaderboard ?? []).map(normalizeLeaderboardEntry)
           }
         }
       } catch (error: any) {
@@ -128,7 +164,7 @@ export const useScoreboardStore = defineStore('scoreboard', {
         })
 
         if (response.data?.success) {
-          this.groupLeaderboard = response.data.leaderboard
+          this.groupLeaderboard = (response.data.leaderboard ?? []).map(normalizeLeaderboardEntry)
         }
       } catch (error: any) {
         this.error = error.message || '그룹 리더보드를 불러올 수 없습니다.'
@@ -139,13 +175,13 @@ export const useScoreboardStore = defineStore('scoreboard', {
 
     async fetchMyRanking(period: Period = 'all', planId?: number) {
       try {
-        const params: any = { period }
+        const params: Record<string, string | number> = { period }
         if (planId) params.plan_id = planId
         
         const response = await useApi().get('/api/v1/todos/scoreboard/my-ranking/', { params })
 
         if (response.data?.success) {
-          this.myRanking = response.data.ranking
+          this.myRanking = normalizeMyRanking(response.data.ranking)
         }
       } catch (error) {
         console.error('내 순위 조회 실패:', error)

@@ -31,7 +31,8 @@
       </div>
     </td>
     <td class="text-center">
-      <span class="days-count">{{ completedDays }}</span>
+      <span class="days-count">{{ activityScore }}</span>
+      <span class="activity-breakdown">통독 {{ bibleCompletedDays }} · 하세나 {{ hasenaCompletedDays }}</span>
     </td>
     <td class="text-center">
       <div class="progress-wrapper">
@@ -44,7 +45,7 @@
         <span class="progress-text">{{ progressRate }}%</span>
       </div>
     </td>
-    <td class="text-center">
+    <td class="text-center mobile-hide">
       <span class="streak current">{{ currentStreak }}일</span>
     </td>
     <td class="text-center mobile-hide">
@@ -70,6 +71,18 @@ const props = defineProps({
     validator: (value) => value.id && value.nickname
   },
   completedDays: {
+    type: Number,
+    default: 0
+  },
+  bibleCompletedDays: {
+    type: Number,
+    default: 0
+  },
+  hasenaCompletedDays: {
+    type: Number,
+    default: 0
+  },
+  activityScore: {
     type: Number,
     default: 0
   },
@@ -185,10 +198,13 @@ tr:hover {
 }
 
 .user-name {
+  display: inline-block;
   font-weight: 600;
   color: var(--text-primary);
   text-decoration: none;
   transition: color var(--transition-fast);
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .user-name:hover {
@@ -220,6 +236,14 @@ tr:hover {
 .days-count {
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.activity-breakdown {
+  display: block;
+  margin-top: 0.125rem;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  white-space: nowrap;
 }
 
 .progress-wrapper {
@@ -276,7 +300,11 @@ tr:hover {
   .rank-cell,
   .user-cell,
   .text-center {
-    padding: 0.75rem 0.5rem;
+    padding: 0.75rem 0.375rem;
+  }
+
+  .user-info {
+    gap: 0.5rem;
   }
 
   .user-avatar,
@@ -296,11 +324,20 @@ tr:hover {
   }
 
   .progress-bar {
-    width: 60px;
+    width: 42px;
   }
 
   .progress-text {
-    font-size: 0.8125rem;
+    min-width: 34px;
+    font-size: 0.75rem;
+  }
+
+  .progress-wrapper {
+    gap: 0.25rem;
+  }
+
+  .activity-breakdown {
+    font-size: 0.625rem;
   }
 }
 </style>

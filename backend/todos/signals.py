@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import PlanSubscription, UserPlanDisplaySettings, UserBibleProgress
+from .models import HasenaRecord, PlanSubscription, UserPlanDisplaySettings, UserBibleProgress
 from .constants import PLAN_COLORS
 from accounts.services.achievement_service import AchievementService
 
@@ -36,3 +36,9 @@ def update_stats_and_achievements(sender, instance, **kwargs):
 
         # 업적 확인 및 부여
         AchievementService.check_and_grant_achievements(user)
+
+
+@receiver(post_save, sender=HasenaRecord)
+def update_hasena_achievements(sender, instance, **kwargs):
+    if instance.is_completed:
+        AchievementService.check_and_grant_achievements(instance.user)

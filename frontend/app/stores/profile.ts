@@ -24,12 +24,15 @@ interface UserProfile {
 }
 
 interface Achievement {
-  id: number
+  id: number | null
   achievement_type: string
-  achievement_display: string
-  achieved_at: string
+  title: string
+  description: string
+  icon: string
+  order: number
+  unlocked: boolean
+  unlockedAt: string | null
   milestone_value: number
-  details: any
 }
 
 interface CalendarData {
