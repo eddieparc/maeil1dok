@@ -182,6 +182,9 @@ class UserAchievement(models.Model):
         ('book_complete', '책 완독'),
         ('testament_complete', '구약/신약 완독'),
         ('bible_complete', '성경 완독'),
+        ('hasena_total_30', '하세나하시조 30일'),
+        ('hasena_total_100', '하세나하시조 100일'),
+        ('hasena_streak_7', '하세나하시조 7회 연속'),
     ]
     
     user = models.ForeignKey(

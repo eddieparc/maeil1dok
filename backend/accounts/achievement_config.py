@@ -61,6 +61,24 @@ ACHIEVEMENT_METADATA = {
         'description': '성경 66권 전체 완독',
         'icon': 'fa-solid fa-trophy',
         'order': 10
+    },
+    'hasena_total_30': {
+        'title': '하시조 30일',
+        'description': '하세나하시조 30일 완료',
+        'icon': 'fa-solid fa-star',
+        'order': 11
+    },
+    'hasena_total_100': {
+        'title': '하시조 100일',
+        'description': '하세나하시조 100일 완료',
+        'icon': 'fa-solid fa-hands-praying',
+        'order': 12
+    },
+    'hasena_streak_7': {
+        'title': '하시조 일주일',
+        'description': '하세나하시조 7회 연속 완료',
+        'icon': 'fa-solid fa-fire',
+        'order': 13
     }
 }
 

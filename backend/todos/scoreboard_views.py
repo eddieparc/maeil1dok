@@ -2,7 +2,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Count, Q, Sum, Case, When, IntegerField, Prefetch
+from django.db.models import Count, F, Q, Sum, Case, When, IntegerField, Prefetch
 from django.utils import timezone
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
@@ -11,11 +11,15 @@ from datetime import datetime, timedelta
 from accounts.models import User, Follow
 from accounts.serializers import UserSearchSerializer
 from .models import UserBibleProgress, PlanSubscription, DailyBibleSchedule, ReadingGroup, GroupMembership
+from .services.hasena_activity import (
+    calculate_hasena_activity_stats_bulk,
+    get_hasena_count_annotation,
+)
 import logging
 
 logger = logging.getLogger(__name__)
 
-SCOREBOARD_CACHE_VERSION = 'v2'
+SCOREBOARD_CACHE_VERSION = 'v3'
 
 
 # ===== Helper Functions =====
@@ -216,7 +220,15 @@ def calculate_progress_rates_bulk(users, plan_id=None):
     return rates
 
 
-def build_leaderboard_entry(user, completed_count, plan_id=None, is_me=False, extra_fields=None, progress_rate=None):
+def build_leaderboard_entry(
+    user,
+    completed_count,
+    plan_id=None,
+    is_me=False,
+    extra_fields=None,
+    progress_rate=None,
+    hasena_stats=None,
+):
     """리더보드 엔트리 생성"""
     profile = getattr(user, 'profile', None)
 
@@ -229,6 +241,13 @@ def build_leaderboard_entry(user, completed_count, plan_id=None, is_me=False, ex
         current_streak = profile.current_streak
         longest_streak = profile.longest_streak
 
+    safe_hasena_stats = hasena_stats or {
+        'total_completed': 0,
+        'current_streak': 0,
+        'longest_streak': 0,
+    }
+    activity_score = completed_count + safe_hasena_stats['total_completed']
+
     entry = {
         'user': {
             'id': user.id,
@@ -237,9 +256,14 @@ def build_leaderboard_entry(user, completed_count, plan_id=None, is_me=False, ex
             'is_me': is_me
         },
         'completed_days': completed_count,
+        'bible_completed_days': completed_count,
+        'hasena_completed_days': safe_hasena_stats['total_completed'],
+        'activity_score': activity_score,
         'progress_rate': progress_rate if progress_rate is not None else calculate_progress_rate(user, plan_id),
         'current_streak': current_streak,
-        'longest_streak': longest_streak
+        'longest_streak': longest_streak,
+        'current_hasena_streak': safe_hasena_stats['current_streak'],
+        'longest_hasena_streak': safe_hasena_stats['longest_streak'],
     }
 
     # 추가 필드가 있으면 병합
@@ -251,15 +275,17 @@ def build_leaderboard_entry(user, completed_count, plan_id=None, is_me=False, ex
 
 def get_leaderboard_rank_key(item):
     """순위 동점 여부를 판단하는 키"""
-    return item['completed_days'], item['progress_rate']
+    activity_score = item.get('activity_score', item.get('completed_days', 0))
+    return activity_score, item['progress_rate'], item.get('longest_hasena_streak', 0)
 
 
 def rank_leaderboard(leaderboard, limit=None):
     """리더보드 정렬 및 순위 부여"""
     # 정렬: 완료 일수(내림차순) → 진행률(내림차순) → 닉네임(오름차순)
     leaderboard.sort(key=lambda x: (
-        -x['completed_days'],
+        -x.get('activity_score', x.get('completed_days', 0)),
         -x['progress_rate'],
+        -x.get('longest_hasena_streak', 0),
         x['user']['nickname']
     ))
 
@@ -292,9 +318,11 @@ def get_scoreboard(request):
 
         # 캐시 키 생성
         cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:global:{period}:{plan_id}:{limit}'
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return Response(cached_data)
+        can_use_shared_cache = not request.user.is_authenticated
+        if can_use_shared_cache:
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                return Response(cached_data)
 
         # 기본 쿼리셋
         users_query = User.objects.filter(is_active=True).select_related('profile')
@@ -316,20 +344,32 @@ def get_scoreboard(request):
 
         # 완료 일수 annotate 추가 (N+1 쿼리 해결)
         users_query = users_query.annotate(
-            completed_count=get_completed_count_annotation(period, plan_id)
+            completed_count=get_completed_count_annotation(period, plan_id),
+            hasena_completed_count=get_hasena_count_annotation(period),
+        ).annotate(
+            activity_count=F('completed_count') + F('hasena_completed_count'),
         )
 
-        # 정렬 (DB 레벨에서 처리)
-        users_query = users_query.order_by('-completed_count')[:limit * 2]  # 여유있게 가져오기
+        users_query = users_query.order_by('-activity_count', '-completed_count')[:limit * 2]
 
         # 리더보드 구성 (진행률은 일괄 계산)
         users = list(users_query)
         progress_rates = calculate_progress_rates_bulk(users, plan_id)
+        hasena_stats = calculate_hasena_activity_stats_bulk(users)
 
         leaderboard = []
         for user in users:
-            # completed_count가 0인 사용자는 제외 (선택사항)
-            if user.completed_count == 0 and len(leaderboard) >= limit:
+            period_hasena_count = getattr(user, 'hasena_completed_count', 0)
+            user_hasena_stats = {
+                **hasena_stats.get(user.id, {
+                    'total_completed': 0,
+                    'current_streak': 0,
+                    'longest_streak': 0,
+                }),
+                'total_completed': period_hasena_count,
+            }
+
+            if user.completed_count == 0 and period_hasena_count == 0 and len(leaderboard) >= limit:
                 continue
 
             entry = build_leaderboard_entry(
@@ -337,7 +377,8 @@ def get_scoreboard(request):
                 completed_count=user.completed_count,
                 plan_id=plan_id,
                 is_me=(user == request.user if request.user.is_authenticated else False),
-                progress_rate=progress_rates.get(user.id, 0)
+                progress_rate=progress_rates.get(user.id, 0),
+                hasena_stats=user_hasena_stats,
             )
             leaderboard.append(entry)
 
@@ -351,8 +392,8 @@ def get_scoreboard(request):
             'plan_id': plan_id
         }
 
-        # 캐시 저장 (5분)
-        cache.set(cache_key, result, 300)
+        if can_use_shared_cache:
+            cache.set(cache_key, result, 300)
 
         return Response(result)
     except Exception as e:
@@ -401,24 +442,37 @@ def get_friends_scoreboard(request):
 
         # 완료 일수 annotate 추가
         users_query = users_query.annotate(
-            completed_count=get_completed_count_annotation(period, plan_id)
+            completed_count=get_completed_count_annotation(period, plan_id),
+            hasena_completed_count=get_hasena_count_annotation(period),
+        ).annotate(
+            activity_count=F('completed_count') + F('hasena_completed_count'),
         )
 
-        # 정렬
-        users_query = users_query.order_by('-completed_count')
+        users_query = users_query.order_by('-activity_count', '-completed_count')
 
         # 리더보드 구성 (진행률은 일괄 계산)
         users = list(users_query)
         progress_rates = calculate_progress_rates_bulk(users, plan_id)
+        hasena_stats = calculate_hasena_activity_stats_bulk(users)
 
         leaderboard = []
         for user in users:
+            period_hasena_count = getattr(user, 'hasena_completed_count', 0)
+            user_hasena_stats = {
+                **hasena_stats.get(user.id, {
+                    'total_completed': 0,
+                    'current_streak': 0,
+                    'longest_streak': 0,
+                }),
+                'total_completed': period_hasena_count,
+            }
             entry = build_leaderboard_entry(
                 user=user,
                 completed_count=user.completed_count,
                 plan_id=plan_id,
                 is_me=(user.id == request.user.id),
-                progress_rate=progress_rates.get(user.id, 0)
+                progress_rate=progress_rates.get(user.id, 0),
+                hasena_stats=user_hasena_stats,
             )
             leaderboard.append(entry)
 
@@ -515,7 +569,10 @@ def get_group_scoreboard(request, group_id):
 
         # 완료 일수 annotate
         members = members.annotate(
-            completed_count=get_completed_count_annotation(period, plan.id)
+            completed_count=get_completed_count_annotation(period, plan.id),
+            hasena_completed_count=get_hasena_count_annotation(period),
+        ).annotate(
+            activity_count=F('completed_count') + F('hasena_completed_count'),
         )
 
         # 멤버십 정보 Prefetch
@@ -535,11 +592,12 @@ def get_group_scoreboard(request, group_id):
         )
 
         # 정렬
-        members = members.order_by('-completed_count')
+        members = members.order_by('-activity_count', '-completed_count')
 
         # 리더보드 구성 (진행률은 일괄 계산)
         members = list(members)
         progress_rates = calculate_progress_rates_bulk(members, plan.id)
+        hasena_stats = calculate_hasena_activity_stats_bulk(members)
 
         leaderboard = []
         for user in members:
@@ -555,7 +613,15 @@ def get_group_scoreboard(request, group_id):
             if not membership:
                 continue
 
-            # 엔트리 생성
+            period_hasena_count = getattr(user, 'hasena_completed_count', 0)
+            user_hasena_stats = {
+                **hasena_stats.get(user.id, {
+                    'total_completed': 0,
+                    'current_streak': 0,
+                    'longest_streak': 0,
+                }),
+                'total_completed': period_hasena_count,
+            }
             entry = build_leaderboard_entry(
                 user=user,
                 completed_count=user.completed_count,
@@ -564,7 +630,8 @@ def get_group_scoreboard(request, group_id):
                 extra_fields={
                     'joined_at': membership.joined_at
                 },
-                progress_rate=progress_rates.get(user.id, 0)
+                progress_rate=progress_rates.get(user.id, 0),
+                hasena_stats=user_hasena_stats,
             )
 
             # role 추가
@@ -646,18 +713,28 @@ def get_my_ranking(request):
         users_query = users_query.filter(
             Q(profile__is_public=True) | Q(id=request.user.id)
         ).annotate(
-            completed_count=get_completed_count_annotation(period, plan_id)
+            completed_count=get_completed_count_annotation(period, plan_id),
+            hasena_completed_count=get_hasena_count_annotation(period),
         )
 
         users = list(users_query)
         progress_rates = calculate_progress_rates_bulk(users, plan_id)
+        hasena_stats = calculate_hasena_activity_stats_bulk(users)
         leaderboard = [
             build_leaderboard_entry(
                 user=user,
                 completed_count=user.completed_count,
                 plan_id=plan_id,
                 is_me=(user.id == request.user.id),
-                progress_rate=progress_rates.get(user.id, 0)
+                progress_rate=progress_rates.get(user.id, 0),
+                hasena_stats={
+                    **hasena_stats.get(user.id, {
+                        'total_completed': 0,
+                        'current_streak': 0,
+                        'longest_streak': 0,
+                    }),
+                    'total_completed': getattr(user, 'hasena_completed_count', 0),
+                },
             )
             for user in users
         ]
@@ -667,9 +744,13 @@ def get_my_ranking(request):
         if my_entry:
             my_rank = my_entry['rank']
             my_completed_days = my_entry['completed_days']
+            my_activity_score = my_entry['activity_score']
+            my_hasena_completed_days = my_entry['hasena_completed_days']
         else:
             my_rank = None
             my_completed_days = 0
+            my_activity_score = 0
+            my_hasena_completed_days = 0
 
         # 전체 활성 사용자 수
         if plan_id:
@@ -689,6 +770,9 @@ def get_my_ranking(request):
                 'rank': my_rank,
                 'total_users': total_users,
                 'completed_days': my_completed_days,
+                'bible_completed_days': my_completed_days,
+                'hasena_completed_days': my_hasena_completed_days,
+                'activity_score': my_activity_score,
                 'current_streak': profile.current_streak,
                 'longest_streak': profile.longest_streak,
                 'percentile': round((1 - (my_rank / total_users)) * 100, 2) if my_rank and total_users > 0 else 0

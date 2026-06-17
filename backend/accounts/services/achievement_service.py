@@ -11,6 +11,7 @@ from django.db.models import Count
 from accounts.models import UserAchievement, UserProfile
 from accounts.achievement_config import BIBLE_BOOKS, ALL_BIBLE_BOOKS
 from todos.models import UserBibleProgress, DailyBibleSchedule
+from todos.services.hasena_activity import calculate_hasena_activity_stats
 
 
 class AchievementService:
@@ -22,40 +23,45 @@ class AchievementService:
         profile, _ = UserProfile.objects.get_or_create(user=user)
         granted = []
 
-        # 1. 첫 완독 업적
         if profile.total_completed_days >= 1:
             if AchievementService._grant_achievement(user, 'first_complete', 1):
                 granted.append('first_complete')
 
-        # 2. 연속 일수 업적 (longest_streak 기준)
         streak_milestones = [(7, 'streak_7'), (30, 'streak_30'), (100, 'streak_100')]
         for days, achievement_type in streak_milestones:
             if profile.longest_streak >= days:
                 if AchievementService._grant_achievement(user, achievement_type, days):
                     granted.append(achievement_type)
 
-        # 3. 누적 일수 업적
         total_milestones = [(30, 'total_30'), (100, 'total_100'), (365, 'total_365')]
         for days, achievement_type in total_milestones:
             if profile.total_completed_days >= days:
                 if AchievementService._grant_achievement(user, achievement_type, days):
                     granted.append(achievement_type)
 
-        # 4. 책 완독 업적
+        hasena_stats = calculate_hasena_activity_stats(user)
+        hasena_total_milestones = [(30, 'hasena_total_30'), (100, 'hasena_total_100')]
+        for days, achievement_type in hasena_total_milestones:
+            if hasena_stats['total_completed'] >= days:
+                if AchievementService._grant_achievement(user, achievement_type, days):
+                    granted.append(achievement_type)
+
+        if hasena_stats['longest_streak'] >= 7:
+            if AchievementService._grant_achievement(user, 'hasena_streak_7', 7):
+                granted.append('hasena_streak_7')
+
         book_completed = AchievementService._check_book_completion(user)
         if book_completed:
             if AchievementService._grant_achievement(user, 'book_complete', len(book_completed),
                                                       details={'books': book_completed}):
                 granted.append('book_complete')
 
-        # 5. 구약/신약 완독 업적
         testament_completed = AchievementService._check_testament_completion(user)
         if testament_completed:
             if AchievementService._grant_achievement(user, 'testament_complete', len(testament_completed),
                                                       details={'testaments': testament_completed}):
                 granted.append('testament_complete')
 
-        # 6. 성경 완독 업적
         if AchievementService._check_bible_completion(user):
             if AchievementService._grant_achievement(user, 'bible_complete', 66):
                 granted.append('bible_complete')

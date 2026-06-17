@@ -14,8 +14,9 @@
           </div>
           <div class="ranking-stats">
             <div class="stat-item">
-              <p class="stat-label">완료한 일수</p>
-              <p class="stat-value">{{ myRanking.completed_days }}일</p>
+              <p class="stat-label">활동 점수</p>
+              <p class="stat-value">{{ myRanking.activity_score }}</p>
+              <p class="stat-detail">통독 {{ myRanking.bible_completed_days }} · 하세나 {{ myRanking.hasena_completed_days }}</p>
             </div>
             <div class="stat-item">
               <p class="stat-label">현재 연속</p>
@@ -72,7 +73,8 @@
               </div>
               <p class="top-name">{{ entry.user.nickname }}</p>
               <div class="top-stats">
-                <span class="top-days">{{ entry.completed_days }}일</span>
+                <span class="top-days">{{ entry.activity_score }}점</span>
+                <span class="top-hasena">하세나 {{ entry.hasena_completed_days }}</span>
                 <span class="top-rate">{{ entry.progress_rate }}%</span>
               </div>
             </div>
@@ -85,9 +87,9 @@
                 <tr>
                   <th class="th-rank">순위</th>
                   <th class="th-user">사용자</th>
-                  <th class="text-center">완료</th>
+                  <th class="text-center">활동</th>
                   <th class="text-center">진행률</th>
-                  <th class="text-center">연속</th>
+                  <th class="text-center mobile-hide">연속</th>
                   <th class="text-center mobile-hide">최장</th>
                 </tr>
               </thead>
@@ -98,6 +100,9 @@
                   :rank="entry.rank"
                   :user="entry.user"
                   :completed-days="entry.completed_days"
+                  :bible-completed-days="entry.bible_completed_days"
+                  :hasena-completed-days="entry.hasena_completed_days"
+                  :activity-score="entry.activity_score"
                   :progress-rate="entry.progress_rate"
                   :current-streak="entry.current_streak"
                   :longest-streak="entry.longest_streak"
@@ -297,6 +302,13 @@ onUnmounted(() => {
   font-family: 'Pretendard', sans-serif;
 }
 
+.stat-detail {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
 /* 필터 섹션 */
 .filter-section {
   display: flex;
@@ -443,6 +455,12 @@ onUnmounted(() => {
   font-size: 0.75rem;
   color: var(--color-slate-500);
   font-weight: 500;
+}
+
+.top-hasena {
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 /* 테이블 */
