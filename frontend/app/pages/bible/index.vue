@@ -179,6 +179,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import type { LocationQueryValue } from 'vue-router';
 // useBibleFetch는 이제 useBibleContent 내부에서 사용됨
 import { useTongdokMode } from '~/composables/useTongdokMode';
 import { usePersonalRecord } from '~/composables/usePersonalRecord';
@@ -406,6 +407,7 @@ const bibleReaderViewRef = ref<InstanceType<typeof BibleReaderView> | null>(null
 const scrollPosition = ref(0);
 const hasReaderScrollPosition = ref(false);
 const pendingVerseFocus = ref<BibleVerseRange | null>(null);
+const pendingSearchFocus = ref<string | null>(null);
 const showScheduleModal = ref(false);
 const showTongdokPlanModal = ref(false);
 const showTongdokAudioPlayer = ref(false);
@@ -482,6 +484,7 @@ const currentSelectionHighlight = computed(() => {
 const initFromQuery = () => {
   initFromQueryBase(route.query);
   pendingVerseFocus.value = parseVerseRangeParam(route.query.verse);
+  pendingSearchFocus.value = parseSearchFocusParam(route.query.search);
 };
 
 // 성경 본문 로드 (composable wrapper)
@@ -494,7 +497,13 @@ const focusPendingVerseRange = async () => {
   if (!verseRange) return;
 
   await nextTick();
-  bibleReaderViewRef.value?.focusVerseRange(verseRange.start, verseRange.end);
+  bibleReaderViewRef.value?.focusVerseRange(verseRange.start, verseRange.end, pendingSearchFocus.value);
+};
+
+const parseSearchFocusParam = (value: LocationQueryValue | LocationQueryValue[] | undefined): string | null => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const normalized = rawValue?.trim();
+  return normalized ? normalized : null;
 };
 
 const setReaderScrollPosition = (position: number, fromReaderScroll = false) => {

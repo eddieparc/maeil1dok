@@ -15,6 +15,7 @@
         <label class="search-field">
           <SearchIcon :size="18" />
           <input
+            ref="searchInputRef"
             v-model.trim="query"
             type="search"
             enterkeyhint="search"
@@ -55,16 +56,19 @@
       >
         <div class="result-meta">
           <span>{{ versionLabel(result.version) }}</span>
-          <strong>{{ bookLabel(result.book) }} {{ result.chapter }}{{ chapterSuffix(result.book) }}</strong>
+          <strong>
+            {{ bookLabel(result.book) }} {{ result.chapter }}{{ chapterSuffix(result.book) }}
+            <template v-if="result.verse"> {{ result.verse }}절</template>
+          </strong>
         </div>
-        <p>{{ result.snippet }}</p>
+        <p v-html="highlightSnippet(result.snippet)"></p>
       </NuxtLink>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ChevronLeftIcon, SearchIcon } from '@lucide/vue';
 import { useApi } from '~/composables/useApi';
@@ -75,6 +79,7 @@ type SearchResult = {
   readonly version: string;
   readonly book: string;
   readonly chapter: number;
+  readonly verse?: number | null;
   readonly snippet: string;
 };
 
@@ -94,6 +99,7 @@ const results = ref<readonly SearchResult[]>([]);
 const message = ref('');
 const isSearching = ref(false);
 const hasSearched = ref(false);
+const searchInputRef = ref<HTMLInputElement | null>(null);
 
 const versionOptions = computed(() =>
   Object.entries(versionNames).map(([code, name]) => ({ code, name }))
@@ -137,11 +143,71 @@ const goBack = (): void => {
 };
 
 const resultUrl = (result: SearchResult): string =>
-  `/bible?book=${result.book}&chapter=${result.chapter}&version=${result.version}`;
+  router.resolve({
+    path: '/bible',
+    query: {
+      book: result.book,
+      chapter: String(result.chapter),
+      version: result.version,
+      verse: result.verse ? String(result.verse) : undefined,
+      search: query.value,
+    },
+  }).href;
 
 const versionLabel = (code: string): string => versionNames[code] || code;
 const bookLabel = (book: string): string => bookNames[book] || book;
 const chapterSuffix = (book: string): string => getChapterUnit(book);
+const sanitizeSnippet = (snippet: string): string =>
+  decodeHtmlEntities(snippet)
+    .replace(/\s*직접입력\s*\[[^\]]+\]\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const decodeHtmlEntities = (value: string): string => {
+  if (typeof document === 'undefined') return value.replace(/&nbsp;/g, ' ');
+
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = value;
+  return textarea.value;
+};
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlightSnippet = (snippet: string): string => {
+  const cleaned = sanitizeSnippet(snippet);
+  const escaped = escapeHtml(cleaned);
+  if (!query.value) return escaped;
+
+  return escaped.replace(
+    new RegExp(`(${escapeRegExp(escapeHtml(query.value))})`, 'gi'),
+    '<mark class="search-hit">$1</mark>'
+  );
+};
+
+const focusSearchInput = (): void => {
+  searchInputRef.value?.focus();
+};
+
+const handleGlobalKeydown = (event: KeyboardEvent): void => {
+  if (event.key !== '/') return;
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const target = event.target;
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+    return;
+  }
+
+  event.preventDefault();
+  focusSearchInput();
+};
 
 const parseSearchResponse = (value: unknown): SearchResponse => {
   if (!isRecord(value)) {
@@ -162,8 +228,17 @@ const isSearchResult = (value: unknown): value is SearchResult =>
   typeof value.version === 'string' &&
   typeof value.book === 'string' &&
   typeof value.chapter === 'number' &&
+  (typeof value.verse === 'number' || value.verse === null || value.verse === undefined) &&
   typeof value.snippet === 'string';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
+
+onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown);
+});
 </script>

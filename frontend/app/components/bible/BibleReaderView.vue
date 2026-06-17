@@ -469,8 +469,8 @@ defineExpose({
   scrollToVerse: (verseNumber: number) => {
     bibleViewerRef.value?.scrollToVerse(verseNumber);
   },
-  focusVerseRange: (startVerse: number, endVerse: number) => {
-    bibleViewerRef.value?.focusVerseRange(startVerse, endVerse);
+  focusVerseRange: (startVerse: number, endVerse: number, searchTerm?: string | null) => {
+    bibleViewerRef.value?.focusVerseRange(startVerse, endVerse, searchTerm);
   },
 });
 </script>

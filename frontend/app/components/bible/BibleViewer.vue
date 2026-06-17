@@ -633,6 +633,59 @@ const restoreScrollPosition = () => {
 // 검색 결과 강조용 타이머
 let searchHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
+const clearFocusedSearchTerms = () => {
+  if (!viewerRef.value) return;
+
+  viewerRef.value.querySelectorAll('mark.focused-search-term')
+    .forEach((mark) => {
+      mark.replaceWith(document.createTextNode(mark.textContent || ''));
+    });
+};
+
+const findVerseElement = (verseNumber: number): Element | null => {
+  if (!viewerRef.value) return null;
+
+  const verseElements = viewerRef.value.querySelectorAll('.verse');
+  for (const el of verseElements) {
+    const numEl = el.querySelector('.verse-number');
+    const num = parseInt(numEl?.textContent?.trim() || '0', 10);
+    if (num === verseNumber) return el;
+  }
+
+  const supEl = viewerRef.value.querySelector(`[data-verse="${verseNumber}"]`);
+  return supEl?.closest('.verse') || supEl;
+};
+
+const focusSearchTermInVerse = (verseNumber: number, searchTerm?: string | null) => {
+  clearFocusedSearchTerms();
+  if (!searchTerm) return;
+
+  const targetVerse = findVerseElement(verseNumber);
+  if (!targetVerse) return;
+
+  const normalizedTerm = searchTerm.trim().toLowerCase();
+  if (!normalizedTerm) return;
+
+  const walker = document.createTreeWalker(targetVerse, NodeFilter.SHOW_TEXT);
+  let currentNode = walker.nextNode();
+  while (currentNode) {
+    const text = currentNode.textContent || '';
+    const index = text.toLowerCase().indexOf(normalizedTerm);
+    if (index >= 0) {
+      const range = document.createRange();
+      range.setStart(currentNode, index);
+      range.setEnd(currentNode, index + searchTerm.trim().length);
+      const mark = document.createElement('mark');
+      mark.className = 'focused-search-term';
+      range.surroundContents(mark);
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+      return;
+    }
+
+    currentNode = walker.nextNode();
+  }
+};
+
 // 특정 절로 스크롤 및 강조
 const scrollToVerse = (verseNumber: number) => {
   if (!viewerRef.value) return;
@@ -642,32 +695,13 @@ const scrollToVerse = (verseNumber: number) => {
     clearTimeout(searchHighlightTimeout);
     searchHighlightTimeout = null;
   }
+  clearFocusedSearchTerms();
   viewerRef.value.querySelectorAll('.verse.search-highlight')
     .forEach((el) => {
       el.classList.remove('search-highlight');
     });
 
-  // .verse-number 요소에서 해당 절 번호를 가진 것을 찾음
-  const verseElements = viewerRef.value.querySelectorAll('.verse');
-  let targetVerse: Element | null = null;
-
-  verseElements.forEach((el) => {
-    const numEl = el.querySelector('.verse-number');
-    if (numEl) {
-      const num = parseInt(numEl.textContent?.trim() || '0', 10);
-      if (num === verseNumber) {
-        targetVerse = el;
-      }
-    }
-  });
-
-  // 찾지 못하면 data-verse 속성으로 재시도 (sup 태그)
-  if (!targetVerse) {
-    const supEl = viewerRef.value.querySelector(`[data-verse="${verseNumber}"]`);
-    if (supEl) {
-      targetVerse = supEl.closest('.verse') || supEl;
-    }
-  }
+  const targetVerse = findVerseElement(verseNumber);
 
   if (targetVerse) {
     // 스크롤
@@ -684,7 +718,7 @@ const scrollToVerse = (verseNumber: number) => {
   }
 };
 
-const focusVerseRange = (startVerse: number, endVerse: number) => {
+const focusVerseRange = (startVerse: number, endVerse: number, searchTerm?: string | null) => {
   if (!viewerRef.value || startVerse <= 0 || endVerse < startVerse) return;
 
   clearAllSelections();
@@ -692,6 +726,9 @@ const focusVerseRange = (startVerse: number, endVerse: number) => {
   selectionMode.value = null;
   highlightVerses(startVerse, endVerse);
   scrollToVerse(startVerse);
+  nextTick(() => {
+    focusSearchTermInVerse(startVerse, searchTerm);
+  });
 };
 
 // 문서 클릭 시 메뉴 닫기
@@ -1074,6 +1111,19 @@ defineExpose({
 .theme-dark .bible-content :deep(.verse.search-highlight) {
   background-color: rgba(251, 191, 36, 0.2) !important;
   box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
+}
+
+.bible-content :deep(.focused-search-term) {
+  border-radius: 4px;
+  background: rgba(250, 204, 21, 0.72);
+  color: inherit;
+  padding: 0 2px;
+  box-shadow: 0 0 0 2px rgba(202, 138, 4, 0.32);
+}
+
+.theme-dark .bible-content :deep(.focused-search-term) {
+  background: rgba(250, 204, 21, 0.58);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.28);
 }
 
 @keyframes search-pulse {

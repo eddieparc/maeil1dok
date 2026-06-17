@@ -225,6 +225,7 @@ def search_cached_content(request):
                 'version': result.version,
                 'book': result.book,
                 'chapter': result.chapter,
+                'verse': result.verse,
                 'snippet': result.snippet,
                 'updated_at': result.updated_at,
             }
