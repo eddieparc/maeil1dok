@@ -4,13 +4,19 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 
 from .models import (
     BibleReadingPlan, DailyBibleSchedule, PlanSubscription, UserBibleProgress,
     UserReadingPosition,
 )
-from .scoreboard_views import calculate_progress_rate, calculate_progress_rates_bulk, rank_leaderboard
+from .scoreboard_views import (
+    calculate_progress_rate,
+    calculate_progress_rates_bulk,
+    get_my_ranking,
+    get_scoreboard,
+    rank_leaderboard,
+)
 from .serializers import UserReadingPositionSerializer
 
 User = get_user_model()
@@ -260,6 +266,7 @@ class ScoreboardRankingTest(TestCase):
     def setUp(self):
         cache.clear()
         self.client = APIClient()
+        self.factory = APIRequestFactory()
         self.reader = User.objects.create_user(
             username='reader', nickname='가나', password='pw-test-1234',
         )
@@ -324,11 +331,12 @@ class ScoreboardRankingTest(TestCase):
             self._complete(self.reader_other_sub, schedule)
         self._complete(self.other_selected_sub, self.selected_schedules[0])
 
-        response = self.client.get(self.SCOREBOARD_URL, {
+        request = self.factory.get(self.SCOREBOARD_URL, {
             'period': 'all',
             'plan_id': self.selected_plan.id,
             'limit': 10,
         })
+        response = get_scoreboard(request)
 
         self.assertEqual(response.status_code, 200)
         leaderboard = response.data['leaderboard']
@@ -345,10 +353,11 @@ class ScoreboardRankingTest(TestCase):
         self.reader.profile.save(update_fields=['total_completed_days'])
         self._complete(self.other_selected_sub, self.selected_schedules[0])
 
-        response = self.client.get(self.SCOREBOARD_URL, {
+        request = self.factory.get(self.SCOREBOARD_URL, {
             'period': 'all',
             'limit': 10,
         })
+        response = get_scoreboard(request)
 
         self.assertEqual(response.status_code, 200)
         leaderboard = response.data['leaderboard']
@@ -365,10 +374,12 @@ class ScoreboardRankingTest(TestCase):
         self._complete(self.other_selected_sub, self.selected_schedules[0])
         self.client.force_authenticate(user=self.reader)
 
-        response = self.client.get(self.MY_RANKING_URL, {
+        request = self.factory.get(self.MY_RANKING_URL, {
             'period': 'all',
             'plan_id': self.selected_plan.id,
         })
+        force_authenticate(request, user=self.reader)
+        response = get_my_ranking(request)
 
         self.assertEqual(response.status_code, 200)
         ranking = response.data['ranking']

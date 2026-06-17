@@ -42,12 +42,38 @@
         />
       </div>
 
+      <section id="activity-score-explanation" class="score-explainer fade-in delay-200">
+        <div>
+          <p class="explainer-title">활동 점수</p>
+          <p class="explainer-copy">통독 완료와 하세나 완료를 합산한 활동 점수입니다. 같은 점수라면 진행률, 하세나 최장 연속, 닉네임 순으로 정렬됩니다.</p>
+        </div>
+        <div class="explainer-metrics" aria-label="활동 점수 구성">
+          <span>통독</span>
+          <span>하세나</span>
+          <span>진행률</span>
+        </div>
+      </section>
+
       <!-- 리더보드 카드 -->
       <div class="leaderboard-card fade-in delay-300">
         <!-- 로딩 상태 -->
         <LoadingState v-if="isLoading" message="리더보드를 불러오는 중..." />
 
         <!-- 데이터 있을 때 -->
+        <div v-else-if="showAuthGate" class="leaderboard-empty-panel">
+          <EmptyState
+            title="로그인이 필요합니다"
+            description="친구와 팔로잉 리더보드는 로그인 후 확인할 수 있습니다."
+          />
+        </div>
+
+        <div v-else-if="showRelationshipEmptyState" class="leaderboard-empty-panel">
+          <EmptyState
+            :title="relationshipEmptyState.title"
+            :description="relationshipEmptyState.description"
+          />
+        </div>
+
         <div v-else-if="currentLeaderboard.length > 0">
           <!-- Top 3 하이라이트 (전체 보기일 때만) -->
           <div v-if="activeView === 'global' && topThree.length > 0" class="top-three">
@@ -82,7 +108,7 @@
 
           <!-- 테이블 -->
           <div class="table-wrapper">
-            <table class="leaderboard-table">
+            <table class="leaderboard-table" aria-describedby="activity-score-explanation">
               <thead>
                 <tr>
                   <th class="th-rank">순위</th>
@@ -114,7 +140,7 @@
         </div>
 
         <!-- 빈 상태 -->
-        <EmptyState v-else title="리더보드 데이터가 없습니다" />
+        <EmptyState v-else title="리더보드 데이터가 없습니다" description="아직 이 기간에 집계된 통독 또는 하세나 활동이 없습니다." />
       </div>
     </div>
   </PageLayout>
@@ -160,6 +186,30 @@ const currentLeaderboard = computed(() => {
     return scoreboardStore.followingLeaderboard
   } else {
     return scoreboardStore.friendsLeaderboard
+  }
+})
+
+const showAuthGate = computed(() => {
+  return activeView.value !== 'global' && !auth.isAuthenticated.value
+})
+
+const showRelationshipEmptyState = computed(() => {
+  if (!auth.isAuthenticated.value) return false
+  if (activeView.value === 'friends') return scoreboardStore.friendsLeaderboard.length === 0
+  if (activeView.value === 'following') return scoreboardStore.followingLeaderboard.length === 0
+  return false
+})
+
+const relationshipEmptyState = computed(() => {
+  if (activeView.value === 'following') {
+    return {
+      title: '팔로잉 활동이 아직 없습니다',
+      description: '팔로잉한 사용자의 통독과 하세나 활동이 생기면 이곳에 함께 표시됩니다.'
+    }
+  }
+  return {
+    title: '친구 리더보드가 아직 비어 있습니다',
+    description: '서로 팔로우한 친구의 통독과 하세나 활동이 생기면 이곳에서 비교할 수 있습니다.'
   }
 })
 
@@ -317,6 +367,45 @@ onUnmounted(() => {
   justify-content: space-between;
 }
 
+.score-explainer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 12px;
+  background: var(--color-bg-card);
+}
+
+.explainer-title {
+  margin: 0 0 0.25rem 0;
+  color: var(--color-slate-800);
+  font-weight: 700;
+}
+
+.explainer-copy {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.explainer-metrics {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.explainer-metrics span {
+  padding: 0.375rem 0.625rem;
+  border-radius: 999px;
+  background: var(--color-slate-100);
+  color: var(--color-slate-700);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 /* 리더보드 카드 */
 .leaderboard-card {
   background: var(--color-bg-card);
@@ -324,6 +413,10 @@ onUnmounted(() => {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+}
+
+.leaderboard-empty-panel {
+  padding: 1.5rem;
 }
 
 /* Top 3 섹션 */
@@ -505,9 +598,18 @@ onUnmounted(() => {
 
 /* 반응형 */
 @media (max-width: 640px) {
+  .content-wrapper {
+    padding-bottom: 7rem;
+  }
+
   .filter-section {
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  .score-explainer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .ranking-stats {
@@ -518,14 +620,50 @@ onUnmounted(() => {
     display: none;
   }
 
-  .top-three {
-    gap: 0.75rem;
-    padding: 1rem;
+  .leaderboard-table,
+  .leaderboard-table tbody {
+    display: block;
   }
 
-  .top-avatar {
-    width: 3rem;
-    height: 3rem;
+  .leaderboard-table thead {
+    display: none;
+  }
+
+  .top-three {
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .top-card {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .rank-1 {
+    transform: none;
+  }
+
+  .rank-2,
+  .rank-3 {
+    margin-top: 0.5rem;
+  }
+
+  .medal-icon {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .top-avatar,
+  .top-avatar-placeholder {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .top-name {
+    margin-bottom: 0.25rem;
+  }
+
+  .top-stats {
+    gap: 0;
   }
 }
 </style>

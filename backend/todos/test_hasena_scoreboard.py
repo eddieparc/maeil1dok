@@ -309,4 +309,4 @@ class HasenaAchievementTest(TestCase):
         self.assertTrue(achievements["hasena_total_30"]["unlocked"])
         self.assertEqual(achievements["hasena_total_30"]["milestone_value"], 30)
         self.assertFalse(achievements["hasena_total_100"]["unlocked"])
-        self.assertEqual(achievements["hasena_total_100"]["milestone_value"], 0)
+        self.assertEqual(achievements["hasena_total_100"]["milestone_value"], 100)

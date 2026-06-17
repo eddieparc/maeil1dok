@@ -26,15 +26,14 @@ def create_display_settings(sender, instance, created, **kwargs):
 @receiver(post_save, sender=UserBibleProgress)
 def update_stats_and_achievements(sender, instance, **kwargs):
     """
-    성경 읽기 완료 시 프로필 통계 및 업적 업데이트
+    성경 읽기 상태 변경 시 프로필 통계 및 업적 업데이트
     """
+    user = instance.subscription.user
+
+    # 프로필 통계 업데이트
+    AchievementService.update_user_stats(user)
+
     if instance.is_completed:
-        user = instance.subscription.user
-
-        # 프로필 통계 업데이트
-        AchievementService.update_user_stats(user)
-
-        # 업적 확인 및 부여
         AchievementService.check_and_grant_achievements(user)
 
 

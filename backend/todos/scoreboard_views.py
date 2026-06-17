@@ -20,9 +20,65 @@ import logging
 logger = logging.getLogger(__name__)
 
 SCOREBOARD_CACHE_VERSION = 'v3'
+VALID_SCOREBOARD_PERIODS = {'all', 'week', 'month'}
+DEFAULT_SCOREBOARD_LIMIT = 100
+MAX_SCOREBOARD_LIMIT = 500
 
 
 # ===== Helper Functions =====
+
+def parse_scoreboard_params(request, default_limit=DEFAULT_SCOREBOARD_LIMIT, require_limit=True):
+    period = request.query_params.get('period', 'all') or 'all'
+    if period not in VALID_SCOREBOARD_PERIODS:
+        return None, Response({
+            'success': False,
+            'error': 'period는 all, week, month 중 하나여야 합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    raw_plan_id = request.query_params.get('plan_id')
+    plan_id = None
+    if raw_plan_id not in (None, ''):
+        try:
+            plan_id = int(raw_plan_id)
+        except (TypeError, ValueError):
+            return None, Response({
+                'success': False,
+                'error': 'plan_id는 숫자여야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        if plan_id <= 0:
+            return None, Response({
+                'success': False,
+                'error': 'plan_id는 1 이상이어야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    limit = default_limit
+    if require_limit or 'limit' in request.query_params:
+        raw_limit = request.query_params.get('limit', default_limit)
+        try:
+            limit = int(raw_limit)
+        except (TypeError, ValueError):
+            return None, Response({
+                'success': False,
+                'error': 'limit은 숫자여야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        if limit < 1 or limit > MAX_SCOREBOARD_LIMIT:
+            return None, Response({
+                'success': False,
+                'error': f'limit은 1 이상 {MAX_SCOREBOARD_LIMIT} 이하이어야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    return {'plan_id': plan_id, 'period': period, 'limit': limit}, None
+
+
+def parse_follow_type(request):
+    follow_type = request.query_params.get('type', 'mutual') or 'mutual'
+    if follow_type not in {'mutual', 'following'}:
+        return None, Response({
+            'success': False,
+            'error': 'type은 mutual 또는 following이어야 합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    return follow_type, None
+
 
 def get_period_filter(period):
     """기간별 날짜 필터 생성"""
@@ -35,7 +91,10 @@ def get_period_filter(period):
 
 def get_completed_days_annotation(period, plan_id=None):
     """완료 일수 계산을 위한 annotate 필터 생성"""
-    progress_filter = Q(plansubscription__progress__is_completed=True)
+    progress_filter = Q(
+        plansubscription__is_active=True,
+        plansubscription__progress__is_completed=True,
+    )
 
     # 기간 필터
     start_date = get_period_filter(period)
@@ -76,6 +135,8 @@ def calculate_progress_rate(user, plan_id=None):
     try:
         subscriptions = PlanSubscription.objects.filter(user=user)
         if plan_id:
+            subscriptions = subscriptions.filter(is_active=True)
+        else:
             subscriptions = subscriptions.filter(is_active=True)
 
         if not subscriptions.exists():
@@ -144,7 +205,7 @@ def calculate_progress_rates_bulk(users, plan_id=None):
         subs = PlanSubscription.objects.filter(user_id__in=user_ids, is_active=True)
         subs = subs.filter(plan_id=plan_id)
     else:
-        subs = PlanSubscription.objects.filter(user_id__in=user_ids)
+        subs = PlanSubscription.objects.filter(user_id__in=user_ids, is_active=True)
 
     if not plan_id:
         plan_ids_by_user = {}
@@ -169,7 +230,11 @@ def calculate_progress_rates_bulk(users, plan_id=None):
         completed_by_user = {
             row['subscription__user_id']: row['cnt']
             for row in UserBibleProgress.objects
-            .filter(subscription__user_id__in=user_ids, is_completed=True)
+            .filter(
+                subscription__user_id__in=user_ids,
+                subscription__is_active=True,
+                is_completed=True
+            )
             .values('subscription__user_id')
             .annotate(cnt=Count('id'))
         }
@@ -276,7 +341,12 @@ def build_leaderboard_entry(
 def get_leaderboard_rank_key(item):
     """순위 동점 여부를 판단하는 키"""
     activity_score = item.get('activity_score', item.get('completed_days', 0))
-    return activity_score, item['progress_rate'], item.get('longest_hasena_streak', 0)
+    return (
+        activity_score,
+        item['progress_rate'],
+        item.get('longest_hasena_streak', 0),
+        item['user']['nickname'],
+    )
 
 
 def rank_leaderboard(leaderboard, limit=None):
@@ -311,10 +381,13 @@ def rank_leaderboard(leaderboard, limit=None):
 def get_scoreboard(request):
     """전체 리더보드 조회 - N+1 쿼리 최적화"""
     try:
-        # 쿼리 파라미터
-        plan_id = request.query_params.get('plan_id')
-        period = request.query_params.get('period', 'all')  # all, week, month
-        limit = int(request.query_params.get('limit', 100))
+        params, error_response = parse_scoreboard_params(request)
+        if error_response:
+            return error_response
+
+        plan_id = params['plan_id']
+        period = params['period']
+        limit = params['limit']
 
         # 캐시 키 생성
         cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:global:{period}:{plan_id}:{limit}'
@@ -350,7 +423,7 @@ def get_scoreboard(request):
             activity_count=F('completed_count') + F('hasena_completed_count'),
         )
 
-        users_query = users_query.order_by('-activity_count', '-completed_count')[:limit * 2]
+        users_query = users_query.order_by('-activity_count', '-completed_count')
 
         # 리더보드 구성 (진행률은 일괄 계산)
         users = list(users_query)
@@ -409,10 +482,15 @@ def get_scoreboard(request):
 def get_friends_scoreboard(request):
     """친구 리더보드 조회 - N+1 쿼리 최적화 + mutual/following 모드"""
     try:
-        # 쿼리 파라미터
-        plan_id = request.query_params.get('plan_id')
-        period = request.query_params.get('period', 'all')
-        follow_type = request.query_params.get('type', 'mutual')  # mutual 또는 following
+        params, error_response = parse_scoreboard_params(request, require_limit=False)
+        if error_response:
+            return error_response
+        follow_type, error_response = parse_follow_type(request)
+        if error_response:
+            return error_response
+
+        plan_id = params['plan_id']
+        period = params['period']
 
         # 캐시 키 생성
         cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:friends:{request.user.id}:{follow_type}:{period}:{plan_id}'
@@ -439,6 +517,7 @@ def get_friends_scoreboard(request):
 
         # 통합 쿼리셋 (본인 포함)
         users_query = User.objects.filter(id__in=user_ids).select_related('profile')
+        users_query = users_query.filter(Q(profile__is_public=True) | Q(id=request.user.id))
 
         # 완료 일수 annotate 추가
         users_query = users_query.annotate(
@@ -534,9 +613,12 @@ def get_group_scoreboard(request, group_id):
                     'error': '그룹 멤버만 조회할 수 있습니다.'
                 }, status=status.HTTP_403_FORBIDDEN)
 
-        # 쿼리 파라미터
-        period = request.query_params.get('period', 'all')
-        plan_id = request.query_params.get('plan_id')
+        params, error_response = parse_scoreboard_params(request, require_limit=False)
+        if error_response:
+            return error_response
+
+        period = params['period']
+        plan_id = params['plan_id']
 
         # 플랜 선택
         if plan_id:
@@ -675,8 +757,12 @@ def get_group_scoreboard(request, group_id):
 def get_my_ranking(request):
     """내 순위 조회 - 최적화 버전"""
     try:
-        plan_id = request.query_params.get('plan_id')
-        period = request.query_params.get('period', 'all')
+        params, error_response = parse_scoreboard_params(request, require_limit=False)
+        if error_response:
+            return error_response
+
+        plan_id = params['plan_id']
+        period = params['period']
 
         # 캐시 키
         cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:my_ranking:{request.user.id}:{period}:{plan_id}'

@@ -424,7 +424,7 @@ def get_user_achievements(request, user_id):
             'order': metadata['order'],
             'unlocked': earned is not None,
             'unlockedAt': earned.achieved_at.isoformat() if earned else None,
-            'milestone_value': earned.milestone_value if earned else 0,
+            'milestone_value': earned.milestone_value if earned else metadata.get('milestone_value', 0),
         })
 
     # order 순으로 정렬

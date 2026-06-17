@@ -96,7 +96,7 @@ class AchievementService:
         # 연속 일수 계산
         profile.current_streak = AchievementService._calculate_current_streak(user)
         longest = AchievementService._calculate_longest_streak(user)
-        profile.longest_streak = max(profile.longest_streak, longest)
+        profile.longest_streak = longest
 
         profile.save()
         return profile
