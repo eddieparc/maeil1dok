@@ -96,11 +96,19 @@ def _calculate_current_streak(completed_dates, today):
 
 
 def _calculate_longest_streak(completed_dates):
+    required_completed_dates = [
+        completed_date
+        for completed_date in completed_dates
+        if not _is_rest_day(completed_date)
+    ]
+    if not required_completed_dates:
+        return 0
+
     longest_streak = 0
     temp_streak = 0
     previous_date = None
 
-    for completed_date in sorted(completed_dates, reverse=True):
+    for completed_date in sorted(required_completed_dates, reverse=True):
         if previous_date is None:
             temp_streak = 1
         elif _has_no_required_day_gap(completed_date, previous_date):

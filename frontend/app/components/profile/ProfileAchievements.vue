@@ -1,25 +1,46 @@
 <template>
   <div class="profile-achievements fade-in">
-    <div v-if="achievements.length > 0" class="achievements-grid">
-      <div
-        v-for="achievement in achievements"
-        :key="achievement.achievement_type"
-        class="achievement-card"
-        :class="{ unlocked: achievement.unlocked }"
-        :title="achievement.description"
+    <div v-if="achievements.length > 0" class="achievement-groups" role="list">
+      <section
+        v-for="group in groupedAchievements"
+        :key="group.key"
+        class="achievement-section"
+        role="group"
+        :aria-label="`${group.label} 업적`"
       >
-        <div class="achievement-icon">
-          <component :is="getAchievementIcon(achievement.icon)" :size="24" />
+        <div class="achievement-section-header">
+          <h3>{{ group.label }}</h3>
+          <span>{{ group.unlockedCount }} / {{ group.items.length }}</span>
         </div>
-        <h4 class="achievement-title">{{ achievement.title }}</h4>
-        <p class="achievement-description">{{ achievement.description }}</p>
-        <div v-if="achievement.unlocked" class="unlock-date">
-          {{ formatDate(achievement.unlockedAt) }}
+        <div class="achievements-grid" role="list">
+          <article
+            v-for="achievement in group.items"
+            :key="achievement.achievement_type"
+            class="achievement-card"
+            :class="{ unlocked: achievement.unlocked }"
+            :title="achievement.description"
+            role="listitem"
+            :aria-disabled="!achievement.unlocked"
+            :aria-label="achievement.unlocked ? `${achievement.title}, 달성` : `${achievement.title}, 잠김, 목표 ${achievement.milestone_value}${milestoneUnit(achievement)}`"
+            :aria-describedby="`achievement-${achievement.achievement_type}`"
+          >
+            <div class="achievement-icon">
+              <component :is="getAchievementIcon(achievement.icon)" :size="24" />
+            </div>
+            <h4 class="achievement-title">{{ achievement.title }}</h4>
+            <p :id="`achievement-${achievement.achievement_type}`" class="achievement-description">{{ achievement.description }}</p>
+            <div v-if="achievement.unlocked" class="unlock-date">
+              {{ formatDate(achievement.unlockedAt) }}
+            </div>
+            <div v-else class="locked-state">
+              <LockIcon :size="18" aria-hidden="true" />
+              <p class="locked-label">잠김</p>
+              <p class="locked-target">목표 {{ achievement.milestone_value }}{{ milestoneUnit(achievement) }}까지 필요</p>
+              <p class="locked-next">{{ nextStepText(achievement) }}</p>
+            </div>
+          </article>
         </div>
-        <div v-else class="locked-overlay">
-          <LockIcon :size="20" />
-        </div>
-      </div>
+      </section>
     </div>
 
     <EmptyState
@@ -65,6 +86,25 @@ const props = defineProps<{
 // 실제 API 데이터만 사용 (Mock 데이터 제거)
 const achievements = computed(() => props.achievementsData)
 
+const achievementGroups = [
+  { key: 'reading', label: '통독', matcher: (type: string) => !type.includes('streak') && !type.includes('hasena') },
+  { key: 'streak', label: '연속', matcher: (type: string) => type.includes('streak') && !type.includes('hasena') },
+  { key: 'hasena', label: '하세나', matcher: (type: string) => type.includes('hasena') },
+]
+
+const groupedAchievements = computed(() => {
+  return achievementGroups
+    .map(group => {
+      const items = achievements.value.filter(achievement => group.matcher(achievement.achievement_type))
+      return {
+        ...group,
+        items,
+        unlockedCount: items.filter(achievement => achievement.unlocked).length,
+      }
+    })
+    .filter(group => group.items.length > 0)
+})
+
 const getAchievementIcon = (icon: string) => {
   if (icon.includes('book')) return BookOpenIcon
   if (icon.includes('calendar')) return CalendarCheckIcon
@@ -79,12 +119,57 @@ const formatDate = (dateString: string | null) => {
   const date = new Date(dateString)
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
 }
+
+const milestoneUnit = (achievement: Achievement) => {
+  if (achievement.achievement_type.includes('book')) return '권'
+  if (achievement.achievement_type.includes('bible')) return '권'
+  return '일'
+}
+
+const nextStepText = (achievement: Achievement) => {
+  if (achievement.achievement_type.includes('hasena')) return '하세나 기록을 이어가면 잠금 해제됩니다.'
+  if (achievement.achievement_type.includes('streak')) return '연속 통독을 이어가면 잠금 해제됩니다.'
+  return '통독 완료를 쌓으면 잠금 해제됩니다.'
+}
+
 </script>
 
 <style scoped>
 .profile-achievements {
   padding: 1rem;
   min-height: 300px;
+}
+
+.achievement-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.achievement-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.achievement-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.achievement-section-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.achievement-section-header span {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 700;
 }
 
 .achievements-grid {
@@ -129,8 +214,23 @@ const formatDate = (dateString: string | null) => {
 }
 
 .achievement-card:not(.unlocked) {
-  opacity: 0.5;
-  filter: grayscale(100%);
+  background: var(--color-bg-card);
+  border-style: dashed;
+  border-color: var(--color-slate-400);
+}
+
+.achievement-card:not(.unlocked) .achievement-icon {
+  background: var(--color-slate-100);
+  color: var(--color-slate-500);
+}
+
+.achievement-card:not(.unlocked) .achievement-title {
+  color: var(--color-slate-700);
+}
+
+.achievement-card:not(.unlocked) .achievement-description,
+.achievement-card:not(.unlocked) .locked-state {
+  color: var(--color-slate-600);
 }
 
 .achievement-icon {
@@ -186,27 +286,27 @@ const formatDate = (dateString: string | null) => {
   font-weight: 500;
 }
 
-.locked-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+.locked-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
+  gap: 0.25rem;
+  margin-top: 0.75rem;
   color: var(--text-secondary);
 }
 
-:root.dark .locked-overlay {
-  background: rgba(42, 42, 42, 0.9);
+.locked-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
-.locked-overlay i {
-  font-size: 1.25rem;
+.locked-target,
+.locked-next {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .empty-icon {

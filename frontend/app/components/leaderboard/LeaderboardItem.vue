@@ -1,7 +1,11 @@
 <template>
-  <tr :class="{ 'highlight-row': isHighlighted }">
+  <tr
+    class="leaderboard-mobile-card"
+    data-testid="leaderboard-mobile-card"
+    :class="{ 'highlight-row': isHighlighted }"
+  >
     <td class="rank-cell">
-      <span :class="rankClass">
+      <span :class="rankClass" :aria-label="`${rank}위 순위`">
         {{ rank }}
       </span>
     </td>
@@ -30,11 +34,11 @@
         </div>
       </div>
     </td>
-    <td class="text-center">
+    <td class="text-center activity-cell" :aria-label="`활동 점수 ${activityScore}점, 통독 ${bibleCompletedDays}일, 하세나 ${hasenaCompletedDays}일`">
       <span class="days-count">{{ activityScore }}</span>
       <span class="activity-breakdown">통독 {{ bibleCompletedDays }} · 하세나 {{ hasenaCompletedDays }}</span>
     </td>
-    <td class="text-center">
+    <td class="text-center progress-cell">
       <div class="progress-wrapper">
         <div class="progress-bar">
           <div
@@ -293,6 +297,26 @@ tr:hover {
 }
 
 @media (max-width: 768px) {
+  tr.leaderboard-mobile-card {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) minmax(84px, auto);
+    align-items: center;
+    row-gap: 0.125rem;
+    margin: 0.75rem;
+    border: 1px solid var(--color-slate-200);
+    border-radius: 12px;
+    background: var(--color-bg-card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  tr.leaderboard-mobile-card + tr.leaderboard-mobile-card {
+    margin-top: 0;
+  }
+
+  tr.leaderboard-mobile-card td {
+    border-bottom: 0;
+  }
+
   .mobile-hide {
     display: none;
   }
@@ -300,7 +324,32 @@ tr:hover {
   .rank-cell,
   .user-cell,
   .text-center {
-    padding: 0.75rem 0.375rem;
+    padding: 0.875rem 0.5rem;
+  }
+
+  .rank-cell {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  .user-cell {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .activity-cell {
+    grid-column: 2;
+    grid-row: 2;
+    padding-top: 0;
+    text-align: left;
+  }
+
+  .progress-cell {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-self: center;
   }
 
   .user-info {
@@ -324,7 +373,7 @@ tr:hover {
   }
 
   .progress-bar {
-    width: 42px;
+    width: 48px;
   }
 
   .progress-text {
@@ -338,6 +387,7 @@ tr:hover {
 
   .activity-breakdown {
     font-size: 0.625rem;
+    white-space: normal;
   }
 }
 </style>
