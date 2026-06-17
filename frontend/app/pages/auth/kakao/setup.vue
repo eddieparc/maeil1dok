@@ -17,7 +17,7 @@
           class="mx-auto h-8 w-auto object-contain"
           src="/images/logo-transparent.png"
           alt="매일일독"
-          loading="lazy"
+          loading="eager"
           format="webp"
         />
         <p class="mt-3 text-center text-gray-600">
@@ -231,4 +231,4 @@ button:disabled {
 .btn-primary:not(:disabled):hover {
   @apply transform -translate-y-0.5;
 }
-</style> 
+</style>

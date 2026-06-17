@@ -20,15 +20,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { useAuthService } from '~/composables/useAuthService';
+import { useLandingAuthState } from '~/composables/useLandingAuthState';
 import BookIcon from '~/components/icons/BookIcon.vue';
 import { HomeIcon, UserIcon } from '@lucide/vue';
 
 const route = useRoute();
-const auth = useAuthService();
+const { displayUser, isFirstPaintPending } = useLandingAuthState();
 
 const profileLink = computed(() => {
-  return auth.user.value ? `/profile/${auth.user.value.id}` : '/login';
+  if (isFirstPaintPending.value) return '/login';
+  return displayUser.value ? `/profile/${displayUser.value.id}` : '/login';
 });
 </script>
 

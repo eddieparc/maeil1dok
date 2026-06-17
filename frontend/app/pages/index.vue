@@ -5,7 +5,15 @@
     <div class="container">
       <header class="home-header">
         <div class="logo-wrapper">
-          <NuxtImg src="/images/logo-transparent.png" alt="Maeil1dok" class="logo-img" loading="lazy" />
+          <NuxtImg
+            src="/images/logo-transparent.png"
+            alt="Maeil1dok"
+            class="logo-img"
+            loading="eager"
+            fetchpriority="high"
+            width="112"
+            height="24"
+          />
         </div>
         <div class="header-actions">
           <button class="theme-toggle-btn" @click="toggleTheme" :aria-label="isDark ? '라이트 모드로 전환' : '다크 모드로 전환'">
@@ -44,6 +52,18 @@ import MenuIcon from '~/components/icons/MenuIcon.vue';
 import SunIcon from '~/components/icons/SunIcon.vue';
 import MoonIcon from '~/components/icons/MoonIcon.vue';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
+import { useAuthService } from '~/composables/useAuthService';
+
+useHead({
+  link: [
+    {
+      rel: 'preload',
+      as: 'image',
+      href: '/images/logo-transparent.png',
+      fetchpriority: 'high',
+    },
+  ],
+});
 
 // 페이지 메타 설정
 definePageMeta({
@@ -52,6 +72,7 @@ definePageMeta({
 
 const showMenu = ref(false);
 
+const auth = useAuthService();
 const settingsStore = useReadingSettingsStore();
 const isDark = ref(false);
 
@@ -62,6 +83,7 @@ const toggleTheme = () => {
 };
 
 onMounted(() => {
+  void auth.initialize();
   settingsStore.initialize();
   isDark.value = settingsStore.effectiveTheme === 'dark';
 });

@@ -9,31 +9,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { useAuthService } from '~/composables/useAuthService';
+import { computed } from 'vue';
+import { useLandingAuthState } from '~/composables/useLandingAuthState';
 
-const auth = useAuthService();
-const timeGreeting = ref('오늘도,');
+const { displayUser, isFirstPaintPending } = useLandingAuthState();
 
+const getTimeGreeting = (date: Date): string => {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return '새로운 아침,';
+  if (hour >= 12 && hour < 18) return '나른한 오후,';
+  if (hour >= 18 && hour < 22) return '하루를 마무리하며';
+  return '평안한 밤,';
+};
+
+const timeGreeting = useState('home:timeGreeting', () => getTimeGreeting(new Date()));
+const isAuthPending = computed(() => isFirstPaintPending.value);
 const greetingMessage = computed(() => {
-  const user = auth.user.value;
-  if (!auth.isAuthenticated.value || !user) return '방문자님, 환영합니다';
+  if (isAuthPending.value) return '\u00a0';
+
+  const user = displayUser.value;
+  if (!user) return '방문자님, 환영합니다';
 
   const name = user.nickname || user.username || '성도';
   return `${name}님, 안녕하세요`;
-});
-
-onMounted(() => {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) {
-    timeGreeting.value = '새로운 아침,';
-  } else if (hour >= 12 && hour < 18) {
-    timeGreeting.value = '나른한 오후,';
-  } else if (hour >= 18 && hour < 22) {
-    timeGreeting.value = '하루를 마무리하며';
-  } else {
-    timeGreeting.value = '평안한 밤,';
-  }
 });
 </script>
 

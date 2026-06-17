@@ -50,16 +50,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { SettingsIcon, TrophyIcon, UsersIcon } from '@lucide/vue';
-import { useAuthService } from '~/composables/useAuthService';
+import { useLandingAuthState } from '~/composables/useLandingAuthState';
 import CalendarIcon from '~/components/icons/CalendarIcon.vue';
 import HistoryIcon from '~/components/icons/HistoryIcon.vue';
 import ListIcon from '~/components/icons/ListIcon.vue';
 import MonitorIcon from '~/components/icons/MonitorIcon.vue';
 
-const auth = useAuthService();
+const { displayUser, isFirstPaintPending } = useLandingAuthState();
 
 const profileLink = computed(() => {
-  return auth.user.value ? `/profile/${auth.user.value.id}` : '/login';
+  if (isFirstPaintPending.value) return '/login';
+  return displayUser.value ? `/profile/${displayUser.value.id}` : '/login';
 });
 </script>
 

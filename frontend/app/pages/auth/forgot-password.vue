@@ -12,7 +12,7 @@
           src="/images/logo-transparent.png"
           alt="매일일독"
           class="logo"
-          loading="lazy"
+          loading="eager"
           format="webp"
         />
       </div>

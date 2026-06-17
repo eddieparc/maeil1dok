@@ -14,7 +14,7 @@
           class="mx-auto h-8 w-auto object-contain"
           src="/images/logo-transparent.png"
           alt="매일일독"
-          loading="lazy"
+          loading="eager"
           format="webp"
         />
       </div>
