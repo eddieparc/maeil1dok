@@ -56,4 +56,5 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         )
 
         self.assertIn("'/bible/search'", nuxt_config)
+        self.assertIn("'/bible/search/'", nuxt_config)
         self.assertIn("'cache-control': 'no-store'", nuxt_config)

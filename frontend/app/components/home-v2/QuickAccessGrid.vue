@@ -27,7 +27,7 @@
         <span>본문 읽기</span>
       </NuxtLink>
 
-      <NuxtLink to="/bible/search" class="sub-card" data-testid="card-bible-search">
+      <NuxtLink to="/bible/search/" class="sub-card" data-testid="card-bible-search">
         <SearchIcon :size="24" />
         <strong>본문 검색</strong>
         <span>캐시된 말씀 찾기</span>
