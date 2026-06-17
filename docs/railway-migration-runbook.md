@@ -126,7 +126,7 @@ Set these variables on `maeil1dok-frontend`:
 NODE_ENV=production
 HOST=0.0.0.0
 NUXT_PUBLIC_API_BASE=https://<backend Railway domain until DNS cutover>
-NUXT_INTERNAL_API_BASE=https://<backend Railway domain until DNS cutover>
+NUXT_INTERNAL_API_BASE=http://maeil1dok-backend.railway.internal:8000
 NUXT_PUBLIC_BIBLE_CACHE_URL=https://<backend Railway domain until DNS cutover>
 KAKAO_CLIENT_ID=<frontend KAKAO_CLIENT_ID>
 KAKAO_JS_KEY=<frontend KAKAO_JS_KEY>
@@ -141,10 +141,10 @@ GEMINI_API_KEY=<existing GEMINI_API_KEY>
 YOUTUBE_API_KEY=<existing GEMINI_API_KEY unless a dedicated key is added>
 ```
 
-The current staging values use
-`https://maeil1dok-backend-production.up.railway.app`. After DNS is verified,
-switch these three values to `https://api.maeil1dok.app` and redeploy the
-frontend.
+The public values should use `https://api.maeil1dok.app` after DNS is
+verified. Keep `NUXT_INTERNAL_API_BASE` on the Railway private network so
+server-side frontend requests do not round-trip through Cloudflare/public
+networking.
 
 ## Fresh Staging Dump
 
@@ -240,7 +240,7 @@ After Cloudflare/Railway verification, set frontend API variables to:
 
 ```text
 NUXT_PUBLIC_API_BASE=https://api.maeil1dok.app
-NUXT_INTERNAL_API_BASE=https://api.maeil1dok.app
+NUXT_INTERNAL_API_BASE=http://maeil1dok-backend.railway.internal:8000
 NUXT_PUBLIC_BIBLE_CACHE_URL=https://api.maeil1dok.app
 ```
 
@@ -261,8 +261,9 @@ service. Keep at least 14 days via `BACKUP_RETENTION_DAYS=14`.
 3. Re-run `sha256sum -c`.
 4. Restore that final dump into Railway MySQL with `mysql --host`.
 5. Re-run the count query on source and Railway and compare.
-6. Set frontend variables to `https://api.maeil1dok.app` and redeploy the
-   frontend.
+6. Set public frontend API variables to `https://api.maeil1dok.app`, keep
+   `NUXT_INTERNAL_API_BASE` on the Railway private backend URL, and redeploy
+   the frontend.
 7. Update DNS for `maeil1dok.app` and `api.maeil1dok.app` to Railway.
 8. Update Kakao, Google, and Apple OAuth callback allowlists if those providers
    require explicit domain or callback verification.
