@@ -9,28 +9,27 @@
         <span>오늘 말씀 묵상</span>
       </NuxtLink>
 
-      <NuxtLink to="/plan" class="sub-card">
-        <CalendarIcon size="24" />
-        <strong>통독표</strong>
-        <span>전체 계획 보기</span>
+      <div class="sub-card plan-card">
+        <NuxtLink to="/plan" class="card-main">
+          <CalendarIcon size="24" />
+          <strong>통독표</strong>
+          <span>전체 계획 보기</span>
+        </NuxtLink>
+        <NuxtLink to="/plans" class="plan-pill" data-testid="pill-plans">
+          플랜 관리
+        </NuxtLink>
+      </div>
+
+      <NuxtLink to="/scoreboard" class="sub-card" data-testid="card-scoreboard">
+        <TrophyIcon :size="24" />
+        <strong>리더보드</strong>
+        <span>함께 읽는 순위</span>
       </NuxtLink>
 
-      <NuxtLink to="/plans" class="sub-card" data-testid="card-plans">
-        <SettingsIcon size="24" />
-        <strong>플랜 관리</strong>
-        <span>구독과 표시 설정</span>
-      </NuxtLink>
-
-      <NuxtLink to="/bible" class="sub-card" data-testid="card-bible">
-        <BookIcon size="24" />
-        <strong>성경</strong>
-        <span>본문 읽기</span>
-      </NuxtLink>
-
-      <NuxtLink to="/bible/search/" class="sub-card" data-testid="card-bible-search">
-        <SearchIcon :size="24" />
-        <strong>본문 검색</strong>
-        <span>캐시된 말씀 찾기</span>
+      <NuxtLink to="/friends" class="sub-card" data-testid="card-friends">
+        <UsersIcon :size="24" />
+        <strong>친구</strong>
+        <span>읽기 동료 보기</span>
       </NuxtLink>
 
       <NuxtLink to="/intro" class="sub-card">
@@ -56,14 +55,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { SearchIcon, UsersIcon } from '@lucide/vue';
+import { TrophyIcon, UsersIcon } from '@lucide/vue';
 import { useAuthService } from '~/composables/useAuthService';
-import BookIcon from '~/components/icons/BookIcon.vue';
 import CalendarIcon from '~/components/icons/CalendarIcon.vue';
 import HistoryIcon from '~/components/icons/HistoryIcon.vue';
 import ListIcon from '~/components/icons/ListIcon.vue';
 import MonitorIcon from '~/components/icons/MonitorIcon.vue';
-import SettingsIcon from '~/components/icons/SettingsIcon.vue';
 
 const auth = useAuthService();
 
@@ -105,22 +102,58 @@ const profileLink = computed(() => {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.card-main {
+  color: inherit;
+  display: grid;
+  gap: 0.35rem;
+  text-decoration: none;
+}
+
+.plan-card {
+  position: relative;
+}
+
+.plan-pill {
+  align-items: center;
+  background: var(--accent-light);
+  border-radius: 999px;
+  color: var(--accent);
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.45rem 0.7rem;
+  position: absolute;
+  right: 1rem;
+  text-decoration: none;
+  top: 1rem;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.plan-pill:hover {
+  opacity: 0.78;
+  transform: translateY(-1px);
+}
+
 .sub-card:hover {
   box-shadow: 0 8px 20px rgba(44, 51, 51, 0.06);
   transform: translateY(-2px);
 }
 
-.sub-card svg {
+.sub-card svg,
+.card-main svg {
   color: var(--text-main);
   margin-bottom: 0.5rem;
 }
 
-.sub-card strong {
+.sub-card strong,
+.card-main strong {
   font-size: 1rem;
   font-weight: 700;
 }
 
-.sub-card span {
+.sub-card span,
+.card-main span {
   color: var(--text-sub);
   font-size: 0.8125rem;
 }

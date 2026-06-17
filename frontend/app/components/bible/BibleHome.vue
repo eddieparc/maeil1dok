@@ -1,11 +1,6 @@
 <template>
   <div class="bible-home">
-    <header class="home-header">
-      <h1>성경</h1>
-      <button class="settings-btn" @click="$router.push('/bible/settings')">
-        <SettingsIcon :size="20" />
-      </button>
-    </header>
+    <BibleHomeHeader @open-settings="$router.push('/bible/settings')" />
 
     <div class="home-content">
       <!-- 오늘의 통독 카드 (플랜 구독 시) -->
@@ -227,7 +222,7 @@ import { useSelectedPlanStore } from '~/stores/selectedPlan';
 import type { BiblePosition, RecentRecord, HomeStatsResponse, RecentRecordRaw } from '~/types/bible';
 
 // Icons
-import SettingsIcon from '~/components/icons/SettingsIcon.vue';
+import BibleHomeHeader from '~/components/bible/BibleHomeHeader.vue';
 import ArrowRightIcon from '~/components/icons/ArrowRightIcon.vue';
 import BookmarkIcon from '~/components/icons/BookmarkIcon.vue';
 import DocumentIcon from '~/components/icons/DocumentIcon.vue';
@@ -433,36 +428,6 @@ const formatTodayDate = () => {
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--background-color);
-}
-
-.home-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  background: var(--color-bg-card, #fff);
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.home-header h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary, #1f2937);
-}
-
-.settings-btn {
-  padding: 0.5rem;
-  color: var(--text-secondary, #6b7280);
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.settings-btn:hover {
-  background: var(--color-bg-secondary, #f3f4f6);
-  color: var(--text-primary, #1f2937);
 }
 
 .home-content {

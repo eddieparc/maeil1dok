@@ -68,6 +68,7 @@
       </div>
 
       <div class="header-actions">
+        <BibleSearchButton />
         <BibleToolPopover
           :note-count="noteCount"
           :show-bookmark-toggle="isTongdokMode"
@@ -247,6 +248,7 @@ import { ref, computed } from 'vue';
 import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon } from '@lucide/vue';
 import BibleViewer from '~/components/bible/BibleViewer.vue';
 import type { SelectionMenuState, SelectionSharePayload } from '~/components/bible/BibleViewer.vue';
+import BibleSearchButton from '~/components/bible/BibleSearchButton.vue';
 import BibleToolPopover from '~/components/bible/BibleToolPopover.vue';
 import SelectionFloatingControls from '~/components/bible/SelectionFloatingControls.vue';
 import type { SelectionCopyFormat } from '~/components/bible/SelectionFloatingControls.vue';

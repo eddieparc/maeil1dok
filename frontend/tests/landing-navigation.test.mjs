@@ -23,13 +23,25 @@ test('does not render tongdok plan item in landing floating nav', () => {
   assert.doesNotMatch(floatingNavSource, />통독표</, 'landing floating nav should not include 통독표');
 });
 
-test('does not render management item in landing floating nav', () => {
-  assert.doesNotMatch(floatingNavSource, /to="\/plans"/, 'landing floating nav should not include /plans');
-  assert.doesNotMatch(floatingNavSource, />관리</, 'landing floating nav should not include 관리');
+test('landing quick access folds plan management into tongdok card', () => {
+  assert.match(quickAccessSource, /to="\/plan"/, 'landing quick access should link to /plan');
+  assert.match(quickAccessSource, /to="\/plans"/, 'landing tongdok card should expose plan management');
+  assert.match(quickAccessSource, /class="plan-pill"/, 'plan management should render as a pill inside the tongdok card');
+});
+
+test('removes bible and search from landing quick access', () => {
+  assert.doesNotMatch(quickAccessSource, /data-testid="card-bible"/, 'landing quick access should not show Bible');
+  assert.doesNotMatch(quickAccessSource, /data-testid="card-bible-search"/, 'landing quick access should not show Bible search');
+});
+
+test('exposes leaderboard and friends on landing', () => {
+  assert.match(quickAccessSource, /to="\/scoreboard"/, 'landing quick access should link to leaderboard');
+  assert.match(quickAccessSource, /to="\/friends"/, 'landing quick access should link to friends');
+  assert.match(floatingNavSource, /to="\/scoreboard"/, 'landing floating nav should link to leaderboard');
+  assert.match(floatingNavSource, /to="\/friends"/, 'landing floating nav should link to friends');
+  assert.doesNotMatch(floatingNavSource, /to="\/bible"/, 'landing floating nav should not include Bible');
 });
 
 test('keeps expected adjacent route links', () => {
-  assert.match(quickAccessSource, /to="\/plans"/, 'landing quick access should keep /plans');
-  assert.match(quickAccessSource, /to="\/bible"/, 'landing quick access should keep /bible');
   assert.match(quickAccessSource, /to="\/intro"/, 'landing quick access should keep /intro');
 });

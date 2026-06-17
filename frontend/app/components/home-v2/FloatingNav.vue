@@ -5,9 +5,14 @@
       <span class="nav-label">홈</span>
     </NuxtLink>
 
-    <NuxtLink to="/bible" class="nav-item" :class="{ active: route.path.startsWith('/bible') }">
-      <BookIcon size="20" />
-      <span class="nav-label">성경</span>
+    <NuxtLink to="/scoreboard" class="nav-item" :class="{ active: route.path.startsWith('/scoreboard') }">
+      <TrophyIcon :size="20" />
+      <span class="nav-label">순위</span>
+    </NuxtLink>
+
+    <NuxtLink to="/friends" class="nav-item" :class="{ active: route.path.startsWith('/friends') }">
+      <UsersIcon :size="20" />
+      <span class="nav-label">친구</span>
     </NuxtLink>
     
     <NuxtLink :to="profileLink" class="nav-item" :class="{ active: route.path.startsWith('/profile') }">
@@ -21,8 +26,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthService } from '~/composables/useAuthService';
-import BookIcon from '~/components/icons/BookIcon.vue';
-import { HomeIcon, UserIcon } from '@lucide/vue';
+import { HomeIcon, TrophyIcon, UserIcon, UsersIcon } from '@lucide/vue';
 
 const route = useRoute();
 const auth = useAuthService();

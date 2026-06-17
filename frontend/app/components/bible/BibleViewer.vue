@@ -1477,13 +1477,13 @@ defineExpose({
 }
 
 /* 하이라이트된 절이 선택되었을 때 - 외곽선으로 선택 표시 (배경색 유지) */
-.bible-content :deep(.verse.highlighted.selected-verse) {
+.bible-content .verse.highlighted.selected-verse {
   box-shadow: 0 0 0 2px var(--color-accent-primary, #4B9F7E);
 }
 
 /* 다크모드에서 하이라이트된 절이 선택되었을 때 - 초록색 외곽선 */
-.theme-dark .bible-content :deep(.verse.highlighted.selected-verse),
-:root[data-theme="dark"] .bible-content :deep(.verse.highlighted.selected-verse) {
+.theme-dark .bible-content .verse.highlighted.selected-verse,
+:root[data-theme="dark"] .bible-content .verse.highlighted.selected-verse {
   box-shadow: 0 0 0 2px var(--color-accent-primary, #6bc99f) !important;
   filter: none !important; /* 기존 필터 제거 */
 }

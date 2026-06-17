@@ -133,6 +133,13 @@ export default defineNuxtConfig({
   },
   // Vite 설정 추가
   vite: {
+    build: {
+      rolldownOptions: {
+        checks: {
+          pluginTimings: false
+        }
+      }
+    },
     server: {
       // 운영 환경에서는 HMR 관련 설정 비활성화
       hmr: process.env.NODE_ENV === 'production' ? false : {

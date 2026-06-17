@@ -77,3 +77,33 @@ test('BookSelector exposes a non-Enter submit button for numeric mobile keyboard
   assert.match(source, /@click="handleSubmitButton"/, 'submit button should invoke the same navigation flow as Enter');
   assert.match(source, /aria-label="입력한 장\/절로 이동"/, 'submit button should be accessible');
 });
+
+test('Bible search button opens the search page accessibly', async () => {
+  const source = await readFile(
+    new URL('../app/components/bible/BibleSearchButton.vue', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /to="\/bible\/search"/, 'Bible search button should open /bible/search');
+  assert.match(source, /aria-label="성경 본문 검색 열기"/, 'Bible search button should be accessible');
+});
+
+test('Bible home exposes the shared search button', async () => {
+  const source = await readFile(
+    new URL('../app/components/bible/BibleHomeHeader.vue', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /<BibleSearchButton/, 'Bible home should render the search button');
+  assert.match(source, /import BibleSearchButton/, 'Bible home should import the search button component');
+});
+
+test('Bible reader exposes the same search button on /bible', async () => {
+  const source = await readFile(
+    new URL('../app/components/bible/BibleReaderView.vue', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /<BibleSearchButton/, 'Bible reader should render a search button');
+  assert.match(source, /import BibleSearchButton/, 'Bible reader should import the search button component');
+});
