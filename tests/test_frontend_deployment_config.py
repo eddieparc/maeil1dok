@@ -39,3 +39,12 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         self.assertIn("s-maxage=300, stale-while-revalidate=86400", nuxt_config)
         self.assertIn("'/api/**'", nuxt_config)
         self.assertIn("no-store", nuxt_config)
+
+    def test_hasena_page_html_is_not_edge_cached(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(
+            encoding="utf-8",
+        )
+
+        self.assertIn("'/hasena'", nuxt_config)
+        self.assertIn("'cache-control': 'no-store'", nuxt_config)
