@@ -5,6 +5,7 @@ from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 
 
@@ -48,7 +49,8 @@ class HasenaSummaryCommandTest(TestCase):
             "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
             return_value=[],
         ):
-            call_command("generate_hasena_summary_once", stdout=out)
+            with self.assertRaises(CommandError):
+                call_command("generate_hasena_summary_once", stdout=out)
 
         self.assertIn("failed no_video_info", out.getvalue())
 
@@ -59,7 +61,8 @@ class HasenaSummaryCommandTest(TestCase):
             "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
             return_value=[{"title": "하세나하시조", "published_at": "2026-06-17T00:30:00Z"}],
         ):
-            call_command("generate_hasena_summary_once", stdout=out)
+            with self.assertRaises(CommandError):
+                call_command("generate_hasena_summary_once", stdout=out)
 
         self.assertIn("failed no_video_info", out.getvalue())
 

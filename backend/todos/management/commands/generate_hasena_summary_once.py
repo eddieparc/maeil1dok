@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Final
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from todos.services.hasena_summary_service import (
     get_hasena_summary as generate_summary,
@@ -34,12 +34,12 @@ class Command(BaseCommand):
 
             reason = result.get("error") or "unknown_error"
             self.stdout.write(self.style.ERROR(f"failed {reason}"))
-            return
+            raise CommandError(reason)
 
         candidates = get_recent_hasena_videos()
         if not candidates:
             self.stdout.write(self.style.ERROR(f"failed {NO_VIDEO_INFO}"))
-            return
+            raise CommandError(NO_VIDEO_INFO)
 
         last_reason = NO_VIDEO_INFO
         for candidate in candidates:
@@ -62,6 +62,7 @@ class Command(BaseCommand):
             last_reason = result.get("error") or "unknown_error"
 
         self.stdout.write(self.style.ERROR(f"failed {last_reason}"))
+        raise CommandError(last_reason)
 
     def _parse_video_date(self, value: str | None) -> date | None:
         if not value:
