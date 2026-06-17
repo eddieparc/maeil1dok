@@ -33,7 +33,6 @@ const profileLink = computed(() => {
 </script>
 
 <style scoped>
-/* 글래스모피즘 플로팅 네비게이션 - bible-bottom-area 스타일과 통일 */
 .floating-nav {
   position: fixed;
   bottom: 8px;
@@ -43,16 +42,10 @@ const profileLink = computed(() => {
   width: calc(100% - 32px);
   max-width: min(320px, calc(100vw - 32px));
 
-  /* 글래스모피즘 */
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: #2C3333;
+  border: 1px solid rgba(44, 51, 51, 0.12);
   border-radius: 20px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 
   /* 레이아웃 */
   padding: 0.375rem 0.375rem;
@@ -63,7 +56,7 @@ const profileLink = computed(() => {
 
 .nav-item {
   padding: 0.5rem 0.5rem;
-  color: var(--color-slate-600, #475569);
+  color: rgba(255, 255, 255, 0.72);
   text-decoration: none;
   font-size: clamp(0.6875rem, 3vw, 0.8125rem);
   font-weight: 500;
@@ -81,15 +74,15 @@ const profileLink = computed(() => {
 }
 
 .nav-item:hover:not(.active) {
-  color: var(--color-accent-primary);
-  background: var(--color-accent-primary-light);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .nav-item.active {
-  background: var(--color-accent-primary);
-  color: var(--color-text-inverse);
+  background: #fff;
+  color: #2C3333;
   font-weight: 600;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .nav-label {
@@ -120,7 +113,7 @@ const profileLink = computed(() => {
 
 /* ====== 다크모드 스타일 ====== */
 [data-theme="dark"] .floating-nav {
-  background: rgba(36, 36, 36, 0.88);
+  background: #242424;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
     0 -4px 24px rgba(0, 0, 0, 0.4),
@@ -129,17 +122,17 @@ const profileLink = computed(() => {
 }
 
 [data-theme="dark"] .nav-item {
-  color: var(--color-text-secondary, #9ca3af);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 [data-theme="dark"] .nav-item:hover:not(.active) {
-  color: var(--color-accent-primary, #6bc99f);
-  background: var(--color-accent-primary-light);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme="dark"] .nav-item.active {
-  background: var(--color-accent-primary, #6bc99f);
-  color: var(--color-text-inverse, #1f2937);
-  box-shadow: var(--shadow-md);
+  background: #fff;
+  color: #242424;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 </style>

@@ -42,6 +42,24 @@ test('exposes leaderboard and friends on landing', () => {
   assert.match(floatingNavSource, /to="\/bible"/, 'landing floating nav should keep Bible');
 });
 
+test('removes landing quick access description copy', () => {
+  assert.doesNotMatch(quickAccessSource, />오늘 말씀 묵상</, 'landing quick access should not show Hasena description');
+  assert.doesNotMatch(quickAccessSource, />전체 계획 보기</, 'landing quick access should not show plan description');
+  assert.doesNotMatch(quickAccessSource, />함께 읽는 순위</, 'landing quick access should not show leaderboard description');
+  assert.doesNotMatch(quickAccessSource, />읽기 동료 보기</, 'landing quick access should not show friends description');
+  assert.doesNotMatch(quickAccessSource, />깊이 있는 이해</, 'landing quick access should not show intro description');
+  assert.doesNotMatch(quickAccessSource, />함께 읽는 기쁨</, 'landing quick access should not show groups description');
+  assert.doesNotMatch(quickAccessSource, />기록과 통계</, 'landing quick access should not show activity description');
+});
+
+test('floating nav uses an opaque background', () => {
+  const floatingNavBlock = floatingNavSource.match(/\.floating-nav\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+
+  assert.doesNotMatch(floatingNavSource, /backdrop-filter/, 'landing floating nav should not use glass blur');
+  assert.doesNotMatch(floatingNavBlock, /background:\s*rgba\(/, 'landing floating nav container should not use a translucent background');
+  assert.match(floatingNavBlock, /background:\s*#2C3333/, 'landing floating nav should use the solid original background');
+});
+
 test('keeps expected adjacent route links', () => {
   assert.match(quickAccessSource, /to="\/intro"/, 'landing quick access should keep /intro');
 });

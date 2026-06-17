@@ -6,14 +6,12 @@
       <NuxtLink to="/hasena" class="sub-card" data-testid="card-hasena">
         <ListIcon size="24" />
         <strong>하세나하시조</strong>
-        <span>오늘 말씀 묵상</span>
       </NuxtLink>
 
       <div class="sub-card plan-card">
         <NuxtLink to="/plan" class="card-main">
           <CalendarIcon size="24" />
           <strong>통독표</strong>
-          <span>전체 계획 보기</span>
         </NuxtLink>
         <NuxtLink to="/plans" class="plan-pill" data-testid="pill-plans">
           플랜 관리
@@ -23,31 +21,26 @@
       <NuxtLink to="/scoreboard" class="sub-card" data-testid="card-scoreboard">
         <TrophyIcon :size="24" />
         <strong>리더보드</strong>
-        <span>함께 읽는 순위</span>
       </NuxtLink>
 
       <NuxtLink to="/friends" class="sub-card" data-testid="card-friends">
         <UsersIcon :size="24" />
         <strong>친구</strong>
-        <span>읽기 동료 보기</span>
       </NuxtLink>
 
       <NuxtLink to="/intro" class="sub-card">
         <MonitorIcon size="24" />
         <strong>개론 영상</strong>
-        <span>깊이 있는 이해</span>
       </NuxtLink>
 
       <NuxtLink to="/groups" class="sub-card">
         <UsersIcon :size="24" />
         <strong>커뮤니티</strong>
-        <span>함께 읽는 기쁨</span>
       </NuxtLink>
 
       <NuxtLink :to="profileLink" class="sub-card">
         <HistoryIcon size="24" />
         <strong>내 활동</strong>
-        <span>기록과 통계</span>
       </NuxtLink>
     </div>
   </section>
@@ -150,12 +143,6 @@ const profileLink = computed(() => {
 .card-main strong {
   font-size: 1rem;
   font-weight: 700;
-}
-
-.sub-card span,
-.card-main span {
-  color: var(--text-sub);
-  font-size: 0.8125rem;
 }
 
 @media (max-width: 480px) {
