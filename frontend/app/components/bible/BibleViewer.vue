@@ -54,6 +54,12 @@ export interface SelectionMenuState {
   isSingleVerse: boolean;
 }
 
+export interface SelectionSharePayload {
+  text: string;
+  startVerse: number;
+  endVerse: number;
+}
+
 interface Props {
   content: string;
   book: string;
@@ -76,7 +82,7 @@ const emit = defineEmits<{
   highlight: [verses: { start: number; end: number; text: string }];
   'highlight-delete': [highlightId: number];
   copy: [text: string];
-  share: [text: string];
+  share: [payload: SelectionSharePayload];
   'selection-menu-change': [state: SelectionMenuState];
   'swipe-left': [];
   'swipe-right': [];
@@ -597,7 +603,15 @@ const handleCopy = async () => {
 };
 
 const handleShare = () => {
-  emit('share', selectedText.value);
+  const startVerse = selectedVerses.value.start;
+  const endVerse = selectedVerses.value.end;
+  if (startVerse <= 0 || endVerse < startVerse) return;
+
+  emit('share', {
+    text: selectedText.value,
+    startVerse,
+    endVerse,
+  });
   hideActionMenu();
   clearSelection();
 };
@@ -670,6 +684,16 @@ const scrollToVerse = (verseNumber: number) => {
   }
 };
 
+const focusVerseRange = (startVerse: number, endVerse: number) => {
+  if (!viewerRef.value || startVerse <= 0 || endVerse < startVerse) return;
+
+  clearAllSelections();
+  selectedVerses.value = { start: startVerse, end: endVerse };
+  selectionMode.value = null;
+  highlightVerses(startVerse, endVerse);
+  scrollToVerse(startVerse);
+};
+
 // 문서 클릭 시 메뉴 닫기
 const handleDocumentClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
@@ -728,6 +752,7 @@ watch(() => props.content, () => {
 defineExpose({
   scrollToVerse,
   restoreScrollPosition,
+  focusVerseRange,
   handleHighlightOrRemove,
   handleCopy,
   handleShare,

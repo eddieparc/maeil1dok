@@ -27,6 +27,11 @@ const biblePageSource = await readFile(
   'utf8',
 );
 
+const biblePageStateSource = await readFile(
+  new URL('../app/composables/bible/useBiblePageState.ts', import.meta.url),
+  'utf8',
+);
+
 const extractFloatingBottomBlock = (source) => {
   const floatingStart = source.indexOf('<FloatingBottomBar>');
   assert.notEqual(floatingStart, -1, 'reader should render FloatingBottomBar');
@@ -147,8 +152,8 @@ test('preserves adjacent bottom bar and event wiring', () => {
 test('shares the Maeil1Dok Bible URL from the floating selection UI', () => {
   assert.match(
     viewerSource,
-    /const handleShare = \(\) => \{[\s\S]*emit\('share', selectedText\.value\);[\s\S]*hideActionMenu\(\);[\s\S]*clearSelection\(\);[\s\S]*\};/,
-    'floating share should delegate to the page-level URL share handler',
+    /emit\('share',\s*\{[\s\S]*text:\s*selectedText\.value,[\s\S]*startVerse,[\s\S]*endVerse,[\s\S]*\}\);/,
+    'floating share should send the selected verse range to the page-level URL share handler',
   );
   assert.doesNotMatch(
     viewerSource,
@@ -157,12 +162,50 @@ test('shares the Maeil1Dok Bible URL from the floating selection UI', () => {
   );
   assert.match(
     biblePageSource,
-    /const shareUrl = generateShareUrl\(\);[\s\S]*url: shareUrl/s,
-    'page-level share should include the generated Maeil1Dok Bible URL',
+    /const shareUrl = generateShareUrl\(verseRange\);[\s\S]*url: shareUrl/s,
+    'page-level share should include the generated Maeil1Dok Bible URL for the selected verse range',
+  );
+  assert.match(
+    biblePageStateSource,
+    /params\.set\('verse',\s*formatVerseRangeParam\(verseRange\)\);/,
+    'generated share URLs should include the selected verse or verse range query',
   );
   assert.doesNotMatch(
     biblePageSource,
     /text:\s*text\s*\|\|/,
     'page-level share should not use selected verse text as the shared payload body',
+  );
+});
+
+test('opens verse-range share URLs with focused verses', () => {
+  assert.match(
+    biblePageStateSource,
+    /export const parseVerseRangeParam = \([\s\S]*rawValue\.match\(\/\^\(\\d\+\)\(\?:-\(\\d\+\)\)\?\$\/\);/,
+    'page state should parse single-verse and verse-range query values',
+  );
+  assert.match(
+    biblePageSource,
+    /pendingVerseFocus\.value = parseVerseRangeParam\(route\.query\.verse\);/,
+    'Bible page should capture verse range query values on entry',
+  );
+  assert.match(
+    biblePageSource,
+    /bibleReaderViewRef\.value\?\.focusVerseRange\(verseRange\.start,\s*verseRange\.end\);/,
+    'Bible page should focus the requested verse range after loading content',
+  );
+  assert.match(
+    biblePageSource,
+    /newQuery\.book \|\| newQuery\.chapter \|\| newQuery\.verse/,
+    'route watcher should react to verse-only share URL changes',
+  );
+  assert.match(
+    readerSource,
+    /focusVerseRange:\s*\(startVerse:\s*number,\s*endVerse:\s*number\) => \{[\s\S]*bibleViewerRef\.value\?\.focusVerseRange\(startVerse,\s*endVerse\);[\s\S]*\}/,
+    'reader should expose verse-range focus to the page',
+  );
+  assert.match(
+    viewerSource,
+    /const focusVerseRange = \(startVerse: number, endVerse: number\) => \{[\s\S]*highlightVerses\(startVerse,\s*endVerse\);[\s\S]*scrollToVerse\(startVerse\);[\s\S]*\};/,
+    'viewer should highlight the requested range and scroll to its first verse',
   );
 });

@@ -246,7 +246,7 @@
 import { ref, computed } from 'vue';
 import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon } from '@lucide/vue';
 import BibleViewer from '~/components/bible/BibleViewer.vue';
-import type { SelectionMenuState } from '~/components/bible/BibleViewer.vue';
+import type { SelectionMenuState, SelectionSharePayload } from '~/components/bible/BibleViewer.vue';
 import BibleToolPopover from '~/components/bible/BibleToolPopover.vue';
 import SelectionFloatingControls from '~/components/bible/SelectionFloatingControls.vue';
 import type { SelectionCopyFormat } from '~/components/bible/SelectionFloatingControls.vue';
@@ -398,7 +398,7 @@ const emit = defineEmits<{
   highlight: [verses: { start: number; end: number; text: string }];
   'highlight-delete': [highlightId: number];
   copy: [text: string];
-  share: [text: string];
+  share: [payload: SelectionSharePayload];
 
   // 통독모드
   'exit-tongdok': [];
@@ -468,6 +468,9 @@ defineExpose({
   },
   scrollToVerse: (verseNumber: number) => {
     bibleViewerRef.value?.scrollToVerse(verseNumber);
+  },
+  focusVerseRange: (startVerse: number, endVerse: number) => {
+    bibleViewerRef.value?.focusVerseRange(startVerse, endVerse);
   },
 });
 </script>

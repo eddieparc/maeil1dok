@@ -313,7 +313,7 @@ test('bible page restores saved scroll after content loads', () => {
 test('bible page clears stale scroll state on route changes and auto-save', () => {
   assert.match(
     biblePageSource,
-    /if\s*\(newQuery\.book\s*\|\|\s*newQuery\.chapter\s*\|\|\s*newQuery\.tongdok\)\s*{[\s\S]*initFromQuery\(\);[\s\S]*resetReaderScrollPosition\(\);[\s\S]*loadBibleContent/,
+    /const hasBibleLocationQuery = newQuery\.book \|\| newQuery\.chapter \|\| newQuery\.verse;[\s\S]*if\s*\(hasBibleLocationQuery \|\| newQuery\.tongdok\)\s*{[\s\S]*initFromQuery\(\);[\s\S]*resetReaderScrollPosition\(\);[\s\S]*loadBibleContent/,
     'deep-link route changes should reset stale reader scroll state before loading a fresh location',
   );
   assert.match(
