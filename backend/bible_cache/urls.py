@@ -5,6 +5,8 @@ urlpatterns = [
     # 지원 번역본 목록
     path('versions/', views.get_supported_versions, name='bible-cache-versions'),
 
+    path('search/', views.search_cached_content, name='bible-cache-search'),
+
     # 성경 본문 조회
     path(
         '<str:version>/<str:book>/<int:chapter>/',
