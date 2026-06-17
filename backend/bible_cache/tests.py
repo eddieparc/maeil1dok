@@ -391,3 +391,34 @@ class BibleCacheAPITest(APITestCase):
         self.assertEqual(response.data['results'][0]['verse'], 2)
         self.assertNotIn('&nbsp;', response.data['results'][0]['snippet'])
         self.assertNotIn('직접입력', response.data['results'][0]['snippet'])
+
+    def test_search_cached_content_ignores_section_titles(self):
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='1ch',
+            chapter=2,
+            content=(
+                '<span><span class="number">8&nbsp;&nbsp;&nbsp;</span>'
+                '<font class="name">에단</font>의 아들은 아사랴더라 </span><br />'
+                '<font class="smallTitle">다윗의 가계</font><br />'
+                '<span><span class="number">9&nbsp;&nbsp;&nbsp;</span>'
+                '<font class="name">헤스론</font>이 낳은 아들은 여라므엘이라 </span><br />'
+                '<span><span class="number">15&nbsp;&nbsp;&nbsp;</span>'
+                '여섯째로 오셈과 일곱째로 <font class="name">다윗</font>을 낳았으며 </span><br />'
+            ),
+            content_type='html',
+        )
+
+        response = self.client.get('/api/v1/bible-cache/search/?q=다윗&version=GAE')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['verse'], 15)
+        self.assertNotIn('다윗의 가계', response.data['results'][0]['snippet'])
+
+        title_response = self.client.get('/api/v1/bible-cache/search/?q=다윗의%20가계&version=GAE')
+
+        self.assertEqual(title_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(title_response.data['success'])
+        self.assertEqual(title_response.data['count'], 0)
