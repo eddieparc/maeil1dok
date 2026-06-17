@@ -75,3 +75,26 @@ test('leaderboard rank and score have accessible labels', () => {
     'activity score and breakdown should be announced with an accessible label',
   );
 });
+
+test('scoreboard defaults to calendar-month ranking with explicit month controls', () => {
+  assertContract(
+    scoreboardStoreSource,
+    /currentPeriod:\s*'month'/,
+    'monthly ranking should be the default leaderboard period',
+  );
+  assertContract(
+    scoreboardStoreSource,
+    /selectedMonth|rankingMonth|monthKey/,
+    'store should keep an explicit selected month, not only a rolling period',
+  );
+  assertContract(
+    scoreboardSource,
+    /(type="month"|월별 랭킹|rankingMonth|selectedMonth|changeMonth)/,
+    'scoreboard UI should expose a calendar-month ranking control',
+  );
+  assertContract(
+    scoreboardStoreSource,
+    /params[\s\S]{0,220}(month|ranking_month)/,
+    'scoreboard API calls should send the selected month to the backend',
+  );
+});

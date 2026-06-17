@@ -36,6 +36,12 @@ interface MyRanking {
 
 type Period = 'all' | 'week' | 'month'
 type FollowType = 'mutual' | 'following'
+type MonthKey = string
+
+const currentMonthKey = (): MonthKey => {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+}
 
 const normalizeLeaderboardEntry = (entry: LeaderboardEntry): LeaderboardEntry => {
   const bibleCompletedDays = entry.bible_completed_days ?? entry.completed_days ?? 0
@@ -72,7 +78,8 @@ export const useScoreboardStore = defineStore('scoreboard', {
     followingLeaderboard: [] as LeaderboardEntry[],
     groupLeaderboard: [] as LeaderboardEntry[],
     myRanking: null as MyRanking | null,
-    currentPeriod: 'all' as Period,
+    currentPeriod: 'month' as Period,
+    selectedMonth: currentMonthKey(),
     currentFollowType: 'mutual' as FollowType,
     currentPlanId: null as number | null,
     currentGroupId: null as number | null,
@@ -103,15 +110,18 @@ export const useScoreboardStore = defineStore('scoreboard', {
   },
 
   actions: {
-    async fetchGlobalLeaderboard(period: Period = 'all', planId?: number, limit: number = 100) {
+    async fetchGlobalLeaderboard(period: Period = 'month', planId?: number, limit: number = 100, month?: MonthKey) {
+      const rankingMonth = month ?? this.selectedMonth
       this.isLoading = true
       this.error = null
       this.currentPeriod = period
       this.currentPlanId = planId || null
+      this.selectedMonth = rankingMonth
       
       try {
         const params: Record<string, string | number> = { period, limit }
         if (planId) params.plan_id = planId
+        if (period === 'month') params.month = rankingMonth
         
         const response = await useApi().get('/api/v1/todos/scoreboard/', { params })
 
@@ -125,15 +135,18 @@ export const useScoreboardStore = defineStore('scoreboard', {
       }
     },
 
-    async fetchFriendsLeaderboard(period: Period = 'all', planId?: number, type: FollowType = 'mutual') {
+    async fetchFriendsLeaderboard(period: Period = 'month', planId?: number, type: FollowType = 'mutual', month?: MonthKey) {
+      const rankingMonth = month ?? this.selectedMonth
       this.isLoading = true
       this.error = null
       this.currentPeriod = period
       this.currentFollowType = type
+      this.selectedMonth = rankingMonth
 
       try {
         const params: Record<string, string | number> = { period, type }
         if (planId) params.plan_id = planId
+        if (period === 'month') params.month = rankingMonth
 
         const response = await useApi().get('/api/v1/todos/scoreboard/friends/', { params })
 
@@ -153,14 +166,19 @@ export const useScoreboardStore = defineStore('scoreboard', {
       }
     },
 
-    async fetchGroupLeaderboard(groupId: number, period: Period = 'all') {
+    async fetchGroupLeaderboard(groupId: number, period: Period = 'month', month?: MonthKey) {
+      const rankingMonth = month ?? this.selectedMonth
       this.isLoading = true
       this.currentPeriod = period
+      this.selectedMonth = rankingMonth
       this.currentGroupId = groupId
       
       try {
+        const params: Record<string, string | number> = { period }
+        if (period === 'month') params.month = rankingMonth
+
         const response = await useApi().get(`/api/v1/todos/scoreboard/group/${groupId}/`, {
-          params: { period }
+          params
         })
 
         if (response.data?.success) {
@@ -173,10 +191,12 @@ export const useScoreboardStore = defineStore('scoreboard', {
       }
     },
 
-    async fetchMyRanking(period: Period = 'all', planId?: number) {
+    async fetchMyRanking(period: Period = 'month', planId?: number, month?: MonthKey) {
+      const rankingMonth = month ?? this.selectedMonth
       try {
         const params: Record<string, string | number> = { period }
         if (planId) params.plan_id = planId
+        if (period === 'month') params.month = rankingMonth
         
         const response = await useApi().get('/api/v1/todos/scoreboard/my-ranking/', { params })
 
@@ -192,6 +212,10 @@ export const useScoreboardStore = defineStore('scoreboard', {
       this.currentPeriod = period
     },
 
+    setSelectedMonth(month: MonthKey) {
+      this.selectedMonth = month
+    },
+
     setFollowType(type: FollowType) {
       this.currentFollowType = type
     },
@@ -202,7 +226,8 @@ export const useScoreboardStore = defineStore('scoreboard', {
       this.followingLeaderboard = []
       this.groupLeaderboard = []
       this.myRanking = null
-      this.currentPeriod = 'all'
+      this.currentPeriod = 'month'
+      this.selectedMonth = currentMonthKey()
       this.currentFollowType = 'mutual'
       this.currentPlanId = null
       this.currentGroupId = null

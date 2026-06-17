@@ -1,8 +1,53 @@
 <template>
   <div class="profile-achievements fade-in">
-    <div v-if="achievements.length > 0" class="achievement-groups" role="list">
+    <div v-if="achievements.length > 0" class="achievement-shell">
+      <div class="achievement-tabs" role="tablist" aria-label="업적 종류">
+        <button
+          v-for="tab in achievementTabs"
+          :id="`achievement-tab-${tab.key}`"
+          :key="tab.key"
+          type="button"
+          class="achievement-tab"
+          :class="{ active: activeAchievementTab === tab.key }"
+          role="tab"
+          :aria-selected="activeAchievementTab === tab.key"
+          :aria-controls="`achievement-panel-${tab.key}`"
+          @click="activeAchievementTab = tab.key"
+        >
+          <component :is="tab.icon" :size="18" aria-hidden="true" />
+          <span>{{ tab.label }}</span>
+          <strong>{{ tab.unlockedCount }} / {{ tab.totalCount }}</strong>
+        </button>
+      </div>
+
+      <div
+        v-if="activeAchievementTab === 'bible'"
+        class="plan-tabs"
+        role="tablist"
+        aria-label="성경통독 플랜"
+      >
+        <button
+          v-for="plan in planTabs"
+          :key="plan.id"
+          type="button"
+          class="plan-tab"
+          :class="{ active: selectedPlanId === plan.id }"
+          role="tab"
+          :aria-selected="selectedPlanId === plan.id"
+          @click="selectedPlanId = plan.id"
+        >
+          {{ plan.name }}
+        </button>
+      </div>
+
+      <div
+        :id="`achievement-panel-${activeAchievementTab}`"
+        class="achievement-groups"
+        role="tabpanel"
+        :aria-labelledby="`achievement-tab-${activeAchievementTab}`"
+      >
       <section
-        v-for="group in groupedAchievements"
+        v-for="group in visibleAchievementGroups"
         :key="group.key"
         class="achievement-section"
         role="group"
@@ -41,6 +86,7 @@
           </article>
         </div>
       </section>
+      </div>
     </div>
 
     <EmptyState
@@ -79,18 +125,31 @@ interface Achievement {
   milestone_value: number
 }
 
+interface AchievementPlan {
+  id: number
+  name: string
+}
+
 const props = defineProps<{
   achievementsData: Achievement[]
+  plans?: AchievementPlan[]
 }>()
 
 // 실제 API 데이터만 사용 (Mock 데이터 제거)
 const achievements = computed(() => props.achievementsData)
+const activeAchievementTab = ref<'bible' | 'hasena'>('bible')
+const selectedPlanId = ref<number | 'all'>('all')
 
 const achievementGroups = [
   { key: 'reading', label: '통독', matcher: (type: string) => !type.includes('streak') && !type.includes('hasena') },
   { key: 'streak', label: '연속', matcher: (type: string) => type.includes('streak') && !type.includes('hasena') },
   { key: 'hasena', label: '하세나', matcher: (type: string) => type.includes('hasena') },
 ]
+
+const planTabs = computed(() => [
+  { id: 'all' as const, name: '전체 플랜' },
+  ...(props.plans ?? []).map(plan => ({ id: plan.id, name: plan.name })),
+])
 
 const groupedAchievements = computed(() => {
   return achievementGroups
@@ -104,6 +163,36 @@ const groupedAchievements = computed(() => {
     })
     .filter(group => group.items.length > 0)
 })
+
+const bibleAchievements = computed(() => {
+  return groupedAchievements.value.filter(group => group.key !== 'hasena')
+})
+
+const hasenaAchievements = computed(() => {
+  return groupedAchievements.value.filter(group => group.key === 'hasena')
+})
+
+const visibleAchievementGroups = computed(() => {
+  if (activeAchievementTab.value === 'hasena') return hasenaAchievements.value
+  return bibleAchievements.value
+})
+
+const achievementTabs = computed(() => [
+  {
+    key: 'bible' as const,
+    label: '성경통독',
+    icon: BookOpenIcon,
+    totalCount: bibleAchievements.value.reduce((sum, group) => sum + group.items.length, 0),
+    unlockedCount: bibleAchievements.value.reduce((sum, group) => sum + group.unlockedCount, 0),
+  },
+  {
+    key: 'hasena' as const,
+    label: '하세나',
+    icon: FlameIcon,
+    totalCount: hasenaAchievements.value.reduce((sum, group) => sum + group.items.length, 0),
+    unlockedCount: hasenaAchievements.value.reduce((sum, group) => sum + group.unlockedCount, 0),
+  },
+])
 
 const getAchievementIcon = (icon: string) => {
   if (icon.includes('book')) return BookOpenIcon
@@ -138,6 +227,74 @@ const nextStepText = (achievement: Achievement) => {
 .profile-achievements {
   padding: 1rem;
   min-height: 300px;
+}
+
+.achievement-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.achievement-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 12px;
+  background: var(--color-slate-50);
+}
+
+.achievement-tab {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-slate-600);
+  font-weight: 700;
+  text-align: left;
+}
+
+.achievement-tab strong {
+  color: var(--color-slate-500);
+  font-size: 0.75rem;
+}
+
+.achievement-tab.active {
+  border-color: var(--color-slate-200);
+  background: var(--color-bg-card);
+  color: var(--color-slate-900);
+  box-shadow: var(--shadow-sm);
+}
+
+.plan-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.125rem;
+}
+
+.plan-tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 999px;
+  background: var(--color-bg-card);
+  color: var(--color-slate-600);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.plan-tab.active {
+  border-color: var(--primary-color);
+  background: var(--primary-light);
+  color: var(--primary-color);
 }
 
 .achievement-groups {
@@ -319,6 +476,14 @@ const nextStepText = (achievement: Achievement) => {
 }
 
 @media (max-width: 640px) {
+  .profile-achievements {
+    padding-bottom: 7rem;
+  }
+
+  .achievement-tabs {
+    grid-template-columns: 1fr;
+  }
+
   .achievements-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 0.75rem;
@@ -326,6 +491,12 @@ const nextStepText = (achievement: Achievement) => {
 
   .achievement-card {
     padding: 1.25rem 0.75rem;
+    scroll-margin-bottom: 7rem;
+  }
+
+  .locked-target,
+  .locked-next {
+    scroll-margin-bottom: 7rem;
   }
 
   .achievement-icon {

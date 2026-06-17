@@ -5,19 +5,28 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 
-def get_hasena_period_filter(period):
+def _get_month_end(month_start):
+    if month_start.month == 12:
+        return date(month_start.year + 1, 1, 1)
+    return date(month_start.year, month_start.month + 1, 1)
+
+
+def get_hasena_period_filter(period, month_start=None):
     if period == "week":
-        return timezone.now().date() - timedelta(days=7)
+        return timezone.now().date() - timedelta(days=7), None
     if period == "month":
-        return timezone.now().date() - timedelta(days=30)
-    return None
+        start = month_start or timezone.now().date().replace(day=1)
+        return start, _get_month_end(start)
+    return None, None
 
 
-def get_hasena_count_annotation(period):
+def get_hasena_count_annotation(period, month_start=None):
     progress_filter = Q(hasenarecord__is_completed=True)
-    start_date = get_hasena_period_filter(period)
+    start_date, end_date = get_hasena_period_filter(period, month_start)
     if start_date:
         progress_filter &= Q(hasenarecord__date__gte=start_date)
+    if end_date:
+        progress_filter &= Q(hasenarecord__date__lt=end_date)
 
     return Count(
         "hasenarecord__date",

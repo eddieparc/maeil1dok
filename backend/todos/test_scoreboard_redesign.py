@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -90,6 +90,73 @@ class ScoreboardParamValidationTest(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(response.data["success"])
+
+    def test_scoreboard_returns_400_when_month_is_malformed(self):
+        request = self.factory.get("/api/v1/todos/scoreboard/", {
+            "period": "month",
+            "month": "2026-13",
+        })
+
+        response = scoreboard_views.get_scoreboard(request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.data["success"])
+
+
+class MonthlyScoreboardContractTest(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.user = User.objects.create_user(
+            username="monthly-reader",
+            nickname="월간독자",
+            password="pw-test-1234",
+        )
+        self.user.profile.is_public = True
+        self.user.profile.save(update_fields=["is_public"])
+        self.plan = BibleReadingPlan.objects.create(
+            name="월간 플랜",
+            created_by=self.user,
+        )
+        self.subscription = PlanSubscription.objects.create(
+            user=self.user,
+            plan=self.plan,
+            start_date=date.today(),
+            is_active=True,
+        )
+
+    def _complete_on(self, completed_date):
+        schedule = DailyBibleSchedule.objects.create(
+            plan=self.plan,
+            date=completed_date,
+            book="창세기",
+            start_chapter=1,
+            end_chapter=1,
+        )
+        completed_at = datetime.combine(completed_date, time(hour=12))
+        UserBibleProgress.objects.create(
+            subscription=self.subscription,
+            schedule=schedule,
+            is_completed=True,
+            completed_at=completed_at,
+        )
+
+    def test_month_scoreboard_uses_calendar_month_not_rolling_30_days(self):
+        today = timezone.now().date()
+        first_day = today.replace(day=1)
+        previous_month_day = first_day - timedelta(days=1)
+        self._complete_on(previous_month_day)
+        self._complete_on(first_day)
+        HasenaRecord.objects.create(user=self.user, date=previous_month_day, is_completed=True)
+        HasenaRecord.objects.create(user=self.user, date=first_day, is_completed=True)
+        request = self.factory.get("/api/v1/todos/scoreboard/", {"period": "month"})
+
+        response = scoreboard_views.get_scoreboard(request)
+
+        self.assertEqual(response.status_code, 200)
+        entry = response.data["leaderboard"][0]
+        self.assertEqual(response.data["period"], "month")
+        self.assertEqual(entry["bible_completed_days"], 1)
+        self.assertEqual(entry["hasena_completed_days"], 1)
 
 
 class ProgressRateRedesignTest(TestCase):
