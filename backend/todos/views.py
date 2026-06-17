@@ -2456,25 +2456,48 @@ def generate_hasena_summary_from_cron(request):
     try:
         from .services.hasena_summary_service import (
             get_hasena_summary as fetch_summary,
-            get_latest_hasena_video,
+            get_recent_hasena_videos,
         )
 
-        if not video_id:
-            latest = get_latest_hasena_video()
-            if not latest:
-                return Response({
-                    'success': False,
-                    'error': '최신 하세나 영상을 찾을 수 없습니다.'
-                }, status=status.HTTP_502_BAD_GATEWAY)
-            video_id = latest.get('video_id')
-            title = title or latest.get('title')
-            if not parsed_date and latest.get('published_at'):
-                parsed_date = datetime.fromisoformat(latest['published_at'].replace('Z', '+00:00')).date()
+        if video_id:
+            result = fetch_summary(video_id, video_date=parsed_date, title=title)
+            if result['success']:
+                return Response(result)
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
-        result = fetch_summary(video_id, video_date=parsed_date, title=title)
-        if result['success']:
-            return Response(result)
-        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        candidates = get_recent_hasena_videos()
+        if not candidates:
+            return Response({
+                'success': False,
+                'error': '최신 하세나 영상을 찾을 수 없습니다.'
+            }, status=status.HTTP_502_BAD_GATEWAY)
+
+        last_result = None
+        for candidate in candidates:
+            candidate_video_id = candidate.get('video_id')
+            if not candidate_video_id:
+                continue
+
+            candidate_date = parsed_date
+            if not candidate_date and candidate.get('published_at'):
+                candidate_date = datetime.fromisoformat(candidate['published_at'].replace('Z', '+00:00')).date()
+
+            result = fetch_summary(
+                candidate_video_id,
+                video_date=candidate_date,
+                title=title or candidate.get('title'),
+            )
+            if result['success']:
+                return Response(result)
+            last_result = result
+
+        if not last_result:
+            return Response({
+                'success': False,
+                'error': '최신 하세나 영상을 찾을 수 없습니다.'
+            }, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response(last_result, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error in generate_hasena_summary_from_cron: {str(e)}", exc_info=True)
         return Response({
