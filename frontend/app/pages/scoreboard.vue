@@ -35,6 +35,17 @@
           @update:model-value="changePeriod"
         />
 
+        <label v-if="currentPeriod === 'month'" class="month-filter">
+          <span>월별 랭킹</span>
+          <input
+            v-model="rankingMonth"
+            type="month"
+            class="month-input"
+            aria-label="랭킹 월 선택"
+            @change="changeMonth"
+          >
+        </label>
+
         <FilterButtonGroup
           v-model="activeView"
           :options="viewModes"
@@ -45,7 +56,7 @@
       <section id="activity-score-explanation" class="score-explainer fade-in delay-200">
         <div>
           <p class="explainer-title">활동 점수</p>
-          <p class="explainer-copy">통독 완료와 하세나 완료를 합산한 활동 점수입니다. 같은 점수라면 진행률, 하세나 최장 연속, 닉네임 순으로 정렬됩니다.</p>
+          <p class="explainer-copy">{{ scoreboardContextLabel }} 통독 완료와 하세나 완료를 합산한 활동 점수입니다. 같은 점수라면 진행률, 하세나 최장 연속, 닉네임 순으로 정렬됩니다.</p>
         </div>
         <div class="explainer-metrics" aria-label="활동 점수 구성">
           <span>통독</span>
@@ -170,6 +181,7 @@ useHead({
 
 const activeView = ref<'global' | 'friends' | 'following'>('global')
 const currentPeriod = computed(() => scoreboardStore.currentPeriod)
+const rankingMonth = ref(scoreboardStore.selectedMonth)
 const isLoading = computed(() => scoreboardStore.isLoading)
 const myRanking = computed(() => scoreboardStore.myRanking)
 const topThree = computed(() => scoreboardStore.topThree)
@@ -214,9 +226,9 @@ const relationshipEmptyState = computed(() => {
 })
 
 const periods = [
-  { value: 'all', label: '전체' },
   { value: 'month', label: '이번 달' },
-  { value: 'week', label: '이번 주' }
+  { value: 'week', label: '이번 주' },
+  { value: 'all', label: '전체' }
 ]
 
 const viewModes = [
@@ -224,6 +236,12 @@ const viewModes = [
   { value: 'friends', label: '친구' },
   { value: 'following', label: '팔로잉' }
 ]
+
+const scoreboardContextLabel = computed(() => {
+  if (currentPeriod.value !== 'month') return '선택한 기간의'
+  const [year, month] = rankingMonth.value.split('-')
+  return `${year}년 ${Number(month)}월`
+})
 
 // 초기 데이터 로드
 onMounted(() => {
@@ -236,11 +254,11 @@ onMounted(() => {
 // 리더보드 로드
 const loadLeaderboard = () => {
   if (activeView.value === 'global') {
-    scoreboardStore.fetchGlobalLeaderboard(currentPeriod.value)
+    scoreboardStore.fetchGlobalLeaderboard(currentPeriod.value, undefined, 100, rankingMonth.value)
   } else if (activeView.value === 'following' && auth.isAuthenticated.value) {
-    scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'following')
+    scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'following', rankingMonth.value)
   } else if (activeView.value === 'friends' && auth.isAuthenticated.value) {
-    scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'mutual')
+    scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'mutual', rankingMonth.value)
   }
 }
 
@@ -249,7 +267,15 @@ const changePeriod = (period: 'all' | 'week' | 'month') => {
   scoreboardStore.setPeriod(period)
   loadLeaderboard()
   if (auth.isAuthenticated.value) {
-    scoreboardStore.fetchMyRanking(period)
+    scoreboardStore.fetchMyRanking(period, undefined, rankingMonth.value)
+  }
+}
+
+const changeMonth = () => {
+  scoreboardStore.setSelectedMonth(rankingMonth.value)
+  loadLeaderboard()
+  if (auth.isAuthenticated.value) {
+    scoreboardStore.fetchMyRanking('month', undefined, rankingMonth.value)
   }
 }
 
@@ -365,6 +391,31 @@ onUnmounted(() => {
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: space-between;
+}
+
+.month-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.month-input {
+  min-height: 40px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 8px;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.month-input:focus {
+  border-color: var(--primary-color);
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
 }
 
 .score-explainer {

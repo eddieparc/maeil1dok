@@ -26,7 +26,7 @@ test('profile achievements are grouped into expected achievement sections', () =
   }
   assertContract(
     achievementsSource,
-    /v-for="[^"]*(group|section|category)[^"]*in[^"]*(groupedAchievements|achievementGroups|achievementsBy)/,
+    /v-for="[^"]*(group|section|category)[^"]*in[^"]*(groupedAchievements|visibleAchievementGroups|achievementGroups|achievementsBy)/,
     'template should render achievement groups/sections explicitly',
   );
 });
@@ -54,5 +54,25 @@ test('achievement locked state is accessible to assistive technology', () => {
     achievementsSource,
     /(aria-disabled|aria-describedby|role="(?:list|listitem|group)")/,
     'achievement cards should expose semantic state or relationships beyond visual dimming',
+  );
+});
+
+test('profile achievements use Bible-plan and Hasena tabs instead of one long mixed wall', () => {
+  assertContract(
+    achievementsSource,
+    /(activeAchievementTab|achievementTabs|selectedAchievementTab)/,
+    'achievements should expose an explicit tab state',
+  );
+  for (const tabLabel of ['성경통독', '하세나']) {
+    assertContract(
+      achievementsSource,
+      new RegExp(tabLabel),
+      `achievement tab label "${tabLabel}" should be present`,
+    );
+  }
+  assertContract(
+    achievementsSource,
+    /(planTabs|selectedPlanId|activePlanId|plans)[\s\S]{0,260}(전체 플랜|플랜)/,
+    'Bible achievements should be filterable or segmented by plan context',
   );
 });

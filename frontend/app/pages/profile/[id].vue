@@ -124,6 +124,7 @@
               <ProfileAchievements
                 v-else-if="profile"
                 :achievements-data="achievementsData"
+                :plans="calendarPlans"
               />
             </div>
 

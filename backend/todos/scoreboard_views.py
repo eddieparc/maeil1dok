@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from accounts.models import User, Follow
 from accounts.serializers import UserSearchSerializer
 from .models import UserBibleProgress, PlanSubscription, DailyBibleSchedule, ReadingGroup, GroupMembership
@@ -67,7 +67,30 @@ def parse_scoreboard_params(request, default_limit=DEFAULT_SCOREBOARD_LIMIT, req
                 'error': f'limit은 1 이상 {MAX_SCOREBOARD_LIMIT} 이하이어야 합니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-    return {'plan_id': plan_id, 'period': period, 'limit': limit}, None
+    month = parse_scoreboard_month(request.query_params.get('month'), period)
+    if isinstance(month, Response):
+        return None, month
+
+    return {'plan_id': plan_id, 'period': period, 'limit': limit, 'month': month}, None
+
+
+def parse_scoreboard_month(raw_month, period):
+    if period != 'month':
+        return None
+
+    if raw_month in (None, ''):
+        today = timezone.now().date()
+        return today.replace(day=1)
+
+    try:
+        parsed = datetime.strptime(raw_month, '%Y-%m').date()
+    except (TypeError, ValueError):
+        return Response({
+            'success': False,
+            'error': 'month는 YYYY-MM 형식이어야 합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    return parsed.replace(day=1)
 
 
 def parse_follow_type(request):
@@ -80,16 +103,23 @@ def parse_follow_type(request):
     return follow_type, None
 
 
-def get_period_filter(period):
+def get_month_end(month_start):
+    if month_start.month == 12:
+        return date(month_start.year + 1, 1, 1)
+    return date(month_start.year, month_start.month + 1, 1)
+
+
+def get_period_filter(period, month_start=None):
     """기간별 날짜 필터 생성"""
     if period == 'week':
-        return timezone.now() - timedelta(days=7)
-    elif period == 'month':
-        return timezone.now() - timedelta(days=30)
-    return None
+        return timezone.now() - timedelta(days=7), None
+    if period == 'month':
+        start = month_start or timezone.now().date().replace(day=1)
+        return start, get_month_end(start)
+    return None, None
 
 
-def get_completed_days_annotation(period, plan_id=None):
+def get_completed_days_annotation(period, plan_id=None, month_start=None):
     """완료 일수 계산을 위한 annotate 필터 생성"""
     progress_filter = Q(
         plansubscription__is_active=True,
@@ -97,9 +127,11 @@ def get_completed_days_annotation(period, plan_id=None):
     )
 
     # 기간 필터
-    start_date = get_period_filter(period)
+    start_date, end_date = get_period_filter(period, month_start)
     if start_date:
         progress_filter &= Q(plansubscription__progress__completed_at__gte=start_date)
+    if end_date:
+        progress_filter &= Q(plansubscription__progress__completed_at__lt=end_date)
 
     # 플랜 필터
     if plan_id:
@@ -118,9 +150,9 @@ def get_completed_days_annotation(period, plan_id=None):
     )
 
 
-def get_completed_count_annotation(period, plan_id=None):
+def get_completed_count_annotation(period, plan_id=None, month_start=None):
     """리더보드 완료 일수 계산 기준 생성"""
-    return get_completed_days_annotation(period, plan_id)
+    return get_completed_days_annotation(period, plan_id, month_start)
 
 
 def calculate_progress_rate(user, plan_id=None):
@@ -388,9 +420,11 @@ def get_scoreboard(request):
         plan_id = params['plan_id']
         period = params['period']
         limit = params['limit']
+        month = params['month']
+        month_key = month.strftime('%Y-%m') if month else None
 
         # 캐시 키 생성
-        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:global:{period}:{plan_id}:{limit}'
+        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:global:{period}:{month_key}:{plan_id}:{limit}'
         can_use_shared_cache = not request.user.is_authenticated
         if can_use_shared_cache:
             cached_data = cache.get(cache_key)
@@ -417,8 +451,8 @@ def get_scoreboard(request):
 
         # 완료 일수 annotate 추가 (N+1 쿼리 해결)
         users_query = users_query.annotate(
-            completed_count=get_completed_count_annotation(period, plan_id),
-            hasena_completed_count=get_hasena_count_annotation(period),
+            completed_count=get_completed_count_annotation(period, plan_id, month),
+            hasena_completed_count=get_hasena_count_annotation(period, month),
         ).annotate(
             activity_count=F('completed_count') + F('hasena_completed_count'),
         )
@@ -462,6 +496,7 @@ def get_scoreboard(request):
             'success': True,
             'leaderboard': leaderboard,
             'period': period,
+            'month': month_key,
             'plan_id': plan_id
         }
 
@@ -491,9 +526,11 @@ def get_friends_scoreboard(request):
 
         plan_id = params['plan_id']
         period = params['period']
+        month = params['month']
+        month_key = month.strftime('%Y-%m') if month else None
 
         # 캐시 키 생성
-        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:friends:{request.user.id}:{follow_type}:{period}:{plan_id}'
+        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:friends:{request.user.id}:{follow_type}:{period}:{month_key}:{plan_id}'
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -521,8 +558,8 @@ def get_friends_scoreboard(request):
 
         # 완료 일수 annotate 추가
         users_query = users_query.annotate(
-            completed_count=get_completed_count_annotation(period, plan_id),
-            hasena_completed_count=get_hasena_count_annotation(period),
+            completed_count=get_completed_count_annotation(period, plan_id, month),
+            hasena_completed_count=get_hasena_count_annotation(period, month),
         ).annotate(
             activity_count=F('completed_count') + F('hasena_completed_count'),
         )
@@ -562,6 +599,7 @@ def get_friends_scoreboard(request):
             'success': True,
             'leaderboard': leaderboard,
             'period': period,
+            'month': month_key,
             'plan_id': plan_id,
             'type': follow_type,
             'total_friends': len(friend_ids)
@@ -619,6 +657,8 @@ def get_group_scoreboard(request, group_id):
 
         period = params['period']
         plan_id = params['plan_id']
+        month = params['month']
+        month_key = month.strftime('%Y-%m') if month else None
 
         # 플랜 선택
         if plan_id:
@@ -638,7 +678,7 @@ def get_group_scoreboard(request, group_id):
                 }, status=status.HTTP_404_NOT_FOUND)
 
         # 캐시 키
-        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:group:{group_id}:{plan.id}:{period}'
+        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:group:{group_id}:{plan.id}:{period}:{month_key}'
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -651,8 +691,8 @@ def get_group_scoreboard(request, group_id):
 
         # 완료 일수 annotate
         members = members.annotate(
-            completed_count=get_completed_count_annotation(period, plan.id),
-            hasena_completed_count=get_hasena_count_annotation(period),
+            completed_count=get_completed_count_annotation(period, plan.id, month),
+            hasena_completed_count=get_hasena_count_annotation(period, month),
         ).annotate(
             activity_count=F('completed_count') + F('hasena_completed_count'),
         )
@@ -737,7 +777,8 @@ def get_group_scoreboard(request, group_id):
                 'description': plan.description
             },
             'leaderboard': leaderboard,
-            'period': period
+            'period': period,
+            'month': month_key
         }
 
         # 캐시 저장 (3분)
@@ -763,9 +804,11 @@ def get_my_ranking(request):
 
         plan_id = params['plan_id']
         period = params['period']
+        month = params['month']
+        month_key = month.strftime('%Y-%m') if month else None
 
         # 캐시 키
-        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:my_ranking:{request.user.id}:{period}:{plan_id}'
+        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:my_ranking:{request.user.id}:{period}:{month_key}:{plan_id}'
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
@@ -799,8 +842,8 @@ def get_my_ranking(request):
         users_query = users_query.filter(
             Q(profile__is_public=True) | Q(id=request.user.id)
         ).annotate(
-            completed_count=get_completed_count_annotation(period, plan_id),
-            hasena_completed_count=get_hasena_count_annotation(period),
+            completed_count=get_completed_count_annotation(period, plan_id, month),
+            hasena_completed_count=get_hasena_count_annotation(period, month),
         )
 
         users = list(users_query)
@@ -864,6 +907,7 @@ def get_my_ranking(request):
                 'percentile': round((1 - (my_rank / total_users)) * 100, 2) if my_rank and total_users > 0 else 0
             },
             'period': period,
+            'month': month_key,
             'plan_id': plan_id
         }
 
