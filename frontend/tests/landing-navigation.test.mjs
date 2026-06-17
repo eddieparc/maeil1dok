@@ -37,9 +37,9 @@ test('removes bible and search from landing quick access', () => {
 test('exposes leaderboard and friends on landing', () => {
   assert.match(quickAccessSource, /to="\/scoreboard"/, 'landing quick access should link to leaderboard');
   assert.match(quickAccessSource, /to="\/friends"/, 'landing quick access should link to friends');
-  assert.match(floatingNavSource, /to="\/scoreboard"/, 'landing floating nav should link to leaderboard');
-  assert.match(floatingNavSource, /to="\/friends"/, 'landing floating nav should link to friends');
-  assert.doesNotMatch(floatingNavSource, /to="\/bible"/, 'landing floating nav should not include Bible');
+  assert.doesNotMatch(floatingNavSource, /to="\/scoreboard"/, 'landing floating nav should not include leaderboard');
+  assert.doesNotMatch(floatingNavSource, /to="\/friends"/, 'landing floating nav should not include friends');
+  assert.match(floatingNavSource, /to="\/bible"/, 'landing floating nav should keep Bible');
 });
 
 test('keeps expected adjacent route links', () => {
