@@ -12,6 +12,16 @@ const floatingNavSource = await readFile(
   'utf8',
 );
 
+const floatingBottomBarSource = await readFile(
+  new URL('../app/components/common/FloatingBottomBar.vue', import.meta.url),
+  'utf8',
+);
+
+const nuxtConfigSource = await readFile(
+  new URL('../nuxt.config.ts', import.meta.url),
+  'utf8',
+);
+
 test('renders hasena card on landing quick access', () => {
   assert.match(quickAccessSource, /to="\/hasena"/, 'landing quick access should link to /hasena');
   assert.match(quickAccessSource, />하세나하시조</, 'landing quick access should show HasenaHasijo');
@@ -54,10 +64,18 @@ test('removes landing quick access description copy', () => {
 
 test('floating nav uses an opaque background', () => {
   const floatingNavBlock = floatingNavSource.match(/\.floating-nav\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+  const floatingBottomBarBlock = floatingBottomBarSource.match(/\.floating-bottom-area\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
 
   assert.doesNotMatch(floatingNavSource, /backdrop-filter/, 'landing floating nav should not use glass blur');
   assert.doesNotMatch(floatingNavBlock, /background:\s*rgba\(/, 'landing floating nav container should not use a translucent background');
   assert.match(floatingNavBlock, /background:\s*#2C3333/, 'landing floating nav should use the solid original background');
+  assert.doesNotMatch(floatingBottomBarSource, /backdrop-filter/, 'common floating bottom bar should not use glass blur');
+  assert.doesNotMatch(floatingBottomBarBlock, /background:\s*rgba\(/, 'common floating bottom bar should not use a translucent background');
+  assert.match(floatingBottomBarBlock, /background:\s*#2C3333/, 'common floating bottom bar should use the solid original background');
+});
+
+test('landing html is not edge cached', () => {
+  assert.match(nuxtConfigSource, /'\/':\s*\{\s*headers:\s*\{\s*'cache-control':\s*'no-store'/s, 'landing root route should not serve stale HTML');
 });
 
 test('keeps expected adjacent route links', () => {

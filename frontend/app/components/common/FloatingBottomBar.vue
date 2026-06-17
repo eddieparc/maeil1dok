@@ -43,15 +43,10 @@ const profileLink = computed(() => (
   width: calc(100% - 32px);
   max-width: min(400px, calc(100vw - 32px));
   z-index: 100;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: #2C3333;
+  border: 1px solid rgba(44, 51, 51, 0.12);
   border-radius: 20px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
 
 .floating-above-popover {
@@ -95,7 +90,7 @@ const profileLink = computed(() => (
   justify-content: center;
   width: 32px;
   height: 32px;
-  color: var(--color-slate-500, #64748b);
+  color: rgba(255, 255, 255, 0.72);
   border-radius: 8px;
   text-decoration: none;
   flex-shrink: 0;
@@ -103,8 +98,8 @@ const profileLink = computed(() => (
 }
 
 .floating-side-nav-item:hover {
-  color: var(--color-accent-primary);
-  background: rgba(75, 159, 126, 0.08);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .floating-side-nav-item:active {
@@ -118,7 +113,7 @@ const profileLink = computed(() => (
 }
 
 [data-theme="dark"] .floating-bottom-area {
-  background: rgba(31, 41, 55, 0.82);
+  background: #242424;
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.35),
@@ -127,11 +122,11 @@ const profileLink = computed(() => (
 }
 
 [data-theme="dark"] .floating-side-nav-item {
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 [data-theme="dark"] .floating-side-nav-item:hover {
-  color: var(--color-accent-primary);
-  background: rgba(107, 201, 159, 0.1);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }
 </style>

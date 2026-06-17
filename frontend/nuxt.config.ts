@@ -153,7 +153,7 @@ export default defineNuxtConfig({
     routeRules: {
       '/': {
         headers: {
-          'cache-control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400'
+          'cache-control': 'no-store'
         }
       },
       '/hasena': {
