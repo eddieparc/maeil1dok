@@ -18,7 +18,6 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
 
         services = {
             "backend-web": repo_root / "railway" / "backend.web.toml",
-            "backend-worker": repo_root / "railway" / "backend.worker.toml",
             "backend-beat": repo_root / "railway" / "backend.beat.toml",
             "backend-backup": repo_root / "railway" / "backend.backup.toml",
             "frontend": repo_root / "railway" / "frontend.toml",
@@ -30,7 +29,6 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         self.assertEqual(configs["backend-web"]["deploy"]["healthcheckPath"], "/admin/login/")
         self.assertEqual(configs["backend-web"]["deploy"]["restartPolicyType"], "ON_FAILURE")
 
-        self.assertEqual(configs["backend-worker"]["build"]["dockerfilePath"], "Dockerfile.worker")
         self.assertEqual(configs["backend-beat"]["build"]["dockerfilePath"], "Dockerfile.beat")
         self.assertEqual(configs["backend-beat"]["deploy"]["cronSchedule"], "*/5 15-20 * * 0-5")
         self.assertEqual(configs["backend-backup"]["build"]["dockerfilePath"], "Dockerfile.backup")
@@ -40,7 +38,6 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         for config in configs.values():
             regions = config["deploy"]["multiRegionConfig"]
             self.assertEqual(regions, {"asia-southeast1-eqsg3a": {"numReplicas": 1}})
-        self.assertIn("CELERY_WORKER_CONCURRENCY:-2", (repo_root / "backend" / "Dockerfile.worker").read_text(encoding="utf-8"))
         self.assertIn('CMD ["python", "manage.py", "generate_hasena_summary_once"]', (repo_root / "backend" / "Dockerfile.beat").read_text(encoding="utf-8"))
         self.assertIn("mysql.sql.gz.sha256", (repo_root / "backend" / "scripts" / "railway_mysql_backup.sh").read_text(encoding="utf-8"))
         self.assertEqual(configs["frontend"]["build"]["builder"], "RAILPACK")
