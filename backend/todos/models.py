@@ -220,7 +220,7 @@ class HasenaSummary(models.Model):
     title = models.CharField(max_length=200, blank=True, help_text="영상 제목")
     summary = models.TextField(help_text="AI 생성 요약")
     transcript = models.TextField(blank=True, help_text="원본 자막")
-    model_used = models.CharField(max_length=50, default='gemini-2.0-flash')
+    model_used = models.CharField(max_length=50, default='gemini-3.5-flash')
     is_edited = models.BooleanField(default=False, help_text="관리자가 수정했는지 여부")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

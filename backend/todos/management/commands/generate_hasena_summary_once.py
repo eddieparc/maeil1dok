@@ -41,28 +41,27 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"failed {NO_VIDEO_INFO}"))
             raise CommandError(NO_VIDEO_INFO)
 
-        last_reason = NO_VIDEO_INFO
-        for candidate in candidates:
-            candidate_video_id = candidate.get("video_id")
-            if not candidate_video_id:
-                continue
+        candidate = next((item for item in candidates if item.get("video_id")), None)
+        if not candidate:
+            self.stdout.write(self.style.ERROR(f"failed {NO_VIDEO_INFO}"))
+            raise CommandError(NO_VIDEO_INFO)
 
-            candidate_video_date = video_date
-            if not candidate_video_date and candidate.get("published_at"):
-                candidate_video_date = self._parse_published_at(candidate["published_at"])
+        candidate_video_date = video_date
+        if not candidate_video_date and candidate.get("published_at"):
+            candidate_video_date = self._parse_published_at(candidate["published_at"])
 
-            result = generate_summary(
-                candidate_video_id,
-                video_date=candidate_video_date,
-                title=title or candidate.get("title"),
-            )
-            if result.get("success"):
-                self.stdout.write(self.style.SUCCESS(f"generated {result.get('video_id')}"))
-                return
-            last_reason = result.get("error") or "unknown_error"
+        result = generate_summary(
+            candidate["video_id"],
+            video_date=candidate_video_date,
+            title=title or candidate.get("title"),
+        )
+        if result.get("success"):
+            self.stdout.write(self.style.SUCCESS(f"generated {result.get('video_id')}"))
+            return
 
-        self.stdout.write(self.style.ERROR(f"failed {last_reason}"))
-        raise CommandError(last_reason)
+        reason = result.get("error") or "unknown_error"
+        self.stdout.write(self.style.ERROR(f"failed {reason}"))
+        raise CommandError(reason)
 
     def _parse_video_date(self, value: str | None) -> date | None:
         if not value:

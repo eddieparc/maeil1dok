@@ -324,7 +324,7 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 # YouTube Data API 설정 (플레이리스트 최신 영상 확인)
 # Google Cloud Console에서 YouTube Data API v3 활성화 필요
-YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', os.environ.get('GEMINI_API_KEY'))
+YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
 
 # Celery 설정 (비동기 태스크 처리)
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')

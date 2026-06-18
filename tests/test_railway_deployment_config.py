@@ -30,7 +30,7 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         self.assertEqual(configs["backend-web"]["deploy"]["restartPolicyType"], "ON_FAILURE")
 
         self.assertEqual(configs["backend-beat"]["build"]["dockerfilePath"], "Dockerfile.beat")
-        self.assertEqual(configs["backend-beat"]["deploy"]["cronSchedule"], "*/5 15-20 * * 0-5")
+        self.assertEqual(configs["backend-beat"]["deploy"]["cronSchedule"], "0,30 15-20 * * 0-5")
         self.assertEqual(configs["backend-backup"]["build"]["dockerfilePath"], "Dockerfile.backup")
         self.assertEqual(configs["backend-backup"]["deploy"]["cronSchedule"], "0 18 * * *")
         self.assertIn("railway/backend.web.toml", configs["backend-web"]["build"]["watchPatterns"])

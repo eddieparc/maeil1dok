@@ -1,6 +1,9 @@
 import logging
 import requests
 import time
+import re
+import json
+import xml.etree.ElementTree as ET
 from datetime import date
 from django.conf import settings
 
@@ -8,16 +11,129 @@ logger = logging.getLogger(__name__)
 
 # 하세나하시조 플레이리스트 ID
 HASENA_PLAYLIST_ID = 'PLMT1AJszhYtXkV936HNuExxjAmtFhp2tL'
+GEMINI_SUMMARY_MODELS = ('gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-flash-lite')
+
+
+def _redact_api_keys(message: str) -> str:
+    return re.sub(r'([?&]key=)[^&\s]+', r'\1[REDACTED]', message)
 
 
 def get_recent_hasena_videos(max_results: int = 10) -> list[dict]:
+    feed_videos = _get_recent_hasena_videos_from_feed(max_results)
+    if feed_videos:
+        return feed_videos
+
+    playlist_page_videos = _get_recent_hasena_videos_from_playlist_page(max_results)
+    if playlist_page_videos:
+        return playlist_page_videos
+
+    return _get_recent_hasena_videos_from_api(max_results)
+
+
+def _get_recent_hasena_videos_from_feed(max_results: int = 10) -> list[dict]:
+    try:
+        response = requests.get(
+            'https://www.youtube.com/feeds/videos.xml',
+            params={'playlist_id': HASENA_PLAYLIST_ID},
+            timeout=10,
+        )
+        response.raise_for_status()
+
+        namespaces = {
+            'atom': 'http://www.w3.org/2005/Atom',
+            'yt': 'http://www.youtube.com/xml/schemas/2015',
+        }
+        root = ET.fromstring(response.content)
+        videos = []
+        for entry in root.findall('atom:entry', namespaces):
+            video_id = entry.findtext('yt:videoId', namespaces=namespaces)
+            title = entry.findtext('atom:title', default='', namespaces=namespaces)
+
+            if not video_id or title.lower() == 'private video':
+                continue
+
+            videos.append({
+                'video_id': video_id,
+                'title': title,
+                'published_at': entry.findtext('atom:published', namespaces=namespaces),
+            })
+
+            if len(videos) >= max_results:
+                break
+
+        if not videos:
+            logger.warning("No public videos found in playlist feed")
+        return videos
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Error fetching playlist feed: {str(e)}")
+        return []
+    except ET.ParseError as e:
+        logger.warning(f"Error parsing playlist feed: {str(e)}")
+        return []
+
+
+def _get_recent_hasena_videos_from_playlist_page(max_results: int = 10) -> list[dict]:
+    try:
+        response = requests.get(
+            'https://www.youtube.com/playlist',
+            params={'list': HASENA_PLAYLIST_ID},
+            headers={
+                'User-Agent': 'Mozilla/5.0 (compatible; Maeil1Dok/1.0; +https://maeil1dok.app)',
+                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+
+        videos = []
+        seen_video_ids = set()
+        for match in re.finditer(r'"videoId":"(?P<video_id>[A-Za-z0-9_-]{11})"', response.text):
+            video_id = match.group('video_id')
+            if video_id in seen_video_ids:
+                continue
+
+            seen_video_ids.add(video_id)
+            videos.append({
+                'video_id': video_id,
+                'title': _extract_playlist_page_title(response.text, match.start()) or '',
+                'published_at': None,
+            })
+
+            if len(videos) >= max_results:
+                break
+
+        if not videos:
+            logger.warning("No public videos found in playlist page")
+        return videos
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Error fetching playlist page: {str(e)}")
+        return []
+
+
+def _extract_playlist_page_title(html: str, video_id_position: int) -> str | None:
+    search_window = html[video_id_position:video_id_position + 3000]
+    title_match = re.search(
+        r'"title":\{"runs":\[\{"text":"(?P<title>(?:\\.|[^"\\])*)"',
+        search_window,
+    )
+    if not title_match:
+        return None
+
+    try:
+        return json.loads(f'"{title_match.group("title")}"')
+    except json.JSONDecodeError:
+        return title_match.group('title')
+
+
+def _get_recent_hasena_videos_from_api(max_results: int = 10) -> list[dict]:
     api_key = getattr(settings, 'YOUTUBE_API_KEY', None)
     if not api_key:
-        # YOUTUBE_API_KEY가 없으면 GEMINI_API_KEY 시도 (같은 Google Cloud 프로젝트인 경우)
-        api_key = getattr(settings, 'GEMINI_API_KEY', None)
-    
-    if not api_key:
         logger.error("No YouTube API key configured")
+        return []
+
+    gemini_api_key = getattr(settings, 'GEMINI_API_KEY', None)
+    if gemini_api_key and api_key == gemini_api_key:
+        logger.error("YOUTUBE_API_KEY matches GEMINI_API_KEY; skipping YouTube Data API call")
         return []
     
     try:
@@ -59,7 +175,7 @@ def get_recent_hasena_videos(max_results: int = 10) -> list[dict]:
         return videos
         
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching playlist: {str(e)}")
+        logger.error(f"Error fetching playlist: {_redact_api_keys(str(e))}")
         return []
     except Exception as e:
         logger.error(f"Unexpected error fetching playlist: {str(e)}")
@@ -142,26 +258,15 @@ def summarize_with_gemini(transcript: str) -> dict | None:
 {transcript}
 """
         
-        response = None
-        for attempt in range(3):
-            try:
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.3,
-                        max_output_tokens=16384,
-                    )
-                )
-                break
-            except Exception as e:
-                if attempt == 2 or not _is_retryable_gemini_error(str(e)):
-                    raise
-                time.sleep(2 ** attempt)
+        response, model = _generate_content_with_gemini_fallback(
+            client=client,
+            types=types,
+            contents=prompt,
+        )
         
         return {
             'summary': response.text,
-            'model': 'gemini-2.5-flash'
+            'model': model
         }
         
     except Exception as e:
@@ -178,6 +283,46 @@ def summarize_with_gemini(transcript: str) -> dict | None:
 def _is_retryable_gemini_error(error: str) -> bool:
     retryable_markers = ('503', 'UNAVAILABLE', '500', 'INTERNAL', '504', 'DEADLINE_EXCEEDED')
     return any(marker in error for marker in retryable_markers)
+
+
+def _is_quota_exceeded_gemini_error(error: str) -> bool:
+    quota_markers = ('429', 'RESOURCE_EXHAUSTED')
+    return any(marker in error for marker in quota_markers)
+
+
+def _can_try_next_gemini_model(error: str) -> bool:
+    return _is_quota_exceeded_gemini_error(error) or (
+        'PERMISSION_DENIED' in error and 'unrestricted keys' in error
+    )
+
+
+def _generate_content_with_gemini_fallback(client, types, contents):
+    last_error = None
+    for model in GEMINI_SUMMARY_MODELS:
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        temperature=0.3,
+                        max_output_tokens=16384,
+                    )
+                )
+                return response, model
+            except Exception as e:
+                error_str = str(e)
+                last_error = e
+                if _can_try_next_gemini_model(error_str):
+                    logger.warning(f"Gemini model unavailable, trying fallback if available: {model}")
+                    break
+                if attempt == 2 or not _is_retryable_gemini_error(error_str):
+                    raise
+                time.sleep(2 ** attempt)
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("No Gemini summary models configured")
 
 
 def summarize_youtube_video_with_gemini(video_id: str) -> dict | None:
@@ -215,42 +360,31 @@ def summarize_youtube_video_with_gemini(video_id: str) -> dict | None:
 5. 핵심 키워드나 중요한 내용은 **볼드**로 강조하세요.
 6. 하시조 항목은 `- [ ]` 형식으로 작성하세요.
 """
-        response = None
-        for attempt in range(3):
-            try:
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=types.Content(
-                        parts=[
-                            types.Part(
-                                file_data=types.FileData(
-                                    file_uri=f'https://www.youtube.com/watch?v={video_id}',
-                                    mime_type='video/*',
-                                )
-                            ),
-                            types.Part(text=prompt),
-                        ]
+        response, model = _generate_content_with_gemini_fallback(
+            client=client,
+            types=types,
+            contents=types.Content(
+                parts=[
+                    types.Part(
+                        file_data=types.FileData(
+                            file_uri=f'https://www.youtube.com/watch?v={video_id}',
+                            mime_type='video/*',
+                        )
                     ),
-                    config=types.GenerateContentConfig(
-                        temperature=0.3,
-                        max_output_tokens=16384,
-                    )
-                )
-                break
-            except Exception as e:
-                if attempt == 2 or not _is_retryable_gemini_error(str(e)):
-                    raise
-                time.sleep(2 ** attempt)
+                    types.Part(text=prompt),
+                ]
+            ),
+        )
 
         return {
             'summary': response.text,
-            'model': 'gemini-2.5-flash-video'
+            'model': f'{model}-video'
         }
     except Exception as e:
         error_str = str(e)
         logger.error(f"Error calling Gemini video API: {error_str}")
 
-        if '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
+        if _is_quota_exceeded_gemini_error(error_str):
             return {'error': 'quota_exceeded', 'message': 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.'}
 
         return None

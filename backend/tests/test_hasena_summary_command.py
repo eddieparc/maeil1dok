@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import TestCase
+from django.test import SimpleTestCase
 
 
-class HasenaSummaryCommandTest(TestCase):
+class HasenaSummaryCommandTest(SimpleTestCase):
     def test_generate_hasena_summary_once_uses_latest_public_video(self) -> None:
         out = StringIO()
 
@@ -66,7 +66,7 @@ class HasenaSummaryCommandTest(TestCase):
 
         self.assertIn("failed no_video_info", out.getvalue())
 
-    def test_generate_hasena_summary_once_tries_next_recent_video(self) -> None:
+    def test_generate_hasena_summary_once_fails_latest_video_generation_without_fallback(self) -> None:
         out = StringIO()
 
         with (
@@ -74,26 +74,31 @@ class HasenaSummaryCommandTest(TestCase):
                 "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
                 return_value=[
                     {
-                        "video_id": "video-new",
+                        "video_id": "LY-mfNxK90Y",
                         "title": "아직 자막 없는 영상",
-                        "published_at": "2026-06-17T00:30:00Z",
+                        "published_at": "2026-06-18T00:30:00Z",
                     },
                     {
-                        "video_id": "video-ready",
+                        "video_id": "CkJhOAlh_lg",
                         "title": "자막 준비된 영상",
-                        "published_at": "2026-06-16T00:30:00Z",
+                        "published_at": "2026-06-17T00:30:00Z",
                     },
                 ],
             ),
             patch(
                 "todos.management.commands.generate_hasena_summary_once.generate_summary",
                 side_effect=[
-                    {"success": False, "error": "영상 자막을 가져올 수 없습니다."},
-                    {"success": True, "video_id": "video-ready", "created": True},
+                    {"success": False, "error": "RESOURCE_EXHAUSTED: free-tier quota exceeded"},
+                    {"success": True, "video_id": "CkJhOAlh_lg", "created": True},
                 ],
             ) as generate_summary,
         ):
-            call_command("generate_hasena_summary_once", stdout=out)
+            with self.assertRaises(CommandError):
+                call_command("generate_hasena_summary_once", stdout=out)
 
-        self.assertEqual(generate_summary.call_count, 2)
-        self.assertIn("generated video-ready", out.getvalue())
+        generate_summary.assert_called_once_with(
+            "LY-mfNxK90Y",
+            video_date=date(2026, 6, 18),
+            title="아직 자막 없는 영상",
+        )
+        self.assertIn("failed RESOURCE_EXHAUSTED: free-tier quota exceeded", out.getvalue())

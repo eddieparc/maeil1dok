@@ -4,7 +4,7 @@ dockerfilePath = "Dockerfile.beat"
 watchPatterns = ["backend/**", "railway/backend.beat.toml"]
 
 [deploy]
-cronSchedule = "*/5 15-20 * * 0-5"
+cronSchedule = "0,30 15-20 * * 0-5"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 overlapSeconds = 0
