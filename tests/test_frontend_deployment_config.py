@@ -28,6 +28,86 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         self.assertNotIn("provider: 'vercel'", nuxt_config)
         self.assertNotIn("Vercel", nuxt_config)
 
+    def test_frontend_sentry_is_configured_without_committed_dsn(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(
+            encoding="utf-8",
+        )
+        package_json = (repo_root / "frontend" / "package.json").read_text(
+            encoding="utf-8",
+        )
+        env_example = (repo_root / "frontend" / ".env.example").read_text(
+            encoding="utf-8",
+        )
+        sentry_client = (repo_root / "frontend" / "sentry.client.config.ts").read_text(
+            encoding="utf-8",
+        )
+        sentry_server = (repo_root / "frontend" / "sentry.server.config.ts").read_text(
+            encoding="utf-8",
+        )
+        runbook = (repo_root / "docs" / "railway-migration-runbook.md").read_text(
+            encoding="utf-8",
+        )
+
+        self.assertIn('"@sentry/nuxt": "^10.58.0"', package_json)
+        self.assertIn("'@sentry/nuxt/module'", nuxt_config)
+        self.assertIn("sourcemap:", nuxt_config)
+        self.assertIn("client: 'hidden'", nuxt_config)
+        self.assertIn("sentry:", nuxt_config)
+        self.assertIn("org: process.env.SENTRY_ORG", nuxt_config)
+        self.assertIn("project: process.env.SENTRY_PROJECT", nuxt_config)
+        self.assertIn("authToken: process.env.SENTRY_AUTH_TOKEN", nuxt_config)
+        self.assertIn("filesToDeleteAfterUpload", nuxt_config)
+        self.assertIn("dsn: process.env.NUXT_PUBLIC_SENTRY_DSN || ''", nuxt_config)
+        self.assertIn("environment: process.env.NUXT_PUBLIC_SENTRY_ENVIRONMENT", nuxt_config)
+        self.assertIn(
+            "release: process.env.NUXT_PUBLIC_SENTRY_RELEASE || process.env.SENTRY_RELEASE || process.env.RAILWAY_GIT_COMMIT_SHA",
+            nuxt_config,
+        )
+        self.assertIn("tracesSampleRate: parseNuxtPublicSentryTracesSampleRate()", nuxt_config)
+        for config_source in (nuxt_config, sentry_client, sentry_server):
+            self.assertNotIn("sentry.io", config_source)
+            self.assertNotIn("___PUBLIC_DSN___", config_source)
+        for sentry_config in (sentry_client, sentry_server):
+            self.assertIn("import * as Sentry from '@sentry/nuxt'", sentry_config)
+            self.assertIn("Sentry.init", sentry_config)
+
+        self.assertIn("useRuntimeConfig", sentry_client)
+        self.assertIn("if (config.public.sentry.dsn)", sentry_client)
+        self.assertIn("dsn: config.public.sentry.dsn", sentry_client)
+        self.assertIn("tracesSampleRate: config.public.sentry.tracesSampleRate", sentry_client)
+        self.assertNotIn("useRuntimeConfig", sentry_server)
+        self.assertNotIn("#imports", sentry_server)
+        self.assertIn("process.env.SENTRY_DSN || process.env.NUXT_PUBLIC_SENTRY_DSN", sentry_server)
+        self.assertIn("if (sentryDsn)", sentry_server)
+        self.assertIn("dsn: sentryDsn", sentry_server)
+        self.assertIn("process.env.SENTRY_RELEASE || process.env.NUXT_PUBLIC_SENTRY_RELEASE", sentry_server)
+        self.assertIn("process.env.SENTRY_TRACES_SAMPLE_RATE", sentry_server)
+
+        env_example_fragments = (
+            "NUXT_PUBLIC_SENTRY_DSN=",
+            "NUXT_PUBLIC_SENTRY_ENVIRONMENT=",
+            "NUXT_PUBLIC_SENTRY_RELEASE=",
+            "NUXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=",
+            "SENTRY_ORG=",
+            "SENTRY_PROJECT=maeil1dok-frontend",
+            "SENTRY_AUTH_TOKEN=",
+        )
+        for fragment in env_example_fragments:
+            self.assertIn(fragment, env_example)
+
+        runbook_fragments = (
+            "NUXT_PUBLIC_SENTRY_DSN=",
+            "NUXT_PUBLIC_SENTRY_ENVIRONMENT=production",
+            "NUXT_PUBLIC_SENTRY_RELEASE=",
+            "NUXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=0.1",
+            "SENTRY_ORG=",
+            "SENTRY_PROJECT=maeil1dok-frontend",
+            "SENTRY_AUTH_TOKEN=",
+        )
+        for fragment in runbook_fragments:
+            self.assertIn(fragment, runbook)
+
     def test_frontend_sets_safe_cache_headers_for_public_assets(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(

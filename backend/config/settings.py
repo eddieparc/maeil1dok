@@ -31,6 +31,26 @@ CRON_SECRET = os.environ.get('CRON_SECRET') or os.environ.get('HASENA_CRON_SECRE
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 'yes']
 
+_sentry_dsn = os.environ.get('SENTRY_DSN')
+if _sentry_dsn:
+    import sentry_sdk
+
+    try:
+        _sentry_traces_sample_rate = float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0'))
+    except ValueError:
+        _sentry_traces_sample_rate = 0.0
+
+    if _sentry_traces_sample_rate < 0 or _sentry_traces_sample_rate > 1:
+        _sentry_traces_sample_rate = 0.0
+
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        environment=os.environ.get('SENTRY_ENVIRONMENT'),
+        release=os.environ.get('SENTRY_RELEASE') or os.environ.get('RAILWAY_GIT_COMMIT_SHA'),
+        traces_sample_rate=_sentry_traces_sample_rate,
+        send_default_pii=os.environ.get('SENTRY_SEND_DEFAULT_PII', 'false').lower() in ['true', '1', 'yes'],
+    )
+
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 if not ALLOWED_HOSTS:
     # 환경변수 미설정 시: 개발에서는 로컬 호스트, 프로덕션에서는 운영 도메인만 허용

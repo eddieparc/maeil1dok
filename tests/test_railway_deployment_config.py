@@ -100,6 +100,49 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         for fragment in required_fragments:
             self.assertIn(fragment, runbook)
 
+    def test_backend_sentry_is_configured_without_committed_dsn(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        settings = (repo_root / "backend" / "config" / "settings.py").read_text(
+            encoding="utf-8",
+        )
+        requirements = (repo_root / "backend" / "requirements.txt").read_text(
+            encoding="utf-8",
+        )
+        env_example = (repo_root / ".env.example").read_text(encoding="utf-8")
+        runbook = (repo_root / "docs" / "railway-migration-runbook.md").read_text(
+            encoding="utf-8",
+        )
+
+        self.assertIn("sentry-sdk==2.54.0", requirements)
+        self.assertIn("_sentry_dsn = os.environ.get('SENTRY_DSN')", settings)
+        self.assertIn("import sentry_sdk", settings)
+        self.assertIn("sentry_sdk.init(", settings)
+        self.assertIn("environment=os.environ.get('SENTRY_ENVIRONMENT')", settings)
+        self.assertIn("SENTRY_RELEASE", settings)
+        self.assertIn("RAILWAY_GIT_COMMIT_SHA", settings)
+        self.assertIn("traces_sample_rate=", settings)
+        self.assertIn("send_default_pii=", settings)
+        self.assertNotIn("sentry.io", settings)
+        self.assertNotIn("___PUBLIC_DSN___", settings)
+
+        env_example_fragments = (
+            "SENTRY_DSN=",
+            "SENTRY_ENVIRONMENT=",
+            "SENTRY_TRACES_SAMPLE_RATE=",
+            "SENTRY_SEND_DEFAULT_PII=false",
+        )
+        for fragment in env_example_fragments:
+            self.assertIn(fragment, env_example)
+
+        runbook_fragments = (
+            "SENTRY_DSN=",
+            "SENTRY_ENVIRONMENT=production",
+            "SENTRY_TRACES_SAMPLE_RATE=0.1",
+            "SENTRY_SEND_DEFAULT_PII=false",
+        )
+        for fragment in runbook_fragments:
+            self.assertIn(fragment, runbook)
+
     def _load_toml(self, path: Path) -> dict[str, Any]:
         script = (
             "import json;"

@@ -1,14 +1,33 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const parseNuxtPublicSentryTracesSampleRate = () => {
+  const rawValue = process.env.NUXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
+  const parsedValue = Number.parseFloat(rawValue ?? '0')
+
+  return Number.isFinite(parsedValue) && parsedValue >= 0 && parsedValue <= 1 ? parsedValue : 0
+}
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-12-29',
   devtools: {
     enabled: process.env.NUXT_DEVTOOLS === 'true'
+  },
+  sourcemap: {
+    client: 'hidden',
+  },
+  sentry: {
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+    authToken: process.env.SENTRY_AUTH_TOKEN,
+    sourcemaps: {
+      filesToDeleteAfterUpload: ['.output/**/public/**/*.map'],
+    },
   },
   modules: [
     '@pinia/nuxt',
     '@nuxtjs/tailwindcss',
     '@nuxtjs/sitemap',
     '@nuxt/image',
+    '@sentry/nuxt/module',
   ],
   // 이미지 최적화 설정
   image: {
@@ -77,6 +96,12 @@ export default defineNuxtConfig({
       GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
       APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID,
       APPLE_REDIRECT_URI: process.env.APPLE_REDIRECT_URI || 'https://maeil1dok.app/auth/apple/callback',
+      sentry: {
+        dsn: process.env.NUXT_PUBLIC_SENTRY_DSN || '',
+        environment: process.env.NUXT_PUBLIC_SENTRY_ENVIRONMENT,
+        release: process.env.NUXT_PUBLIC_SENTRY_RELEASE || process.env.SENTRY_RELEASE || process.env.RAILWAY_GIT_COMMIT_SHA,
+        tracesSampleRate: parseNuxtPublicSentryTracesSampleRate(),
+      },
     }
   },
   app: {
