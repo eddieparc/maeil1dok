@@ -48,9 +48,8 @@
       </div>
 
       <!-- 로딩 상태 표시 개선 -->
-      <div v-else-if="isLoading" class="loading-indicator fade-in">
-        <div class="spinner"></div>
-        <p>데이터를 불러오는 중입니다...</p>
+      <div v-else-if="isLoading" class="flex flex-col gap-3 fade-in">
+        <SkeletonPlanRow v-for="i in 4" :key="i" />
       </div>
 
       <!-- 에러 메시지 표시 개선 -->
@@ -232,9 +231,8 @@
         </div>
         
         <!-- 로딩 상태 -->
-        <div v-if="loadingSchedules" class="loading-indicator">
-          <div class="spinner"></div>
-          <p>일정을 불러오는 중...</p>
+        <div v-if="loadingSchedules" class="fade-in">
+          <SkeletonList :count="7" variant="schedule" />
         </div>
         
         <!-- 목록 비었을 때 -->
@@ -490,6 +488,8 @@ import { useAuthService } from '~/composables/useAuthService'
 import { useModal } from '~/composables/useModal'
 import Toast from '~/components/Toast.vue'
 import BaseModal from '~/components/ui/modal/BaseModal.vue'
+import SkeletonPlanRow from '~/components/ui/skeleton/SkeletonPlanRow.vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 
 const { toasts, showToastMessage } = useToast()
 const authStore = useAuthService()

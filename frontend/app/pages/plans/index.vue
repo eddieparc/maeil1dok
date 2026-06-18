@@ -5,8 +5,8 @@
 
     <!-- 스크롤 영역 -->
     <div class="scroll-area">
-      <div v-if="isLoading" class="login-prompt fade-in">
-        <p class="loading-text">로딩 중...</p>
+      <div v-if="isLoading" class="flex flex-col gap-3 fade-in">
+        <SkeletonPlanRow v-for="i in 4" :key="i" />
       </div>
 
       <div v-else-if="!auth.isAuthenticated.value" class="login-prompt fade-in">
@@ -135,6 +135,7 @@ import PageHeader from '~/components/PageHeader.vue';
 import Toast from '~/components/Toast.vue';
 import { useModal } from '~/composables/useModal';
 import type { Plan, Subscription } from '~/types/plan';
+import SkeletonPlanRow from '~/components/ui/skeleton/SkeletonPlanRow.vue';
 
 const router = useRouter();
 const auth = useAuthService();
