@@ -1,44 +1,36 @@
 <template>
   <div class="bible-skeleton-container">
-    <div 
-      v-for="i in verseCount" 
-      :key="i" 
-      class="skeleton-verse"
-    >
-      <!-- Verse Number Placeholder -->
-      <div class="skeleton-number skeleton-shimmer"></div>
-      
-      <!-- Verse Text Placeholder -->
+    <div v-for="i in verseCount" :key="i" class="skeleton-verse">
+      <Skeleton
+        class="skeleton-number"
+        width="var(--verse-number-size)"
+        height="var(--verse-number-size)"
+        rounded="full"
+      />
+
       <div class="skeleton-content">
-        <!-- First line -->
-        <div 
-          class="skeleton-line skeleton-shimmer" 
-          :style="{ width: getLineWidth(i, 0) }"
-        ></div>
-        
-        <!-- Second line -->
-        <div 
-          class="skeleton-line skeleton-shimmer" 
-          :style="{ width: getLineWidth(i, 1) }"
-        ></div>
-        
-        <!-- Third line (conditional) -->
-        <div 
+        <Skeleton class="skeleton-line" :width="getLineWidth(i, 0)" height="1rem" rounded="sm" />
+        <Skeleton class="skeleton-line" :width="getLineWidth(i, 1)" height="1rem" rounded="sm" />
+        <Skeleton
           v-if="i % 3 !== 0"
-          class="skeleton-line skeleton-shimmer" 
-          :style="{ width: getLineWidth(i, 2) }"
-        ></div>
+          class="skeleton-line"
+          :width="getLineWidth(i, 2)"
+          height="1rem"
+          rounded="sm"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import Skeleton from '~/components/ui/skeleton/Skeleton.vue';
+
 interface Props {
   verseCount?: number;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const { verseCount } = withDefaults(defineProps<Props>(), {
   verseCount: 8,
 });
 
@@ -77,8 +69,10 @@ const getLineWidth = (index: number, lineIndex: number): string => {
 }
 
 .skeleton-number {
-  width: 1.5rem;
-  height: 1.5rem;
+  --verse-number-size: 1.5rem;
+
+  width: var(--verse-number-size);
+  height: var(--verse-number-size);
   border-radius: 50%;
   flex-shrink: 0;
   margin-top: 0.2rem;
@@ -92,40 +86,7 @@ const getLineWidth = (index: number, lineIndex: number): string => {
 }
 
 .skeleton-line {
-  height: 1rem;
   border-radius: 4px;
-}
-
-/* Shimmer Effect - Copied from SkeletonLoader.vue */
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--color-bg-tertiary, #e5e7eb) 25%,
-    var(--color-bg-hover, #f3f4f6) 50%,
-    var(--color-bg-tertiary, #e5e7eb) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-/* Dark mode overrides */
-[data-theme="dark"] .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--color-bg-tertiary, #374151) 25%,
-    var(--color-bg-hover, #4b5563) 50%,
-    var(--color-bg-tertiary, #374151) 75%
-  );
-  background-size: 200% 100%;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
 }
 
 @keyframes fadeIn {
@@ -135,13 +96,12 @@ const getLineWidth = (index: number, lineIndex: number): string => {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .skeleton-number {
+    --verse-number-size: 1.2rem;
+  }
+
   .skeleton-verse {
     gap: 0.3rem;
-  }
-  
-  .skeleton-number {
-    width: 1.2rem;
-    height: 1.2rem;
   }
 }
 </style>
