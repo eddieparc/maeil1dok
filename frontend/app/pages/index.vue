@@ -19,21 +19,20 @@
         </header>
 
         <section class="landing-skeleton__hero">
-          <span class="landing-skeleton__line landing-skeleton__line--medium"></span>
+          <span class="landing-skeleton__line landing-skeleton__line--eyebrow"></span>
           <span class="landing-skeleton__line landing-skeleton__line--title"></span>
-          <span class="landing-skeleton__line landing-skeleton__line--wide"></span>
+          <span class="landing-skeleton__line landing-skeleton__line--title landing-skeleton__line--title-2"></span>
         </section>
 
-        <section class="landing-skeleton__reading">
-          <div class="landing-skeleton__calendar"></div>
-          <div class="landing-skeleton__copy">
-            <span class="landing-skeleton__line landing-skeleton__line--short"></span>
-            <span class="landing-skeleton__line landing-skeleton__line--wide"></span>
-          </div>
-          <div class="landing-skeleton__progress">
-            <span></span>
-          </div>
+        <section class="landing-skeleton__welcome-card">
+          <span class="landing-skeleton__line landing-skeleton__line--label"></span>
+          <span class="landing-skeleton__line landing-skeleton__line--card-title"></span>
+          <span class="landing-skeleton__line landing-skeleton__line--card-title landing-skeleton__line--card-title-2"></span>
+          <span class="landing-skeleton__line landing-skeleton__line--card-desc"></span>
+          <span class="landing-skeleton__line landing-skeleton__line--card-link"></span>
         </section>
+
+        <span class="landing-skeleton__section-heading"></span>
 
         <section class="landing-skeleton__grid">
           <div v-for="item in 6" :key="item" class="landing-skeleton__tile">
@@ -158,9 +157,8 @@ useHead({
   gap: 4px;
 }
 .landing-skeleton__icon,
-.landing-skeleton__calendar,
 .landing-skeleton__line,
-.landing-skeleton__progress,
+.landing-skeleton__section-heading,
 .landing-skeleton__tile,
 .landing-skeleton__nav {
   background: linear-gradient(110deg, #ECE8E1 8%, #FFFFFF 18%, #ECE8E1 33%);
@@ -173,78 +171,88 @@ useHead({
   border-radius: 999px;
 }
 .landing-skeleton__hero {
-  padding: clamp(40px, 9vh, 76px) 0 clamp(24px, 5vh, 44px);
+  padding: clamp(40px, 9vh, 76px) 0 clamp(28px, 5vh, 44px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
 }
 .landing-skeleton__line {
   display: block;
-  height: 18px;
   border-radius: 999px;
 }
-.landing-skeleton__line--medium {
-  width: min(220px, 46vw);
-  margin: 0 auto 26px;
+.landing-skeleton__line--eyebrow {
+  width: min(160px, 42vw);
+  height: 14px;
+  margin-bottom: 6px;
 }
 .landing-skeleton__line--title {
-  width: min(520px, 86vw);
-  height: clamp(46px, 10vw, 72px);
-  margin: 0 auto 16px;
+  width: min(360px, 70vw);
+  height: clamp(36px, 8vw, 52px);
+  border-radius: 12px;
 }
-.landing-skeleton__line--wide {
-  width: min(460px, 74vw);
+.landing-skeleton__line--title-2 {
+  width: min(440px, 84vw);
 }
-.landing-skeleton__hero .landing-skeleton__line--wide {
-  margin: 0 auto;
-}
-.landing-skeleton__reading {
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 18px;
-  min-height: 164px;
+.landing-skeleton__welcome-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
   box-sizing: border-box;
   margin-bottom: 32px;
-  padding: 24px;
-  border-radius: 8px;
+  padding: clamp(28px, 5vw, 40px);
+  border-radius: 16px;
   background: #FFFFFF;
   box-shadow: 0 4px 20px rgba(44, 51, 51, 0.05);
 }
-.landing-skeleton__calendar {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
+.landing-skeleton__line--label {
+  width: 86px;
+  height: 14px;
+  margin-bottom: 4px;
+  background: linear-gradient(110deg, #D5E8DD 8%, #FFFFFF 18%, #D5E8DD 33%);
+  background-size: 200% 100%;
 }
-.landing-skeleton__copy {
-  align-self: center;
+.landing-skeleton__line--card-title {
+  width: min(280px, 64vw);
+  height: clamp(32px, 7vw, 44px);
+  border-radius: 10px;
 }
-.landing-skeleton__line--short {
-  width: 136px;
-  margin-bottom: 14px;
+.landing-skeleton__line--card-title-2 {
+  width: min(220px, 52vw);
 }
-.landing-skeleton__progress {
-  grid-column: 1 / -1;
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
+.landing-skeleton__line--card-desc {
+  width: min(300px, 68vw);
+  height: 14px;
+  margin-top: 6px;
 }
-.landing-skeleton__progress span {
+.landing-skeleton__line--card-link {
+  width: 140px;
+  height: 14px;
+  margin-top: 8px;
+}
+.landing-skeleton__section-heading {
   display: block;
-  width: 42%;
-  height: 100%;
-  border-radius: inherit;
-  background: #4FA47D;
+  width: 96px;
+  height: 22px;
+  margin: 0 0 18px 4px;
+  border-radius: 6px;
 }
 .landing-skeleton__grid {
   flex-wrap: wrap;
   gap: 14px;
+  margin-bottom: 32px;
 }
 .landing-skeleton__tile {
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   width: calc(50% - 7px);
-  min-height: 82px;
+  min-height: 88px;
   box-sizing: border-box;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 22px 20px;
+  border-radius: 12px;
   background-color: #FFFFFF;
+  box-shadow: 0 2px 12px rgba(44, 51, 51, 0.04);
 }
 .landing-skeleton__tile-icon {
   flex: 0 0 auto;
@@ -254,7 +262,7 @@ useHead({
   background: rgba(44, 51, 51, 0.13);
 }
 .landing-skeleton__tile-line {
-  width: min(104px, 52%);
+  width: min(112px, 56%);
   height: 16px;
   border-radius: 999px;
   background: rgba(44, 51, 51, 0.13);
@@ -297,18 +305,12 @@ useHead({
 }
 @media (max-width: 520px) {
   .landing-skeleton__inner { padding-inline: 14px; }
-  .landing-skeleton__reading {
-    grid-template-columns: 44px 1fr;
-    min-height: 148px;
-    padding: 20px;
-  }
-  .landing-skeleton__calendar {
-    width: 40px;
-    height: 40px;
+  .landing-skeleton__welcome-card {
+    padding: 24px;
   }
   .landing-skeleton__tile {
     width: 100%;
-    min-height: 74px;
+    min-height: 76px;
     padding: 18px;
   }
   .landing-skeleton__nav {
@@ -317,9 +319,8 @@ useHead({
 }
 @media (prefers-reduced-motion: reduce) {
   .landing-skeleton__icon,
-  .landing-skeleton__calendar,
   .landing-skeleton__line,
-  .landing-skeleton__progress,
+  .landing-skeleton__section-heading,
   .landing-skeleton__tile,
   .landing-skeleton__nav {
     animation: none;
