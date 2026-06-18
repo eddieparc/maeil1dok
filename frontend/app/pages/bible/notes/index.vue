@@ -20,7 +20,9 @@
     </div>
 
     <!-- 로딩 -->
-    <LoadingSpinner v-if="isLoading" text="묵상노트를 불러오는 중..." fullscreen />
+    <template v-if="isLoading">
+      <SkeletonList :count="5" variant="note" />
+    </template>
 
     <!-- 로그인 필요 -->
     <EmptyState
@@ -85,6 +87,7 @@ import { useBibleData, BIBLE_BOOKS } from '~/composables/useBibleData';
 import { useAuthService } from '~/composables/useAuthService';
 import { useTextUtils } from '~/composables/useTextUtils';
 import Toast from '~/components/Toast.vue';
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import type { Note } from '~/types/bible';
 
 definePageMeta({

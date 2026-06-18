@@ -45,6 +45,11 @@
       </div>
     </template>
 
+    <!-- 스켈레톤 -->
+    <template #skeleton>
+      <SkeletonList :count="5" variant="highlight" />
+    </template>
+
     <!-- 하이라이트 목록 -->
     <ul class="highlight-list">
       <li
@@ -89,6 +94,7 @@ import { useErrorHandler } from '~/composables/useErrorHandler';
 import { useTextUtils } from '~/composables/useTextUtils';
 import Toast from '~/components/Toast.vue';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import type { Highlight } from '~/types/bible';
 
 definePageMeta({

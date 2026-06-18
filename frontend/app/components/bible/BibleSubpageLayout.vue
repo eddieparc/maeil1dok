@@ -14,7 +14,11 @@
     <slot name="filter" />
 
     <!-- 로딩 상태 -->
-    <LoadingSpinner v-if="loading" :text="loadingText" />
+    <template v-if="loading">
+      <slot name="skeleton">
+        <LoadingSpinner :text="loadingText" />
+      </slot>
+    </template>
 
     <!-- 빈 상태 -->
     <EmptyState v-else-if="empty" :text="emptyText" :hint="emptyHint" :guide="emptyGuide">

@@ -11,7 +11,13 @@
     </header>
 
     <!-- 로딩 -->
-    <LoadingSpinner v-if="isLoading" text="묵상노트를 불러오는 중..." />
+    <template v-if="isLoading">
+      <SkeletonCard>
+        <template #body>
+          <SkeletonText :lines="12" lastLineWidth="60%" />
+        </template>
+      </SkeletonCard>
+    </template>
 
     <!-- 노트 없음 -->
     <EmptyState v-else-if="!note" text="묵상노트를 찾을 수 없습니다">
@@ -69,6 +75,8 @@ import { useErrorHandler } from '~/composables/useErrorHandler';
 import { useModal } from '~/composables/useModal';
 import { TIMING, TOGGLE_SIZE } from '~/constants/bible';
 import Toast from '~/components/Toast.vue';
+import SkeletonCard from '~/components/ui/skeleton/SkeletonCard.vue';
+import SkeletonText from '~/components/ui/skeleton/SkeletonText.vue';
 
 definePageMeta({
   layout: 'default'

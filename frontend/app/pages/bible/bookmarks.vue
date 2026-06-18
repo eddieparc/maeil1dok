@@ -18,6 +18,11 @@
       <NuxtLink v-if="!authStore.isAuthenticated" to="/login" class="bible-login-btn">로그인</NuxtLink>
     </template>
 
+    <!-- 스켈레톤 -->
+    <template #skeleton>
+      <SkeletonList :count="6" variant="bookmark" />
+    </template>
+
     <!-- 북마크 목록 -->
     <ul class="bookmark-list">
       <li
@@ -63,6 +68,7 @@ import { useModal } from '~/composables/useModal';
 import { useApi } from '~/composables/useApi';
 import Toast from '~/components/Toast.vue';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import BookmarkIcon from '~/components/icons/BookmarkIcon.vue';
 import TrashIcon from '~/components/icons/TrashIcon.vue';
 

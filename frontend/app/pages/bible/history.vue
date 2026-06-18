@@ -2,7 +2,9 @@
   <div class="bible-page history-page">
     <PageHeader title="읽기 기록" fallback-path="/bible" />
 
-    <LoadingSpinner v-if="isLoading" text="읽기 기록을 불러오는 중..." fullscreen />
+    <template v-if="isLoading">
+      <SkeletonList :count="5" variant="history" />
+    </template>
 
     <div v-else class="history-content">
       <!-- 요약 카드 -->
@@ -111,6 +113,7 @@ import { useRouter } from 'vue-router';
 import { useApi } from '~/composables/useApi';
 import { useBibleData } from '~/composables/useBibleData';
 import { useErrorHandler } from '~/composables/useErrorHandler';
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import type { ReadingStats, ReadingStatsResponse, ReadingDatesResponse } from '~/types/bible';
 
 definePageMeta({
