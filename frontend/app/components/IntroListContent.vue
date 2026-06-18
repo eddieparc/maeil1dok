@@ -24,9 +24,15 @@
     </div>
 
     <div class="schedule-body">
-      <div v-if="loading" class="loading-state">
-        <div class="loading-spinner"></div>
-        <span>목록을 불러오고 있어요</span>
+      <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <SkeletonCard v-for="i in 4" :key="i">
+          <template #header>
+            <Skeleton width="100%" height="160px" rounded="lg" />
+          </template>
+          <template #body>
+            <SkeletonText :lines="2" lastLineWidth="60%" />
+          </template>
+        </SkeletonCard>
       </div>
       <div v-else-if="error" class="no-schedules">
         <span>{{ error }}</span>
@@ -139,6 +145,9 @@ import { useToast } from "~/composables/useToast";
 import { usePlanApi } from "~/composables/usePlanApi";
 import { useSelectedPlanStore } from "~/stores/selectedPlan";
 import PlanSelectorModal from "~/components/schedule/PlanSelectorModal.vue";
+import SkeletonCard from "~/components/ui/skeleton/SkeletonCard.vue";
+import SkeletonText from "~/components/ui/skeleton/SkeletonText.vue";
+import Skeleton from "~/components/ui/skeleton/Skeleton.vue";
 
 // 애니메이션 딜레이 상수
 const ANIMATION_DELAYS = {

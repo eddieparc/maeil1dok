@@ -3,6 +3,11 @@
     <BibleHomeHeader @open-settings="$router.push('/bible/settings')" />
 
     <div class="home-content">
+      <div v-if="isLoading" class="flex flex-col gap-4">
+        <SkeletonStats :count="3" />
+        <SkeletonList :count="4" variant="schedule" />
+      </div>
+      <template v-else>
       <!-- 오늘의 통독 카드 (플랜 구독 시) -->
       <section v-if="todaySchedule" class="today-tongdok-section">
         <div class="today-card">
@@ -206,6 +211,7 @@
           성경 전체 목차
         </button>
       </section>
+      </template>
     </div>
   </div>
 </template>
@@ -213,6 +219,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
+import SkeletonStats from '~/components/ui/skeleton/SkeletonStats.vue';
 import { useApi } from '~/composables/useApi';
 import { useReadingPosition } from '~/composables/useReadingPosition';
 import { useBibleData } from '~/composables/useBibleData';
@@ -278,6 +286,8 @@ const hasBookmarks = computed(() => bookmarkCount.value > 0);
 const hasNotes = computed(() => noteCount.value > 0);
 const hasHighlights = computed(() => highlightCount.value > 0);
 
+const isLoading = ref(true);
+
 const showWelcomeGuide = computed(() =>
   !lastPosition.value && !todaySchedule.value && recentRecords.value.length === 0
 );
@@ -295,27 +305,32 @@ const canDismissTips = computed(() => {
 });
 
 onMounted(async () => {
-  // localStorage에서 팁 숨김 여부 확인
-  if (typeof window !== 'undefined') {
-    tipsDismissed.value = localStorage.getItem('bible_tips_dismissed') === 'true';
-  }
+  isLoading.value = true;
+  try {
+    // localStorage에서 팁 숨김 여부 확인
+    if (typeof window !== 'undefined') {
+      tipsDismissed.value = localStorage.getItem('bible_tips_dismissed') === 'true';
+    }
 
-  // 마지막 읽기 위치 로드
-  const lastPos = await loadReadingPosition();
-  if (lastPos) {
-    lastPosition.value = {
-      book: lastPos.book,
-      chapter: lastPos.chapter,
-      book_name: getBookName(lastPos.book)
-    };
-  }
+    // 마지막 읽기 위치 로드
+    const lastPos = await loadReadingPosition();
+    if (lastPos) {
+      lastPosition.value = {
+        book: lastPos.book,
+        chapter: lastPos.chapter,
+        book_name: getBookName(lastPos.book)
+      };
+    }
 
-  // 인증된 사용자: 오늘의 스케줄 및 통계 로드
-  if (isAuthenticated.value) {
-    await Promise.all([
-      loadHomeStats(),
-      loadTodaySchedule()
-    ]);
+    // 인증된 사용자: 오늘의 스케줄 및 통계 로드
+    if (isAuthenticated.value) {
+      await Promise.all([
+        loadHomeStats(),
+        loadTodaySchedule()
+      ]);
+    }
+  } finally {
+    isLoading.value = false;
   }
 });
 

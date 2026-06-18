@@ -49,13 +49,8 @@
 
     <!-- 일정 목록 -->
     <div class="schedule-body fade-in" style="animation-delay: 0.2s" :data-is-modal="props.isModal" ref="scheduleBodyRef">
-      <div v-if="isLoading" class="loading-state">
-        <div class="loading-spinner"></div>
-        <span>일정을 불러오는 중...</span>
-      </div>
-      <div v-else-if="!isInitialized" class="loading-state">
-        <div class="loading-spinner"></div>
-        <span>초기화 중...</span>
+      <div v-if="isLoading || !isInitialized">
+        <SkeletonList :count="7" variant="schedule" />
       </div>
       <div v-else-if="!selectedPlanId && !props.useDefaultPlan" class="no-plan-selected">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -168,6 +163,7 @@ import type {
 } from '~/types/plan';
 
 // Components
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import ConfirmModal from '~/components/ConfirmModal.vue';
 import MonthSelector from '~/components/schedule/MonthSelector.vue';
 import QuickNavigation from '~/components/schedule/QuickNavigation.vue';
