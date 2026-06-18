@@ -3,6 +3,8 @@
  * Theme tokens are defined in themes.css (SSOT)
  */
 
+@import './_shimmer.css';
+
 :root {
   /* Primary colors - used by components */
   --primary-color: #4B9F7E;
