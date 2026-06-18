@@ -12,13 +12,6 @@
         <div class="spacer"></div>
       </div>
 
-      <!-- 로딩 상태 -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>불러오는 중...</p>
-      </div>
-
-      <template v-else>
         <!-- 프로필 섹션 -->
         <section class="settings-section">
           <h2 class="section-title">프로필</h2>
@@ -112,8 +105,10 @@
         <section class="settings-section">
           <h2 class="section-title">연결된 계정</h2>
           <div class="section-content">
-            <!-- 카카오 -->
-            <div class="setting-item">
+            <SkeletonList v-if="loading" :count="3" variant="user" />
+            <template v-else>
+              <!-- 카카오 -->
+              <div class="setting-item">
               <div class="setting-info">
                 <div class="provider-badge kakao">
                   <NuxtImg
@@ -209,6 +204,7 @@
                 연결
               </button>
             </div>
+            </template>
           </div>
           <p class="section-note">
             * 최소 하나의 로그인 방법(비밀번호 또는 소셜 계정)이 있어야 합니다
@@ -231,7 +227,6 @@
             * 계정 삭제 요청 후 30일간 유예 기간이 있으며, 이후 완전히 삭제됩니다
           </p>
         </section>
-      </template>
     </div>
 
     <!-- 비밀번호 설정 모달 -->
@@ -388,6 +383,7 @@ import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
 import { useRuntimeConfig } from 'nuxt/app'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 
 useHead({
   title: '계정 설정 - 매일일독',
@@ -802,29 +798,6 @@ onUnmounted(() => {
 
 .spacer {
   width: 40px;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  color: var(--color-slate-500);
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--color-slate-200);
-  border-top-color: var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .settings-section {

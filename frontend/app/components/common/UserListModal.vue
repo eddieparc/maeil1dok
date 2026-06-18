@@ -9,10 +9,7 @@
     @close="handleClose"
   >
     <div class="user-list-content">
-      <div v-if="isLoading" class="loading-container">
-        <div class="loading-spinner"></div>
-        <p class="loading-text">로딩 중...</p>
-      </div>
+      <SkeletonList v-if="isLoading" :count="5" variant="user" />
       <div v-else-if="users.length > 0" class="users-list">
         <div
           v-for="user in users"
@@ -49,6 +46,7 @@ import { ref } from 'vue'
 import UserAvatar from './UserAvatar.vue'
 import EmptyState from './EmptyState.vue'
 import BaseModal from '~/components/ui/modal/BaseModal.vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 
 export interface UserItem {
   id: number
@@ -104,35 +102,6 @@ defineExpose({
 <style scoped>
 .user-list-content {
   min-height: 200px;
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
-}
-
-.loading-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--color-border, #E2E8F0);
-  border-top-color: var(--primary-color, #617475);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.loading-text {
-  margin-top: 1rem;
-  color: var(--text-secondary, #64748B);
-  font-size: 0.875rem;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .users-list {

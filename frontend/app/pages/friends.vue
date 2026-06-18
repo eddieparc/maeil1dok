@@ -49,10 +49,7 @@
       </div>
 
       <!-- 로딩 상태 -->
-      <div v-if="isLoading" class="loading-state">
-        <div class="spinner"></div>
-        <p>로딩 중...</p>
-      </div>
+      <SkeletonList v-if="isLoading" :count="6" variant="user" />
       
       <!-- 에러 상태 -->
       <div v-else-if="error" class="error-state">
@@ -144,6 +141,7 @@ import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
 import { useSocialStore } from '~/stores/social'
 import UserCard from '~/components/UserCard.vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 
 const auth = useAuthService()
 const socialStore = useSocialStore()
@@ -435,26 +433,10 @@ onMounted(async () => {
   color: #9CA3AF;
 }
 
-.loading-state,
 .error-state {
   text-align: center;
   padding: 3rem 1rem;
   color: var(--text-secondary);
-}
-
-.spinner {
-  display: inline-block;
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid var(--color-border-default, #E5E7EB);
-  border-top-color: var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .retry-button {
@@ -570,14 +552,8 @@ onMounted(async () => {
   color: var(--color-text-muted);
 }
 
-[data-theme="dark"] .loading-state,
 [data-theme="dark"] .error-state {
   color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .spinner {
-  border-color: var(--color-border-default);
-  border-top-color: var(--color-accent-primary);
 }
 
 [data-theme="dark"] .retry-button {

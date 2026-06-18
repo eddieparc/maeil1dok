@@ -2,7 +2,10 @@
   <PageLayout title="프로필">
     <div class="content-wrapper">
       <!-- 로딩 상태 -->
-      <LoadingState v-if="isLoading" message="프로필 로딩 중..." />
+      <div v-if="isLoading" class="profile-card fade-in">
+        <SkeletonProfileHeader />
+        <SkeletonStats :count="3" />
+      </div>
 
       <template v-else-if="profile">
         <!-- 프로필 카드 -->
@@ -105,11 +108,9 @@
           <div class="tab-content">
             <!-- 달력 탭 -->
             <div v-if="activeTab === 'calendar'" class="calendar-tab-content">
-              <div v-if="loadingStates.calendar" class="calendar-loading-overlay">
-                <div class="loading-spinner"></div>
-              </div>
+              <SkeletonCalendar v-if="loadingStates.calendar" />
               <ProfileCalendar
-                v-if="profile"
+                v-else-if="profile"
                 :calendar-data="calendarData"
                 :plans="calendarPlans"
                 :user-id="userId"
@@ -120,7 +121,7 @@
 
             <!-- 업적 탭 -->
             <div v-else-if="activeTab === 'achievements'">
-              <LoadingState v-if="loadingStates.achievements" message="업적 로딩 중..." />
+              <SkeletonList v-if="loadingStates.achievements" :count="4" variant="note" />
               <ProfileAchievements
                 v-else-if="profile"
                 :achievements-data="achievementsData"
@@ -130,7 +131,9 @@
 
             <!-- 그룹 탭 -->
             <div v-else-if="activeTab === 'groups'">
-              <LoadingState v-if="loadingStates.groups" message="그룹 로딩 중..." />
+              <div v-if="loadingStates.groups" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SkeletonGroupCard v-for="i in 3" :key="i" />
+              </div>
               <ProfileGroups
                 v-else-if="profile"
                 :groups-data="groupsData"
@@ -185,6 +188,11 @@ import ProfileGroups from '~/components/profile/ProfileGroups.vue'
 import FollowersModal from '~/components/profile/FollowersModal.vue'
 import FollowingModal from '~/components/profile/FollowingModal.vue'
 import ProfileEditModal from '~/components/profile/ProfileEditModal.vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
+import SkeletonProfileHeader from '~/components/ui/skeleton/SkeletonProfileHeader.vue'
+import SkeletonStats from '~/components/ui/skeleton/SkeletonStats.vue'
+import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue'
+import SkeletonGroupCard from '~/components/ui/skeleton/SkeletonGroupCard.vue'
 import { UserIcon, UserRoundCheckIcon } from '@lucide/vue'
 
 const route = useRoute()
@@ -684,42 +692,6 @@ onUnmounted(() => {
 
 .calendar-tab-content {
   position: relative;
-}
-
-.calendar-loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-
-[data-theme="dark"] .calendar-loading-overlay {
-  background: rgba(0, 0, 0, 0.6);
-}
-
-.loading-spinner {
-  width: 28px;
-  height: 28px;
-  border: 2px solid var(--color-border-default, #E5E7EB);
-  border-top-color: var(--color-accent-primary, #4A5D53);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-[data-theme="dark"] .loading-spinner {
-  border-color: var(--color-border-default);
-  border-top-color: var(--color-accent-primary);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 /* ========================================

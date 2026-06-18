@@ -2,7 +2,8 @@
   <PageLayout title="리더보드">
     <div class="content-wrapper">
       <!-- 내 순위 카드 -->
-      <div v-if="myRanking" class="my-ranking-card fade-in delay-100">
+      <SkeletonCard v-if="isLoading && auth.isAuthenticated.value" class="fade-in" />
+      <div v-else-if="myRanking" class="my-ranking-card fade-in delay-100">
         <div class="ranking-content">
           <div class="ranking-info">
             <p class="ranking-label">내 순위</p>
@@ -68,7 +69,9 @@
       <!-- 리더보드 카드 -->
       <div class="leaderboard-card fade-in delay-300">
         <!-- 로딩 상태 -->
-        <LoadingState v-if="isLoading" message="리더보드를 불러오는 중..." />
+        <div v-if="isLoading" class="flex flex-col gap-2 p-4">
+          <SkeletonLeaderboardRow v-for="i in 8" :key="i" />
+        </div>
 
         <!-- 데이터 있을 때 -->
         <div v-else-if="showAuthGate" class="leaderboard-empty-panel">
@@ -163,8 +166,9 @@ import { useAuthService } from '~/composables/useAuthService'
 import PageLayout from '~/components/common/PageLayout.vue'
 import FilterButtonGroup from '~/components/common/FilterButtonGroup.vue'
 import EmptyState from '~/components/common/EmptyState.vue'
-import LoadingState from '~/components/LoadingState.vue'
 import LeaderboardItem from '~/components/leaderboard/LeaderboardItem.vue'
+import SkeletonCard from '~/components/ui/skeleton/SkeletonCard.vue'
+import SkeletonLeaderboardRow from '~/components/ui/skeleton/SkeletonLeaderboardRow.vue'
 import { UserIcon } from '@lucide/vue'
 
 const scoreboardStore = useScoreboardStore()
