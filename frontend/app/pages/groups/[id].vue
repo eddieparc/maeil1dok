@@ -2,7 +2,11 @@
   <PageLayout :title="currentGroup?.name || '그룹 정보'">
     <div class="content-wrapper">
       <!-- 로딩 상태 -->
-      <LoadingState v-if="isLoading" message="그룹 정보를 불러오는 중..." />
+      <div v-if="isLoading" class="flex flex-col gap-4">
+        <SkeletonProfileHeader />
+        <SkeletonStats :count="3" />
+        <SkeletonCalendar />
+      </div>
 
       <!-- 에러 상태 -->
       <div v-else-if="error" class="error-state">
@@ -149,7 +153,7 @@
               <span class="member-count-badge">{{ currentGroupMembers.length }}명</span>
             </div>
 
-            <LoadingState v-if="isMembersLoading" message="멤버 목록을 불러오는 중..." />
+            <SkeletonList v-if="isMembersLoading" :count="5" variant="user" />
 
             <div v-else-if="currentGroupMembers.length > 0" class="members-list">
               <div
@@ -240,9 +244,12 @@
 <script setup lang="ts">
 import { useGroupsStore } from '~/stores/groups'
 import { useAuthService } from '~/composables/useAuthService'
+import SkeletonProfileHeader from '~/components/ui/skeleton/SkeletonProfileHeader.vue'
+import SkeletonStats from '~/components/ui/skeleton/SkeletonStats.vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
+import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import Card from '~/components/common/Card.vue'
-import LoadingState from '~/components/LoadingState.vue'
 import EmptyState from '~/components/common/EmptyState.vue'
 import GroupPlanCalendar from '~/components/groups/GroupPlanCalendar.vue'
 import GroupLeaderboard from '~/components/groups/GroupLeaderboard.vue'

@@ -35,17 +35,20 @@
       <div class="form-group">
         <label>성경 읽기 플랜 (복수 선택 가능)</label>
         <div class="plans-checkbox-list">
-          <label v-for="plan in availablePlans" :key="plan.id" class="plan-checkbox-label">
-            <input
-              type="checkbox"
-              :value="plan.id"
-              v-model="form.planIds"
-            >
-            <span>{{ plan.name }}</span>
-            <span v-if="plan.description" class="plan-description">{{ plan.description }}</span>
-          </label>
+          <SkeletonList v-if="isPlansLoading" :count="3" variant="plan" />
+          <template v-else>
+            <label v-for="plan in availablePlans" :key="plan.id" class="plan-checkbox-label">
+              <input
+                type="checkbox"
+                :value="plan.id"
+                v-model="form.planIds"
+              >
+              <span>{{ plan.name }}</span>
+              <span v-if="plan.description" class="plan-description">{{ plan.description }}</span>
+            </label>
+          </template>
         </div>
-        <p v-if="form.planIds.length === 0" class="help-text error">최소 1개 이상의 플랜을 선택해주세요.</p>
+        <p v-if="!isPlansLoading && form.planIds.length === 0" class="help-text error">최소 1개 이상의 플랜을 선택해주세요.</p>
       </div>
       
       <div class="form-group">
@@ -91,6 +94,7 @@ import { useGroupsStore } from '~/stores/groups'
 import { useApi } from '~/composables/useApi'
 import { useModal } from '~/composables/useModal'
 import BaseModal from '~/components/ui/modal/BaseModal.vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 
 const emit = defineEmits(['close', 'created'])
 const groupsStore = useGroupsStore()
@@ -107,6 +111,7 @@ const form = reactive({
 
 const isCreating = ref(false)
 const availablePlans = ref([])
+const isPlansLoading = ref(true)
 
 const handleClose = () => {
   emit('close')
@@ -114,6 +119,7 @@ const handleClose = () => {
 
 // 플랜 목록 로드
 onMounted(async () => {
+  isPlansLoading.value = true
   try {
     const response = await api.get('/api/v1/todos/plans/')
     // response.data.plans 또는 response.plans 확인
@@ -131,6 +137,8 @@ onMounted(async () => {
       description: '플랜 목록을 불러오는데 실패했습니다.',
       icon: 'error'
     })
+  } finally {
+    isPlansLoading.value = false
   }
 })
 

@@ -41,7 +41,9 @@
       </div>
 
       <!-- 로딩 상태 -->
-      <LoadingState v-if="isLoading" message="그룹을 불러오는 중..." />
+      <div v-if="isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <SkeletonGroupCard v-for="i in 4" :key="i" />
+      </div>
 
       <!-- 그룹 목록 -->
       <div v-else-if="currentGroups.length > 0" class="groups-grid fade-in delay-100">
@@ -88,7 +90,7 @@ import { useAuthService } from '~/composables/useAuthService'
 import { debounce } from 'lodash-es'
 import PageLayout from '~/components/common/PageLayout.vue'
 import EmptyState from '~/components/common/EmptyState.vue'
-import LoadingState from '~/components/LoadingState.vue'
+import SkeletonGroupCard from '~/components/ui/skeleton/SkeletonGroupCard.vue'
 import GroupCard from '~/components/groups/GroupCard.vue'
 import { useModal } from '~/composables/useModal'
 

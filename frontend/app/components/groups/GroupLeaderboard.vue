@@ -11,7 +11,9 @@
     </div>
 
     <!-- 로딩 -->
-    <LoadingState v-if="isLoading" message="랭킹을 불러오는 중..." />
+    <div v-if="isLoading" class="flex flex-col gap-2">
+      <SkeletonLeaderboardRow v-for="i in 5" :key="i" />
+    </div>
 
     <!-- 데이터 있을 때 -->
     <template v-else-if="leaderboard.length > 0">
@@ -134,7 +136,7 @@
 <script setup lang="ts">
 import { useScoreboardStore } from '~/stores/scoreboard'
 import FilterButtonGroup from '~/components/common/FilterButtonGroup.vue'
-import LoadingState from '~/components/LoadingState.vue'
+import SkeletonLeaderboardRow from '~/components/ui/skeleton/SkeletonLeaderboardRow.vue'
 import EmptyState from '~/components/common/EmptyState.vue'
 
 const props = defineProps({

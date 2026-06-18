@@ -15,7 +15,7 @@
     </div>
 
     <!-- 로딩 상태 -->
-    <LoadingState v-if="isLoading" message="일정을 불러오는 중..." />
+    <SkeletonCalendar v-if="isLoading" :weeks="5" />
 
     <!-- 달력 -->
     <div v-else class="calendar-grid">
@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { useGroupsStore } from '~/stores/groups'
-import LoadingState from '~/components/LoadingState.vue'
+import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue'
 
 const props = defineProps({
   planId: {

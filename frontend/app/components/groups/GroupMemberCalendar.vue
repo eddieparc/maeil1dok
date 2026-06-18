@@ -28,7 +28,7 @@
     </div>
 
     <!-- 로딩 -->
-    <LoadingState v-if="isLoading" message="달력 데이터를 불러오는 중..." />
+    <SkeletonCalendar v-if="isLoading" />
 
     <template v-else>
       <!-- 달력 그리드 -->
@@ -159,7 +159,7 @@
 
 <script setup lang="ts">
 import { useGroupsStore } from '~/stores/groups'
-import LoadingState from '~/components/LoadingState.vue'
+import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue'
 
 interface Plan {
   id: number
