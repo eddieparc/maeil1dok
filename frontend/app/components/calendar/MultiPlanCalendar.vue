@@ -20,31 +20,34 @@
       @toggle="handleToggleVisibility"
     />
 
-    <!-- 로딩 오버레이 -->
-    <div v-if="isLoading" class="loading-overlay">
-      <div class="loading-spinner"></div>
-    </div>
+    <!-- 로딩 오버레이 대체 -->
 
     <!-- 달력 그리드 -->
-    <div class="calendar-container" :class="{ loading: isLoading }">
-      <div class="calendar-grid">
-        <div v-for="day in weekDays" :key="day" class="weekday-label">
-          {{ day }}
+    <div class="calendar-container">
+      <template v-if="isLoading">
+        <SkeletonStats v-if="allActivePlans.length > 0" :count="3" class="mb-4" />
+        <SkeletonCalendar :weeks="5" />
+      </template>
+      <template v-else>
+        <div class="calendar-grid">
+          <div v-for="day in weekDays" :key="day" class="weekday-label">
+            {{ day }}
+          </div>
+
+          <MultiPlanCalendarDay
+            v-for="(date, index) in calendarDates"
+            :key="index"
+            :date="date"
+            :plans="getDisplayForDate(date.dateStr)"
+            :is-today="date.isToday"
+            :is-current-month="date.isCurrentMonth"
+            @click="handleDayClick(date)"
+          />
         </div>
 
-        <MultiPlanCalendarDay
-          v-for="(date, index) in calendarDates"
-          :key="index"
-          :date="date"
-          :plans="getDisplayForDate(date.dateStr)"
-          :is-today="date.isToday"
-          :is-current-month="date.isCurrentMonth"
-          @click="handleDayClick(date)"
-        />
-      </div>
-
-      <!-- 범례 -->
-      <CalendarLegend :visible-plans="visiblePlans" />
+        <!-- 범례 -->
+        <CalendarLegend :visible-plans="visiblePlans" />
+      </template>
     </div>
 
     <!-- 설정 모달 (readonly가 아닐 때만) -->
@@ -69,6 +72,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue'
+import SkeletonStats from '~/components/ui/skeleton/SkeletonStats.vue'
 import { useCalendarDisplayStore, type PlanDisplaySetting, type CalendarDayData } from '~/stores/calendarDisplay'
 import { useApi } from '~/composables/useApi'
 import CalendarHeader from './CalendarHeader.vue'
@@ -378,36 +383,6 @@ onMounted(async () => {
   position: relative;
   padding: 1rem;
   transition: opacity 0.2s ease;
-}
-
-.calendar-container.loading {
-  opacity: 0.7;
-}
-
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-bg-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
-
-.loading-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--color-slate-200);
-  border-top-color: var(--color-accent-secondary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .calendar-grid {

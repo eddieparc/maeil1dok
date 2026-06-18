@@ -17,9 +17,8 @@
           <!-- Body -->
           <div class="modal-body">
             <!-- Loading State -->
-            <div v-if="loading" class="loading-state">
-              <div class="spinner"></div>
-              <p>불러오는 중...</p>
+            <div v-if="loading" class="loading-state-skeleton">
+              <SkeletonList :count="4" variant="schedule" />
             </div>
 
             <template v-else-if="status">
@@ -211,6 +210,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import { useCatchup, type CatchupStatus, type CatchupSettings } from '~/composables/useCatchup'
 
 const props = defineProps<{
@@ -362,27 +362,8 @@ const formatDate = (dateStr: string) => {
   padding: 1.25rem;
 }
 
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  color: var(--color-text-secondary, #6b7280);
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--color-border, #e5e7eb);
-  border-top-color: var(--color-primary, #3b82f6);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.loading-state-skeleton {
+  padding: 1rem 0;
 }
 
 .overdue-summary {
