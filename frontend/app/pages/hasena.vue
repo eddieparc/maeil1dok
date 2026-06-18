@@ -7,8 +7,11 @@
       <PageHeader title="하세나하시조" back-path="/" />
 
       <main class="main-content">
-        <!-- 비디오 섹션 -->
-        <div class="card video-card fade-in" style="animation-delay: 0.1s">
+        <SkeletonHasenaCard v-if="isLoading" />
+        
+        <template v-else>
+          <!-- 비디오 섹션 -->
+          <div class="card video-card fade-in" style="animation-delay: 0.1s">
           <div class="video-wrapper">
             <div class="video-container">
               <iframe 
@@ -64,9 +67,11 @@
               </button>
             </div>
             
-            <div v-if="summaryLoading" class="summary-loading">
-              <div class="loading-spinner small"></div>
-              <span>AI가 영상을 분석하고 있습니다...</span>
+            <div v-if="summaryLoading || (!summaryContent && !summaryError)" class="summary-skeleton-container">
+              <div class="skeleton-line title"></div>
+              <div class="skeleton-line text"></div>
+              <div class="skeleton-line text"></div>
+              <div class="skeleton-line text short"></div>
             </div>
             
             <div v-else-if="summaryError && !summaryContent" class="summary-error">
@@ -75,23 +80,13 @@
             </div>
             
             <div v-else-if="summaryContent" class="summary-content" v-html="formattedSummary"></div>
-            
-            <div v-else class="summary-placeholder">
-              <p>오늘의 요약이 곧 준비됩니다</p>
-            </div>
           </div>
         </div>
 
         <!-- 본문 섹션 -->
         <div class="card content-card fade-in" style="animation-delay: 0.2s">
-          <!-- 로딩 상태 -->
-          <div v-if="isLoading" class="state-container loading">
-            <div class="loading-spinner"></div>
-            <p>오늘의 말씀을 불러오고 있습니다...</p>
-          </div>
-
           <!-- 에러 상태 -->
-          <div v-else-if="error" class="state-container error">
+          <div v-if="error" class="state-container error">
             <div class="error-icon">!</div>
             <h3>말씀을 불러올 수 없습니다</h3>
             <p>{{ error }}</p>
@@ -148,6 +143,7 @@
             <ChevronRightIcon :size="16" />
           </button>
         </div>
+        </template>
       </main>
 
       <!-- 하단 플로팅 바 -->
@@ -198,6 +194,7 @@ import { useSanitize } from '~/composables/useSanitize'
 import Toast from '~/components/Toast.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
 import FloatingBottomBar from '~/components/common/FloatingBottomBar.vue'
+import SkeletonHasenaCard from '~/components/ui/skeleton/SkeletonHasenaCard.vue'
 import {
   CalendarDaysIcon,
   ChevronDownIcon,
@@ -815,6 +812,40 @@ onMounted(async () => {
   font-size: 0.9rem;
   text-align: center;
   padding: 1rem 0;
+}
+
+/* AI 요약 스켈레톤 */
+.summary-skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 0;
+}
+
+.skeleton-line {
+  height: 1rem;
+  background: var(--color-bg-secondary, rgba(156, 163, 175, 0.2));
+  border-radius: 6px;
+  animation: skeleton-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.skeleton-line.title {
+  width: 40%;
+  height: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-line.text {
+  width: 100%;
+}
+
+.skeleton-line.text.short {
+  width: 70%;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* 요약 콘텐츠 스타일링 (미니멀 디자인) */

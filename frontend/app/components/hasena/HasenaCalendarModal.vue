@@ -49,32 +49,37 @@
 
           <!-- Calendar Grid -->
           <div class="calendar-body">
-            <div class="weekdays">
-              <span v-for="day in weekdays" :key="day" :class="{ sunday: day === '일' }">{{ day }}</span>
-            </div>
-            <div class="dates-grid">
-              <button
-                v-for="(date, index) in calendarDates"
-                :key="index"
-                class="date-cell"
-                :class="{
-                  'other-month': date.otherMonth,
-                  'today': date.isToday,
-                  'completed': date.completed,
-                  'sunday': date.isSunday,
-                  'disabled': date.disabled,
-                  'loading': loadingDate === date.dateStr
-                }"
-                :disabled="date.disabled || date.otherMonth || loadingDate !== null"
-                @click="toggleDate(date)"
-              >
-                <span class="date-number">{{ date.day }}</span>
-                <span v-if="date.completed && !date.otherMonth" class="check-icon">
-                  <CheckIcon :size="14" :stroke-width="3" />
-                </span>
-                <span v-if="loadingDate === date.dateStr" class="loading-indicator"></span>
-              </button>
-            </div>
+            <template v-if="isLoading">
+              <SkeletonCalendar :weeks="5" />
+            </template>
+            <template v-else>
+              <div class="weekdays">
+                <span v-for="day in weekdays" :key="day" :class="{ sunday: day === '일' }">{{ day }}</span>
+              </div>
+              <div class="dates-grid">
+                <button
+                  v-for="(date, index) in calendarDates"
+                  :key="index"
+                  class="date-cell"
+                  :class="{
+                    'other-month': date.otherMonth,
+                    'today': date.isToday,
+                    'completed': date.completed,
+                    'sunday': date.isSunday,
+                    'disabled': date.disabled,
+                    'loading': loadingDate === date.dateStr
+                  }"
+                  :disabled="date.disabled || date.otherMonth || loadingDate !== null"
+                  @click="toggleDate(date)"
+                >
+                  <span class="date-number">{{ date.day }}</span>
+                  <span v-if="date.completed && !date.otherMonth" class="check-icon">
+                    <CheckIcon :size="14" :stroke-width="3" />
+                  </span>
+                  <span v-if="loadingDate === date.dateStr" class="loading-indicator"></span>
+                </button>
+              </div>
+            </template>
           </div>
 
           <!-- Legend -->
@@ -113,6 +118,7 @@ import {
 } from '@lucide/vue'
 import { ref, computed, watch } from 'vue'
 import { useHasenaStore } from '~/stores/hasena'
+import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue'
 
 interface Props {
   isOpen: boolean
@@ -248,8 +254,15 @@ const nextMonth = async () => {
   await loadCalendarData()
 }
 
+const isLoading = ref(true)
+
 const loadCalendarData = async () => {
-  await hasenaStore.fetchCalendarRecords(calendarYear.value, calendarMonth.value)
+  isLoading.value = true
+  try {
+    await hasenaStore.fetchCalendarRecords(calendarYear.value, calendarMonth.value)
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const toggleDate = async (date: CalendarDate) => {
