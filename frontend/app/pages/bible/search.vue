@@ -25,7 +25,7 @@
             placeholder="본문 단어를 입력하세요"
             @keydown.enter.prevent="search"
           >
-          <button class="search-button" type="button" :disabled="isSearching" @click="search">
+          <button class="search-button" type="button" :disabled="isSearching" aria-label="검색" @click="search">
             <SearchIcon :size="18" />
             <span>{{ isSearching ? '검색 중' : '검색' }}</span>
           </button>
