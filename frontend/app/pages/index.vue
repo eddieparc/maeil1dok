@@ -171,14 +171,17 @@ useHead({
 }
 .landing-skeleton__icon,
 .landing-skeleton__line,
-.landing-skeleton__section-heading,
+.landing-skeleton__section-heading {
+  background: #E7E5E1;
+}
 .landing-skeleton__welcome-card,
-.landing-skeleton__card-shadow,
 .landing-skeleton__tile,
 .landing-skeleton__nav {
-  background: linear-gradient(110deg, #ECE8E1 8%, #FFFFFF 18%, #ECE8E1 33%);
-  background-size: 200% 100%;
-  animation: landing-shell-shimmer 1.2s ease-in-out infinite;
+  background: #FFFFFF;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+}
+.landing-skeleton__card-shadow {
+  background: #F1F0ED;
 }
 .landing-skeleton__icon {
   width: 40px;
@@ -226,14 +229,14 @@ useHead({
   padding: 36px 32px;
   border-radius: 24px;
   background-color: #FFFFFF;
-  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.04);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
 }
 .landing-skeleton__card-shadow {
   position: absolute;
   height: 100%;
   border-radius: 24px;
-  background-color: #FFFFFF;
-  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.04);
+  background-color: #F1F0ED;
+  box-shadow: none;
 }
 .landing-skeleton__card-shadow--1 {
   inset: 10px 20px auto;
@@ -249,8 +252,7 @@ useHead({
   width: 86px;
   height: 14px;
   margin-bottom: 4px;
-  background: linear-gradient(110deg, #D5E8DD 8%, #FFFFFF 18%, #D5E8DD 33%);
-  background-size: 200% 100%;
+  background: #E0DEDA;
 }
 .landing-skeleton__line--card-title {
   width: min(280px, 64vw);
@@ -292,7 +294,7 @@ useHead({
   padding: 22px;
   border-radius: 20px;
   background-color: #FFFFFF;
-  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.04);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
 }
 .landing-skeleton__tile-main {
   align-items: center;
@@ -307,20 +309,20 @@ useHead({
   width: 58px;
   height: 24px;
   border-radius: 999px;
-  background: rgba(74, 93, 83, 0.13);
+  background: #E3E1DD;
 }
 .landing-skeleton__tile-icon {
   flex: 0 0 auto;
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: rgba(44, 51, 51, 0.13);
+  background: #DEDDD9;
 }
 .landing-skeleton__tile-line {
   width: min(88px, 28vw);
   height: 16px;
   border-radius: 999px;
-  background: rgba(44, 51, 51, 0.13);
+  background: #DEDDD9;
 }
 .landing-skeleton__nav {
   position: fixed;
@@ -335,16 +337,16 @@ useHead({
   border: 1px solid rgba(17, 24, 39, 0.08);
   border-radius: 20px;
   background: #FFFFFF;
-  box-shadow: 0 12px 36px rgba(17, 24, 39, 0.14), 0 2px 8px rgba(17, 24, 39, 0.08);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
   transform: translateX(-50%);
 }
 .landing-skeleton__nav-item {
   flex: 1;
   border-radius: 12px;
-  background: rgba(44, 51, 51, 0.1);
+  background: #E7E5E1;
 }
 .landing-skeleton__nav-item--active {
-  background: #4A5D53;
+  background: #D7D5D1;
 }
 .sanctuary-theme.is-shell-ready .landing-content {
   opacity: 1;
@@ -355,9 +357,6 @@ useHead({
   pointer-events: none;
   visibility: hidden;
   transition: opacity 160ms ease, visibility 0s linear 160ms;
-}
-@keyframes landing-shell-shimmer {
-  to { background-position-x: -200%; }
 }
 @media (max-width: 520px) {
   .landing-skeleton__inner { padding-inline: 16px; }
@@ -385,15 +384,6 @@ useHead({
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .landing-skeleton__icon,
-  .landing-skeleton__line,
-  .landing-skeleton__section-heading,
-  .landing-skeleton__welcome-card,
-  .landing-skeleton__card-shadow,
-  .landing-skeleton__tile,
-  .landing-skeleton__nav {
-    animation: none;
-  }
   .sanctuary-theme.is-shell-ready .landing-content,
   .sanctuary-theme.is-shell-ready .landing-skeleton {
     transition: none;

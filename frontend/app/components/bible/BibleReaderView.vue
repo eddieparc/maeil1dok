@@ -579,7 +579,7 @@ defineExpose({
 }
 
 .book-chapter-text {
-  font-size: clamp(1.125rem, 5vw, 1.375rem);
+  font-size: clamp(1rem, 4.4vw, 1.125rem);
   font-weight: 700;
   color: var(--text-primary, #1f2937);
   white-space: nowrap;
@@ -1026,20 +1026,14 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.25rem;
-  padding: 2.5rem 1.5rem 2rem;
-  margin-top: 2rem;
+  gap: 1rem;
+  padding: 1.25rem 1rem 0.75rem;
+  margin-top: 1rem;
   /* 시스템 폰트 강제 적용 - 본문 명조체 상속 방지 */
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  /* 부드러운 구분선 대신 그라데이션 페이드 */
   border-top: none;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    var(--color-bg-secondary, #f8f9fa) 20%,
-    var(--color-bg-secondary, #f8f9fa) 100%
-  );
-  border-radius: 24px 24px 0 0;
+  background: transparent;
+  border-radius: 0;
 }
 
 .mark-read-btn-inline {
@@ -1049,7 +1043,7 @@ defineExpose({
   gap: 0.5rem;
   width: 100%;
   max-width: 180px;
-  padding: 0.75rem 1.25rem;
+  padding: 0.6875rem 1.125rem;
   background: linear-gradient(135deg, var(--primary-color, #6366f1) 0%, #818cf8 100%);
   color: white;
   border-radius: 12px;
