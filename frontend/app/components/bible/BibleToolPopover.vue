@@ -266,12 +266,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   color: var(--text-secondary, #6b7280);
   background: transparent;
   border-radius: 8px;
-  transition: all 0.2s;
+  border: none;
+  outline: none;
+  transition: background 0.15s ease, color 0.15s ease;
   position: relative;
 }
 
@@ -281,7 +283,7 @@ onUnmounted(() => {
 }
 
 .tool-trigger-button.active {
-  background: var(--color-bg-active, #e5e7eb);
+  background: rgba(17, 24, 39, 0.055);
   color: var(--text-primary, #1f2937);
 }
 
@@ -298,27 +300,27 @@ onUnmounted(() => {
 /* 팝오버 컨텐츠 */
 .popover-content {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 4px);
   right: 0;
-  min-width: 180px;
+  min-width: 140px;
   max-width: calc(100vw - 32px);
   background: var(--color-bg-card, #fff);
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--color-border, #e5e7eb);
-  padding: 0.5rem;
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.09);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  padding: 0.25rem;
   z-index: 100;
 }
 
 .popover-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.45rem;
   width: 100%;
-  padding: 0.625rem 0.75rem;
+  padding: 0.42rem 0.48rem;
   background: transparent;
-  border-radius: 8px;
-  transition: all 0.15s;
+  border-radius: 7px;
+  transition: background 0.15s ease;
   text-align: left;
 }
 
@@ -338,10 +340,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   color: var(--text-secondary, #6b7280);
   flex-shrink: 0;
+}
+
+.item-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .item-content {
@@ -352,8 +359,10 @@ onUnmounted(() => {
 }
 
 .item-label {
-  font-size: 0.9375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-primary, #1f2937);
+  letter-spacing: -0.4px;
 }
 
 .item-badge {
@@ -372,8 +381,8 @@ onUnmounted(() => {
 
 .popover-divider {
   height: 1px;
-  background: var(--color-border, #e5e7eb);
-  margin: 0.375rem 0;
+  background: rgba(17, 24, 39, 0.08);
+  margin: 0.18rem 0.15rem;
 }
 
 /* 애니메이션 */
@@ -417,7 +426,7 @@ onUnmounted(() => {
 [data-theme="dark"] .popover-content {
   background: var(--color-bg-card);
   border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
 }
 
 [data-theme="dark"] .popover-item:hover {

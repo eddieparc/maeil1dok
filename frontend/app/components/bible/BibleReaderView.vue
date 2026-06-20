@@ -2,6 +2,20 @@
   <div class="bible-reader-view">
     <!-- 헤더 -->
     <header class="bible-header">
+      <div class="header-left-actions">
+        <button
+          v-if="!isTongdokMode"
+          class="bookmark-toggle-button"
+          :class="{ 'is-bookmarked': isBookmarked }"
+          @click="$emit('bookmark-toggle')"
+          :title="isBookmarked ? '북마크 삭제' : '북마크 추가'"
+          :aria-label="isBookmarked ? '북마크 삭제' : '북마크 추가'"
+        >
+          <BookmarkFilledIcon v-if="isBookmarked" :size="20" />
+          <BookmarkOutlineIcon v-else :size="20" />
+        </button>
+      </div>
+
       <!-- 통독 모드: [dot] [창세기 1장] [x] -->
       <div v-if="isTongdokMode" class="book-selector-group tongdok-mode">
         <button class="book-selector-trigger tongdok-trigger" @click="$emit('open-book-selector')">
@@ -19,24 +33,11 @@
         </button>
       </div>
 
-      <!-- 일반 모드: [창세기 1장] [북마크] -->
+      <!-- 일반 모드: 가운데 현재 위치 -->
       <div v-else class="book-selector-group">
         <button class="book-selector-trigger" @click="$emit('open-book-selector')">
           <span class="book-chapter-text book-name-full">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
           <span class="book-chapter-text book-name-short">{{ shortBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
-          <span
-            class="bookmark-toggle-icon"
-            :class="{ 'is-bookmarked': isBookmarked }"
-            role="button"
-            tabindex="0"
-            @click.stop="$emit('bookmark-toggle')"
-            @keydown.enter.stop.prevent="$emit('bookmark-toggle')"
-            :title="isBookmarked ? '북마크 삭제' : '북마크 추가'"
-            :aria-label="isBookmarked ? '북마크 삭제' : '북마크 추가'"
-          >
-            <BookmarkFilledIcon v-if="isBookmarked" :size="18" />
-            <BookmarkOutlineIcon v-else :size="18" />
-          </span>
         </button>
       </div>
 
@@ -498,14 +499,16 @@ defineExpose({
 .bible-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.25rem;
-  padding: 0.75rem 1rem;
-  background: var(--color-bg-card, #fff);
+  padding: 0.45rem 1rem;
+  background: color-mix(in srgb, var(--color-bg-primary, #f9fafb) 92%, #f3f0ea 8%);
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 50px;
-  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+  height: 45px;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.045);
+  box-shadow: none;
   transition: all 0.15s ease;
 }
 
@@ -562,6 +565,7 @@ defineExpose({
 
 /* 책/장 선택 트리거 - 깔끔한 텍스트 스타일 */
 .book-selector-trigger {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -572,6 +576,7 @@ defineExpose({
   cursor: pointer;
   min-width: 0;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease;
 }
 
 .book-selector-trigger:active {
@@ -579,37 +584,14 @@ defineExpose({
 }
 
 .book-chapter-text {
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: clamp(1rem, 4.4vw, 1.125rem);
   font-weight: 700;
-  color: var(--text-primary, #1f2937);
+  color: #181818;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: -0.02em;
-}
-
-/* 북마크 아이콘 (XX장 옆) */
-.bookmark-toggle-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-tertiary, #9ca3af);
-  padding: 0.125rem;
-  border-radius: 4px;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-
-.bookmark-toggle-icon:hover {
-  color: var(--text-secondary, #6b7280);
-}
-
-.bookmark-toggle-icon.is-bookmarked {
-  color: var(--primary-color, #6366f1);
-}
-
-.bookmark-toggle-icon.is-bookmarked:hover {
-  color: var(--primary-dark, #4f46e5);
+  letter-spacing: -0.035em;
 }
 
 .selector-icon {
@@ -632,6 +614,21 @@ defineExpose({
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
+}
+
+.book-selector-group:not(.tongdok-mode) {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  justify-content: center;
+  flex: none;
+  width: max-content;
+  max-width: calc(100% - 9rem);
+}
+
+.book-selector-group:not(.tongdok-mode) .book-selector-trigger {
+  justify-content: center;
+  max-width: 100%;
 }
 
 /* 통독 모드 book-selector-group */
@@ -806,10 +803,21 @@ defineExpose({
   flex-shrink: 0;
 }
 
+.header-left-actions,
 .header-actions {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.header-left-actions {
+  min-width: 36px;
+}
+
+.header-actions {
+  margin-left: auto;
 }
 
 .tongdok-mode-btn {
@@ -1326,9 +1334,11 @@ defineExpose({
 
 /* 헤더 다크모드 */
 [data-theme="dark"] .bible-header {
-  background: var(--color-bg-card);
-  box-shadow: var(--shadow-sm);
+  background: var(--color-bg-primary);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
+
 
 /* 책/장 선택 트리거 다크모드 */
 [data-theme="dark"] .book-chapter-text {
@@ -1407,19 +1417,6 @@ defineExpose({
 }
 
 [data-theme="dark"] .bookmark-toggle-button.is-bookmarked {
-  color: var(--color-accent-primary);
-}
-
-/* 북마크 아이콘 다크모드 (XX장 옆) */
-[data-theme="dark"] .bookmark-toggle-icon {
-  color: var(--color-text-tertiary);
-}
-
-[data-theme="dark"] .bookmark-toggle-icon:hover {
-  color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .bookmark-toggle-icon.is-bookmarked {
   color: var(--color-accent-primary);
 }
 
