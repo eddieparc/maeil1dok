@@ -1,15 +1,5 @@
 <template>
-  <main class="bible-search-page">
-    <header class="search-header">
-      <button class="back-button" type="button" aria-label="뒤로가기" @click="goBack">
-        <ChevronLeftIcon :size="22" />
-      </button>
-      <div>
-        <p class="eyebrow">캐시 본문</p>
-        <h1>성경 본문 검색</h1>
-      </div>
-    </header>
-
+  <BibleSubpageLayout title="본문 검색">
     <section class="search-panel">
       <div class="search-controls">
         <label class="search-field">
@@ -43,7 +33,7 @@
 
     <section class="results-section" aria-live="polite">
       <p v-if="!hasSearched" class="empty-state">
-        캐시에 저장된 본문에서 빠르게 찾습니다.
+        검색어를 입력하세요.
       </p>
       <p v-else-if="results.length === 0 && !isSearching" class="empty-state">
         검색 결과가 없습니다.
@@ -64,15 +54,15 @@
         <p v-html="highlightSnippet(result.snippet)"></p>
       </NuxtLink>
     </section>
-  </main>
+  </BibleSubpageLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { ChevronLeftIcon, SearchIcon } from '@lucide/vue';
+import { SearchIcon } from '@lucide/vue';
 import { useApi } from '~/composables/useApi';
 import { useBibleData } from '~/composables/useBibleData';
+import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import '~/assets/css/bible-search.css';
 
 type SearchResult = {
@@ -90,7 +80,6 @@ type SearchResponse = {
   readonly error?: string;
 };
 
-const router = useRouter();
 const api = useApi();
 const { bookNames, versionNames, getChapterUnit } = useBibleData();
 const query = ref('');
@@ -134,25 +123,16 @@ const search = async (): Promise<void> => {
   }
 };
 
-const goBack = (): void => {
-  if (history.length > 1) {
-    router.back();
-    return;
-  }
-  router.push('/bible');
-};
-
-const resultUrl = (result: SearchResult): string =>
-  router.resolve({
-    path: '/bible',
-    query: {
-      book: result.book,
-      chapter: String(result.chapter),
-      version: result.version,
-      verse: result.verse ? String(result.verse) : undefined,
-      search: query.value,
-    },
-  }).href;
+const resultUrl = (result: SearchResult) => ({
+  path: '/bible',
+  query: {
+    book: result.book,
+    chapter: String(result.chapter),
+    version: result.version,
+    verse: result.verse ? String(result.verse) : undefined,
+    search: query.value,
+  },
+});
 
 const versionLabel = (code: string): string => versionNames[code] || code;
 const bookLabel = (book: string): string => bookNames[book] || book;

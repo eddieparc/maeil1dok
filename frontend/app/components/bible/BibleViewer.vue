@@ -25,7 +25,7 @@
       ></div>
 
       <!-- 본문 하단 슬롯 (읽음 표시 버튼 등) -->
-      <slot name="bottom"></slot>
+      <slot v-if="!hasErrorContent" name="bottom"></slot>
     </template>
 
   </div>
@@ -163,6 +163,8 @@ const getSelectedVerseHighlight = (): Highlight | undefined => {
 };
 
 // 본문 렌더링 (절 번호에 data-verse 속성 추가 + 하이라이트 적용)
+const hasErrorContent = computed(() => props.content.includes('class="error-message"'));
+
 const renderedContent = computed(() => {
   if (!props.content) return '';
 
@@ -1041,18 +1043,22 @@ defineExpose({
   text-align: center;
   padding: 3rem 1rem;
   color: var(--text-secondary, #6b7280);
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .bible-content :deep(.error-message h3) {
   margin: 1rem 0 0.5rem;
+  font-family: inherit;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary, #1f2937);
 }
 
 .bible-content :deep(.error-message p) {
   margin-bottom: 1rem;
+  font-family: inherit;
   font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .bible-content :deep(.external-link) {

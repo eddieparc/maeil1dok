@@ -20,7 +20,7 @@
           :class="['version-chip', { active: code === currentVersion }]"
           @click="$emit('version-select', String(code))"
         >
-          {{ name }}<span v-if="code === 'KNT' || code === 'WOORI'" class="new-badge">N</span>
+          {{ name }}
         </button>
       </div>
     </div>
@@ -102,7 +102,7 @@
       </div>
 
       <div v-if="inputMode === 'chapter'" class="input-hint">
-        숫자 입력 후 Enter (최대 {{ getChaptersArray(confirmedBookId).length }}{{ getChapterUnit(confirmedBookId) }})
+        숫자 입력 후 Enter
       </div>
       <div v-if="inputMode === 'verse'" class="input-hint">
         절 입력 후 Enter, 또는 그냥 Enter로 이동
@@ -433,7 +433,11 @@ const handleEnterKey = () => {
     
     if (chapter > 0 && chapter <= maxChapter) {
       enterVerseMode(chapter);
+      return;
     }
+
+    inputError.value = true;
+    setTimeout(() => { inputError.value = false; }, 500);
   } else if (inputMode.value === 'verse') {
     // 절 입력 모드: 절 입력이 있으면 해당 절로, 없으면 그냥 닫기
     const verse = parseInt(verseInput.value, 10);
@@ -529,22 +533,6 @@ const scrollToSearchedChapter = (chapter: number) => {
   color: white;
   border-color: var(--primary-color, #6366f1);
   box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
-}
-
-.version-chip .new-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.0625rem 0.2rem;
-  font-size: 0.5rem;
-  font-weight: 600;
-  color: white;
-  background: #dc6b6b;
-  border-radius: 3px;
-}
-
-.version-chip.active .new-badge {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 /* 검색 섹션 */
