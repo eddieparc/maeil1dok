@@ -1,3 +1,11 @@
+const ALLOWED_APP_SCHEMES = new Set(['maeil1dok', 'maeil1dok-dev']);
+
+const getSafeAppScheme = (scheme: unknown) => {
+  if (typeof scheme !== 'string') return '';
+  if (!ALLOWED_APP_SCHEMES.has(scheme)) return '';
+  return scheme;
+};
+
 export default defineEventHandler((event) => {
   const url = getRequestURL(event);
   const path = url.pathname;
@@ -18,7 +26,8 @@ export default defineEventHandler((event) => {
     return;
   }
   
-  if (stateData?.from !== 'app' || !stateData?.scheme) {
+  const safeScheme = getSafeAppScheme(stateData?.scheme);
+  if (stateData?.from !== 'app' || !safeScheme) {
     return;
   }
   
@@ -26,7 +35,7 @@ export default defineEventHandler((event) => {
   const error = url.searchParams.get('error');
   const provider = path.includes('kakao') ? 'kakao' : 'google';
   
-  let deepLink = `${stateData.scheme}://auth/${provider}/callback`;
+  let deepLink = `${safeScheme}://auth/${provider}/callback`;
   if (code) {
     deepLink += `?code=${code}`;
   } else if (error) {

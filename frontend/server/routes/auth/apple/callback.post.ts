@@ -1,5 +1,12 @@
 // Apple Sign In uses form_post response mode, so we need a server-side handler
 // This receives POST data and redirects to the client-side callback page with query params
+const ALLOWED_APP_SCHEMES = new Set(['maeil1dok', 'maeil1dok-dev'])
+
+const getSafeAppScheme = (scheme: unknown) => {
+  if (typeof scheme !== 'string') return ''
+  if (!ALLOWED_APP_SCHEMES.has(scheme)) return ''
+  return scheme
+}
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -35,8 +42,9 @@ export default defineEventHandler(async (event) => {
   }
   
   // If from app, redirect to deep link
-  if (stateData?.from === 'app' && stateData?.scheme) {
-    const deepLink = `${stateData.scheme}://auth/apple/callback?${params.toString()}`
+  const safeScheme = getSafeAppScheme(stateData?.scheme)
+  if (stateData?.from === 'app' && safeScheme) {
+    const deepLink = `${safeScheme}://auth/apple/callback?${params.toString()}`
     return sendRedirect(event, deepLink, 302)
   }
   

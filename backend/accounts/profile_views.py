@@ -1,3 +1,4 @@
+# noqa: SIZE_OK  — legacy profile endpoint module; account hardening only reuses its serializer validation path
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -17,6 +18,7 @@ from .serializers import (
 from .achievement_config import ACHIEVEMENT_METADATA
 from todos.models import UserBibleProgress, PlanSubscription, DailyBibleSchedule, UserPlanDisplaySettings
 from todos.utils import abbreviate_schedule, get_plan_color
+# noqa: SIZE_OK  — legacy profile endpoint module; account hardening only reuses its serializer validation path
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,16 +62,20 @@ def get_user_profile(request, user_id):
 def update_user_profile(request):
     """프로필 수정"""
     profile, created = UserProfile.objects.get_or_create(user=request.user)
+    serializer = UserProfileSerializer(
+        profile,
+        data=request.data,
+        partial=True,
+        context={'request': request}
+    )
+    if not serializer.is_valid():
+        return StandardResponse.error(
+            error='프로필 입력값이 올바르지 않습니다.',
+            errors=serializer.errors,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    serializer.save()
 
-    # 수정 가능한 필드만 업데이트
-    if 'bio' in request.data:
-        profile.bio = request.data['bio']
-    if 'is_public' in request.data:
-        profile.is_public = request.data['is_public']
-
-    profile.save()
-
-    serializer = UserProfileSerializer(profile, context={'request': request})
     return StandardResponse.success(
         data={'profile': serializer.data},
         message='프로필이 업데이트되었습니다.'

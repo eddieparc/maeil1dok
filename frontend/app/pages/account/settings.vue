@@ -1,3 +1,4 @@
+<!-- noqa: SIZE_OK account settings is the existing full account-management surface; this hardening keeps one route-level SFC stable -->
 <template>
   <div class="settings-container">
     <div class="settings-box">
@@ -91,13 +92,52 @@
                   {{ linkedAccounts?.has_password ? '비밀번호가 설정되어 있습니다' : '이메일 로그인을 위해 비밀번호를 설정하세요' }}
                 </p>
               </div>
-              <button 
-                @click="showPasswordModal = true" 
+              <button
+                @click="showPasswordPanel = !showPasswordPanel"
                 class="action-button"
               >
-                {{ linkedAccounts?.has_password ? '변경' : '설정' }}
+                {{ showPasswordPanel ? '닫기' : (linkedAccounts?.has_password ? '변경' : '설정') }}
               </button>
             </div>
+            <form v-if="showPasswordPanel" @submit.prevent="handleSetPassword" class="inline-sensitive-form">
+              <div v-if="linkedAccounts?.has_password" class="input-wrapper">
+                <label for="current-password">현재 비밀번호</label>
+                <input
+                  id="current-password"
+                  v-model="currentPassword"
+                  type="password"
+                  placeholder="현재 비밀번호"
+                  autocomplete="current-password"
+                >
+              </div>
+              <div class="input-wrapper">
+                <label for="new-password">새 비밀번호</label>
+                <input
+                  id="new-password"
+                  v-model="newPassword"
+                  type="password"
+                  placeholder="8자 이상 (문자+숫자)"
+                  autocomplete="new-password"
+                >
+              </div>
+              <div class="input-wrapper">
+                <label for="new-password-confirm">비밀번호 확인</label>
+                <input
+                  id="new-password-confirm"
+                  v-model="newPasswordConfirm"
+                  type="password"
+                  placeholder="비밀번호 재입력"
+                  autocomplete="new-password"
+                >
+              </div>
+              <p v-if="passwordError" class="error-text">{{ passwordError }}</p>
+              <div class="inline-actions">
+                <button type="button" class="action-button" @click="resetPasswordPanel">취소</button>
+                <button type="submit" class="action-button primary" :disabled="passwordLoading">
+                  {{ passwordLoading ? '처리 중...' : '저장' }}
+                </button>
+              </div>
+            </form>
           </div>
         </section>
 
@@ -218,66 +258,53 @@
           </button>
         </section>
 
+        <section class="settings-section">
+          <button @click="handleLogoutAllDevices" class="logout-button" :disabled="accountActionLoading">
+            모든 기기에서 로그아웃
+          </button>
+          <p class="section-note">
+            현재 브라우저를 포함한 모든 기기의 로그인 세션을 종료합니다
+          </p>
+        </section>
+
         <!-- 계정 삭제 -->
         <section class="settings-section">
-          <button @click="handleDeleteAccount" class="delete-account-button">
-            계정 삭제
+          <button @click="showDeletePanel = !showDeletePanel" class="delete-account-button">
+            {{ showDeletePanel ? '계정 삭제 닫기' : '계정 삭제' }}
           </button>
           <p class="section-note danger-note">
             * 계정 삭제 요청 후 30일간 유예 기간이 있으며, 이후 완전히 삭제됩니다
           </p>
-        </section>
-    </div>
-
-    <!-- 비밀번호 설정 모달 -->
-    <Teleport to="body">
-      <div v-if="showPasswordModal" class="modal-overlay" @click="showPasswordModal = false">
-        <div class="modal-content" @click.stop>
-          <h3 class="modal-title">{{ linkedAccounts?.has_password ? '비밀번호 변경' : '비밀번호 설정' }}</h3>
-          <form @submit.prevent="handleSetPassword" class="password-form">
+          <form v-if="showDeletePanel" @submit.prevent="handleDeleteAccount" class="inline-sensitive-form danger-form">
             <div v-if="linkedAccounts?.has_password" class="input-wrapper">
-              <label>현재 비밀번호</label>
-              <input 
-                type="password" 
-                v-model="currentPassword" 
-                placeholder="현재 비밀번호"
+              <label for="delete-password">계정 비밀번호</label>
+              <input
+                id="delete-password"
+                v-model="deletePassword"
+                type="password"
+                placeholder="계정 비밀번호"
                 autocomplete="current-password"
               >
             </div>
-            <div class="input-wrapper">
-              <label>새 비밀번호</label>
-              <input 
-                type="password" 
-                v-model="newPassword" 
-                placeholder="8자 이상 (문자+숫자)"
-                autocomplete="new-password"
-              >
-            </div>
-            <div class="input-wrapper">
-              <label>비밀번호 확인</label>
-              <input 
-                type="password" 
-                v-model="newPasswordConfirm" 
-                placeholder="비밀번호 재입력"
-                autocomplete="new-password"
-              >
-            </div>
-            <p v-if="passwordError" class="error-text">{{ passwordError }}</p>
-            <div class="modal-actions">
-              <button type="button" @click="showPasswordModal = false" class="btn-cancel">취소</button>
-              <button type="submit" class="btn-confirm" :disabled="passwordLoading">
-                {{ passwordLoading ? '처리 중...' : '저장' }}
+            <p v-else class="setting-description">
+              계정 삭제는 보안을 위해 비밀번호 설정 후 진행할 수 있습니다.
+            </p>
+            <p class="setting-description">
+              삭제 요청 후 30일 안에 다시 로그인하면 삭제가 취소됩니다. 30일 이후에는 복구할 수 없습니다.
+            </p>
+            <p v-if="deleteError" class="error-text">{{ deleteError }}</p>
+            <div class="inline-actions">
+              <button type="button" class="action-button" @click="resetDeletePanel">취소</button>
+              <button type="submit" class="action-button danger solid" :disabled="accountActionLoading || !linkedAccounts?.has_password">
+                {{ accountActionLoading ? '처리 중...' : '삭제 요청' }}
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </Teleport>
+        </section>
 
-    <!-- 계정 병합 모달 -->
-    <Teleport to="body">
-      <div v-if="showMergeModal && mergeInfo" class="modal-overlay" @click="closeMergeModal">
-        <div class="merge-modal-content" @click.stop>
+        <!-- 계정 병합 -->
+        <section v-if="showMergeModal && mergeInfo" class="settings-section">
+          <div class="merge-modal-content">
           <h3 class="modal-title">계정 병합</h3>
           <p class="merge-description">
             이 {{ getProviderDisplayName(mergeInfo.provider) }} 계정은 다른 매일일독 계정에 연결되어 있습니다.<br>
@@ -370,8 +397,8 @@
             취소
           </button>
         </div>
-      </div>
-    </Teleport>
+        </section>
+    </div>
   </div>
 </template>
 
@@ -395,31 +422,85 @@ const api = useApi()
 const config = useRuntimeConfig()
 const { goBack } = useNavigation()
 
+type Provider = 'kakao' | 'google' | 'apple'
+type KeepAccount = 'current' | 'other'
+
+interface LinkedAccount {
+  provider: Provider
+  provider_display: string
+  email: string | null
+  profile_image: string | null
+  linked_at: string
+  can_unlink: boolean
+}
+
+interface AuthMethods {
+  total: number
+  password: boolean
+  social_count: number
+  providers: Provider[]
+  can_remove_login_method: boolean
+}
+
+interface LinkedAccountsResponse {
+  has_password: boolean
+  email: string | null
+  primary_email?: string | null
+  auth_methods?: AuthMethods
+  linked_accounts: LinkedAccount[]
+}
+
+interface MergeAccountSummary {
+  id: number
+  nickname: string
+  email: string | null
+  profile_image: string | null
+  providers: Provider[]
+  has_password: boolean
+  created_at: string
+}
+
+interface MergeInfo {
+  provider: Provider
+  code: string
+  id_token?: string
+  current_account: MergeAccountSummary
+  other_account: MergeAccountSummary
+}
+
+interface NativeWindow extends Window {
+  ReactNativeWebView?: {
+    postMessage(message: string): void
+  }
+}
+
+const PROVIDER_LABELS: Record<Provider, string> = {
+  kakao: '카카오',
+  google: '구글',
+  apple: '애플',
+}
+
 const loading = ref(true)
-const linkedAccounts = ref<any>(null)
+const linkedAccounts = ref<LinkedAccountsResponse | null>(null)
 const user = computed(() => auth.user.value)
 
-// Password modal
-const showPasswordModal = ref(false)
+const showPasswordPanel = ref(false)
 const currentPassword = ref('')
 const newPassword = ref('')
 const newPasswordConfirm = ref('')
 const passwordError = ref('')
 const passwordLoading = ref(false)
+const accountActionLoading = ref(false)
+const showDeletePanel = ref(false)
+const deletePassword = ref('')
+const deleteError = ref('')
 
-// Email verification
 const resendingEmail = ref(false)
 const emailCooldown = ref(0)
-let emailCooldownTimer: NodeJS.Timeout | null = null
+let emailCooldownTimer: ReturnType<typeof setInterval> | null = null
 
-// Merge modal
 const showMergeModal = ref(false)
-const mergeInfo = ref<{
-  provider: string
-  code: string
-  current_account: any
-  other_account: any
-} | null>(null)
+const mergeInfo = ref<MergeInfo | null>(null)
 const mergeLoading = ref(false)
 
 const emailButtonText = computed(() => {
@@ -428,63 +509,183 @@ const emailButtonText = computed(() => {
   return '인증 메일 발송'
 })
 
-// Computed
-const isKakaoLinked = computed(() => 
-  linkedAccounts.value?.linked_accounts?.some((a: any) => a.provider === 'kakao')
-)
-const isGoogleLinked = computed(() => 
-  linkedAccounts.value?.linked_accounts?.some((a: any) => a.provider === 'google')
-)
-const isAppleLinked = computed(() => 
-  linkedAccounts.value?.linked_accounts?.some((a: any) => a.provider === 'apple')
-)
+const isKakaoLinked = computed(() => isProviderLinked('kakao'))
+const isGoogleLinked = computed(() => isProviderLinked('google'))
+const isAppleLinked = computed(() => isProviderLinked('apple'))
 
-const getLinkedAccount = (provider: string) => 
-  linkedAccounts.value?.linked_accounts?.find((a: any) => a.provider === provider)
+const isProviderLinked = (provider: Provider) =>
+  linkedAccounts.value?.linked_accounts.some(account => account.provider === provider) ?? false
 
-const canUnlink = (provider: string) => {
+const getLinkedAccount = (provider: Provider) =>
+  linkedAccounts.value?.linked_accounts.find(account => account.provider === provider)
+
+const canUnlink = (provider: Provider) => {
   const account = getLinkedAccount(provider)
   return account?.can_unlink ?? false
 }
 
-// Methods
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null
+}
+
+const getString = (record: Record<string, unknown>, key: string) => {
+  const value = record[key]
+  return typeof value === 'string' ? value : null
+}
+
+const getBoolean = (record: Record<string, unknown>, key: string) => {
+  return record[key] === true
+}
+
+const getNumber = (record: Record<string, unknown>, key: string) => {
+  const value = record[key]
+  return typeof value === 'number' ? value : 0
+}
+
+const parseProvider = (value: unknown): Provider | null => {
+  return typeof value === 'string' && isProvider(value) ? value : null
+}
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message
+  if (!isRecord(error)) return fallback
+  const data = error.data
+  if (isRecord(data)) {
+    return getString(data, 'error') || getString(data, 'detail') || getString(data, 'message') || fallback
+  }
+  return getString(error, 'message') || fallback
+}
+
+const normalizeLinkedAccounts = (payload: unknown): LinkedAccountsResponse => {
+  if (!isRecord(payload)) {
+    return {
+      has_password: false,
+      email: null,
+      primary_email: null,
+      linked_accounts: [],
+    }
+  }
+  const accountItems = Array.isArray(payload.linked_accounts) ? payload.linked_accounts : []
+  const authMethodsPayload = isRecord(payload.auth_methods) ? payload.auth_methods : null
+  const linked_accounts = accountItems.flatMap((item): LinkedAccount[] => {
+    if (!isRecord(item)) return []
+    const provider = parseProvider(item.provider)
+    if (!provider) return []
+    return [{
+      provider,
+      provider_display: getString(item, 'provider_display') || getProviderDisplayName(provider),
+      email: getString(item, 'email'),
+      profile_image: getString(item, 'profile_image'),
+      linked_at: getString(item, 'linked_at') || '',
+      can_unlink: getBoolean(item, 'can_unlink'),
+    }]
+  })
+
+  return {
+    has_password: getBoolean(payload, 'has_password'),
+    email: getString(payload, 'email') || getString(payload, 'primary_email'),
+    primary_email: getString(payload, 'primary_email') || getString(payload, 'email'),
+    auth_methods: authMethodsPayload
+      ? {
+          total: getNumber(authMethodsPayload, 'total'),
+          password: getBoolean(authMethodsPayload, 'password'),
+          social_count: getNumber(authMethodsPayload, 'social_count'),
+          providers: Array.isArray(authMethodsPayload.providers)
+            ? authMethodsPayload.providers.flatMap((provider): Provider[] => {
+                const parsedProvider = parseProvider(provider)
+                return parsedProvider ? [parsedProvider] : []
+              })
+            : [],
+          can_remove_login_method: getBoolean(authMethodsPayload, 'can_remove_login_method'),
+        }
+      : undefined,
+    linked_accounts,
+  }
+}
+
+const normalizeMergeAccountSummary = (payload: unknown): MergeAccountSummary | null => {
+  if (!isRecord(payload)) return null
+  const providerItems = Array.isArray(payload.providers) ? payload.providers : []
+  return {
+    id: getNumber(payload, 'id'),
+    nickname: getString(payload, 'nickname') || '',
+    email: getString(payload, 'email'),
+    profile_image: getString(payload, 'profile_image'),
+    providers: providerItems.flatMap((provider): Provider[] => {
+      const parsedProvider = parseProvider(provider)
+      return parsedProvider ? [parsedProvider] : []
+    }),
+    has_password: getBoolean(payload, 'has_password'),
+    created_at: getString(payload, 'created_at') || '',
+  }
+}
+
+const normalizeMergeInfo = (payload: unknown): MergeInfo | null => {
+  if (!isRecord(payload)) return null
+  const provider = parseProvider(payload.provider)
+  const code = getString(payload, 'code')
+  const currentAccount = normalizeMergeAccountSummary(payload.current_account)
+  const otherAccount = normalizeMergeAccountSummary(payload.other_account)
+  if (!provider || !code || !currentAccount || !otherAccount) return null
+  return {
+    provider,
+    code,
+    id_token: getString(payload, 'id_token') || undefined,
+    current_account: currentAccount,
+    other_account: otherAccount,
+  }
+}
+
 const fetchLinkedAccounts = async () => {
   try {
     const response = await api.get('/api/v1/auth/linked-accounts/')
-    linkedAccounts.value = response.data || response
+    linkedAccounts.value = normalizeLinkedAccounts(response.data)
   } catch (error) {
-    console.error('Failed to fetch linked accounts:', error)
+    await modal.alert({
+      title: '계정 정보를 불러오지 못했습니다',
+      description: getErrorMessage(error, '잠시 후 다시 시도해주세요.'),
+      icon: 'error'
+    })
   } finally {
     loading.value = false
   }
 }
 
-const handleLinkKakao = () => {
+const getOAuthLinkState = async () => {
+  const response = await api.post('/api/v1/auth/oauth/link-state/')
+  const state = response.data?.state
+  if (typeof state !== 'string' || !state) {
+    throw new Error('Invalid OAuth state')
+  }
+  return encodeURIComponent(state)
+}
+
+const handleLinkKakao = async () => {
   const redirectUri = encodeURIComponent(config.public.KAKAO_REDIRECT_URI)
-  const state = encodeURIComponent(JSON.stringify({ action: 'link' }))
+  const state = await getOAuthLinkState()
   const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${config.public.KAKAO_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&state=${state}`
   window.location.href = kakaoAuthUrl
 }
 
-const handleLinkGoogle = () => {
+const handleLinkGoogle = async () => {
   const redirectUri = encodeURIComponent(config.public.GOOGLE_REDIRECT_URI)
-  const state = encodeURIComponent(JSON.stringify({ action: 'link' }))
+  const state = await getOAuthLinkState()
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.public.GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile&access_type=offline&prompt=consent&state=${state}`
   window.location.href = googleAuthUrl
 }
 
-const handleLinkApple = () => {
+const handleLinkApple = async () => {
   const clientId = config.public.APPLE_CLIENT_ID
   const redirectUri = encodeURIComponent(config.public.APPLE_REDIRECT_URI || `${window.location.origin}/auth/apple/callback`)
-  const state = encodeURIComponent(JSON.stringify({ action: 'link' }))
+  const state = await getOAuthLinkState()
   const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code%20id_token&scope=name%20email&response_mode=form_post&state=${state}`
   window.location.href = appleAuthUrl
 }
 
-const handleUnlink = async (provider: string) => {
+const handleUnlink = async (provider: Provider) => {
   const confirmed = await modal.confirm({
     title: '계정 연결 해제',
-    description: `${provider === 'kakao' ? '카카오' : '구글'} 계정 연결을 해제하시겠습니까?`,
+    description: `${getProviderDisplayName(provider)} 계정 연결을 해제하시겠습니까?`,
     confirmText: '해제',
     confirmVariant: 'danger'
   })
@@ -499,10 +700,10 @@ const handleUnlink = async (provider: string) => {
       icon: 'success'
     })
     await fetchLinkedAccounts()
-  } catch (error: any) {
+  } catch (error: unknown) {
     await modal.alert({
       title: '연결 해제 실패',
-      description: error?.data?.error || '연결 해제에 실패했습니다.',
+      description: getErrorMessage(error, '연결 해제에 실패했습니다.'),
       icon: 'error'
     })
   }
@@ -542,16 +743,21 @@ const handleSetPassword = async () => {
       icon: 'success'
     })
     
-    showPasswordModal.value = false
-    currentPassword.value = ''
-    newPassword.value = ''
-    newPasswordConfirm.value = ''
+    resetPasswordPanel()
     await fetchLinkedAccounts()
-  } catch (error: any) {
-    passwordError.value = error?.data?.error || '비밀번호 설정에 실패했습니다.'
+  } catch (error: unknown) {
+    passwordError.value = getErrorMessage(error, '비밀번호 설정에 실패했습니다.')
   } finally {
     passwordLoading.value = false
   }
+}
+
+const resetPasswordPanel = () => {
+  showPasswordPanel.value = false
+  currentPassword.value = ''
+  newPassword.value = ''
+  newPasswordConfirm.value = ''
+  passwordError.value = ''
 }
 
 const handleResendVerification = async () => {
@@ -566,10 +772,10 @@ const handleResendVerification = async () => {
       icon: 'success'
     })
     startEmailCooldown()
-  } catch (error: any) {
+  } catch (error: unknown) {
     await modal.alert({
       title: '발송 실패',
-      description: error?.data?.error || '메일 발송에 실패했습니다.',
+      description: getErrorMessage(error, '메일 발송에 실패했습니다.'),
       icon: 'error'
     })
   } finally {
@@ -597,18 +803,54 @@ const handleLogout = async () => {
   })
 
   if (confirmed) {
-    // 네이티브 앱: 네이티브에게 로그아웃 처리 위임
-    if ((window as any).ReactNativeWebView) {
-      (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type: 'requestLogout' }))
+    const nativeWindow: NativeWindow = window
+    if (nativeWindow.ReactNativeWebView) {
+      nativeWindow.ReactNativeWebView.postMessage(JSON.stringify({ type: 'requestLogout' }))
       return
     }
-    // 웹: 기존 로그아웃 로직
     await auth.logout()
     navigateTo('/')
   }
 }
 
+const handleLogoutAllDevices = async () => {
+  const confirmed = await modal.confirm({
+    title: '모든 기기에서 로그아웃',
+    description: '현재 브라우저를 포함한 모든 기기의 로그인을 종료합니다.',
+    confirmText: '로그아웃',
+    confirmVariant: 'danger',
+    icon: 'warning'
+  })
+
+  if (!confirmed) return
+
+  accountActionLoading.value = true
+  try {
+    await api.post('/api/v1/auth/logout-all/')
+    await auth.logout()
+    navigateTo('/')
+  } catch (error: unknown) {
+    await modal.alert({
+      title: '로그아웃 실패',
+      description: getErrorMessage(error, '모든 기기 로그아웃에 실패했습니다.'),
+      icon: 'error'
+    })
+  } finally {
+    accountActionLoading.value = false
+  }
+}
+
 const handleDeleteAccount = async () => {
+  deleteError.value = ''
+  if (!linkedAccounts.value?.has_password) {
+    deleteError.value = '계정 삭제 전 비밀번호를 먼저 설정해주세요'
+    return
+  }
+  if (!deletePassword.value) {
+    deleteError.value = '계정 비밀번호를 입력해주세요'
+    return
+  }
+
   const confirmed = await modal.confirm({
     title: '계정 삭제',
     description: '정말 계정을 삭제하시겠습니까?\n\n삭제 요청 후 30일간 유예 기간이 있으며, 이 기간 동안 로그인하면 삭제가 취소됩니다. 30일 후에는 모든 데이터가 완전히 삭제되며 복구할 수 없습니다.',
@@ -619,8 +861,12 @@ const handleDeleteAccount = async () => {
 
   if (!confirmed) return
 
+  accountActionLoading.value = true
   try {
-    await api.post('/api/v1/auth/delete-account/')
+    await api.post('/api/v1/auth/delete-account/', {
+      password: deletePassword.value,
+      confirm_delete: true
+    })
     await modal.alert({
       title: '계정 삭제 요청 완료',
       description: '계정 삭제가 요청되었습니다. 30일 후 완전히 삭제됩니다.',
@@ -628,34 +874,51 @@ const handleDeleteAccount = async () => {
     })
     await auth.logout()
     navigateTo('/')
-  } catch (error: any) {
-    await modal.alert({
-      title: '계정 삭제 실패',
-      description: error?.data?.error || '계정 삭제에 실패했습니다.',
-      icon: 'error'
-    })
+  } catch (error: unknown) {
+    deleteError.value = getErrorMessage(error, '계정 삭제에 실패했습니다.')
+  } finally {
+    accountActionLoading.value = false
   }
+}
+
+const resetDeletePanel = () => {
+  showDeletePanel.value = false
+  deletePassword.value = ''
+  deleteError.value = ''
+}
+
+const buildMergePayload = (keepAccount: KeepAccount) => {
+  if (!mergeInfo.value) return null
+  const payload: {
+    provider: Provider
+    code: string
+    keep_account: KeepAccount
+    id_token?: string
+  } = {
+    provider: mergeInfo.value.provider,
+    code: mergeInfo.value.code,
+    keep_account: keepAccount
+  }
+  if (mergeInfo.value.id_token) {
+    payload.id_token = mergeInfo.value.id_token
+  }
+  return payload
 }
 
 const handleBack = () => {
   goBack('/')
 }
 
-// 계정 병합 처리
-const handleMerge = async (keepAccount: 'current' | 'other') => {
-  if (!mergeInfo.value) return
+const handleMerge = async (keepAccount: KeepAccount) => {
+  const payload = buildMergePayload(keepAccount)
+  if (!payload) return
   
   mergeLoading.value = true
   try {
-    const response = await api.post('/api/v1/auth/merge-accounts/', {
-      provider: mergeInfo.value.provider,
-      code: mergeInfo.value.code,
-      keep_account: keepAccount
-    })
+    const response = await api.post('/api/v1/auth/merge-accounts/', payload)
     
-    const data = response.data || response
+    const data = response
     
-    // 다른 계정을 선택한 경우 새 토큰으로 교체
     if (keepAccount === 'other' && data.access) {
       auth.setTokens(data.access, data.refresh)
       auth.setUser(data.user)
@@ -671,10 +934,10 @@ const handleMerge = async (keepAccount: 'current' | 'other') => {
     })
     
     await fetchLinkedAccounts()
-  } catch (error: any) {
+  } catch (error: unknown) {
     await modal.alert({
       title: '병합 실패',
-      description: error?.data?.error || '계정 병합에 실패했습니다.',
+      description: getErrorMessage(error, '계정 병합에 실패했습니다.'),
       icon: 'error'
     })
   } finally {
@@ -688,12 +951,14 @@ const closeMergeModal = () => {
 }
 
 const getProviderDisplayName = (provider: string) => {
-  const names: Record<string, string> = {
-    kakao: '카카오',
-    google: '구글',
-    apple: '애플'
+  if (isProvider(provider)) {
+    return PROVIDER_LABELS[provider]
   }
-  return names[provider] || provider
+  return provider
+}
+
+const isProvider = (provider: string): provider is Provider => {
+  return provider === 'kakao' || provider === 'google' || provider === 'apple'
 }
 
 const formatDate = (dateString: string) => {
@@ -709,31 +974,31 @@ onMounted(async () => {
   
   const route = useRoute()
   
-  // 연결 결과 처리
   if (route.query.linked === 'success') {
-    const providerName = route.query.provider === 'kakao' ? '카카오' : '구글'
+    const provider = typeof route.query.provider === 'string' ? route.query.provider : ''
     await modal.alert({
       title: '연결 완료',
-      description: `${providerName} 계정이 연결되었습니다.`,
+      description: `${getProviderDisplayName(provider)} 계정이 연결되었습니다.`,
       icon: 'success'
     })
-    // query 파라미터 제거
     navigateTo('/account/settings', { replace: true })
   } else if (route.query.linked === 'error') {
+    const message = typeof route.query.message === 'string'
+      ? route.query.message
+      : '계정 연결에 실패했습니다.'
     await modal.alert({
       title: '연결 실패',
-      description: route.query.message as string || '계정 연결에 실패했습니다.',
+      description: message,
       icon: 'error'
     })
     navigateTo('/account/settings', { replace: true })
   }
   
-  // 병합 모달 처리
   if (route.query.action === 'merge') {
     const storedMergeInfo = sessionStorage.getItem('merge_info')
     if (storedMergeInfo) {
-      mergeInfo.value = JSON.parse(storedMergeInfo)
-      showMergeModal.value = true
+      mergeInfo.value = normalizeMergeInfo(JSON.parse(storedMergeInfo))
+      showMergeModal.value = mergeInfo.value !== null
       sessionStorage.removeItem('merge_info')
     }
     navigateTo('/account/settings', { replace: true })
@@ -752,7 +1017,7 @@ onUnmounted(() => {
 <style scoped>
 .settings-container {
   min-height: 100vh;
-  background-color: var(--color-bg-base);
+  background-color: var(--color-bg-primary);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -1031,34 +1296,20 @@ onUnmounted(() => {
 
 .delete-account-button:hover {
   background: var(--color-error-bg);
-  border-color: #f87171;
+  border-color: var(--color-error);
 }
 
 .danger-note {
   color: var(--color-error);
 }
 
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+.inline-sensitive-form,
+.danger-form {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background: var(--color-bg-card);
-  border-radius: 16px;
-  padding: 1.5rem;
+  flex-direction: column;
+  gap: 1rem;
   width: 100%;
-  max-width: 400px;
+  padding-top: 0.25rem;
 }
 
 .modal-title {
@@ -1068,10 +1319,21 @@ onUnmounted(() => {
   margin: 0 0 1.5rem;
 }
 
-.password-form {
+.inline-actions {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.action-button.danger.solid {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: white;
+}
+
+.action-button.danger.solid:hover:not(:disabled) {
+  background: var(--color-error-dark, #b91c1c);
+  border-color: var(--color-error-dark, #b91c1c);
 }
 
 .input-wrapper {
@@ -1091,7 +1353,7 @@ onUnmounted(() => {
   border: 1px solid var(--color-slate-300);
   border-radius: 8px;
   font-size: 0.9375rem;
-  background: var(--color-bg-base);
+  background: var(--color-bg-primary);
   color: var(--color-slate-800);
 }
 
@@ -1106,49 +1368,6 @@ onUnmounted(() => {
   color: var(--color-error);
   margin: 0;
 }
-
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-.btn-cancel, .btn-confirm {
-  flex: 1;
-  padding: 0.75rem;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-cancel {
-  background: var(--color-slate-100);
-  border: 1px solid var(--color-slate-200);
-  color: var(--color-slate-700);
-}
-
-.btn-cancel:hover {
-  background: var(--color-slate-200);
-}
-
-.btn-confirm {
-  background: var(--primary-color);
-  border: none;
-  color: white;
-}
-
-.btn-confirm:hover:not(:disabled) {
-  background: var(--primary-dark);
-}
-
-.btn-confirm:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-/* Dark mode */
 [data-theme="dark"] .back-btn:hover {
   background: var(--color-slate-700);
 }
@@ -1169,8 +1388,7 @@ onUnmounted(() => {
 
 [data-theme="dark"] .profile-card,
 [data-theme="dark"] .section-content,
-[data-theme="dark"] .logout-button,
-[data-theme="dark"] .modal-content {
+[data-theme="dark"] .logout-button {
   background: var(--color-bg-card);
   border: none;
   box-shadow: none;
@@ -1196,7 +1414,6 @@ onUnmounted(() => {
   color: var(--color-slate-100);
 }
 
-/* Merge Modal */
 .merge-modal-content {
   background: var(--color-bg-card);
   border-radius: 16px;

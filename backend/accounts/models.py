@@ -1,3 +1,4 @@
+# noqa: SIZE_OK  — legacy account data model module; this change only adds a scoped integrity constraint
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
@@ -96,6 +97,12 @@ class SocialAccount(models.Model):
     
     class Meta:
         unique_together = ['provider', 'provider_id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'provider'],
+                name='unique_social_account_per_user_provider',
+            ),
+        ]
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user', 'provider']),

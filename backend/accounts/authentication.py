@@ -8,6 +8,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+class InactiveUserTokenError(Exception):
+    pass
+
+
 ACCESS_TOKEN_COOKIE = 'access_token'
 REFRESH_TOKEN_COOKIE = 'refresh_token'
 TOKEN_VERSION_CLAIM = 'token_version'
@@ -66,7 +71,21 @@ class CookieJWTAuthentication(JWTAuthentication):
         if not token_version_is_current(validated_token, user):
             token_version = validated_token.get(TOKEN_VERSION_CLAIM, 0)
             logger.debug(f"[AUTH] Token version mismatch: token={token_version}, user={user.token_version}")
-            return None
+            if used_cookie and auth_header is not None:
+                raw_token = self.get_raw_token(auth_header)
+                if raw_token is None:
+                    return None
+                try:
+                    validated_token = self.get_validated_token(raw_token)
+                except TokenError as e:
+                    logger.debug(f"[AUTH] Header fallback token failed after stale cookie: {e}")
+                    return None
+                user = self.get_user(validated_token)
+                if not token_version_is_current(validated_token, user):
+                    return None
+                used_cookie = False
+            else:
+                return None
 
         require_csrf = used_cookie and not has_header
         if require_csrf:
@@ -153,6 +172,9 @@ def get_tokens_for_user(user):
     """
     사용자에 대한 JWT 토큰 쌍 생성 (token_version 포함)
     """
+    if not getattr(user, 'is_active', False):
+        raise InactiveUserTokenError('Cannot issue tokens for inactive user')
+
     refresh = RefreshToken.for_user(user)
     refresh[TOKEN_VERSION_CLAIM] = user.token_version
     refresh['nickname'] = user.nickname

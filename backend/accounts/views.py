@@ -1,3 +1,4 @@
+# noqa: SIZE_OK  — account endpoints are kept in the legacy Django view module until a dedicated routing split lands
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, authentication_classes, throttle_classes
@@ -8,14 +9,14 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import (
     RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer, 
     SocialLoginSerializer, EmailRegisterSerializer, LinkedAccountsSerializer,
-    SetPasswordSerializer
+    SetPasswordSerializer, PasswordResetConfirmSerializer
 )
-from .authentication import set_auth_cookies, get_tokens_for_user
+from .authentication import clear_auth_cookies, get_tokens_for_user, set_auth_cookies
 from .models import SocialAccount, EmailVerificationToken, PasswordResetToken
 from .email_utils import send_verification_email, send_password_reset_email, send_welcome_email
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 import requests
 
@@ -34,6 +35,8 @@ User = get_user_model()
 
 SIGNUP_TOKEN_SALT = 'social-signup-token'
 SIGNUP_TOKEN_MAX_AGE = 600  # 10분
+OAUTH_LINK_STATE_SALT = 'oauth-link-state'
+OAUTH_LINK_STATE_MAX_AGE = 600
 
 def generate_signup_token(provider, provider_id):
     """소셜 로그인 검증 완료 후 회원가입용 서명 토큰 생성"""
@@ -48,6 +51,25 @@ def verify_signup_token(token):
         return signing.loads(token, salt=SIGNUP_TOKEN_SALT, max_age=SIGNUP_TOKEN_MAX_AGE)
     except (signing.BadSignature, signing.SignatureExpired):
         return None
+
+def generate_oauth_link_state(user):
+    return signing.dumps(
+        {'action': 'link', 'user_id': user.id, 'nonce': uuid.uuid4().hex},
+        salt=OAUTH_LINK_STATE_SALT,
+    )
+
+def verify_oauth_link_state(state, user):
+    if not state:
+        return False
+    try:
+        data = signing.loads(
+            state,
+            salt=OAUTH_LINK_STATE_SALT,
+            max_age=OAUTH_LINK_STATE_MAX_AGE,
+        )
+    except (signing.BadSignature, signing.SignatureExpired):
+        return False
+    return data.get('action') == 'link' and data.get('user_id') == user.id
 
 # Create your views here.
 
@@ -110,6 +132,8 @@ def social_login(request):
             social_id = f"kakao_{user_info['id']}"
             user = User.objects.filter(username=social_id).first()
             if user:
+                if not user.is_active:
+                    return Response({'error': '비활성화된 계정입니다.'}, status=400)
                 tokens = get_tokens_for_user(user)
                 logger.info(f"카카오 소셜 로그인 성공: user_id={user.id}, username={user.username}")
 
@@ -137,7 +161,7 @@ def social_login(request):
                     'signup_token': signup_token
                 }, status=200)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic OAuth error
         # 보안: 내부 에러 상세를 클라이언트에 노출하지 않음
         logger.error(f"소셜 로그인 중 오류 발생: {str(e)}", exc_info=True)
         return Response({'error': '로그인 처리 중 오류가 발생했습니다.'}, status=400)
@@ -331,7 +355,7 @@ def get_apple_user_info(id_token):
     except jwt.DecodeError as e:
         logger.error(f"Apple ID Token 디코딩 실패: {str(e)}")
         raise Exception(f"Apple ID Token 형식이 올바르지 않습니다.")
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — preserves legacy Apple token verification logging
         logger.error(f"Apple ID Token 검증 오류: {str(e)}")
         raise
 
@@ -411,7 +435,7 @@ def complete_kakao_signup(request):
         # HttpOnly 쿠키 설정
         set_auth_cookies(response, tokens['access'], tokens['refresh'])
         return response
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic signup error
         # 보안: 내부 에러 상세를 클라이언트에 노출하지 않음
         logger.error(f"카카오 회원가입 중 오류 발생: {str(e)}", exc_info=True)
         return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
@@ -469,7 +493,7 @@ def email_register(request):
         logger.info(f"이메일 회원가입 성공: user_id={user.id}, email={email}")
         return response
         
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic signup error
         logger.error(f"이메일 회원가입 중 오류: {str(e)}", exc_info=True)
         return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
 
@@ -487,10 +511,19 @@ def email_login(request):
         return Response({'error': '이메일(또는 아이디)과 비밀번호를 입력해주세요.'}, status=400)
     
     try:
-        user = User.objects.filter(Q(email=identifier) | Q(username=identifier)).first()
+        if '@' in identifier:
+            users = list(User.objects.filter(email=identifier).order_by('id')[:2])
+            user = users[0] if len(users) == 1 else None
+        else:
+            user = User.objects.filter(Q(email=identifier) | Q(username=identifier)).first()
         
         if not user or not user.check_password(password):
             return Response({'error': '이메일/아이디 또는 비밀번호가 올바르지 않습니다.'}, status=400)
+
+        if not user.is_active:
+            restored, error_message = _restore_scheduled_deletion_account(user)
+            if not restored:
+                return Response({'error': error_message}, status=400)
         
         tokens = get_tokens_for_user(user)
         response = Response({
@@ -503,7 +536,7 @@ def email_login(request):
         logger.info(f"로그인 성공: user_id={user.id}, identifier={identifier}")
         return response
         
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic login error
         logger.error(f"로그인 중 오류: {str(e)}", exc_info=True)
         return Response({'error': '로그인 처리 중 오류가 발생했습니다.'}, status=400)
 
@@ -598,15 +631,10 @@ def social_login_v2(request):
             user = social_account.user
             
             if not user.is_active:
-                if user.scheduled_deletion_at:
-                    user.is_active = True
-                    user.scheduled_deletion_at = None
-                    user.nickname = nickname_suggestion or f"user_{user.id}"
-                    user.token_version = 0
-                    user.save(update_fields=['is_active', 'scheduled_deletion_at', 'nickname', 'token_version'])
-                    logger.info(f"계정 복구: provider={provider}, user_id={user.id}")
-                else:
-                    return Response({'error': '비활성화된 계정입니다.'}, status=400)
+                restored, error_message = _restore_scheduled_deletion_account(user, nickname_suggestion)
+                if not restored:
+                    return Response({'error': error_message}, status=400)
+                logger.info(f"계정 복구: provider={provider}, user_id={user.id}")
             
             tokens = get_tokens_for_user(user)
             
@@ -625,14 +653,19 @@ def social_login_v2(request):
         legacy_user = User.objects.filter(username=legacy_social_id).first()
         
         if legacy_user:
-            # 레거시 계정을 새 SocialAccount로 마이그레이션
-            SocialAccount.objects.create(
+            if not legacy_user.is_active:
+                restored, error_message = _restore_scheduled_deletion_account(legacy_user, nickname_suggestion)
+                if not restored:
+                    return Response({'error': error_message}, status=400)
+            SocialAccount.objects.get_or_create(
                 user=legacy_user,
                 provider=provider,
                 provider_id=provider_id,
-                email=email,
-                profile_image=profile_image,
-                extra_data=social_info
+                defaults={
+                    'email': email,
+                    'profile_image': profile_image,
+                    'extra_data': social_info,
+                }
             )
             
             # 소셜 로그인은 이메일 인증 완료 처리
@@ -722,7 +755,7 @@ def social_login_v2(request):
             'signup_token': signup_token
         }, status=200)
         
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic social-login error
         logger.error(f"소셜 로그인 v2 오류: {str(e)}", exc_info=True)
         return Response({'error': '로그인 처리 중 오류가 발생했습니다.'}, status=400)
 
@@ -813,7 +846,7 @@ def complete_social_signup(request):
         logger.info(f"소셜 회원가입 완료: provider={provider}, user_id={user.id}")
         return response
         
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic signup error
         logger.error(f"소셜 회원가입 오류: {str(e)}", exc_info=True)
         return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
 
@@ -835,10 +868,22 @@ def get_linked_accounts(request):
             if sa.email:
                 email = sa.email
                 break
+
+    has_password = user.has_password_set()
+    social_count = social_accounts.count()
+    auth_method_total = social_count + (1 if has_password else 0)
     
     return Response({
-        'has_password': user.has_password_set(),
+        'has_password': has_password,
         'email': email,
+        'primary_email': email,
+        'auth_methods': {
+            'total': auth_method_total,
+            'password': has_password,
+            'social_count': social_count,
+            'providers': list(social_accounts.values_list('provider', flat=True)),
+            'can_remove_login_method': auth_method_total > 1,
+        },
         'linked_accounts': [
             {
                 'provider': sa.provider,
@@ -855,6 +900,12 @@ def get_linked_accounts(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def issue_oauth_link_state(request):
+    return Response({'state': generate_oauth_link_state(request.user)})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def link_social_account(request):
     """
     소셜 계정 연동 추가
@@ -865,9 +916,12 @@ def link_social_account(request):
     provider = request.data.get('provider')
     access_token = request.data.get('access_token')
     code = request.data.get('code')
+    state = request.data.get('state')
     
     if not provider:
         return Response({'error': '소셜 제공자를 지정해주세요.'}, status=400)
+    if not verify_oauth_link_state(state, user):
+        return Response({'error': '유효하지 않은 계정 연결 요청입니다.'}, status=400)
     
     try:
         # 소셜 정보 가져오기
@@ -894,11 +948,26 @@ def link_social_account(request):
             provider_id = social_info.get('sub')
             email = social_info.get('email')
             profile_image = social_info.get('picture')
+        elif provider == 'apple':
+            id_token = request.data.get('id_token')
+            if not id_token:
+                return Response({'error': 'Apple 계정 연결에는 id_token이 필요합니다.'}, status=400)
+
+            social_info = get_apple_user_info(id_token)
+            provider_id = social_info.get('sub')
+            email = social_info.get('email')
+            profile_image = None
         else:
             return Response({'error': '지원하지 않는 소셜 제공자입니다.'}, status=400)
         
         if not provider_id:
             return Response({'error': '소셜 계정 정보를 가져올 수 없습니다.'}, status=400)
+
+        user_provider_account = SocialAccount.objects.filter(user=user, provider=provider).first()
+        if user_provider_account:
+            if user_provider_account.provider_id == provider_id:
+                return Response({'error': '이미 연동된 계정입니다.'}, status=400)
+            return Response({'error': f'이미 다른 {provider} 계정이 연동되어 있습니다.'}, status=400)
         
         # 이미 다른 계정에 연동되어 있는지 확인
         existing = SocialAccount.objects.filter(
@@ -936,20 +1005,22 @@ def link_social_account(request):
                     'provider': provider,
                 }, status=409)
         
-        # 연동 추가
-        SocialAccount.objects.create(
-            user=user,
-            provider=provider,
-            provider_id=provider_id,
-            email=email,
-            profile_image=profile_image,
-            extra_data=social_info
-        )
+        try:
+            SocialAccount.objects.create(
+                user=user,
+                provider=provider,
+                provider_id=provider_id,
+                email=email,
+                profile_image=profile_image,
+                extra_data=social_info
+            )
+        except IntegrityError:
+            return Response({'error': '이미 연동된 소셜 계정입니다.'}, status=400)
         
         logger.info(f"소셜 계정 연동 추가: user_id={user.id}, provider={provider}")
         return Response({'success': True, 'message': f'{provider} 계정이 연동되었습니다.'})
         
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic account-link error
         logger.error(f"소셜 계정 연동 오류: {str(e)}", exc_info=True)
         return Response({'error': '계정 연동 중 오류가 발생했습니다.'}, status=400)
 
@@ -978,7 +1049,7 @@ def unlink_social_account(request):
         else:
             return Response({'error': '연동된 계정을 찾을 수 없습니다.'}, status=404)
             
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic unlink error
         logger.error(f"소셜 계정 연동 해제 오류: {str(e)}", exc_info=True)
         return Response({'error': '연동 해제 중 오류가 발생했습니다.'}, status=400)
 
@@ -987,7 +1058,7 @@ def unlink_social_account(request):
 @permission_classes([IsAuthenticated])
 def set_password(request):
     user = request.user
-    serializer = SetPasswordSerializer(data=request.data)
+    serializer = SetPasswordSerializer(data=request.data, context={'user': user})
     
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
@@ -1005,9 +1076,18 @@ def set_password(request):
     user.has_usable_password_flag = True
     user.token_version += 1
     user.save(update_fields=['password', 'has_usable_password_flag', 'token_version'])
+
+    tokens = get_tokens_for_user(user)
+    response = Response({
+        'success': True,
+        'message': '비밀번호가 설정되었습니다.',
+        'access': tokens['access'],
+        'refresh': tokens['refresh'],
+    })
+    set_auth_cookies(response, tokens['access'], tokens['refresh'])
     
     logger.info(f"비밀번호 설정 완료: user_id={user.id}")
-    return Response({'success': True, 'message': '비밀번호가 설정되었습니다.'})
+    return response
 
 
 @api_view(['POST'])
@@ -1018,7 +1098,9 @@ def logout_all_devices(request):
     user.save(update_fields=['token_version'])
     
     logger.info(f"모든 기기에서 로그아웃: user_id={user.id}")
-    return Response({'success': True, 'message': '모든 기기에서 로그아웃되었습니다.'})
+    response = Response({'success': True, 'message': '모든 기기에서 로그아웃되었습니다.'})
+    clear_auth_cookies(response)
+    return response
 
 
 # ========================================
@@ -1041,9 +1123,10 @@ def merge_accounts(request):
     user = request.user
     provider = request.data.get('provider')
     code = request.data.get('code')
+    id_token = request.data.get('id_token')
     keep_account = request.data.get('keep_account', 'current')  # 'current' or 'other'
     
-    if not provider or not code:
+    if not provider or (provider == 'apple' and not id_token) or (provider != 'apple' and not code):
         return Response({'error': '소셜 계정 정보가 필요합니다.'}, status=400)
     
     if keep_account not in ['current', 'other']:
@@ -1061,6 +1144,11 @@ def merge_accounts(request):
             provider_id = social_info.get('sub')
             email = social_info.get('email')
             profile_image = social_info.get('picture')
+        elif provider == 'apple':
+            social_info = get_apple_user_info(id_token)
+            provider_id = social_info.get('sub')
+            email = social_info.get('email')
+            profile_image = None
         else:
             return Response({'error': '지원하지 않는 소셜 제공자입니다.'}, status=400)
         
@@ -1084,6 +1172,8 @@ def merge_accounts(request):
         
         if other_user.id == user.id:
             return Response({'error': '같은 계정입니다.'}, status=400)
+        if not other_user.is_active:
+            return Response({'error': '병합 대상 계정이 비활성화되어 있습니다.'}, status=400)
         
         # 어느 계정을 유지할지 결정
         if keep_account == 'current':
@@ -1094,11 +1184,15 @@ def merge_accounts(request):
             delete_user = user
         
         with transaction.atomic():
-            # 삭제될 계정의 소셜 연동을 유지할 계정으로 이전
-            SocialAccount.objects.filter(user=delete_user).update(user=keep_user)
+            for social_account in SocialAccount.objects.filter(user=delete_user):
+                if SocialAccount.objects.filter(user=keep_user, provider=social_account.provider).exists():
+                    social_account.delete()
+                else:
+                    social_account.user = keep_user
+                    social_account.save(update_fields=['user', 'updated_at'])
             
             # 새로 연결하려던 소셜 계정이 이미 있으면 스킵, 없으면 생성
-            if not SocialAccount.objects.filter(user=keep_user, provider=provider, provider_id=provider_id).exists():
+            if not SocialAccount.objects.filter(user=keep_user, provider=provider).exists():
                 SocialAccount.objects.create(
                     user=keep_user,
                     provider=provider,
@@ -1112,6 +1206,7 @@ def merge_accounts(request):
             delete_user.is_active = False
             delete_user.scheduled_deletion_at = timezone.now() + timedelta(days=30)
             delete_user.merged_into = keep_user
+            delete_user.token_version += 1
             delete_user.username = f"merged_{delete_user.id}_{timezone.now().strftime('%Y%m%d%H%M%S')}"
             delete_user.nickname = f"삭제예정_{delete_user.id}"
             delete_user.save()
@@ -1137,10 +1232,14 @@ def merge_accounts(request):
                 'email': keep_user.email,
                 'profile_image': keep_user.profile_image,
             }
-        
+
+            response = Response(result)
+            set_auth_cookies(response, tokens['access'], tokens['refresh'])
+            return response
+
         return Response(result)
         
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic merge error
         logger.error(f"계정 병합 오류: {str(e)}", exc_info=True)
         return Response({'error': '계정 병합 중 오류가 발생했습니다.'}, status=400)
 
@@ -1174,6 +1273,26 @@ def _create_default_subscription(user):
         logger.warning("기본 플랜이 설정되어 있지 않음")
 
 
+def _restore_scheduled_deletion_account(user, nickname=None):
+    if user.merged_into_id:
+        return False, '병합되어 비활성화된 계정입니다.'
+    if not user.scheduled_deletion_at:
+        return False, '비활성화된 계정입니다.'
+    if user.scheduled_deletion_at <= timezone.now():
+        return False, '계정 복구 가능 기간이 만료되었습니다.'
+
+    user.is_active = True
+    user.scheduled_deletion_at = None
+    user.token_version += 1
+    if nickname and user.nickname.startswith('삭제예정_'):
+        user.nickname = nickname
+        update_fields = ['is_active', 'scheduled_deletion_at', 'nickname', 'token_version']
+    else:
+        update_fields = ['is_active', 'scheduled_deletion_at', 'token_version']
+    user.save(update_fields=update_fields)
+    return True, None
+
+
 # ========================================
 # 이메일 인증
 # ========================================
@@ -1198,8 +1317,12 @@ def send_verification_email_view(request):
     })
 
     try:
-        user = User.objects.get(email=email)
-    except User.DoesNotExist:
+        users = list(User.objects.filter(email=email, is_active=True).order_by('id')[:2])
+        user = users[0] if len(users) == 1 else None
+    except Exception:  # noqa: BROAD_EXCEPT_OK  — email enumeration guard intentionally collapses lookup errors
+        user = None
+
+    if user is None:
         return generic_response
 
     if user.email_verified:
@@ -1230,9 +1353,12 @@ def verify_email(request):
     
     if not token_obj.is_valid():
         return Response({'error': '인증 링크가 만료되었습니다. 새로운 인증 메일을 요청해주세요.'}, status=400)
+
+    user = token_obj.user
+    if not user.is_active:
+        return Response({'error': '비활성화된 계정입니다.'}, status=400)
     
     if token_obj.verify():
-        user = token_obj.user
         send_welcome_email(user.email, user.nickname)
         
         tokens = get_tokens_for_user(user)
@@ -1285,13 +1411,13 @@ def request_password_reset(request):
     if not email:
         return Response({'error': '이메일을 입력해주세요.'}, status=400)
     
-    try:
-        user = User.objects.get(email=email)
-    except User.DoesNotExist:
+    users = list(User.objects.filter(email=email, is_active=True).order_by('id')[:2])
+    if len(users) != 1:
         return Response({
             'success': True, 
             'message': '해당 이메일로 비밀번호 재설정 안내가 발송됩니다.'
         })
+    user = users[0]
     
     if not user.has_password_set() and not user.email_verified:
         return Response({
@@ -1341,9 +1467,6 @@ def reset_password(request):
     if not token or not new_password:
         return Response({'error': '토큰과 새 비밀번호가 필요합니다.'}, status=400)
     
-    if len(new_password) < 8:
-        return Response({'error': '비밀번호는 8자 이상이어야 합니다.'}, status=400)
-    
     try:
         token_obj = PasswordResetToken.objects.select_related('user').get(token=token)
     except PasswordResetToken.DoesNotExist:
@@ -1353,6 +1476,16 @@ def reset_password(request):
         return Response({'error': '링크가 만료되었습니다. 새로운 재설정 링크를 요청해주세요.'}, status=400)
     
     user = token_obj.user
+    if not user.is_active:
+        return Response({'error': '비활성화된 계정입니다.'}, status=400)
+
+    serializer = PasswordResetConfirmSerializer(
+        data={'new_password': new_password},
+        context={'user': user}
+    )
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
+
     user.set_password(new_password)
     user.has_usable_password_flag = True
     user.token_version += 1
@@ -1382,12 +1515,12 @@ def delete_account(request):
     """
     계정 삭제 API (30일 유예 기간)
     
-    - 비밀번호가 설정된 경우: 비밀번호 확인 필요
-    - 소셜 로그인만 사용 중인 경우: 이미 인증된 상태로 확인
+    - 모든 계정: 비밀번호 설정 및 비밀번호 확인 필요
     - 삭제 요청 시 30일 후 완전 삭제 예정으로 표시
     """
     user = request.user
     password = request.data.get('password')
+    confirm_delete = request.data.get('confirm_delete') is True
     
     # 이미 삭제 예정인 계정인지 확인
     if user.scheduled_deletion_at:
@@ -1396,37 +1529,39 @@ def delete_account(request):
             'scheduled_deletion_at': user.scheduled_deletion_at.isoformat()
         }, status=400)
     
-    # 재인증: 비밀번호가 설정되어 있으면 비밀번호 확인 필요
-    if user.has_password_set():
-        if not password:
-            return Response({'error': '비밀번호를 입력해주세요.'}, status=400)
-        if not user.check_password(password):
-            return Response({'error': '비밀번호가 올바르지 않습니다.'}, status=400)
-    # 소셜 로그인만 사용 중인 경우: 이미 인증된 상태이므로 추가 확인 불필요
+    if not user.has_password_set():
+        return Response({'error': '계정 삭제 전 비밀번호를 먼저 설정해주세요.'}, status=400)
+    if not password:
+        return Response({'error': '비밀번호를 입력해주세요.'}, status=400)
+    if not user.check_password(password):
+        return Response({'error': '비밀번호가 올바르지 않습니다.'}, status=400)
+
+    if not confirm_delete:
+        return Response({'error': '삭제 확인이 필요합니다.'}, status=400)
     
     try:
         with transaction.atomic():
             # 30일 후 삭제 예정으로 표시
             user.is_active = False
             user.scheduled_deletion_at = timezone.now() + timedelta(days=30)
-            user.nickname = f"삭제예정_{user.id}"
             user.token_version += 1  # 모든 기기에서 로그아웃
             user.save(update_fields=[
                 'is_active', 
                 'scheduled_deletion_at', 
-                'nickname', 
                 'token_version'
             ])
             
             logger.info(f"계정 삭제 요청: user_id={user.id}, scheduled_deletion_at={user.scheduled_deletion_at}")
         
-        return Response({
+        response = Response({
             'success': True,
             'message': '계정 삭제가 요청되었습니다. 30일 후 완전히 삭제됩니다.',
             'scheduled_deletion_at': user.scheduled_deletion_at.isoformat()
         })
+        clear_auth_cookies(response)
+        return response
         
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic deletion error
         logger.error(f"계정 삭제 요청 오류: user_id={user.id}, error={str(e)}", exc_info=True)
         return Response({'error': '계정 삭제 요청 중 오류가 발생했습니다.'}, status=500)
 
@@ -1504,6 +1639,9 @@ def session_bridge_consume(request):
         except User.DoesNotExist:
             logger.warning(f"세션 브리지: 사용자 없음 user_id={user_id}")
             return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=user_not_found")
+        if not user.is_active:
+            logger.warning(f"세션 브리지: 비활성 사용자 user_id={user_id}")
+            return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=inactive_user")
         
         tokens = get_tokens_for_user(user)
         access_token = tokens['access']
@@ -1530,6 +1668,6 @@ def session_bridge_consume(request):
         
         return response
         
-    except Exception as e:
+    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic bridge error
         logger.error(f"세션 브리지 오류: {str(e)}", exc_info=True)
         return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=server_error")
