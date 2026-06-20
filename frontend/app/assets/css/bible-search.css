@@ -4,7 +4,12 @@
 }
 
 .search-panel {
-	padding-bottom: 0;
+	margin: 1rem;
+	padding: 1rem;
+	border: 1px solid rgba(17, 24, 39, 0.055);
+	border-radius: 14px;
+	background: rgba(255, 255, 255, 0.72);
+	box-shadow: 0 10px 30px rgba(17, 24, 39, 0.035);
 }
 
 .search-controls {
@@ -108,6 +113,10 @@
 .search-button:disabled {
 	opacity: 0.6;
 	cursor: wait;
+}
+
+.search-button span {
+	display: none;
 }
 
 .message,
@@ -220,6 +229,15 @@
 	padding: 0 2px;
 }
 
+.bible-subpage:has(.search-panel) {
+	background: linear-gradient(180deg, #faf8f4 0%, #f6f3ee 100%);
+}
+
+.bible-subpage:has(.search-panel) .bible-page-header {
+	background: rgba(255, 255, 255, 0.78);
+	backdrop-filter: blur(10px);
+}
+
 @media (max-width: 640px) {
 	.search-controls {
 		width: 100%;
@@ -249,7 +267,11 @@
 		min-height: 34px;
 	}
 
-	.search-button span {
-		display: none;
+	.search-panel {
+		margin: 1rem;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		box-shadow: none;
 	}
 }
