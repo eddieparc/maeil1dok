@@ -24,20 +24,32 @@
           <span class="landing-skeleton__line landing-skeleton__line--title landing-skeleton__line--title-2"></span>
         </section>
 
-        <section class="landing-skeleton__welcome-card">
-          <span class="landing-skeleton__line landing-skeleton__line--label"></span>
-          <span class="landing-skeleton__line landing-skeleton__line--card-title"></span>
-          <span class="landing-skeleton__line landing-skeleton__line--card-title landing-skeleton__line--card-title-2"></span>
-          <span class="landing-skeleton__line landing-skeleton__line--card-desc"></span>
-          <span class="landing-skeleton__line landing-skeleton__line--card-link"></span>
+        <section class="landing-skeleton__card-stack">
+          <div class="landing-skeleton__welcome-card">
+            <span class="landing-skeleton__line landing-skeleton__line--label"></span>
+            <span class="landing-skeleton__line landing-skeleton__line--card-title"></span>
+            <span class="landing-skeleton__line landing-skeleton__line--card-title landing-skeleton__line--card-title-2"></span>
+            <span class="landing-skeleton__line landing-skeleton__line--card-desc"></span>
+            <span class="landing-skeleton__line landing-skeleton__line--card-link"></span>
+          </div>
+          <div class="landing-skeleton__card-shadow landing-skeleton__card-shadow--1"></div>
+          <div class="landing-skeleton__card-shadow landing-skeleton__card-shadow--2"></div>
         </section>
 
         <span class="landing-skeleton__section-heading"></span>
 
         <section class="landing-skeleton__grid">
-          <div v-for="item in 6" :key="item" class="landing-skeleton__tile">
-            <span class="landing-skeleton__tile-icon"></span>
-            <span class="landing-skeleton__tile-line"></span>
+          <div
+            v-for="item in 7"
+            :key="item"
+            class="landing-skeleton__tile"
+            :class="{ 'landing-skeleton__tile--plan': item === 2 }"
+          >
+            <span class="landing-skeleton__tile-main">
+              <span class="landing-skeleton__tile-icon"></span>
+              <span class="landing-skeleton__tile-line"></span>
+            </span>
+            <span v-if="item === 2" class="landing-skeleton__tile-pill"></span>
           </div>
         </section>
 
@@ -150,7 +162,8 @@ useHead({
 }
 .landing-skeleton__actions,
 .landing-skeleton__grid,
-.landing-skeleton__tile {
+.landing-skeleton__tile,
+.landing-skeleton__tile-main {
   display: flex;
 }
 .landing-skeleton__actions {
@@ -159,6 +172,8 @@ useHead({
 .landing-skeleton__icon,
 .landing-skeleton__line,
 .landing-skeleton__section-heading,
+.landing-skeleton__welcome-card,
+.landing-skeleton__card-shadow,
 .landing-skeleton__tile,
 .landing-skeleton__nav {
   background: linear-gradient(110deg, #ECE8E1 8%, #FFFFFF 18%, #ECE8E1 33%);
@@ -194,17 +209,41 @@ useHead({
 .landing-skeleton__line--title-2 {
   width: min(440px, 84vw);
 }
+.landing-skeleton__card-stack {
+  position: relative;
+  margin-bottom: 48px;
+}
 .landing-skeleton__welcome-card {
+  position: relative;
+  z-index: 10;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: flex-start;
   gap: 16px;
   box-sizing: border-box;
-  margin-bottom: 32px;
-  padding: clamp(28px, 5vw, 40px);
-  border-radius: 16px;
-  background: #FFFFFF;
-  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.05);
+  min-height: 260px;
+  padding: 36px 32px;
+  border-radius: 24px;
+  background-color: #FFFFFF;
+  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.04);
+}
+.landing-skeleton__card-shadow {
+  position: absolute;
+  height: 100%;
+  border-radius: 24px;
+  background-color: #FFFFFF;
+  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.04);
+}
+.landing-skeleton__card-shadow--1 {
+  inset: 10px 20px auto;
+  opacity: 0.5;
+  z-index: 5;
+}
+.landing-skeleton__card-shadow--2 {
+  inset: 20px 40px auto;
+  opacity: 0.3;
+  z-index: 1;
 }
 .landing-skeleton__line--label {
   width: 86px;
@@ -233,26 +272,42 @@ useHead({
 }
 .landing-skeleton__section-heading {
   display: block;
-  width: 96px;
-  height: 22px;
-  margin: 0 0 18px 4px;
+  width: 72px;
+  height: 24px;
+  margin: 0 0 24px;
   border-radius: 6px;
 }
 .landing-skeleton__grid {
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 16px;
   margin-bottom: 32px;
 }
 .landing-skeleton__tile {
   align-items: center;
-  gap: 16px;
-  width: calc(50% - 7px);
-  min-height: 88px;
+  justify-content: flex-start;
+  gap: 12px;
+  width: calc(50% - 8px);
+  min-height: 96px;
   box-sizing: border-box;
-  padding: 22px 20px;
-  border-radius: 12px;
+  padding: 22px;
+  border-radius: 20px;
   background-color: #FFFFFF;
-  box-shadow: 0 2px 12px rgba(44, 51, 51, 0.04);
+  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.04);
+}
+.landing-skeleton__tile-main {
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.landing-skeleton__tile--plan {
+  justify-content: space-between;
+}
+.landing-skeleton__tile-pill {
+  flex: 0 0 auto;
+  width: 58px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(74, 93, 83, 0.13);
 }
 .landing-skeleton__tile-icon {
   flex: 0 0 auto;
@@ -262,7 +317,7 @@ useHead({
   background: rgba(44, 51, 51, 0.13);
 }
 .landing-skeleton__tile-line {
-  width: min(112px, 56%);
+  width: min(88px, 28vw);
   height: 16px;
   border-radius: 999px;
   background: rgba(44, 51, 51, 0.13);
@@ -270,25 +325,26 @@ useHead({
 .landing-skeleton__nav {
   position: fixed;
   left: 50%;
-  bottom: max(18px, env(safe-area-inset-bottom));
+  bottom: max(8px, env(safe-area-inset-bottom));
   display: flex;
-  gap: 4px;
-  width: min(640px, calc(100vw - 32px));
-  height: 74px;
+  gap: 2px;
+  width: min(320px, calc(100vw - 32px));
+  height: 58px;
   box-sizing: border-box;
-  padding: 8px;
-  border-radius: 24px;
+  padding: 6px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 20px;
   background: #FFFFFF;
-  box-shadow: 0 8px 28px rgba(44, 51, 51, 0.11);
+  box-shadow: 0 12px 36px rgba(17, 24, 39, 0.14), 0 2px 8px rgba(17, 24, 39, 0.08);
   transform: translateX(-50%);
 }
 .landing-skeleton__nav-item {
   flex: 1;
-  border-radius: 16px;
+  border-radius: 12px;
   background: rgba(44, 51, 51, 0.1);
 }
 .landing-skeleton__nav-item--active {
-  background: #4FA47D;
+  background: #4A5D53;
 }
 .sanctuary-theme.is-shell-ready .landing-content {
   opacity: 1;
@@ -304,23 +360,36 @@ useHead({
   to { background-position-x: -200%; }
 }
 @media (max-width: 520px) {
-  .landing-skeleton__inner { padding-inline: 14px; }
+  .landing-skeleton__inner { padding-inline: 16px; }
   .landing-skeleton__welcome-card {
-    padding: 24px;
+    padding: 36px 32px;
   }
   .landing-skeleton__tile {
-    width: 100%;
-    min-height: 76px;
-    padding: 18px;
+    width: calc(50% - 8px);
   }
   .landing-skeleton__nav {
-    width: calc(100vw - 28px);
+    width: min(320px, calc(100vw - 32px));
+  }
+}
+@media (max-width: 480px) {
+  .landing-skeleton__line--title {
+    height: 42px;
+  }
+  .landing-skeleton__tile {
+    min-height: 88px;
+    padding: 18px;
+  }
+  .landing-skeleton__tile--plan {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .landing-skeleton__icon,
   .landing-skeleton__line,
   .landing-skeleton__section-heading,
+  .landing-skeleton__welcome-card,
+  .landing-skeleton__card-shadow,
   .landing-skeleton__tile,
   .landing-skeleton__nav {
     animation: none;
