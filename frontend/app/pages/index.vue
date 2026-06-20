@@ -53,11 +53,6 @@
           </div>
         </section>
 
-        <nav class="landing-skeleton__nav">
-          <span class="landing-skeleton__nav-item landing-skeleton__nav-item--active"></span>
-          <span class="landing-skeleton__nav-item"></span>
-          <span class="landing-skeleton__nav-item"></span>
-        </nav>
       </div>
     </div>
 
@@ -175,8 +170,7 @@ useHead({
   background: #E7E5E1;
 }
 .landing-skeleton__welcome-card,
-.landing-skeleton__tile,
-.landing-skeleton__nav {
+.landing-skeleton__tile {
   background: #FFFFFF;
   border: 1px solid rgba(17, 24, 39, 0.06);
 }
@@ -324,30 +318,6 @@ useHead({
   border-radius: 999px;
   background: #DEDDD9;
 }
-.landing-skeleton__nav {
-  position: fixed;
-  left: 50%;
-  bottom: max(8px, env(safe-area-inset-bottom));
-  display: flex;
-  gap: 2px;
-  width: min(320px, calc(100vw - 32px));
-  height: 58px;
-  box-sizing: border-box;
-  padding: 6px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  border-radius: 20px;
-  background: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
-  transform: translateX(-50%);
-}
-.landing-skeleton__nav-item {
-  flex: 1;
-  border-radius: 12px;
-  background: #E7E5E1;
-}
-.landing-skeleton__nav-item--active {
-  background: #D7D5D1;
-}
 .sanctuary-theme.is-shell-ready .landing-content {
   opacity: 1;
   transition: opacity 160ms ease;
@@ -365,9 +335,6 @@ useHead({
   }
   .landing-skeleton__tile {
     width: calc(50% - 8px);
-  }
-  .landing-skeleton__nav {
-    width: min(320px, calc(100vw - 32px));
   }
 }
 @media (max-width: 480px) {
