@@ -1,9 +1,24 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import esbuild from '../node_modules/nitropack/node_modules/esbuild/lib/main.js';
 
-const {
-  fetchStandardContentWithCache,
-} = await import('../app/composables/bible/bibleFetchClient.ts');
+const { transform } = esbuild;
+
+const importTypescriptModule = async (path) => {
+  const source = await readFile(new URL(path, import.meta.url), 'utf8');
+  const { code } = await transform(source, {
+    format: 'esm',
+    loader: 'ts',
+    sourcemap: false,
+  });
+  const dataUrl = `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
+  return import(`${dataUrl}#${Date.now()}-${Math.random()}`);
+};
+
+const { fetchStandardContentWithCache } = await importTypescriptModule(
+  '../app/composables/bible/bibleFetchClient.ts',
+);
 
 test('falls back to cache when the direct proxy fetch is slow', async () => {
   const originalFetch = globalThis.fetch;
