@@ -184,7 +184,6 @@ def search_cached_content(request):
     query = request.query_params.get('q', '').strip()
     version_param = request.query_params.get('version')
     version = version_param.strip() if version_param else None
-    limit_param = request.query_params.get('limit', '20')
 
     if len(query) < 2:
         return Response(
@@ -205,15 +204,9 @@ def search_cached_content(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    try:
-        limit = min(max(int(limit_param), 1), 50)
-    except ValueError:
-        limit = 20
-
     results = BibleCacheSearchService.search(
         query=query,
         version=version,
-        limit=limit,
     )
 
     return Response({

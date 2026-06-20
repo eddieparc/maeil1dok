@@ -4,6 +4,7 @@
 
 import json
 from datetime import timedelta
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APITestCase
@@ -14,6 +15,7 @@ from bible_cache.models import BibleContentCache
 from bible_cache.services import BibleFetchService
 from bible_cache.services.bible_fetch_service import BibleFetchError
 from bible_cache.services.cache_refresh_coordinator import CacheRefreshCoordinator
+from bible_cache.services.cache_search_service import BibleCacheSearchService
 
 
 class BibleContentCacheModelTest(TestCase):
@@ -255,6 +257,9 @@ class BibleFetchServiceTest(TestCase):
 class BibleCacheAPITest(APITestCase):
     """API 엔드포인트 테스트"""
 
+    def setUp(self):
+        cache.clear()
+
     def test_get_supported_versions(self):
         """지원 번역본 목록 조회"""
         response = self.client.get('/api/v1/bible-cache/versions/')
@@ -338,6 +343,66 @@ class BibleCacheAPITest(APITestCase):
         self.assertEqual(response.data['results'][0]['book'], 'gen')
         self.assertIn('하나님', response.data['results'][0]['snippet'])
         self.assertEqual(response.data['results'][0]['verse'], 1)
+
+    def test_search_cached_content_returns_all_matches_in_bible_order(self):
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='1ch',
+            chapter=1,
+            content='<p><span>1 역대상에도 하나님이 함께하시니라</span></p>',
+            content_type='html',
+        )
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='<p><span>1 태초에 하나님이 천지를 창조하시니라</span></p>',
+            content_type='html',
+        )
+
+        response = self.client.get('/api/v1/bible-cache/search/?q=하나님&version=GAE')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 2)
+        self.assertEqual([result['book'] for result in response.data['results']], ['gen', '1ch'])
+
+    def test_search_cached_content_does_not_cap_results_at_fifty(self):
+        for chapter in range(1, 56):
+            BibleContentCache.save_to_cache(
+                version='GAE',
+                book='psa',
+                chapter=chapter,
+                content=f'<p><span>1 하나님을 찬양하는 시편 {chapter}</span></p>',
+                content_type='html',
+            )
+
+        response = self.client.get('/api/v1/bible-cache/search/?q=하나님&version=GAE')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 55)
+        self.assertEqual(len(response.data['results']), 55)
+
+    def test_search_cached_content_reuses_short_lived_cache(self):
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='<p><span>1 태초에 하나님이 천지를 창조하시니라</span></p>',
+            content_type='html',
+        )
+
+        first_results = BibleCacheSearchService.search(query='하나님', version='GAE')
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='exo',
+            chapter=1,
+            content='<p><span>1 하나님이 모세를 부르시니라</span></p>',
+            content_type='html',
+        )
+        second_results = BibleCacheSearchService.search(query='하나님', version='GAE')
+
+        self.assertEqual(len(first_results), 1)
+        self.assertEqual(second_results, first_results)
 
     def test_search_cached_content_strips_version_filter(self):
         BibleContentCache.save_to_cache(

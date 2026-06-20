@@ -1,12 +1,32 @@
+import hashlib
 import json
 import re
 from dataclasses import dataclass
 from html import unescape
 
-from django.db.models import QuerySet
+from django.conf import settings
+from django.core.cache import cache as django_cache
 from django.utils.html import strip_tags
 
 from bible_cache.models import BibleContentCache
+
+
+SEARCH_CACHE_VERSION = 'v2'
+SEARCH_CACHE_TIMEOUT_SECONDS = getattr(settings, 'BIBLE_SEARCH_CACHE_TIMEOUT_SECONDS', 300)
+
+BOOK_ORDER = {
+    'gen': 1, 'exo': 2, 'lev': 3, 'num': 4, 'deu': 5, 'jos': 6, 'jdg': 7,
+    'rut': 8, '1sa': 9, '2sa': 10, '1ki': 11, '2ki': 12, '1ch': 13,
+    '2ch': 14, 'ezr': 15, 'neh': 16, 'est': 17, 'job': 18, 'psa': 19,
+    'pro': 20, 'ecc': 21, 'sng': 22, 'isa': 23, 'jer': 24, 'lam': 25,
+    'ezk': 26, 'dan': 27, 'hos': 28, 'jol': 29, 'amo': 30, 'oba': 31,
+    'jnh': 32, 'mic': 33, 'nam': 34, 'hab': 35, 'zep': 36, 'hag': 37,
+    'zec': 38, 'mal': 39, 'mat': 40, 'mrk': 41, 'luk': 42, 'jhn': 43,
+    'act': 44, 'rom': 45, '1co': 46, '2co': 47, 'gal': 48, 'eph': 49,
+    'php': 50, 'col': 51, '1th': 52, '2th': 53, '1ti': 54, '2ti': 55,
+    'tit': 56, 'phm': 57, 'heb': 58, 'jas': 59, '1pe': 60, '2pe': 61,
+    '1jn': 62, '2jn': 63, '3jn': 64, 'jud': 65, 'rev': 66,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,18 +50,25 @@ class BibleCacheSearchService:
     def search(
         query: str,
         version: str | None = None,
-        limit: int = 20,
+        limit: int | None = None,
     ) -> list[BibleCacheSearchResult]:
+        del limit  # kept for backward-compatible call sites; search returns all matches.
         normalized_query = query.strip()
         if not normalized_query:
             return []
+
+        normalized_version = version.upper() if version else None
+        cache_key = BibleCacheSearchService._cache_key(normalized_query, normalized_version)
+        cached_results = django_cache.get(cache_key)
+        if isinstance(cached_results, list):
+            return cached_results
 
         queryset = BibleContentCache.objects.filter(
             fetch_success=True,
             content__icontains=normalized_query,
         )
-        if version:
-            queryset = queryset.filter(version=version.upper())
+        if normalized_version:
+            queryset = queryset.filter(version=normalized_version)
 
         results: list[BibleCacheSearchResult] = []
         for cache in BibleCacheSearchService._ordered(queryset):
@@ -59,16 +86,21 @@ class BibleCacheSearchService:
                     updated_at=cache.updated_at.isoformat(),
                 )
             )
-            if len(results) >= limit:
-                break
 
+        django_cache.set(cache_key, results, SEARCH_CACHE_TIMEOUT_SECONDS)
         return results
 
     @staticmethod
-    def _ordered(
-        queryset: QuerySet[BibleContentCache],
-    ) -> QuerySet[BibleContentCache]:
-        return queryset.order_by('version', 'book', 'chapter')
+    def _cache_key(query: str, version: str | None) -> str:
+        digest = hashlib.sha256(f'{version or "ALL"}:{query.lower()}'.encode('utf-8')).hexdigest()
+        return f'bible-cache-search:{SEARCH_CACHE_VERSION}:{digest}'
+
+    @staticmethod
+    def _ordered(queryset):
+        return sorted(
+            queryset.order_by('version', 'chapter'),
+            key=lambda cache: (BOOK_ORDER.get(cache.book, 999), cache.version, cache.chapter),
+        )
 
     @staticmethod
     def _snippet(content: str, query: str) -> str:
