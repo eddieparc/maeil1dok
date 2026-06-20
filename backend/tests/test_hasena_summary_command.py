@@ -102,3 +102,27 @@ class HasenaSummaryCommandTest(SimpleTestCase):
             title="아직 자막 없는 영상",
         )
         self.assertIn("failed RESOURCE_EXHAUSTED: free-tier quota exceeded", out.getvalue())
+
+    def test_generate_hasena_summary_once_fail_soft_exits_successfully(self) -> None:
+        out = StringIO()
+
+        with (
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
+                return_value=[
+                    {
+                        "video_id": "LY-mfNxK90Y",
+                        "title": "아직 자막 없는 영상",
+                        "published_at": "2026-06-18T00:30:00Z",
+                    }
+                ],
+            ),
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.generate_summary",
+                return_value={"success": False, "error": "PERMISSION_DENIED: key blocked"},
+            ),
+        ):
+            call_command("generate_hasena_summary_once", "--fail-soft", stdout=out)
+
+        self.assertIn("failed PERMISSION_DENIED: key blocked", out.getvalue())
+        self.assertIn("exiting 0 due to --fail-soft", out.getvalue())

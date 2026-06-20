@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
@@ -11,7 +10,8 @@ SUMMARY_SUCCESS_KEY = 'hasena_summary_success_{date}'
 
 @shared_task(bind=True, max_retries=0)
 def generate_hasena_summary_task(self):
-    now = timezone.localtime()
+    current_time = timezone.now()
+    now = timezone.localtime(current_time) if timezone.is_aware(current_time) else current_time
     today_str = now.strftime('%Y-%m-%d')
     cache_key = SUMMARY_SUCCESS_KEY.format(date=today_str)
     
