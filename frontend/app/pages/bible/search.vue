@@ -13,22 +13,26 @@
             @keydown.enter.prevent="search"
           >
         </label>
-        <select v-model="version" aria-label="역본 선택">
-          <option value="">전체 역본</option>
-          <option
-            v-for="option in versionOptions"
-            :key="option.code"
-            :value="option.code"
-          >
-            {{ option.name }}
-          </option>
-        </select>
+        <label class="version-select">
+          <select v-model="version" aria-label="역본 선택">
+            <option value="">전체 역본</option>
+            <option
+              v-for="option in versionOptions"
+              :key="option.code"
+              :value="option.code"
+            >
+              {{ option.name }}
+            </option>
+          </select>
+          <ChevronDownIcon :size="16" aria-hidden="true" />
+        </label>
         <button class="search-button" type="button" :disabled="isSearching" @click="search">
           <SearchIcon :size="18" />
           <span>{{ isSearching ? '검색 중' : '검색' }}</span>
         </button>
       </div>
       <p v-if="message" class="message">{{ message }}</p>
+      <p v-else-if="resultSummary" class="message">{{ resultSummary }}</p>
     </section>
 
     <section class="results-section" aria-live="polite">
@@ -38,28 +42,46 @@
       <p v-else-if="results.length === 0 && !isSearching" class="empty-state">
         검색 결과가 없습니다.
       </p>
-      <NuxtLink
-        v-for="result in results"
-        :key="`${result.version}-${result.book}-${result.chapter}`"
-        class="result-card"
-        :to="resultUrl(result)"
+      <div
+        v-for="group in groupedResults"
+        :key="group.book"
+        class="result-group"
       >
-        <div class="result-meta">
-          <span>{{ versionLabel(result.version) }}</span>
-          <strong>
-            {{ bookLabel(result.book) }} {{ result.chapter }}{{ chapterSuffix(result.book) }}
-            <template v-if="result.verse"> {{ result.verse }}절</template>
-          </strong>
+        <button
+          class="result-group-header"
+          type="button"
+          :aria-expanded="isGroupExpanded(group.book)"
+          @click="toggleGroup(group.book)"
+        >
+          <span class="result-group-title">{{ bookLabel(group.book) }}</span>
+          <span class="result-group-count">{{ group.results.length }}개</span>
+          <ChevronDownIcon class="result-group-icon" :class="{ expanded: isGroupExpanded(group.book) }" :size="18" />
+        </button>
+        <div v-if="isGroupExpanded(group.book)" class="result-group-body">
+          <NuxtLink
+            v-for="result in group.results"
+            :key="`${result.version}-${result.book}-${result.chapter}-${result.verse ?? 'chapter'}`"
+            class="result-card"
+            :to="resultUrl(result)"
+          >
+            <div class="result-meta">
+              <span>{{ versionLabel(result.version) }}</span>
+              <strong>
+                {{ result.chapter }}{{ chapterSuffix(result.book) }}
+                <template v-if="result.verse"> {{ result.verse }}절</template>
+              </strong>
+            </div>
+            <p v-html="highlightSnippet(result.snippet)"></p>
+          </NuxtLink>
         </div>
-        <p v-html="highlightSnippet(result.snippet)"></p>
-      </NuxtLink>
+      </div>
     </section>
   </BibleSubpageLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { SearchIcon } from '@lucide/vue';
+import { ChevronDownIcon, SearchIcon } from '@lucide/vue';
 import { useApi } from '~/composables/useApi';
 import { useBibleData } from '~/composables/useBibleData';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
@@ -71,6 +93,11 @@ type SearchResult = {
   readonly chapter: number;
   readonly verse?: number | null;
   readonly snippet: string;
+};
+
+type SearchResultGroup = {
+  readonly book: string;
+  readonly results: readonly SearchResult[];
 };
 
 type SearchResponse = {
@@ -85,6 +112,7 @@ const { bookNames, versionNames, getChapterUnit } = useBibleData();
 const query = ref('');
 const version = ref('GAE');
 const results = ref<readonly SearchResult[]>([]);
+const expandedBooks = ref<ReadonlySet<string>>(new Set());
 const message = ref('');
 const isSearching = ref(false);
 const hasSearched = ref(false);
@@ -94,10 +122,48 @@ const versionOptions = computed(() =>
   Object.entries(versionNames).map(([code, name]) => ({ code, name }))
 );
 
+const groupedResults = computed<readonly SearchResultGroup[]>(() => {
+  const groups = new Map<string, SearchResult[]>();
+
+  for (const result of results.value) {
+    const group = groups.get(result.book) || [];
+    group.push(result);
+    groups.set(result.book, group);
+  }
+
+  return Array.from(groups.entries()).map(([book, groupResults]) => ({
+    book,
+    results: groupResults,
+  }));
+});
+
+const resultSummary = computed(() => {
+  if (!hasSearched.value || isSearching.value || results.value.length === 0) return '';
+  return `${results.value.length}개 결과 · ${groupedResults.value.length}권`;
+});
+
+const isGroupExpanded = (book: string): boolean => expandedBooks.value.has(book);
+
+const toggleGroup = (book: string): void => {
+  const next = new Set(expandedBooks.value);
+  if (next.has(book)) {
+    next.delete(book);
+  } else {
+    next.add(book);
+  }
+  expandedBooks.value = next;
+};
+
+const initializeExpandedGroups = (): void => {
+  const firstBook = groupedResults.value[0]?.book;
+  expandedBooks.value = firstBook ? new Set([firstBook]) : new Set();
+};
+
 const search = async (): Promise<void> => {
   if (query.value.length < 2) {
     message.value = '검색어는 두 글자 이상 입력해주세요.';
     results.value = [];
+    expandedBooks.value = new Set();
     return;
   }
 
@@ -114,10 +180,11 @@ const search = async (): Promise<void> => {
     });
     const data = parseSearchResponse(response.data);
     results.value = data.results || [];
-    message.value = `${data.count || 0}개 결과`;
+    initializeExpandedGroups();
   } catch (error) {
     message.value = error instanceof Error ? error.message : '검색에 실패했습니다.';
     results.value = [];
+    expandedBooks.value = new Set();
   } finally {
     isSearching.value = false;
   }

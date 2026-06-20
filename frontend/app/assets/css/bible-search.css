@@ -14,7 +14,7 @@
 }
 
 .search-field,
-.search-controls select {
+.version-select {
 	border: 1px solid var(--color-border, #e5e7eb);
 	border-radius: 8px;
 	background: var(--color-bg-card, #fff);
@@ -30,7 +30,7 @@
 }
 
 .search-field input,
-.search-controls select {
+.version-select select {
 	width: 100%;
 	min-height: 40px;
 	border: 0;
@@ -41,8 +41,25 @@
 	letter-spacing: -0.02em;
 }
 
-.search-controls select {
-	padding: 0 0.55rem;
+.version-select {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	padding-right: 0.55rem;
+	color: var(--text-secondary, #6b7280);
+}
+
+.version-select select {
+	appearance: none;
+	-webkit-appearance: none;
+	min-width: 0;
+	padding: 0 0.35rem 0 0.65rem;
+	cursor: pointer;
+}
+
+.version-select svg {
+	flex-shrink: 0;
+	pointer-events: none;
 }
 
 .search-field input::placeholder {
@@ -50,12 +67,12 @@
 }
 
 .search-field input:focus,
-.search-controls select:focus {
+.version-select select:focus {
 	outline: none;
 }
 
 .search-field:focus-within,
-.search-controls select:focus {
+.version-select:focus-within {
 	border-color: var(--color-accent-primary, #4b9f7e);
 }
 
@@ -94,6 +111,59 @@
 	display: grid;
 	gap: 0.625rem;
 	padding-top: 0.875rem;
+}
+
+.result-group {
+	display: grid;
+	gap: 0.5rem;
+}
+
+.result-group + .result-group {
+	margin-top: 0.625rem;
+}
+
+.result-group-header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+	padding: 0.375rem 0.125rem;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.result-group-title {
+	color: var(--text-primary, #1f2937);
+	font-size: 0.9375rem;
+	font-weight: 800;
+	letter-spacing: -0.035em;
+}
+
+.result-group-count {
+	margin-left: auto;
+	color: var(--text-secondary, #6b7280);
+	font-size: 0.75rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+
+.result-group-icon {
+	flex-shrink: 0;
+	color: var(--text-secondary, #6b7280);
+	transition: transform 0.16s ease;
+}
+
+.result-group-icon.expanded {
+	transform: rotate(180deg);
+}
+
+.result-group-body {
+	display: grid;
+	gap: 0.5rem;
 }
 
 .result-card {
@@ -151,12 +221,17 @@
 		width: 100%;
 	}
 
-	.search-controls select {
+	.version-select {
 		justify-self: start;
 		width: auto;
 		min-height: 38px;
-		padding: 0 1.9rem 0 0.65rem;
 		border-color: rgba(17, 24, 39, 0.1);
+	}
+
+	.version-select select {
+		width: auto;
+		min-height: 38px;
+		padding-left: 0.65rem;
 	}
 
 	.search-button {
