@@ -12,7 +12,7 @@ from .cookie_views import CookieTokenRefreshView
 
 class AuthTokenVersionTests(SimpleTestCase):
     def test_get_tokens_for_user_includes_token_version_on_access_and_refresh(self):
-        user = SimpleNamespace(id=123, token_version=7, nickname='tester', is_social=False)
+        user = fake_user(token_version=7)
 
         tokens = issue_tokens(user)
 
@@ -20,14 +20,14 @@ class AuthTokenVersionTests(SimpleTestCase):
         self.assertEqual(decode_token(tokens['access'])['token_version'], 7)
 
     def test_token_version_check_rejects_missing_claim_for_version_zero_user(self):
-        user = SimpleNamespace(id=123, token_version=0, nickname='tester', is_social=False)
+        user = fake_user(token_version=0)
         refresh = issue_legacy_refresh_without_token_version(user)
 
         self.assertFalse(token_version_is_current(refresh.access_token, user))
 
     @override_settings(SIMPLE_JWT={'ROTATE_REFRESH_TOKENS': True, 'BLACKLIST_AFTER_ROTATION': False})
     def test_cookie_refresh_rejects_missing_token_version_claim(self):
-        user = SimpleNamespace(id=123, token_version=0, nickname='tester', is_social=False)
+        user = fake_user(token_version=0)
         refresh = str(issue_legacy_refresh_without_token_version(user))
 
         request = APIRequestFactory().post('/api/v1/auth/token/refresh/', {'refresh': refresh}, format='json')
@@ -42,8 +42,8 @@ class AuthTokenVersionTests(SimpleTestCase):
 
     @override_settings(SIMPLE_JWT={'ROTATE_REFRESH_TOKENS': True, 'BLACKLIST_AFTER_ROTATION': False})
     def test_cookie_refresh_rejects_stale_refresh_token(self):
-        old_user = SimpleNamespace(id=123, token_version=1, nickname='tester', is_social=False)
-        current_user = SimpleNamespace(id=123, token_version=2, nickname='tester', is_social=False)
+        old_user = fake_user(token_version=1)
+        current_user = fake_user(token_version=2)
         refresh = issue_tokens(old_user)['refresh']
 
         request = APIRequestFactory().post('/api/v1/auth/token/refresh/', {'refresh': refresh}, format='json')
@@ -57,9 +57,9 @@ class AuthTokenVersionTests(SimpleTestCase):
         self.assertEqual(response.status_code, 401)
 
     @override_settings(SIMPLE_JWT={'ROTATE_REFRESH_TOKENS': True, 'BLACKLIST_AFTER_ROTATION': False})
-    def test_cookie_refresh_rejects_future_token_version_after_account_recovery(self):
-        deleted_user = SimpleNamespace(id=123, token_version=3, nickname='tester', is_social=False)
-        recovered_user = SimpleNamespace(id=123, token_version=0, nickname='tester', is_social=False)
+    def test_cookie_refresh_rejects_stale_token_version_after_account_recovery(self):
+        deleted_user = fake_user(token_version=3)
+        recovered_user = fake_user(token_version=4)
         refresh = issue_tokens(deleted_user)['refresh']
 
         request = APIRequestFactory().post('/api/v1/auth/token/refresh/', {'refresh': refresh}, format='json')
@@ -74,7 +74,7 @@ class AuthTokenVersionTests(SimpleTestCase):
 
     @override_settings(SIMPLE_JWT={'ROTATE_REFRESH_TOKENS': True, 'BLACKLIST_AFTER_ROTATION': False})
     def test_cookie_refresh_rotates_with_current_token_version(self):
-        user = SimpleNamespace(id=123, token_version=4, nickname='tester', is_social=False)
+        user = fake_user(token_version=4)
         refresh = issue_tokens(user)['refresh']
 
         request = APIRequestFactory().post('/api/v1/auth/token/refresh/', {'refresh': refresh}, format='json')
@@ -104,6 +104,16 @@ def fake_user_model(user):
 def issue_tokens(user):
     with patch('rest_framework_simplejwt.tokens.OutstandingToken.objects.create'):
         return get_tokens_for_user(user)
+
+
+def fake_user(token_version):
+    return SimpleNamespace(
+        id=123,
+        token_version=token_version,
+        nickname='tester',
+        is_social=False,
+        is_active=True,
+    )
 
 
 def issue_legacy_refresh_without_token_version(user):

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password as validate_django_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User, UserProfile, Follow, UserAchievement
 from todos.models import UserBibleProgress
@@ -42,6 +44,17 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_nickname(self, value):
         if User.objects.filter(nickname=value).exists():
             raise serializers.ValidationError("이미 사용중인 닉네임입니다.")
+        return value
+
+    def validate_password(self, value):
+        try:
+            validate_django_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        if not any(c.isdigit() for c in value):
+            raise serializers.ValidationError("비밀번호는 최소 1개의 숫자를 포함해야 합니다.")
+        if not any(c.isalpha() for c in value):
+            raise serializers.ValidationError("비밀번호는 최소 1개의 문자를 포함해야 합니다.")
         return value
 
     def create(self, validated_data):
@@ -187,7 +200,7 @@ class UserSearchSerializer(serializers.ModelSerializer):
     def get_total_completed_days(self, obj):
         try:
             return obj.profile.total_completed_days
-        except:
+        except AttributeError:
             return 0
 
 
@@ -213,7 +226,10 @@ class EmailRegisterSerializer(serializers.Serializer):
         return value
     
     def validate_password(self, value):
-        # 비밀번호 강도 검증
+        try:
+            validate_django_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
         if not any(c.isdigit() for c in value):
             raise serializers.ValidationError("비밀번호는 최소 1개의 숫자를 포함해야 합니다.")
         if not any(c.isalpha() for c in value):
@@ -233,6 +249,10 @@ class SetPasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(required=False, allow_blank=True, write_only=True)
     
     def validate_new_password(self, value):
+        try:
+            validate_django_password(value, self.context.get('user'))
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
         if not any(c.isdigit() for c in value):
             raise serializers.ValidationError("비밀번호는 최소 1개의 숫자를 포함해야 합니다.")
         if not any(c.isalpha() for c in value):
@@ -243,6 +263,21 @@ class SetPasswordSerializer(serializers.Serializer):
         if data['new_password'] != data['new_password_confirm']:
             raise serializers.ValidationError({"new_password_confirm": "비밀번호가 일치하지 않습니다."})
         return data
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    new_password = serializers.CharField(min_length=8, write_only=True)
+
+    def validate_new_password(self, value):
+        try:
+            validate_django_password(value, self.context.get('user'))
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        if not any(c.isdigit() for c in value):
+            raise serializers.ValidationError("비밀번호는 최소 1개의 숫자를 포함해야 합니다.")
+        if not any(c.isalpha() for c in value):
+            raise serializers.ValidationError("비밀번호는 최소 1개의 문자를 포함해야 합니다.")
+        return value
 
 
 class LinkedAccountsSerializer(serializers.Serializer):

@@ -58,6 +58,7 @@ urlpatterns = [
     # 계정 연동 관리
     # ========================================
     path('linked-accounts/', views.get_linked_accounts, name='get_linked_accounts'),
+    path('oauth/link-state/', views.issue_oauth_link_state, name='issue_oauth_link_state'),
     path('link-social/', views.link_social_account, name='link_social_account'),
     path('unlink-social/', views.unlink_social_account, name='unlink_social_account'),
     path('set-password/', views.set_password, name='set_password'),

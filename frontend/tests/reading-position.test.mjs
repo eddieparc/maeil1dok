@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import { transform } from 'esbuild';
+import esbuild from '../node_modules/nitropack/node_modules/esbuild/lib/main.js';
+
+const { transform } = esbuild;
 
 const readingPositionSource = await readFile(
   new URL('../app/composables/useReadingPosition.ts', import.meta.url),

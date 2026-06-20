@@ -110,6 +110,13 @@ class CookieTokenRefreshView(TokenRefreshView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
+            if not getattr(user, 'is_active', True):
+                logger.warning(f"Token refresh failed: inactive user {user_id}")
+                return Response(
+                    {'error': 'User account is inactive'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
             if not token_version_is_current(refresh, user):
                 logger.warning(f"Token refresh failed: stale token for user {user_id}")
                 return Response(
@@ -122,7 +129,7 @@ class CookieTokenRefreshView(TokenRefreshView):
                     try:
                         refresh.blacklist()
                     except AttributeError:
-                        pass
+                        logger.info("Refresh token blacklist app is not installed; skipping blacklist")
 
                 tokens = get_tokens_for_user(user)
                 access_token = tokens['access']

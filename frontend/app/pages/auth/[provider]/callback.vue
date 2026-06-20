@@ -1,3 +1,4 @@
+<!-- noqa: SIZE_OK OAuth callback is the existing provider bridge; this hardening keeps the redirect contract intact -->
 <template>
   <div class="min-h-screen flex items-center justify-center">
     <div class="text-center">
@@ -17,8 +18,14 @@ const { consumeRedirectUrl } = useNavigation()
 
 const statusMessage = ref('처리 중입니다...')
 
+const firstQueryValue = (value: unknown) => {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0]
+  return ''
+}
+
 const parseStateParam = () => {
-  const state = route.query.state as string
+  const state = firstQueryValue(route.query.state)
   if (!state) return null
   try {
     return JSON.parse(decodeURIComponent(state))
@@ -27,18 +34,49 @@ const parseStateParam = () => {
   }
 }
 
+const ALLOWED_APP_SCHEMES = new Set(['maeil1dok', 'maeil1dok-dev'])
+const SIGNED_LINK_STATE_PATTERN = /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/
+
+const isSignedLinkState = (state: string) => SIGNED_LINK_STATE_PATTERN.test(state)
+
+const getSafeAppScheme = (scheme: unknown) => {
+  if (typeof scheme !== 'string') return ''
+  if (!ALLOWED_APP_SCHEMES.has(scheme)) return ''
+  return scheme
+}
+
 const redirectToApp = (scheme: string, provider: string, params: Record<string, string>) => {
   const queryString = new URLSearchParams(params).toString()
   const deepLink = `${scheme}://auth/${provider}/callback?${queryString}`
   window.location.href = deepLink
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const getString = (record: Record<string, unknown>, key: string) => {
+  const value = record[key]
+  return typeof value === 'string' ? value : ''
+}
+
+const getErrorData = (error: unknown) => {
+  if (!isRecord(error)) return {}
+  const data = error.data
+  if (isRecord(data)) return data
+  const response = error.response
+  if (isRecord(response) && isRecord(response.data)) return response.data
+  return {}
+}
+
 onMounted(async () => {
   const { provider } = route.params
-  const { code } = route.query
+  const providerName = firstQueryValue(provider)
+  const code = firstQueryValue(route.query.code)
+  const state = firstQueryValue(route.query.state)
   const stateData = parseStateParam()
-  const isFromApp = stateData?.from === 'app'
-  const isLinkAction = stateData?.action === 'link'
+  const safeAppScheme = getSafeAppScheme(stateData?.scheme)
+  const isFromApp = stateData?.from === 'app' && Boolean(safeAppScheme)
+  const isLinkAction = isSignedLinkState(state)
 
   if (!code) {
     navigateTo('/login')
@@ -60,35 +98,32 @@ onMounted(async () => {
     }
     
     statusMessage.value = '계정 연결 중입니다...'
-    await handleLinkSocialAccount(provider as string, code as string)
+    await handleLinkSocialAccount(providerName, code, state)
     return
   }
 
-  // 일반 로그인
   statusMessage.value = '로그인 처리 중입니다...'
-  if (provider === 'kakao') {
-    await handleKakaoCallback(code as string, isFromApp, stateData?.scheme)
-  } else if (provider === 'google') {
-    await handleGoogleCallback(code as string, isFromApp, stateData?.scheme)
-  } else if (provider === 'apple') {
-    // Apple uses id_token instead of code for direct verification
-    const idToken = route.query.id_token as string
-    const userInfo = route.query.user as string
-    await handleAppleCallback(code as string, idToken, userInfo, isFromApp, stateData?.scheme)
+  if (providerName === 'kakao') {
+    await handleKakaoCallback(code, isFromApp, safeAppScheme)
+  } else if (providerName === 'google') {
+    await handleGoogleCallback(code, isFromApp, safeAppScheme)
+  } else if (providerName === 'apple') {
+    const idToken = firstQueryValue(route.query.id_token)
+    const userInfo = firstQueryValue(route.query.user)
+    await handleAppleCallback(code, idToken, userInfo, isFromApp, safeAppScheme)
   } else {
     navigateTo('/login')
   }
 })
 
 // 계정 연결 처리
-const handleLinkSocialAccount = async (provider: string, code: string) => {
+const handleLinkSocialAccount = async (provider: string, code: string, state: string) => {
+  const idToken = firstQueryValue(route.query.id_token)
   try {
     const api = useApi()
     
-    // Apple uses id_token for verification
-    const payload: Record<string, string> = { provider, code }
+    const payload: Record<string, string> = { provider, code, state }
     if (provider === 'apple') {
-      const idToken = route.query.id_token as string
       if (idToken) {
         payload.id_token = idToken
       }
@@ -96,20 +131,18 @@ const handleLinkSocialAccount = async (provider: string, code: string) => {
     
     const response = await api.post('/api/v1/auth/link-social/', payload)
 
-    // 연결 성공
     navigateTo({
       path: '/account/settings',
       query: { linked: 'success', provider }
     })
-  } catch (error: any) {
-    const errorData = error?.data || error?.response?.data || {}
+  } catch (error: unknown) {
+    const errorData = getErrorData(error)
     
-    // 다른 계정에 이미 연동된 경우 - 병합 페이지로 리다이렉트
     if (errorData.can_merge) {
-      // 병합 정보를 sessionStorage에 저장하고 설정 페이지로 이동
       sessionStorage.setItem('merge_info', JSON.stringify({
         provider,
         code,
+        id_token: idToken || undefined,
         current_account: errorData.current_account,
         other_account: errorData.other_account
       }))
@@ -121,11 +154,10 @@ const handleLinkSocialAccount = async (provider: string, code: string) => {
       return
     }
 
-    // 기타 에러
     console.error('[Link Social] Error:', error)
     navigateTo({
       path: '/account/settings',
-      query: { linked: 'error', message: errorData.error || '연결 실패' }
+      query: { linked: 'error', message: getString(errorData, 'error') || '연결 실패' }
     })
   }
 }

@@ -14,6 +14,8 @@ PASSWORD_HASHERS = [
 
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 ROOT_URLCONF = 'config.test_urls'
+SECURE_SSL_REDIRECT = False
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
