@@ -12,7 +12,7 @@ from bible_cache.models import BibleContentCache
 
 
 SEARCH_CACHE_VERSION = 'v2'
-SEARCH_CACHE_TIMEOUT_SECONDS = getattr(settings, 'BIBLE_SEARCH_CACHE_TIMEOUT_SECONDS', 300)
+SEARCH_CACHE_TIMEOUT_SECONDS = getattr(settings, 'BIBLE_SEARCH_CACHE_TIMEOUT_SECONDS', 60 * 60 * 24)
 
 BOOK_ORDER = {
     'gen': 1, 'exo': 2, 'lev': 3, 'num': 4, 'deu': 5, 'jos': 6, 'jdg': 7,
