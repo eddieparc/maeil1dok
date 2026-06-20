@@ -804,7 +804,7 @@ defineExpose({
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  padding-bottom: max(100px, 15vh);
+  padding-bottom: 84px;
   font-family: var(--reading-font-family);
   font-size: var(--reading-font-size);
   font-weight: var(--reading-font-weight);
@@ -1073,7 +1073,7 @@ defineExpose({
 /* iOS 안전영역 */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .bible-viewer {
-    padding-bottom: calc(max(100px, 15vh) + env(safe-area-inset-bottom));
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
 }
 
