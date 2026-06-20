@@ -2,17 +2,6 @@
   <BibleSubpageLayout title="본문 검색">
     <section class="search-panel">
       <div class="search-controls">
-        <label class="search-field">
-          <SearchIcon :size="18" />
-          <input
-            ref="searchInputRef"
-            v-model.trim="query"
-            type="search"
-            enterkeyhint="search"
-            placeholder="본문 단어를 입력하세요"
-            @keydown.enter.prevent="search"
-          >
-        </label>
         <label class="version-select">
           <select v-model="version" aria-label="역본 선택">
             <option value="">전체 역본</option>
@@ -26,10 +15,21 @@
           </select>
           <ChevronDownIcon :size="16" aria-hidden="true" />
         </label>
-        <button class="search-button" type="button" :disabled="isSearching" @click="search">
-          <SearchIcon :size="18" />
-          <span>{{ isSearching ? '검색 중' : '검색' }}</span>
-        </button>
+        <div class="search-field">
+          <SearchIcon class="search-field-icon" :size="18" />
+          <input
+            ref="searchInputRef"
+            v-model.trim="query"
+            type="search"
+            enterkeyhint="search"
+            placeholder="본문 단어를 입력하세요"
+            @keydown.enter.prevent="search"
+          >
+          <button class="search-button" type="button" :disabled="isSearching" @click="search">
+            <SearchIcon :size="18" />
+            <span>{{ isSearching ? '검색 중' : '검색' }}</span>
+          </button>
+        </div>
       </div>
       <p v-if="message" class="message">{{ message }}</p>
       <p v-else-if="resultSummary" class="message">{{ resultSummary }}</p>
