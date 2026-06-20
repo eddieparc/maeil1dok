@@ -299,6 +299,7 @@ const loadAISummary = async () => {
   
   summaryLoading.value = true
   summaryError.value = null
+  summaryContent.value = ''
   
   try {
     const { data } = await api.get(`/api/v1/todos/hasena/summary/?video_id=${latestVideoId.value}`)
@@ -307,9 +308,39 @@ const loadAISummary = async () => {
       summaryContent.value = data.summary
     }
   } catch (err) {
-    // 요약이 없는 경우는 정상 - 로그 불필요
+    const status = err?.response?.status || err?.status
+    const apiError = err?.response?.data?.error || err?.data?.error
+
+    summaryError.value = status === 404
+      ? (apiError || '오늘 AI 요약은 아직 준비 중입니다.')
+      : (apiError || 'AI 요약을 불러오지 못했습니다.')
   } finally {
     summaryLoading.value = false
+  }
+}
+
+const loadLatestHasenaVideo = async () => {
+  if (latestVideoId.value) return
+
+  summaryLoading.value = true
+  summaryError.value = null
+
+  try {
+    const data = await $fetch('/api/hasena/latest-video')
+
+    if (data?.videoId) {
+      latestVideoId.value = data.videoId
+      await loadAISummary()
+      return
+    }
+
+    summaryError.value = '최신 하세나 영상을 찾을 수 없습니다.'
+  } catch {
+    summaryError.value = '최신 영상 정보를 불러오지 못했습니다.'
+  } finally {
+    if (!latestVideoId.value) {
+      summaryLoading.value = false
+    }
   }
 }
 
@@ -459,9 +490,12 @@ const setupYouTubeListener = () => {
           events: {
             'onReady': (event) => {
               // 플레이어가 준비되면 현재 비디오 ID 가져오기
-              latestVideoId.value = event.target.getVideoData().video_id
-              // 비디오 ID 확보 후 요약 조회
-              loadAISummary()
+              const videoId = event.target.getVideoData().video_id
+
+              if (videoId && videoId !== latestVideoId.value) {
+                latestVideoId.value = videoId
+                loadAISummary()
+              }
             }
           }
         })
@@ -481,6 +515,7 @@ onMounted(async () => {
 
   fetchHasenaContent()
   setupYouTubeListener()
+  await loadLatestHasenaVideo()
   
   if (auth.isAuthenticated.value) {
     await hasenaStore.fetchStats()

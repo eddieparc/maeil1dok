@@ -20,8 +20,14 @@ class Command(BaseCommand):
         parser.add_argument("--video-id", help="특정 YouTube video_id를 생성합니다.")
         parser.add_argument("--video-date", help="영상 날짜를 YYYY-MM-DD로 지정합니다.")
         parser.add_argument("--title", help="영상 제목을 지정합니다.")
+        parser.add_argument(
+            "--fail-soft",
+            action="store_true",
+            help="실패를 기록하되 프로세스는 성공으로 종료합니다.",
+        )
 
     def handle(self, *args, **options) -> None:
+        fail_soft = bool(options.get("fail_soft"))
         video_id = options.get("video_id")
         title = options.get("title")
         video_date = self._parse_video_date(options.get("video_date"))
@@ -33,18 +39,18 @@ class Command(BaseCommand):
                 return
 
             reason = result.get("error") or "unknown_error"
-            self.stdout.write(self.style.ERROR(f"failed {reason}"))
-            raise CommandError(reason)
+            self._fail(reason, fail_soft=fail_soft)
+            return
 
         candidates = get_recent_hasena_videos()
         if not candidates:
-            self.stdout.write(self.style.ERROR(f"failed {NO_VIDEO_INFO}"))
-            raise CommandError(NO_VIDEO_INFO)
+            self._fail(NO_VIDEO_INFO, fail_soft=fail_soft)
+            return
 
         candidate = next((item for item in candidates if item.get("video_id")), None)
         if not candidate:
-            self.stdout.write(self.style.ERROR(f"failed {NO_VIDEO_INFO}"))
-            raise CommandError(NO_VIDEO_INFO)
+            self._fail(NO_VIDEO_INFO, fail_soft=fail_soft)
+            return
 
         candidate_video_date = video_date
         if not candidate_video_date and candidate.get("published_at"):
@@ -60,7 +66,15 @@ class Command(BaseCommand):
             return
 
         reason = result.get("error") or "unknown_error"
+        self._fail(reason, fail_soft=fail_soft)
+
+    def _fail(self, reason: str, *, fail_soft: bool) -> None:
         self.stdout.write(self.style.ERROR(f"failed {reason}"))
+        if fail_soft:
+            self.stdout.write(
+                self.style.WARNING("summary generation failed; exiting 0 due to --fail-soft")
+            )
+            return
         raise CommandError(reason)
 
     def _parse_video_date(self, value: str | None) -> date | None:

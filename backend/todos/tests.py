@@ -1,4 +1,5 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -18,8 +19,17 @@ from .scoreboard_views import (
     rank_leaderboard,
 )
 from .serializers import UserReadingPositionSerializer
+from .tasks import generate_hasena_summary_task
 
 User = get_user_model()
+
+
+class HasenaSummaryTaskTest(TestCase):
+    def test_skips_outside_window_when_project_uses_naive_local_time(self):
+        with patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 17, 7, 0, 0)):
+            result = generate_hasena_summary_task()
+
+        self.assertEqual(result, {'status': 'skipped', 'reason': 'outside_window'})
 
 
 class ProgressTestBase(TestCase):
