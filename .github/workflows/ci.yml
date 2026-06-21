@@ -132,8 +132,8 @@ jobs:
       - name: Django system checks
         run: python manage.py check --fail-level WARNING
 
-      - name: Account tests
-        run: python manage.py test accounts
+      - name: Backend tests
+        run: python manage.py test accounts todos.test_notifications todos.tests.UpdateBibleProgressTest
 
       - name: Todos certification tests
         run: python manage.py test todos.test_certification_api

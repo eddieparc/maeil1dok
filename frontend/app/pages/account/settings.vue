@@ -171,6 +171,20 @@
       <section class="settings-section">
         <h2 class="section-title">알림 설정</h2>
         <div class="section-content">
+          <NuxtLink to="/notifications/settings" class="setting-item notification-settings-link">
+            <div class="setting-info">
+              <p class="setting-label">통독/하세나 알림</p>
+              <p class="setting-description">통독 응원, 하세나하시조, 친구 활동 알림을 관리합니다</p>
+            </div>
+            <span class="action-button">관리</span>
+          </NuxtLink>
+          <NuxtLink to="/notifications" class="setting-item notification-settings-link">
+            <div class="setting-info">
+              <p class="setting-label">알림 내역</p>
+              <p class="setting-description">읽지 않은 알림과 지난 활동을 확인합니다</p>
+            </div>
+            <span class="action-button">보기</span>
+          </NuxtLink>
           <label class="setting-item switch-row">
             <span class="setting-info">
               <span class="setting-label">매일 읽기 알림</span>
@@ -960,6 +974,13 @@ onUnmounted(() => {
 
 .setting-description {
   margin: 0;
+}
+
+.notification-settings-link {
+  color: inherit;
+  text-decoration: none;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .provider-badge {

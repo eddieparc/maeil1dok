@@ -9,16 +9,31 @@
 
     <div class="right-slot">
       <slot name="right">
-        <div class="right-placeholder"></div>
+        <ClientOnly>
+          <NuxtLink
+            v-if="user"
+            to="/notifications"
+            class="notification-link"
+            title="알림"
+            :aria-label="notificationLinkLabel"
+          >
+            <NotificationBell :count="notificationsStore.unreadCount" />
+          </NuxtLink>
+          <div v-else class="right-placeholder"></div>
+        </ClientOnly>
       </slot>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import ChevronLeftIcon from '~/components/icons/ChevronLeftIcon.vue';
+import NotificationBell from '~/components/notifications/NotificationBell.vue';
 import { useNavigation } from '~/composables/useNavigation';
+import { useAuthService } from '~/composables/useAuthService';
+import { useNotificationsStore } from '~/stores/notifications';
 
 interface Props {
   title: string;
@@ -41,6 +56,23 @@ const props = withDefaults(defineProps<Props>(), {
 
 const router = useRouter();
 const { goBack } = useNavigation();
+const auth = useAuthService();
+const notificationsStore = useNotificationsStore();
+const user = computed(() => auth.user.value);
+const notificationLinkLabel = computed(() => {
+  const unreadCount = notificationsStore.unreadCount;
+  return unreadCount > 0 ? `읽지 않은 알림 ${unreadCount}개` : '알림';
+});
+
+watch(
+  () => auth.isAuthenticated.value,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      notificationsStore.fetchInbox();
+    }
+  },
+  { immediate: true },
+);
 
 const handleBack = () => {
   // 커스텀 핸들러가 있으면 사용
@@ -114,6 +146,13 @@ const handleBack = () => {
 
 .right-placeholder {
   min-width: 64px;
+}
+
+.notification-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 @media (max-width: 640px) {

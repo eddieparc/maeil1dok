@@ -95,6 +95,14 @@
                 </transition>
               </div>
               <NuxtLink
+                v-if="user"
+                to="/notifications"
+                class="notification-link"
+                title="알림"
+              >
+                <NotificationBell :count="notificationsStore.unreadCount" />
+              </NuxtLink>
+              <NuxtLink
                 v-else
                 to="/login"
                 class="auth-button"
@@ -142,12 +150,15 @@ import {
 } from '@lucide/vue'
 import { useAuthService } from '~/composables/useAuthService'
 import { useReadingSettingsStore } from '~/stores/readingSettings'
+import { useNotificationsStore } from '~/stores/notifications'
 import { useRouter, useRoute } from 'vue-router'
-import { computed, ref, inject, onMounted, onUnmounted } from 'vue'
+import { computed, ref, inject, onMounted, onUnmounted, watch } from 'vue'
 import Menu from '~/components/Menu.vue'
+import NotificationBell from '~/components/notifications/NotificationBell.vue'
 
 const auth = useAuthService()
 const readingSettingsStore = useReadingSettingsStore()
+const notificationsStore = useNotificationsStore()
 const router = useRouter()
 const route = useRoute()
 const isMenuOpen = ref(false)
@@ -166,6 +177,16 @@ const toggleTheme = () => {
 onMounted(() => {
   readingSettingsStore.initialize()
 })
+
+watch(
+  () => auth.isAuthenticated.value,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      notificationsStore.fetchInbox()
+    }
+  },
+  { immediate: true },
+)
 
 const user = computed(() => auth.user.value)
 const isAuthenticated = computed(() => auth.isAuthenticated.value)
@@ -262,6 +283,20 @@ onUnmounted(() => {
   cursor: pointer;
   color: var(--text-primary);
   transition: all 0.2s ease;
+}
+
+.notification-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.notification-link:hover {
+  background: var(--primary-light);
 }
 
 .auth-button:hover {
