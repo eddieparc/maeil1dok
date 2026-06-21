@@ -135,6 +135,9 @@ jobs:
       - name: Account tests
         run: python manage.py test accounts
 
+      - name: Todos certification tests
+        run: python manage.py test todos.test_certification_api
+
   deployment-config-ci:
     needs: changes
     if: needs.changes.outputs.deployment == 'true' || needs.changes.outputs.frontend == 'true'

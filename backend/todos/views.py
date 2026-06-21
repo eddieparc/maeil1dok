@@ -258,6 +258,139 @@ def get_reading_history(request):
         logger.error(f"Error in get_reading_history: {str(e)}", exc_info=True)
         return Response({'error': '요청 처리 중 오류가 발생했습니다.'}, status=500)
 
+MAX_DB_BIGINT = 9223372036854775807
+
+
+def parse_positive_int_param(request, name):
+    raw_value = request.query_params.get(name)
+    if raw_value in (None, ''):
+        return None, None
+    try:
+        parsed_value = int(raw_value)
+    except (TypeError, ValueError):
+        return None, Response({
+            'success': False,
+            'error': f'{name}는 숫자여야 합니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    if parsed_value < 1:
+        return None, Response({
+            'success': False,
+            'error': f'{name}는 1 이상이어야 합니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    if parsed_value > MAX_DB_BIGINT:
+        return None, Response({
+            'success': False,
+            'error': f'{name}가 허용 범위를 벗어났습니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+    return parsed_value, None
+
+
+def format_schedule_range(schedule):
+    if schedule.start_chapter == schedule.end_chapter:
+        return f'{schedule.book} {schedule.start_chapter}장'
+    return f'{schedule.book} {schedule.start_chapter}-{schedule.end_chapter}장'
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def certification_progress(request):
+    plan_id, error_response = parse_positive_int_param(request, 'plan_id')
+    if error_response:
+        return error_response
+
+    schedule_id, error_response = parse_positive_int_param(request, 'schedule_id')
+    if error_response:
+        return error_response
+
+    subscriptions = PlanSubscription.objects.filter(
+        user=request.user,
+        is_active=True,
+    ).select_related('plan').order_by('id')
+    if plan_id:
+        subscriptions = subscriptions.filter(plan_id=plan_id)
+
+    subscription = subscriptions.first()
+    if not subscription:
+        return Response({
+            'success': False,
+            'error': '활성 구독 중인 플랜이 없습니다.',
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    selected_schedule = None
+    if schedule_id:
+        selected_schedule = DailyBibleSchedule.objects.filter(id=schedule_id).first()
+        if not selected_schedule or selected_schedule.plan_id != subscription.plan_id:
+            return Response({
+                'success': False,
+                'error': '선택한 스케줄이 플랜에 속하지 않습니다.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    schedules = DailyBibleSchedule.objects.filter(plan=subscription.plan)
+    total_schedules = schedules.count()
+    end_date = schedules.order_by('-date').values_list('date', flat=True).first()
+    progress = UserBibleProgress.objects.filter(
+        subscription=subscription,
+        is_completed=True,
+    ).select_related('schedule').order_by('-completed_at', '-schedule__date', '-id')
+    completed_schedules = progress.count()
+    target_progress = (
+        progress.filter(schedule=selected_schedule).first()
+        if selected_schedule
+        else progress.first()
+    )
+    target_schedule = target_progress.schedule if target_progress else None
+    latest_completed_at = None
+    if target_progress and target_progress.completed_at:
+        completed_at = target_progress.completed_at
+        latest_completed_at = (
+            localtime(completed_at).isoformat()
+            if timezone.is_aware(completed_at)
+            else completed_at.isoformat()
+        )
+    completion_rate = round((completed_schedules / total_schedules) * 100, 2) if total_schedules else 0
+    if completed_schedules == 0:
+        progress_status = 'no_progress'
+    elif total_schedules and completed_schedules >= total_schedules:
+        progress_status = 'completed'
+    else:
+        progress_status = 'in_progress'
+
+    profile = request.user.profile
+    reading_range = format_schedule_range(target_schedule) if target_schedule else ''
+    date_label = target_schedule.date.isoformat() if target_schedule else ''
+
+    return Response({
+        'success': True,
+        'user': {
+            'id': request.user.id,
+            'nickname': request.user.nickname,
+        },
+        'plan': {
+            'id': subscription.plan.id,
+            'name': subscription.plan.name,
+        },
+        'period': {
+            'startDate': subscription.start_date.isoformat(),
+            'endDate': (end_date or subscription.start_date).isoformat(),
+        },
+        'progress': {
+            'totalSchedules': total_schedules,
+            'completedSchedules': completed_schedules,
+            'completionRate': completion_rate,
+            'currentStreak': profile.current_streak,
+            'totalCompletedDays': profile.total_completed_days,
+            'latestCompletedAt': latest_completed_at,
+            'status': progress_status,
+        },
+        'card': {
+            'title': '오늘 통독 완료',
+            'subtitle': '오늘도 말씀을 읽었습니다',
+            'readingRange': reading_range,
+            'dateLabel': date_label,
+            'footer': '매일 말씀을 읽는 작은 습관',
+        },
+    })
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_schedules_for_month(request):
