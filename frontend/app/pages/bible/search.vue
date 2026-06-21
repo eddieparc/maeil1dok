@@ -1,6 +1,17 @@
 <template>
   <BibleSubpageLayout title="본문 검색">
     <section class="search-panel">
+      <div class="search-hero">
+        <span class="search-kicker">Bible Search</span>
+        <h2>성경 본문을 빠르게 찾아보세요</h2>
+        <p>단어를 입력하면 역본과 책별로 정리해서 보여드립니다.</p>
+        <div class="search-tips" aria-label="검색 도움말">
+          <span>두 글자 이상</span>
+          <span>/ 키로 바로 입력</span>
+          <span>결과 탭하면 해당 절로 이동</span>
+        </div>
+      </div>
+
       <div class="search-controls">
         <label class="version-select">
           <select v-model="version" aria-label="역본 선택">
@@ -31,17 +42,21 @@
           </button>
         </div>
       </div>
-      <p v-if="message" class="message">{{ message }}</p>
+      <p v-if="message" class="message error-message">{{ message }}</p>
       <p v-else-if="resultSummary" class="message">{{ resultSummary }}</p>
     </section>
 
     <section class="results-section" aria-live="polite">
-      <p v-if="!hasSearched" class="empty-state">
-        검색어를 입력하세요.
-      </p>
-      <p v-else-if="results.length === 0 && !isSearching" class="empty-state">
-        검색 결과가 없습니다.
-      </p>
+      <div v-if="!hasSearched" class="empty-state">
+        <SearchIcon :size="30" aria-hidden="true" />
+        <strong>찾고 싶은 말씀의 단어를 입력하세요</strong>
+        <span>예: 사랑, 믿음, 평안</span>
+      </div>
+      <div v-else-if="results.length === 0 && !isSearching" class="empty-state">
+        <SearchIcon :size="30" aria-hidden="true" />
+        <strong>검색 결과가 없습니다</strong>
+        <span>다른 단어나 전체 역본으로 다시 검색해보세요.</span>
+      </div>
       <div
         v-for="group in groupedResults"
         :key="group.book"
