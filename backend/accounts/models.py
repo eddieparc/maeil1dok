@@ -319,6 +319,23 @@ class UserReadingSettings(models.Model):
         help_text='통독모드 자동 완료'
     )
 
+    daily_reading_reminder = models.BooleanField(
+        default=True,
+        help_text='매일 읽기 알림'
+    )
+    weekly_progress_summary = models.BooleanField(
+        default=False,
+        help_text='주간 진행 요약 알림'
+    )
+    service_notice = models.BooleanField(
+        default=True,
+        help_text='서비스 공지 알림'
+    )
+    reminder_time = models.TimeField(
+        default='07:00',
+        help_text='읽기 알림 시간'
+    )
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -89,13 +89,13 @@ export default defineNuxtConfig({
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8019',
       bibleCacheUrl: process.env.NUXT_PUBLIC_BIBLE_CACHE_URL || '',  // 성경 캐시 서버 URL (failback용)
-      KAKAO_CLIENT_ID: process.env.KAKAO_CLIENT_ID,
-      kakaoJsKey: process.env.KAKAO_JS_KEY,
-      KAKAO_REDIRECT_URI: process.env.KAKAO_REDIRECT_URI,
-      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-      GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
-      APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID,
-      APPLE_REDIRECT_URI: process.env.APPLE_REDIRECT_URI || 'https://maeil1dok.app/auth/apple/callback',
+      KAKAO_CLIENT_ID: process.env.NUXT_PUBLIC_KAKAO_CLIENT_ID || process.env.KAKAO_CLIENT_ID,
+      kakaoJsKey: process.env.NUXT_PUBLIC_KAKAO_JS_KEY || process.env.KAKAO_JS_KEY,
+      KAKAO_REDIRECT_URI: process.env.NUXT_PUBLIC_KAKAO_REDIRECT_URI || process.env.KAKAO_REDIRECT_URI,
+      GOOGLE_CLIENT_ID: process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_REDIRECT_URI: process.env.NUXT_PUBLIC_GOOGLE_REDIRECT_URI || process.env.GOOGLE_REDIRECT_URI,
+      APPLE_CLIENT_ID: process.env.NUXT_PUBLIC_APPLE_CLIENT_ID || process.env.APPLE_CLIENT_ID,
+      APPLE_REDIRECT_URI: process.env.NUXT_PUBLIC_APPLE_REDIRECT_URI || process.env.APPLE_REDIRECT_URI || 'https://maeil1dok.app/auth/apple/callback',
       sentry: {
         dsn: process.env.NUXT_PUBLIC_SENTRY_DSN || '',
         environment: process.env.NUXT_PUBLIC_SENTRY_ENVIRONMENT,
