@@ -21,6 +21,7 @@ urlpatterns = [
     path('reading/', views.update_bible_progress, name='update_bible_progress'),
     path('reading/update/', views.update_bible_progress, name='update_bible_progress'),
     path('reading/history/', views.get_reading_history, name='progress-history'),
+    path('certification/progress/', views.certification_progress, name='certification-progress'),
 
     path('plans/', views.get_available_plans, name='available-plans'),
     path('plans/user/', views.get_user_plans, name='user-plans'),
