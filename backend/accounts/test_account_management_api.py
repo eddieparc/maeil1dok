@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
@@ -7,7 +8,8 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.authentication import InactiveUserTokenError, get_tokens_for_user
-from accounts.models import SocialAccount
+from accounts.models import SocialAccount, UserReadingSettings
+from accounts.views import generate_social_merge_token, generate_oauth_link_state
 
 User = get_user_model()
 
@@ -231,3 +233,334 @@ class AccountManagementApiTests(TestCase):
                     provider="kakao",
                     provider_id="kakao-unique-2",
                 )
+
+    def test_update_account_email_rejects_duplicate_active_email(self):
+        User.objects.create_user(
+            username="email-owner",
+            nickname="기존이메일독자",
+            email="taken@example.com",
+            password="owner-pass-123",
+            has_usable_password_flag=True,
+        )
+        user = User.objects.create_user(
+            username="email-change-reader",
+            nickname="이메일변경독자",
+            email="change@example.com",
+            password="change-pass-123",
+            has_usable_password_flag=True,
+            email_verified=True,
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.patch(
+            "/api/v1/auth/account-email/",
+            {"email": "taken@example.com", "current_password": "change-pass-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("이미 사용 중", response.data["error"])
+        user.refresh_from_db()
+        self.assertEqual(user.email, "change@example.com")
+        self.assertTrue(user.email_verified)
+
+    def test_update_account_email_changes_email_and_marks_unverified(self):
+        user = User.objects.create_user(
+            username="email-update-reader",
+            nickname="이메일수정독자",
+            email="old@example.com",
+            password="update-pass-123",
+            has_usable_password_flag=True,
+            email_verified=True,
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.patch(
+            "/api/v1/auth/account-email/",
+            {"email": "new@example.com", "current_password": "update-pass-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user.refresh_from_db()
+        self.assertEqual(user.email, "new@example.com")
+        self.assertFalse(user.email_verified)
+        self.assertEqual(response.data["email"], "new@example.com")
+        self.assertFalse(response.data["email_verified"])
+
+    def test_update_account_email_requires_current_password_for_password_user(self):
+        user = User.objects.create_user(
+            username="email-password-reader",
+            nickname="이메일비번독자",
+            email="password-old@example.com",
+            password="email-pass-123",
+            has_usable_password_flag=True,
+            email_verified=True,
+        )
+        self.client.force_authenticate(user=user)
+
+        missing_response = self.client.patch(
+            "/api/v1/auth/account-email/",
+            {"email": "password-new@example.com"},
+            format="json",
+        )
+        wrong_response = self.client.patch(
+            "/api/v1/auth/account-email/",
+            {"email": "password-new@example.com", "current_password": "wrong-pass-123"},
+            format="json",
+        )
+
+        self.assertEqual(missing_response.status_code, 400)
+        self.assertEqual(wrong_response.status_code, 400)
+        user.refresh_from_db()
+        self.assertEqual(user.email, "password-old@example.com")
+        self.assertTrue(user.email_verified)
+
+    def test_merge_password_account_by_email_with_fresh_password_proof(self):
+        current_user = User.objects.create_user(
+            username="merge-current",
+            nickname="현재병합독자",
+            email="current-merge@example.com",
+            password="current-pass-123",
+            has_usable_password_flag=True,
+        )
+        target_user = User.objects.create_user(
+            username="legacy-reader-id",
+            nickname="레거시병합독자",
+            email="legacy-merge@example.com",
+            password="legacy-pass-123",
+            has_usable_password_flag=True,
+            token_version=5,
+        )
+        SocialAccount.objects.create(
+            user=target_user,
+            provider="google",
+            provider_id="legacy-google-1",
+            email="legacy-google@example.com",
+        )
+        self.client.force_authenticate(user=current_user)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": "legacy-merge@example.com",
+                "target_password": "legacy-pass-123",
+                "keep_account": "current",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        target_user.refresh_from_db()
+        self.assertFalse(target_user.is_active)
+        self.assertEqual(target_user.merged_into_id, current_user.id)
+        self.assertEqual(target_user.token_version, 6)
+        self.assertTrue(
+            SocialAccount.objects.filter(
+                user=current_user,
+                provider="google",
+                provider_id="legacy-google-1",
+            ).exists()
+        )
+
+    def test_merge_password_account_keep_other_returns_tokens_and_deactivates_current(self):
+        current_user = User.objects.create_user(
+            username="merge-current-delete",
+            nickname="현재삭제병합독자",
+            email="current-delete@example.com",
+            password="current-pass-123",
+            has_usable_password_flag=True,
+            token_version=1,
+        )
+        target_user = User.objects.create_user(
+            username="merge-keep-other",
+            nickname="유지대상병합독자",
+            email="keep-other@example.com",
+            password="target-pass-123",
+            has_usable_password_flag=True,
+        )
+        self.client.force_authenticate(user=current_user)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": "merge-keep-other",
+                "target_password": "target-pass-123",
+                "keep_account": "other",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["user"]["id"], target_user.id)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        current_user.refresh_from_db()
+        self.assertFalse(current_user.is_active)
+        self.assertEqual(current_user.merged_into_id, target_user.id)
+        self.assertEqual(current_user.token_version, 2)
+
+    def test_merge_password_account_rejects_wrong_password(self):
+        current_user = User.objects.create_user(
+            username="merge-wrong-current",
+            nickname="현재오류병합독자",
+            email="merge-wrong-current@example.com",
+            password="current-pass-123",
+            has_usable_password_flag=True,
+        )
+        target_user = User.objects.create_user(
+            username="merge-wrong-target",
+            nickname="대상오류병합독자",
+            email="merge-wrong-target@example.com",
+            password="target-pass-123",
+            has_usable_password_flag=True,
+        )
+        self.client.force_authenticate(user=current_user)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": "merge-wrong-target",
+                "target_password": "wrong-pass-123",
+                "keep_account": "current",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("비밀번호", response.data["error"])
+        target_user.refresh_from_db()
+        self.assertTrue(target_user.is_active)
+
+    def test_link_social_conflict_returns_signed_merge_token(self):
+        current_user = User.objects.create_user(
+            username="social-current",
+            nickname="소셜현재독자",
+            email="social-current@example.com",
+        )
+        other_user = User.objects.create_user(
+            username="social-other",
+            nickname="소셜기존독자",
+            email="social-other@example.com",
+        )
+        SocialAccount.objects.create(
+            user=other_user,
+            provider="google",
+            provider_id="google-conflict-1",
+            email="other-google@example.com",
+        )
+        self.client.force_authenticate(user=current_user)
+
+        with patch("accounts.views.get_google_user_info") as get_google_user_info:
+            get_google_user_info.return_value = {
+                "sub": "google-conflict-1",
+                "email": "other-google@example.com",
+                "picture": "https://example.com/profile.png",
+            }
+            response = self.client.post(
+                "/api/v1/auth/link-social/",
+                {
+                    "provider": "google",
+                    "code": "single-use-code",
+                    "state": generate_oauth_link_state(current_user),
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue(response.data["can_merge"])
+        self.assertIsInstance(response.data["merge_token"], str)
+        self.assertNotIn("single-use-code", response.data["merge_token"])
+
+    def test_merge_social_account_consumes_merge_token_without_reusing_oauth_code(self):
+        current_user = User.objects.create_user(
+            username="token-merge-current",
+            nickname="토큰현재독자",
+            email="token-current@example.com",
+        )
+        other_user = User.objects.create_user(
+            username="token-merge-other",
+            nickname="토큰기존독자",
+            email="token-other@example.com",
+            token_version=2,
+        )
+        SocialAccount.objects.create(
+            user=other_user,
+            provider="google",
+            provider_id="google-token-1",
+            email="token-google@example.com",
+        )
+        merge_token = generate_social_merge_token(
+            current_user,
+            "google",
+            "google-token-1",
+            "token-google@example.com",
+            None,
+            {"sub": "google-token-1", "email": "token-google@example.com"},
+        )
+        self.client.force_authenticate(user=current_user)
+
+        with patch("accounts.views.get_google_user_info") as get_google_user_info:
+            response = self.client.post(
+                "/api/v1/auth/merge-accounts/",
+                {"merge_token": merge_token, "keep_account": "current"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        get_google_user_info.assert_not_called()
+        other_user.refresh_from_db()
+        self.assertFalse(other_user.is_active)
+        self.assertEqual(other_user.merged_into_id, current_user.id)
+        self.assertEqual(other_user.token_version, 3)
+
+    def test_merge_social_account_rejects_invalid_merge_token(self):
+        current_user = User.objects.create_user(
+            username="invalid-token-current",
+            nickname="잘못된토큰현재독자",
+            email="invalid-token-current@example.com",
+        )
+        self.client.force_authenticate(user=current_user)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {"merge_token": "not-a-valid-signed-token", "keep_account": "current"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("병합", response.data["error"])
+
+    def test_account_notification_settings_round_trip(self):
+        user = User.objects.create_user(
+            username="notification-reader",
+            nickname="알림설정독자",
+            email="notification@example.com",
+        )
+        self.client.force_authenticate(user=user)
+
+        get_response = self.client.get("/api/v1/auth/notification-settings/")
+        self.assertEqual(get_response.status_code, 200)
+        self.assertTrue(get_response.data["daily_reading_reminder"])
+        self.assertEqual(get_response.data["reminder_time"], "07:00")
+
+        patch_response = self.client.patch(
+            "/api/v1/auth/notification-settings/",
+            {
+                "daily_reading_reminder": False,
+                "weekly_progress_summary": True,
+                "service_notice": False,
+                "reminder_time": "21:30",
+            },
+            format="json",
+        )
+
+        self.assertEqual(patch_response.status_code, 200)
+        settings = UserReadingSettings.objects.get(user=user)
+        self.assertFalse(settings.daily_reading_reminder)
+        self.assertTrue(settings.weekly_progress_summary)
+        self.assertFalse(settings.service_notice)
+        self.assertEqual(settings.reminder_time.strftime("%H:%M"), "21:30")

@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password as validate_django_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User, UserProfile, Follow, UserAchievement
+from .models import User, UserProfile, Follow, UserAchievement, UserReadingSettings
 from todos.models import UserBibleProgress
 import logging
 
@@ -285,3 +285,38 @@ class LinkedAccountsSerializer(serializers.Serializer):
     has_password = serializers.BooleanField()
     email = serializers.EmailField(allow_null=True)
     linked_accounts = serializers.ListField(child=serializers.DictField())
+
+
+class AccountEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    current_password = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        user = self.context['user']
+        if User.objects.filter(email__iexact=email, is_active=True).exclude(id=user.id).exists():
+            raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
+        return email
+
+    def validate(self, data):
+        user = self.context['user']
+        if user.has_password_set():
+            current_password = data.get('current_password')
+            if not current_password:
+                raise serializers.ValidationError({"current_password": "현재 비밀번호를 입력해주세요."})
+            if not user.check_password(current_password):
+                raise serializers.ValidationError({"current_password": "현재 비밀번호가 올바르지 않습니다."})
+        return data
+
+
+class NotificationSettingsSerializer(serializers.ModelSerializer):
+    reminder_time = serializers.TimeField(format='%H:%M', input_formats=['%H:%M'])
+
+    class Meta:
+        model = UserReadingSettings
+        fields = [
+            'daily_reading_reminder',
+            'weekly_progress_summary',
+            'service_notice',
+            'reminder_time',
+        ]

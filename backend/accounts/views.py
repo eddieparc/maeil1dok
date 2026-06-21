@@ -9,10 +9,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import (
     RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer, 
     SocialLoginSerializer, EmailRegisterSerializer, LinkedAccountsSerializer,
-    SetPasswordSerializer, PasswordResetConfirmSerializer
+    SetPasswordSerializer, PasswordResetConfirmSerializer,
+    AccountEmailSerializer, NotificationSettingsSerializer
 )
 from .authentication import clear_auth_cookies, get_tokens_for_user, set_auth_cookies
-from .models import SocialAccount, EmailVerificationToken, PasswordResetToken
+from .models import SocialAccount, EmailVerificationToken, PasswordResetToken, UserReadingSettings
 from .email_utils import send_verification_email, send_password_reset_email, send_welcome_email
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
@@ -37,6 +38,8 @@ SIGNUP_TOKEN_SALT = 'social-signup-token'
 SIGNUP_TOKEN_MAX_AGE = 600  # 10분
 OAUTH_LINK_STATE_SALT = 'oauth-link-state'
 OAUTH_LINK_STATE_MAX_AGE = 600
+SOCIAL_MERGE_TOKEN_SALT = 'social-merge-token'
+SOCIAL_MERGE_TOKEN_MAX_AGE = 600
 
 def generate_signup_token(provider, provider_id):
     """소셜 로그인 검증 완료 후 회원가입용 서명 토큰 생성"""
@@ -70,6 +73,37 @@ def verify_oauth_link_state(state, user):
     except (signing.BadSignature, signing.SignatureExpired):
         return False
     return data.get('action') == 'link' and data.get('user_id') == user.id
+
+
+def generate_social_merge_token(user, provider, provider_id, email, profile_image, extra_data):
+    return signing.dumps(
+        {
+            'action': 'merge',
+            'user_id': user.id,
+            'provider': provider,
+            'provider_id': str(provider_id),
+            'email': email,
+            'profile_image': profile_image,
+            'extra_data': extra_data or {},
+        },
+        salt=SOCIAL_MERGE_TOKEN_SALT,
+    )
+
+
+def verify_social_merge_token(token, user):
+    if not token:
+        return None
+    try:
+        data = signing.loads(
+            token,
+            salt=SOCIAL_MERGE_TOKEN_SALT,
+            max_age=SOCIAL_MERGE_TOKEN_MAX_AGE,
+        )
+    except (signing.BadSignature, signing.SignatureExpired):
+        return None
+    if data.get('action') != 'merge' or data.get('user_id') != user.id:
+        return None
+    return data
 
 # Create your views here.
 
@@ -898,6 +932,55 @@ def get_linked_accounts(request):
     })
 
 
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def account_email(request):
+    user = request.user
+    if request.method == 'GET':
+        return Response({
+            'email': user.email,
+            'email_verified': user.email_verified,
+        })
+
+    serializer = AccountEmailSerializer(data=request.data, context={'user': user})
+    if not serializer.is_valid():
+        return Response({'error': _first_serializer_error(serializer.errors), 'errors': serializer.errors}, status=400)
+
+    new_email = serializer.validated_data['email']
+    if (user.email or '').lower() == new_email:
+        return Response({
+            'success': True,
+            'email': user.email,
+            'email_verified': user.email_verified,
+            'message': '이메일이 유지되었습니다.',
+        })
+
+    user.email = new_email
+    user.email_verified = False
+    user.save(update_fields=['email', 'email_verified'])
+    logger.info(f"계정 이메일 변경: user_id={user.id}")
+    return Response({
+        'success': True,
+        'email': user.email,
+        'email_verified': user.email_verified,
+        'message': '이메일이 변경되었습니다.',
+    })
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def notification_settings(request):
+    settings_obj, _ = UserReadingSettings.objects.get_or_create(user=request.user)
+    if request.method == 'GET':
+        return Response(NotificationSettingsSerializer(settings_obj).data)
+
+    serializer = NotificationSettingsSerializer(settings_obj, data=request.data, partial=True)
+    if not serializer.is_valid():
+        return Response({'error': _first_serializer_error(serializer.errors), 'errors': serializer.errors}, status=400)
+    serializer.save()
+    return Response(serializer.data)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def issue_oauth_link_state(request):
@@ -984,6 +1067,14 @@ def link_social_account(request):
                 return Response({
                     'error': '이 소셜 계정은 다른 사용자에게 연동되어 있습니다.',
                     'can_merge': True,
+                    'merge_token': generate_social_merge_token(
+                        user,
+                        provider,
+                        provider_id,
+                        email,
+                        profile_image,
+                        social_info,
+                    ),
                     'current_account': {
                         'id': user.id,
                         'nickname': user.nickname,
@@ -1121,17 +1212,91 @@ def merge_accounts(request):
     삭제될 계정은 30일 후 삭제 예정으로 표시
     """
     user = request.user
+    merge_type = request.data.get('merge_type', 'social')
     provider = request.data.get('provider')
     code = request.data.get('code')
     id_token = request.data.get('id_token')
+    merge_token = request.data.get('merge_token')
     keep_account = request.data.get('keep_account', 'current')  # 'current' or 'other'
-    
-    if not provider or (provider == 'apple' and not id_token) or (provider != 'apple' and not code):
-        return Response({'error': '소셜 계정 정보가 필요합니다.'}, status=400)
-    
+
     if keep_account not in ['current', 'other']:
         return Response({'error': 'keep_account는 current 또는 other여야 합니다.'}, status=400)
-    
+
+    if merge_token:
+        token_data = verify_social_merge_token(merge_token, user)
+        if not token_data:
+            return Response({'error': '유효하지 않거나 만료된 병합 요청입니다.'}, status=400)
+        provider = token_data.get('provider')
+        provider_id = token_data.get('provider_id')
+        email = token_data.get('email')
+        profile_image = token_data.get('profile_image')
+        social_info = token_data.get('extra_data') or {}
+        other_social = SocialAccount.objects.filter(
+            provider=provider,
+            provider_id=provider_id,
+        ).select_related('user').first()
+        if not other_social:
+            return Response({'error': '병합할 계정을 찾을 수 없습니다.'}, status=404)
+        other_user = other_social.user
+        if other_user.id == user.id:
+            return Response({'error': '같은 계정입니다.'}, status=400)
+        if not other_user.is_active:
+            return Response({'error': '병합 대상 계정이 비활성화되어 있습니다.'}, status=400)
+
+        keep_user = user if keep_account == 'current' else other_user
+        delete_user = other_user if keep_account == 'current' else user
+        result = _merge_user_records(
+            keep_user,
+            delete_user,
+            provider=provider,
+            provider_id=provider_id,
+            email=email,
+            profile_image=profile_image,
+            extra_data=social_info,
+        )
+        if keep_account == 'other':
+            tokens = get_tokens_for_user(keep_user)
+            result['access'] = tokens['access']
+            result['refresh'] = tokens['refresh']
+            result['user'] = UserSerializer(keep_user).data
+            response = Response(result)
+            set_auth_cookies(response, tokens['access'], tokens['refresh'])
+            return response
+        return Response(result)
+
+    if merge_type == 'password':
+        target_identifier = (request.data.get('target_identifier') or '').strip()
+        target_password = request.data.get('target_password') or ''
+        if not target_identifier or not target_password:
+            return Response({'error': '병합할 계정 아이디/이메일과 비밀번호를 입력해주세요.'}, status=400)
+
+        other_user = User.objects.filter(
+            Q(username__iexact=target_identifier) | Q(email__iexact=target_identifier),
+            is_active=True,
+        ).first()
+        if not other_user:
+            return Response({'error': '병합할 계정을 찾을 수 없습니다.'}, status=404)
+        if other_user.id == user.id:
+            return Response({'error': '같은 계정입니다.'}, status=400)
+        if not other_user.has_password_set() or not other_user.check_password(target_password):
+            return Response({'error': '대상 계정 비밀번호가 올바르지 않습니다.'}, status=400)
+
+        keep_user = user if keep_account == 'current' else other_user
+        delete_user = other_user if keep_account == 'current' else user
+        result = _merge_user_records(keep_user, delete_user)
+        if keep_account == 'other':
+            tokens = get_tokens_for_user(keep_user)
+            result['access'] = tokens['access']
+            result['refresh'] = tokens['refresh']
+            result['user'] = UserSerializer(keep_user).data
+            response = Response(result)
+            set_auth_cookies(response, tokens['access'], tokens['refresh'])
+            return response
+        return Response(result)
+
+    if not provider or (provider == 'apple' and not id_token) or (provider != 'apple' and not code):
+        return Response({'error': '소셜 계정 정보가 필요합니다.'}, status=400)
+
     try:
         # 소셜 계정 정보 가져오기
         if provider == 'kakao':
@@ -1175,51 +1340,17 @@ def merge_accounts(request):
         if not other_user.is_active:
             return Response({'error': '병합 대상 계정이 비활성화되어 있습니다.'}, status=400)
         
-        # 어느 계정을 유지할지 결정
-        if keep_account == 'current':
-            keep_user = user
-            delete_user = other_user
-        else:
-            keep_user = other_user
-            delete_user = user
-        
-        with transaction.atomic():
-            for social_account in SocialAccount.objects.filter(user=delete_user):
-                if SocialAccount.objects.filter(user=keep_user, provider=social_account.provider).exists():
-                    social_account.delete()
-                else:
-                    social_account.user = keep_user
-                    social_account.save(update_fields=['user', 'updated_at'])
-            
-            # 새로 연결하려던 소셜 계정이 이미 있으면 스킵, 없으면 생성
-            if not SocialAccount.objects.filter(user=keep_user, provider=provider).exists():
-                SocialAccount.objects.create(
-                    user=keep_user,
-                    provider=provider,
-                    provider_id=provider_id,
-                    email=email,
-                    profile_image=profile_image,
-                    extra_data=social_info
-                )
-            
-            # 삭제될 계정 30일 후 삭제 예정으로 표시
-            delete_user.is_active = False
-            delete_user.scheduled_deletion_at = timezone.now() + timedelta(days=30)
-            delete_user.merged_into = keep_user
-            delete_user.token_version += 1
-            delete_user.username = f"merged_{delete_user.id}_{timezone.now().strftime('%Y%m%d%H%M%S')}"
-            delete_user.nickname = f"삭제예정_{delete_user.id}"
-            delete_user.save()
-            
-            logger.info(f"계정 병합 완료: 유지={keep_user.id}, 삭제예정={delete_user.id}")
-        
-        # 유지된 계정이 현재 로그인 계정이 아닌 경우 새 토큰 발급
-        result = {
-            'success': True,
-            'message': '계정이 병합되었습니다. 삭제될 계정은 30일 후 완전히 삭제됩니다.',
-            'kept_user_id': keep_user.id,
-            'deleted_user_id': delete_user.id,
-        }
+        keep_user = user if keep_account == 'current' else other_user
+        delete_user = other_user if keep_account == 'current' else user
+        result = _merge_user_records(
+            keep_user,
+            delete_user,
+            provider=provider,
+            provider_id=provider_id,
+            email=email,
+            profile_image=profile_image,
+            extra_data=social_info,
+        )
         
         if keep_account == 'other':
             # 다른 계정을 선택한 경우 새 토큰 발급
@@ -1271,6 +1402,57 @@ def _create_default_subscription(user):
         logger.info(f"사용자 {user.nickname}의 기본 플랜 구독 생성됨")
     else:
         logger.warning("기본 플랜이 설정되어 있지 않음")
+
+
+def _first_serializer_error(errors):
+    if isinstance(errors, dict):
+        for value in errors.values():
+            return _first_serializer_error(value)
+    if isinstance(errors, list) and errors:
+        return str(errors[0])
+    return str(errors)
+
+
+def _merge_user_records(keep_user, delete_user, provider=None, provider_id=None, email=None, profile_image=None, extra_data=None):
+    with transaction.atomic():
+        for social_account in SocialAccount.objects.select_for_update().filter(user=delete_user):
+            if SocialAccount.objects.filter(user=keep_user, provider=social_account.provider).exists():
+                social_account.delete()
+                continue
+            social_account.user = keep_user
+            social_account.save(update_fields=['user', 'updated_at'])
+
+        if provider and provider_id and not SocialAccount.objects.filter(user=keep_user, provider=provider).exists():
+            SocialAccount.objects.create(
+                user=keep_user,
+                provider=provider,
+                provider_id=provider_id,
+                email=email,
+                profile_image=profile_image,
+                extra_data=extra_data or {},
+            )
+
+        if not keep_user.email and delete_user.email:
+            keep_user.email = delete_user.email
+            keep_user.email_verified = delete_user.email_verified
+            keep_user.save(update_fields=['email', 'email_verified'])
+
+        delete_user.is_active = False
+        delete_user.scheduled_deletion_at = timezone.now() + timedelta(days=30)
+        delete_user.merged_into = keep_user
+        delete_user.token_version += 1
+        delete_user.username = f"merged_{delete_user.id}_{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        delete_user.nickname = f"삭제예정_{delete_user.id}"
+        delete_user.save()
+
+        logger.info(f"계정 병합 완료: 유지={keep_user.id}, 삭제예정={delete_user.id}")
+
+    return {
+        'success': True,
+        'message': '계정이 병합되었습니다. 삭제될 계정은 30일 후 완전히 삭제됩니다.',
+        'kept_user_id': keep_user.id,
+        'deleted_user_id': delete_user.id,
+    }
 
 
 def _restore_scheduled_deletion_account(user, nickname=None):

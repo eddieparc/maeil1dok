@@ -126,6 +126,12 @@ jobs:
       - name: Account migrations
         run: python manage.py migrate --noinput
 
+      - name: Migration drift check
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Django system checks
+        run: python manage.py check --fail-level WARNING
+
       - name: Account tests
         run: python manage.py test accounts
 

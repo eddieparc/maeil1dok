@@ -143,6 +143,7 @@ const handleLinkSocialAccount = async (provider: string, code: string, state: st
         provider,
         code,
         id_token: idToken || undefined,
+        merge_token: getString(errorData, 'merge_token') || undefined,
         current_account: errorData.current_account,
         other_account: errorData.other_account
       }))

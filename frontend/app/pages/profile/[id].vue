@@ -41,6 +41,13 @@
                 프로필 편집
               </button>
               <button
+                v-if="isOwnProfile"
+                @click="navigateToAccountSettings"
+                class="btn-action btn-secondary"
+              >
+                계정 설정
+              </button>
+              <button
                 v-else-if="isAuthenticated"
                 @click="toggleFollow"
                 :class="[
@@ -233,6 +240,10 @@ const avatarError = ref(false)
 
 const handleAvatarError = () => {
   avatarError.value = true
+}
+
+const navigateToAccountSettings = () => {
+  navigateTo('/account/settings')
 }
 
 // 로딩/에러 상태
