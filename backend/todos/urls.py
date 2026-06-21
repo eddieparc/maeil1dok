@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views, scoreboard_views, group_views, calendar_views, catchup_views
+from . import views, scoreboard_views, group_views, calendar_views, catchup_views, notification_views
 
 router = DefaultRouter()
 router.register(r'bible-plans', views.BibleReadingPlanViewSet)
@@ -22,6 +22,11 @@ urlpatterns = [
     path('reading/update/', views.update_bible_progress, name='update_bible_progress'),
     path('reading/history/', views.get_reading_history, name='progress-history'),
     path('certification/progress/', views.certification_progress, name='certification-progress'),
+
+    path('notifications/', notification_views.notification_inbox, name='notification-inbox'),
+    path('notifications/settings/', notification_views.notification_settings, name='notification-settings'),
+    path('notifications/<int:notification_id>/read/', notification_views.mark_notification_read, name='notification-read'),
+    path('notifications/mark-all-read/', notification_views.mark_all_notifications_read, name='notifications-mark-all-read'),
 
     path('plans/', views.get_available_plans, name='available-plans'),
     path('plans/user/', views.get_user_plans, name='user-plans'),

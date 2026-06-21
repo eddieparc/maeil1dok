@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import { after, before, beforeEach, test } from 'node:test';
-
-const require = createRequire(import.meta.url);
-const esbuild = require('../node_modules/nitropack/node_modules/esbuild');
+import * as esbuild from 'esbuild';
 
 let shareModule;
 let clickedDownloads;

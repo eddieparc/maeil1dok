@@ -19,6 +19,10 @@ from django.utils.dateparse import parse_date
 import re
 from io import BytesIO
 from django.utils.timezone import localtime
+from .services.notifications import (
+    on_commit_notify_hasena_completed,
+    on_commit_notify_reading_completed,
+)
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -168,6 +172,7 @@ def update_bible_progress(request):
         # 4. 진도 업데이트 또는 생성 (bulk 연산으로 최적화)
         is_completed = action == 'complete'
         now = timezone.now()
+        completed_schedules = list(daily_schedules)
         with transaction.atomic():
             existing_qs = UserBibleProgress.objects.filter(
                 subscription=subscription,
@@ -198,6 +203,9 @@ def update_bible_progress(request):
             ]
             if new_progress:
                 UserBibleProgress.objects.bulk_create(new_progress, ignore_conflicts=True)
+
+            if is_completed:
+                on_commit_notify_reading_completed(request.user, completed_schedules)
 
         return Response({
             'success': True,
@@ -2451,6 +2459,8 @@ def hasena_record_update(request):
                     'is_completed': is_completed
                 }
             )
+            if record.is_completed:
+                on_commit_notify_hasena_completed(request.user, record.date)
             
             return Response({
                 'success': True,

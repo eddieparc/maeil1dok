@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from django.core.exceptions import ValidationError
+from datetime import time
 
 class BibleReadingPlan(models.Model):
     """성경 읽기 플랜"""
@@ -233,6 +234,91 @@ class HasenaSummary(models.Model):
     def __str__(self):
         date_str = self.video_date.strftime('%Y-%m-%d') if self.video_date else 'N/A'
         return f"[{date_str}] {self.video_id}"
+
+
+class NotificationSettings(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notification_settings',
+    )
+    notifications_enabled = models.BooleanField(default=True)
+    reading_reminders_enabled = models.BooleanField(default=True)
+    hasena_reminders_enabled = models.BooleanField(default=True)
+    friend_activity_enabled = models.BooleanField(default=True)
+    reading_reminder_time = models.TimeField(default=time(20, 0))
+    hasena_reminder_time = models.TimeField(default=time(7, 0))
+    timezone = models.CharField(max_length=64, default='Asia/Seoul')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['notifications_enabled', 'reading_reminders_enabled']),
+            models.Index(fields=['notifications_enabled', 'hasena_reminders_enabled']),
+            models.Index(fields=['notifications_enabled', 'friend_activity_enabled']),
+        ]
+        verbose_name = '알림 설정'
+        verbose_name_plural = '알림 설정'
+
+    def __str__(self):
+        return f"{self.user.nickname} 알림 설정"
+
+
+class Notification(models.Model):
+    TYPE_CHOICES = [
+        ('reading_reminder', '통독 리마인더'),
+        ('hasena_reminder', '하세나하시조 리마인더'),
+        ('friend_activity', '친구 활동'),
+        ('system', '시스템'),
+    ]
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sent_notifications',
+    )
+    type = models.CharField(max_length=32, choices=TYPE_CHOICES)
+    title = models.CharField(max_length=120)
+    body = models.CharField(max_length=300)
+    target_url = models.CharField(max_length=200, blank=True)
+    data = models.JSONField(default=dict, blank=True)
+    dedupe_key = models.CharField(max_length=160, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', '-created_at']),
+            models.Index(fields=['recipient', 'read_at']),
+            models.Index(fields=['dedupe_key']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['recipient', 'dedupe_key'],
+                condition=~models.Q(dedupe_key=''),
+                name='unique_notification_dedupe_per_user',
+            ),
+        ]
+        verbose_name = '알림'
+        verbose_name_plural = '알림'
+
+    def mark_read(self):
+        if self.read_at is None:
+            self.read_at = timezone.now()
+            self.save(update_fields=['read_at'])
+
+    def __str__(self):
+        return f"{self.recipient.nickname} - {self.title}"
 
 class VisitorCount(models.Model):
     """일일 방문자 수 카운터"""

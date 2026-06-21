@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import esbuild from '../node_modules/nitropack/node_modules/esbuild/lib/main.js';
+import esbuild from 'esbuild';
 
 const { transform } = esbuild;
 

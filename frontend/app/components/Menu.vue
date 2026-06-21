@@ -35,6 +35,16 @@
                     <span>공지사항</span>
                   </NuxtLink>
 
+                  <NuxtLink
+                    v-if="user"
+                    to="/notifications"
+                    class="menu-item"
+                    @click="$emit('close')"
+                  >
+                    <BellIcon :size="24" />
+                    <span>내 알림</span>
+                  </NuxtLink>
+
                   <NuxtLink to="/bible" class="menu-item" @click="$emit('close')">
                     <BookOpenIcon :size="24" />
                     <span>오늘일독</span>
@@ -119,6 +129,7 @@ import { useReadingSettingsStore } from '~/stores/readingSettings'
 import { computed } from 'vue'
 import {
   BookOpenIcon,
+  BellIcon,
   CalendarDaysIcon,
   ClipboardListIcon,
   ListIcon,
