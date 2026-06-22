@@ -12,9 +12,12 @@ from .models import (
     DailyBibleSchedule,
     HasenaRecord,
     Notification,
+    NotificationPushSubscription,
     NotificationSettings,
     PlanSubscription,
 )
+from .services.notifications import send_due_reminder_notifications
+from .services.push_notifications import PushDeliveryError, deliver_push_notification
 
 User = get_user_model()
 
@@ -212,3 +215,222 @@ class NotificationSettingsValidationTest(TestCase):
         self.assertEqual(response.status_code, 400)
         settings.refresh_from_db()
         self.assertEqual(settings.timezone, 'Asia/Seoul')
+
+
+@override_settings(ROOT_URLCONF='config.urls')
+class NotificationPushApiTest(TestCase):
+    CONFIG_URL = '/api/v1/todos/notifications/push/config/'
+    SUBSCRIPTIONS_URL = '/api/v1/todos/notifications/push/subscriptions/'
+    REMOVE_URL = '/api/v1/todos/notifications/push/subscriptions/remove/'
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='push-reader',
+            nickname='푸시독자',
+            password='pw-test-1234',
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.payload = {
+            'endpoint': 'https://updates.push.services.mozilla.com/wpush/v2/test-endpoint',
+            'keys': {
+                'p256dh': 'public-key',
+                'auth': 'auth-secret',
+            },
+        }
+
+    @override_settings(
+        WEB_PUSH_VAPID_PUBLIC_KEY='public-vapid-key',
+        WEB_PUSH_VAPID_PRIVATE_KEY='',
+        WEB_PUSH_VAPID_SUBJECT='mailto:test@example.com',
+    )
+    def test_push_config_requires_full_vapid_configuration(self):
+        response = self.client.get(self.CONFIG_URL)
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertFalse(response.data['enabled'])
+        self.assertEqual(response.data['vapid_public_key'], 'public-vapid-key')
+
+    @override_settings(
+        WEB_PUSH_VAPID_PUBLIC_KEY='public-vapid-key',
+        WEB_PUSH_VAPID_PRIVATE_KEY='private-vapid-key',
+        WEB_PUSH_VAPID_SUBJECT='mailto:test@example.com',
+    )
+    def test_push_config_reports_enabled_when_sender_is_ready(self):
+        response = self.client.get(self.CONFIG_URL)
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(response.data['enabled'])
+        self.assertEqual(response.data['vapid_public_key'], 'public-vapid-key')
+
+    def test_register_and_remove_push_subscription(self):
+        response = self.client.post(
+            self.SUBSCRIPTIONS_URL,
+            self.payload,
+            format='json',
+            HTTP_USER_AGENT='Maeil1DokTest/1.0',
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        subscription = NotificationPushSubscription.objects.get(user=self.user)
+        self.assertEqual(subscription.endpoint, self.payload['endpoint'])
+        self.assertEqual(subscription.p256dh, 'public-key')
+        self.assertTrue(subscription.enabled)
+        self.assertEqual(subscription.user_agent, 'Maeil1DokTest/1.0')
+
+        remove_response = self.client.post(
+            self.REMOVE_URL,
+            {'endpoint': self.payload['endpoint']},
+            format='json',
+        )
+
+        self.assertEqual(remove_response.status_code, 200, remove_response.data)
+        subscription.refresh_from_db()
+        self.assertFalse(subscription.enabled)
+
+    def test_register_rejects_insecure_endpoint(self):
+        response = self.client.post(
+            self.SUBSCRIPTIONS_URL,
+            {
+                'endpoint': 'http://example.test/push',
+                'keys': self.payload['keys'],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(NotificationPushSubscription.objects.exists())
+
+    def test_register_rejects_non_push_service_endpoint(self):
+        blocked_endpoints = [
+            'https://127.0.0.1:8443/push',
+            'https://example.com@127.0.0.1/push',
+            'https://localhost/push',
+            'https://10.0.0.1/push',
+            'https://example.com/push',
+            'https://fcm.googleapis.com:444/fcm/send/test',
+        ]
+
+        for endpoint in blocked_endpoints:
+            with self.subTest(endpoint=endpoint):
+                response = self.client.post(
+                    self.SUBSCRIPTIONS_URL,
+                    {
+                        'endpoint': endpoint,
+                        'keys': self.payload['keys'],
+                    },
+                    format='json',
+                )
+
+                self.assertEqual(response.status_code, 400)
+
+        self.assertFalse(NotificationPushSubscription.objects.exists())
+
+    def test_register_accepts_known_browser_push_service_endpoint(self):
+        for endpoint in [
+            'https://fcm.googleapis.com/fcm/send/test-endpoint',
+            'https://web.push.apple.com/test-endpoint',
+        ]:
+            with self.subTest(endpoint=endpoint):
+                response = self.client.post(
+                    self.SUBSCRIPTIONS_URL,
+                    {
+                        'endpoint': endpoint,
+                        'keys': self.payload['keys'],
+                    },
+                    format='json',
+                )
+
+                self.assertEqual(response.status_code, 200, response.data)
+                NotificationPushSubscription.objects.filter(endpoint=endpoint).delete()
+
+
+@override_settings(
+    WEB_PUSH_VAPID_PUBLIC_KEY='public-vapid-key',
+    WEB_PUSH_VAPID_PRIVATE_KEY='private-vapid-key',
+    WEB_PUSH_VAPID_SUBJECT='mailto:test@example.com',
+)
+class NotificationPushDeliveryTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='delivery-reader',
+            nickname='전송독자',
+            password='pw-test-1234',
+        )
+        self.subscription = NotificationPushSubscription.objects.create(
+            user=self.user,
+            endpoint='https://updates.push.services.mozilla.com/wpush/v2/delivery-endpoint',
+            p256dh='public-key',
+            auth='auth-secret',
+            enabled=True,
+        )
+        NotificationSettings.objects.create(user=self.user)
+        self.notification = Notification.objects.create(
+            recipient=self.user,
+            type='reading_reminder',
+            title='오늘의 통독이 기다리고 있어요',
+            body='오늘 배정된 말씀을 읽고 흐름을 이어가볼까요?',
+            target_url='/plan',
+            dedupe_key='reading-reminder:test',
+        )
+
+    def test_deliver_push_notification_sends_web_push_payload(self):
+        with patch('todos.services.push_notifications._send_web_push') as send_web_push:
+            result = deliver_push_notification(self.notification.id)
+
+        self.assertEqual(result, {'sent': 1, 'failed': 0})
+        send_web_push.assert_called_once()
+        subscription_info, payload = send_web_push.call_args.args
+        self.assertEqual(subscription_info['endpoint'], self.subscription.endpoint)
+        self.assertEqual(payload['title'], self.notification.title)
+        self.assertEqual(payload['url'], '/plan')
+        self.subscription.refresh_from_db()
+        self.assertEqual(self.subscription.failure_count, 0)
+        self.assertIsNotNone(self.subscription.last_success_at)
+
+    def test_deliver_push_notification_disables_expired_subscription(self):
+        class Response:
+            status_code = 410
+
+        with patch(
+            'todos.services.push_notifications._send_web_push',
+            side_effect=PushDeliveryError(response=Response()),
+        ):
+            result = deliver_push_notification(self.notification.id)
+
+        self.assertEqual(result, {'sent': 0, 'failed': 1})
+        self.subscription.refresh_from_db()
+        self.assertFalse(self.subscription.enabled)
+        self.assertEqual(self.subscription.failure_count, 1)
+        self.assertIsNotNone(self.subscription.last_failure_at)
+
+    def test_send_due_reminder_notifications_creates_due_reminders(self):
+        plan = BibleReadingPlan.objects.create(name='푸시 통독', created_by=self.user)
+        subscription = PlanSubscription.objects.create(
+            user=self.user,
+            plan=plan,
+            start_date=date.today(),
+            is_active=True,
+        )
+        DailyBibleSchedule.objects.create(
+            plan=plan,
+            date=date.today(),
+            book='창세기',
+            start_chapter=3,
+            end_chapter=3,
+        )
+        settings = self.user.notification_settings
+        settings.reading_reminder_time = time(0, 0)
+        settings.hasena_reminders_enabled = False
+        settings.save()
+
+        with patch('todos.services.push_notifications._send_web_push'):
+            created_count = send_due_reminder_notifications()
+
+        self.assertEqual(created_count, 1)
+        self.assertTrue(Notification.objects.filter(
+            recipient=self.user,
+            type='reading_reminder',
+            dedupe_key=f'reading-reminder:{self.user.id}:{date.today().isoformat()}',
+        ).exists())
+        self.assertEqual(subscription.progress.count(), 0)

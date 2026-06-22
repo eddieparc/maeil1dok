@@ -19,38 +19,55 @@ def get_notification_settings(user):
 
 def ensure_reminder_notifications(user):
     settings = get_notification_settings(user)
+    _ensure_reminders_for_settings(settings)
+
+
+def send_due_reminder_notifications():
+    created_count = 0
+    for settings in NotificationSettings.objects.filter(
+        notifications_enabled=True,
+    ).select_related('user'):
+        created_count += _ensure_reminders_for_settings(settings)
+    return created_count
+
+
+def _ensure_reminders_for_settings(settings):
     if not settings.notifications_enabled:
-        return
+        return 0
 
     local_now = _local_now(settings)
     today = local_now.date()
+    created_count = 0
     if (
         settings.reading_reminders_enabled
         and _is_due(local_now, settings.reading_reminder_time)
-        and _has_incomplete_today_schedule(user, today)
+        and _has_incomplete_today_schedule(settings.user, today)
     ):
-        _create_notification(
-            recipient=user,
+        _notification, created = _create_notification(
+            recipient=settings.user,
             notification_type='reading_reminder',
             title='오늘의 통독이 기다리고 있어요',
             body='오늘 배정된 말씀을 읽고 흐름을 이어가볼까요?',
             target_url='/plan',
-            dedupe_key=f'reading-reminder:{user.id}:{today.isoformat()}',
+            dedupe_key=f'reading-reminder:{settings.user_id}:{today.isoformat()}',
         )
+        created_count += int(created)
 
     if (
         settings.hasena_reminders_enabled
         and _is_due(local_now, settings.hasena_reminder_time)
-        and not _has_completed_hasena(user, today)
+        and not _has_completed_hasena(settings.user, today)
     ):
-        _create_notification(
-            recipient=user,
+        _notification, created = _create_notification(
+            recipient=settings.user,
             notification_type='hasena_reminder',
             title='오늘의 하세나하시조를 함께해요',
             body='잠시 멈추고 말씀을 마음에 새겨보세요.',
             target_url='/hasena',
-            dedupe_key=f'hasena-reminder:{user.id}:{today.isoformat()}',
+            dedupe_key=f'hasena-reminder:{settings.user_id}:{today.isoformat()}',
         )
+        created_count += int(created)
+    return created_count
 
 
 def notify_friend_reading_completed(actor, schedules):
@@ -173,14 +190,18 @@ def _create_notification(
         'data': data or {},
     }
     if dedupe_key:
-        notification, _ = Notification.objects.get_or_create(
+        notification, created = Notification.objects.get_or_create(
             recipient=recipient,
             dedupe_key=dedupe_key,
             defaults=defaults,
         )
-        return notification
+        if created:
+            _queue_push_delivery(notification)
+        return notification, created
 
-    return Notification.objects.create(recipient=recipient, **defaults)
+    notification = Notification.objects.create(recipient=recipient, **defaults)
+    _queue_push_delivery(notification)
+    return notification, True
 
 
 def on_commit_notify_reading_completed(actor, schedules):
@@ -190,3 +211,9 @@ def on_commit_notify_reading_completed(actor, schedules):
 
 def on_commit_notify_hasena_completed(actor, completed_date):
     transaction.on_commit(lambda: notify_friend_hasena_completed(actor, completed_date))
+
+
+def _queue_push_delivery(notification):
+    from todos.services.push_notifications import deliver_push_notification
+
+    transaction.on_commit(lambda: deliver_push_notification(notification.id))

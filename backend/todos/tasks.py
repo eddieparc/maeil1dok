@@ -57,3 +57,16 @@ def generate_hasena_summary_task(self):
     except Exception as e:
         logger.error(f"Error in generate_hasena_summary_task: {str(e)}", exc_info=True)
         return {'status': 'error', 'reason': str(e)}
+
+
+@shared_task(bind=True, max_retries=0)
+def send_due_notification_reminders_task(self):
+    from .services.notifications import send_due_reminder_notifications
+
+    try:
+        created_count = send_due_reminder_notifications()
+        logger.info('Created %s due notification reminders', created_count)
+        return {'status': 'success', 'created_count': created_count}
+    except Exception as e:
+        logger.error(f"Error in send_due_notification_reminders_task: {str(e)}", exc_info=True)
+        return {'status': 'error', 'reason': str(e)}

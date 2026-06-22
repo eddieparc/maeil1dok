@@ -13,6 +13,8 @@
       />
 
       <form v-else-if="settings" class="settings-card" @submit.prevent="saveSettings">
+        <DevicePushSetting />
+
         <label class="setting-row">
           <span>
             <strong>전체 알림</strong>
@@ -101,6 +103,7 @@
 import { onMounted, ref, watch } from 'vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import ErrorState from '~/components/ErrorState.vue'
+import DevicePushSetting from '~/components/notifications/DevicePushSetting.vue'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import { useNotificationsStore, type NotificationSettings } from '~/stores/notifications'
 import { useToast } from '~/composables/useToast'
@@ -137,6 +140,7 @@ const saveSettings = async () => {
 
 onMounted(() => {
   notificationsStore.fetchSettings()
+  notificationsStore.syncDevicePushState()
 })
 </script>
 

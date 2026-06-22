@@ -131,47 +131,35 @@
 
         <SkeletonList v-if="loading" :count="3" variant="user" />
         <div v-else class="linked-list">
-          <div class="setting-row">
-            <div class="provider-icon kakao">
-              <NuxtImg src="/images/kakao.png" width="18" height="18" alt="카카오" loading="lazy" format="webp" />
-            </div>
-            <div class="setting-info">
-              <p class="setting-label">카카오</p>
-              <p class="setting-description">{{ getLinkedAccount('kakao')?.email || (isKakaoLinked ? '연결됨' : '연결되지 않음') }}</p>
-            </div>
-            <button v-if="isKakaoLinked" @click="handleUnlink('kakao')" class="btn btn-danger-ghost" :disabled="!canUnlink('kakao')">해제</button>
-            <button v-else @click="handleLinkKakao" class="btn btn-primary">연결</button>
-          </div>
-
-          <div class="setting-row">
-            <div class="provider-icon google">
-              <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true">
+          <div v-for="provider in PROVIDERS" :key="provider" class="setting-row">
+            <div class="provider-icon" :class="provider">
+              <NuxtImg
+                v-if="provider === 'kakao'"
+                src="/images/kakao.png"
+                width="18"
+                height="18"
+                alt="카카오"
+                loading="lazy"
+                format="webp"
+              />
+              <svg v-if="provider === 'google'" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                 <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
                 <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
               </svg>
-            </div>
-            <div class="setting-info">
-              <p class="setting-label">구글</p>
-              <p class="setting-description">{{ getLinkedAccount('google')?.email || (isGoogleLinked ? '연결됨' : '연결되지 않음') }}</p>
-            </div>
-            <button v-if="isGoogleLinked" @click="handleUnlink('google')" class="btn btn-danger-ghost" :disabled="!canUnlink('google')">해제</button>
-            <button v-else @click="handleLinkGoogle" class="btn btn-primary">연결</button>
-          </div>
-
-          <div class="setting-row">
-            <div class="provider-icon apple">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <svg v-if="provider === 'apple'" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
               </svg>
             </div>
             <div class="setting-info">
-              <p class="setting-label">애플</p>
-              <p class="setting-description">{{ getLinkedAccount('apple')?.email || (isAppleLinked ? '연결됨' : '연결되지 않음') }}</p>
+              <p class="setting-label">{{ getProviderDisplayName(provider) }}</p>
+              <p class="setting-description">{{ getLinkedAccount(provider)?.email || (isProviderLinked(provider) ? '연결됨' : '연결되지 않음') }}</p>
             </div>
-            <button v-if="isAppleLinked" @click="handleUnlink('apple')" class="btn btn-danger-ghost" :disabled="!canUnlink('apple')">해제</button>
-            <button v-else @click="handleLinkApple" class="btn btn-primary">연결</button>
+            <button v-if="isProviderLinked(provider)" @click="handleUnlink(provider)" class="btn btn-danger-ghost" :disabled="!canUnlink(provider)">해제</button>
+            <button v-else @click="handleLinkProvider(provider)" class="btn btn-primary" :disabled="linkingProvider === provider">
+              {{ linkingProvider === provider ? '연결 중...' : '연결' }}
+            </button>
           </div>
         </div>
 
@@ -194,6 +182,30 @@
           </button>
         </div>
         <p class="section-note">현재 브라우저를 포함한 모든 기기의 로그인 세션을 종료할 수 있습니다.</p>
+      </section>
+
+      <!-- 알림 설정 -->
+      <section class="settings-card fade-in delay-450">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Notifications</p>
+            <h3>알림 설정</h3>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="row-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          </div>
+          <div class="setting-info">
+            <p class="setting-label">알림 설정</p>
+            <p class="setting-description">통독, 하세나하시조, 친구 활동 알림을 관리합니다</p>
+          </div>
+          <button @click="navigateTo('/notifications/settings')" class="btn btn-secondary">열기</button>
+        </div>
       </section>
 
       <!-- 계정 삭제 -->
@@ -313,6 +325,7 @@ import { useApi } from '~/composables/useApi'
 import { useRuntimeConfig } from 'nuxt/app'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
+import { buildOAuthLinkUrl, buildSocialMergePayload } from '~/utils/accountSettingsRuntime.js'
 
 useHead({
   title: '계정 설정 - 매일일독',
@@ -365,6 +378,7 @@ interface MergeAccountSummary {
 interface MergeInfo {
   provider: Provider
   code: string
+  merge_token?: string
   id_token?: string
   current_account: MergeAccountSummary
   other_account: MergeAccountSummary
@@ -378,9 +392,10 @@ interface NativeWindow extends Window {
 
 const PROVIDER_LABELS: Record<Provider, string> = {
   kakao: '카카오',
-  google: '구글',
-  apple: '애플',
+  google: 'Google',
+  apple: 'Apple',
 }
+const PROVIDERS: Provider[] = ['kakao', 'google', 'apple']
 
 const loading = ref(true)
 const linkedAccounts = ref<LinkedAccountsResponse | null>(null)
@@ -405,6 +420,7 @@ const showMergeModal = ref(false)
 const showMergeConfirmModal = ref(false)
 const mergeInfo = ref<MergeInfo | null>(null)
 const mergeLoading = ref(false)
+const linkingProvider = ref<Provider | null>(null)
 
 const emailButtonText = computed(() => {
   if (resendingEmail.value) return '전송 중...'
@@ -533,6 +549,7 @@ const normalizeMergeInfo = (payload: unknown): MergeInfo | null => {
   return {
     provider,
     code,
+    merge_token: getString(payload, 'merge_token') || undefined,
     id_token: getString(payload, 'id_token') || undefined,
     current_account: currentAccount,
     other_account: otherAccount,
@@ -563,27 +580,57 @@ const getOAuthLinkState = async () => {
   return encodeURIComponent(state)
 }
 
-const handleLinkKakao = async () => {
-  const redirectUri = encodeURIComponent(config.public.KAKAO_REDIRECT_URI)
-  const state = await getOAuthLinkState()
-  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${config.public.KAKAO_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&state=${state}`
-  window.location.href = kakaoAuthUrl
+const getOAuthProviderConfig = (provider: Provider) => {
+  const providerConfig = {
+    kakao: {
+      clientId: config.public.KAKAO_CLIENT_ID,
+      redirectUri: config.public.KAKAO_REDIRECT_URI,
+      baseUrl: 'https://kauth.kakao.com/oauth/authorize',
+    },
+    google: {
+      clientId: config.public.GOOGLE_CLIENT_ID,
+      redirectUri: config.public.GOOGLE_REDIRECT_URI,
+      baseUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+      scope: 'email profile',
+    },
+    apple: {
+      clientId: config.public.APPLE_CLIENT_ID,
+      redirectUri: config.public.APPLE_REDIRECT_URI || `${window.location.origin}/auth/apple/callback`,
+      baseUrl: 'https://appleid.apple.com/auth/authorize',
+      scope: 'name email',
+    },
+  }
+  return providerConfig[provider]
 }
 
-const handleLinkGoogle = async () => {
-  const redirectUri = encodeURIComponent(config.public.GOOGLE_REDIRECT_URI)
-  const state = await getOAuthLinkState()
-  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.public.GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile&access_type=offline&prompt=consent&state=${state}`
-  window.location.href = googleAuthUrl
+const handleLinkProvider = async (provider: Provider) => {
+  const providerConfig = getOAuthProviderConfig(provider)
+  const { clientId, redirectUri } = providerConfig
+  if (!clientId || !redirectUri) {
+    await modal.alert({
+      title: '연결 설정이 필요합니다',
+      description: `${getProviderDisplayName(provider)} 로그인 설정을 확인해주세요.`,
+      icon: 'error',
+    })
+    return
+  }
+
+  linkingProvider.value = provider
+  try {
+    const state = await getOAuthLinkState()
+    const authUrl = buildOAuthLinkUrl(provider, providerConfig, state)
+    window.location.assign(authUrl)
+  } catch (error: unknown) {
+    await modal.alert({
+      title: '계정 연결 실패',
+      description: getErrorMessage(error, '소셜 계정 연결을 시작하지 못했습니다.'),
+      icon: 'error',
+    })
+    linkingProvider.value = null
+  }
 }
 
-const handleLinkApple = async () => {
-  const clientId = config.public.APPLE_CLIENT_ID
-  const redirectUri = encodeURIComponent(config.public.APPLE_REDIRECT_URI || `${window.location.origin}/auth/apple/callback`)
-  const state = await getOAuthLinkState()
-  const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code%20id_token&scope=name%20email&response_mode=form_post&state=${state}`
-  window.location.href = appleAuthUrl
-}
+const handleLinkGoogle = () => handleLinkProvider('google')
 
 const handleUnlink = async (provider: Provider) => {
   const confirmed = await modal.confirm({
@@ -790,31 +837,13 @@ const resetDeletePanel = () => {
   deleteError.value = ''
 }
 
-const buildMergePayload = (keepAccount: KeepAccount) => {
-  if (!mergeInfo.value) return null
-  const payload: {
-    provider: Provider
-    code: string
-    keep_account: KeepAccount
-    id_token?: string
-  } = {
-    provider: mergeInfo.value.provider,
-    code: mergeInfo.value.code,
-    keep_account: keepAccount
-  }
-  if (mergeInfo.value.id_token) {
-    payload.id_token = mergeInfo.value.id_token
-  }
-  return payload
-}
-
 const handleBack = () => {
   goBack('/')
 }
 
 const handleMerge = async (keepAccount: KeepAccount) => {
-  const payload = buildMergePayload(keepAccount)
-  if (!payload) return
+  if (!mergeInfo.value) return
+  const payload = buildSocialMergePayload(mergeInfo.value, keepAccount)
   
   mergeLoading.value = true
   try {

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CatchupSession, CatchupSchedule, HasenaSummary
+from .models import CatchupSession, CatchupSchedule, HasenaSummary, NotificationPushSubscription
 
 
 class CatchupScheduleInline(admin.TabularInline):
@@ -86,3 +86,11 @@ class HasenaSummaryAdmin(admin.ModelAdmin):
                 success_count += 1
         
         self.message_user(request, f'{success_count}개의 요약이 재생성되었습니다.')
+
+
+@admin.register(NotificationPushSubscription)
+class NotificationPushSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'enabled', 'failure_count', 'last_success_at', 'last_failure_at', 'updated_at']
+    list_filter = ['enabled', 'created_at', 'updated_at']
+    search_fields = ['user__username', 'user__nickname', 'endpoint']
+    readonly_fields = ['endpoint', 'p256dh', 'auth', 'created_at', 'updated_at', 'last_success_at', 'last_failure_at']

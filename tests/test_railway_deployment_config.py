@@ -18,6 +18,7 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
 
         services = {
             "backend-web": repo_root / "railway" / "backend.web.toml",
+            "backend-worker": repo_root / "railway" / "backend.worker.toml",
             "backend-beat": repo_root / "railway" / "backend.beat.toml",
             "backend-backup": repo_root / "railway" / "backend.backup.toml",
             "frontend": repo_root / "railway" / "frontend.toml",
@@ -29,16 +30,28 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         self.assertEqual(configs["backend-web"]["deploy"]["healthcheckPath"], "/admin/login/")
         self.assertEqual(configs["backend-web"]["deploy"]["restartPolicyType"], "ON_FAILURE")
 
+        self.assertEqual(configs["backend-worker"]["build"]["dockerfilePath"], "Dockerfile.worker")
+        self.assertEqual(
+            configs["backend-worker"]["deploy"]["startCommand"],
+            "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}",
+        )
         self.assertEqual(configs["backend-beat"]["build"]["dockerfilePath"], "Dockerfile.beat")
-        self.assertEqual(configs["backend-beat"]["deploy"]["cronSchedule"], "0,30 15-20 * * 0-5")
+        self.assertNotIn("cronSchedule", configs["backend-beat"]["deploy"])
+        self.assertEqual(configs["backend-beat"]["deploy"]["startCommand"], "celery -A config beat -l info")
         self.assertEqual(configs["backend-backup"]["build"]["dockerfilePath"], "Dockerfile.backup")
         self.assertEqual(configs["backend-backup"]["deploy"]["cronSchedule"], "0 18 * * *")
         self.assertIn("railway/backend.web.toml", configs["backend-web"]["build"]["watchPatterns"])
+        self.assertIn("railway/backend.worker.toml", configs["backend-worker"]["build"]["watchPatterns"])
+        self.assertIn("railway/backend.beat.toml", configs["backend-beat"]["build"]["watchPatterns"])
         self.assertIn("railway/frontend.toml", configs["frontend"]["build"]["watchPatterns"])
         for config in configs.values():
             regions = config["deploy"]["multiRegionConfig"]
             self.assertEqual(regions, {"asia-southeast1-eqsg3a": {"numReplicas": 1}})
-        self.assertIn('CMD ["python", "manage.py", "generate_hasena_summary_once"]', (repo_root / "backend" / "Dockerfile.beat").read_text(encoding="utf-8"))
+        self.assertIn("celery -A config worker -l info", (repo_root / "backend" / "Dockerfile.worker").read_text(encoding="utf-8"))
+        self.assertIn("celery\", \"-A\", \"config\", \"beat\"", (repo_root / "backend" / "Dockerfile.beat").read_text(encoding="utf-8"))
+        celery_config = (repo_root / "backend" / "config" / "celery.py").read_text(encoding="utf-8")
+        self.assertIn("'send-due-notification-reminders'", celery_config)
+        self.assertIn("'task': 'todos.tasks.send_due_notification_reminders_task'", celery_config)
         self.assertIn("mysql.sql.gz.sha256", (repo_root / "backend" / "scripts" / "railway_mysql_backup.sh").read_text(encoding="utf-8"))
         self.assertEqual(configs["frontend"]["build"]["builder"], "RAILPACK")
         self.assertEqual(configs["frontend"]["build"]["buildCommand"], "npm ci && npm run build")

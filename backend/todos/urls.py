@@ -25,6 +25,9 @@ urlpatterns = [
 
     path('notifications/', notification_views.notification_inbox, name='notification-inbox'),
     path('notifications/settings/', notification_views.notification_settings, name='notification-settings'),
+    path('notifications/push/config/', notification_views.push_config, name='notification-push-config'),
+    path('notifications/push/subscriptions/', notification_views.register_push_subscription, name='notification-push-register'),
+    path('notifications/push/subscriptions/remove/', notification_views.remove_push_subscription, name='notification-push-remove'),
     path('notifications/<int:notification_id>/read/', notification_views.mark_notification_read, name='notification-read'),
     path('notifications/mark-all-read/', notification_views.mark_all_notifications_read, name='notifications-mark-all-read'),
 

@@ -1,12 +1,12 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile.beat"
-watchPatterns = ["backend/**", "railway/backend.beat.toml"]
+dockerfilePath = "Dockerfile.worker"
+watchPatterns = ["backend/**", "railway/backend.worker.toml"]
 
 [deploy]
+startCommand = "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
-startCommand = "celery -A config beat -l info"
 overlapSeconds = 0
 drainingSeconds = 30
 

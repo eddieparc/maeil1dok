@@ -13,4 +13,8 @@ app.conf.beat_schedule = {
         'task': 'todos.tasks.generate_hasena_summary_task',
         'schedule': crontab(minute='*/5', hour='0-5', day_of_week='1-6'),
     },
+    'send-due-notification-reminders': {
+        'task': 'todos.tasks.send_due_notification_reminders_task',
+        'schedule': crontab(minute='*/5'),
+    },
 }

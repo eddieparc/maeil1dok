@@ -3,13 +3,18 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Notification
-from .serializers import NotificationSerializer, NotificationSettingsSerializer
+from .models import Notification, NotificationPushSubscription
+from .notification_serializers import (
+    NotificationPushSubscriptionSerializer,
+    NotificationSerializer,
+    NotificationSettingsSerializer,
+)
 from .services.notifications import (
     ensure_reminder_notifications,
     get_notification_settings,
     mark_all_read,
 )
+from .services.push_notifications import is_web_push_configured, web_push_public_key
 
 
 @api_view(['GET'])
@@ -84,6 +89,58 @@ def mark_notification_read(request, notification_id):
 @permission_classes([IsAuthenticated])
 def mark_all_notifications_read(request):
     updated_count = mark_all_read(request.user)
+    return Response({
+        'success': True,
+        'updated_count': updated_count,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def push_config(request):
+    public_key = web_push_public_key()
+    return Response({
+        'success': True,
+        'enabled': is_web_push_configured(),
+        'vapid_public_key': public_key,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def register_push_subscription(request):
+    serializer = NotificationPushSubscriptionSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({
+            'success': False,
+            'errors': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    subscription = serializer.create_or_update(
+        user=request.user,
+        user_agent=request.META.get('HTTP_USER_AGENT', ''),
+    )
+    return Response({
+        'success': True,
+        'endpoint': subscription.endpoint,
+        'enabled': subscription.enabled,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def remove_push_subscription(request):
+    endpoint = request.data.get('endpoint')
+    if not endpoint:
+        return Response({
+            'success': False,
+            'error': 'endpoint가 필요합니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    updated_count = NotificationPushSubscription.objects.filter(
+        user=request.user,
+        endpoint=endpoint,
+    ).update(enabled=False)
     return Response({
         'success': True,
         'updated_count': updated_count,

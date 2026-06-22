@@ -95,9 +95,9 @@
 | `/api/hasena/complete` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/hasena/complete/route.ts) | |
 | `/api/hasena/summary` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/hasena/summary/route.ts) | |
 | `/api/intro/progress` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/intro/progress/route.ts) | |
-| `/api/notifications/friend-activity` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/notifications/friend-activity/route.ts) | FCM |
+| `/api/notifications/friend-activity` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/notifications/friend-activity/route.ts) | Next 레거시 FCM 실험 |
 | `/api/notifications/settings` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/notifications/settings/route.ts) | |
-| `/api/notifications/token` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/notifications/token/route.ts) | FCM 토큰 |
+| `/api/notifications/token` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/notifications/token/route.ts) | Next 레거시 FCM 토큰 |
 | `/api/plans/subscribe` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/plans/subscribe/route.ts) | |
 | `/api/plans/unsubscribe` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/plans/unsubscribe/route.ts) | |
 | `/api/profile/avatar` | [route.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/profile/avatar/route.ts) | |
@@ -142,7 +142,7 @@
 | bible/parsers | [common, kntParser, standardParser, wooriParser](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/lib/bible/parsers/) (+ test 3) | 역본별 본문 파서 |
 | bible | books, constants, navigation, search, types (+test) | 책 메타데이터 + 검색 + 네비 |
 | catchup | scheduling (+test) | 캐치업 알고리즘 |
-| firebase | admin, config, messaging, send (+test) | FCM SDK 통합 |
+| firebase | admin, config, messaging, send (+test) | Next 레거시 FCM SDK 통합 |
 | modal | ModalHost, ModalRegistry, types, index | 모달 시스템 |
 | notifications | friendActivity | 친구 활동 알림 |
 | supabase | client, server, middleware, database.types | Supabase 클라이언트 분리 (브라우저/서버/미들웨어) |
@@ -232,7 +232,7 @@
 | [20260226000001_plan_d_user_follows.sql](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/supabase/migrations/20260226000001_plan_d_user_follows.sql) | user_follows |
 | [20260226000002_plan_d_user_highlights.sql](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/supabase/migrations/20260226000002_plan_d_user_highlights.sql) | user_highlights |
 | [20260226000003_plan_d_daily_status_rpc.sql](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/supabase/migrations/20260226000003_plan_d_daily_status_rpc.sql) | RPC |
-| [20260227000001_plan_e_avatar_fcm_notifications.sql](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/supabase/migrations/20260227000001_plan_e_avatar_fcm_notifications.sql) | Avatar + FCM 알림 |
+| [20260227000001_plan_e_avatar_fcm_notifications.sql](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/supabase/migrations/20260227000001_plan_e_avatar_fcm_notifications.sql) | Next 레거시 Avatar + FCM 알림 |
 | [20260301000001_plan_f_new_tables.sql](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/supabase/migrations/20260301000001_plan_f_new_tables.sql) | bible_bookmarks, reflection_notes, personal_reading_records, migration_user_mapping |
 
 ### scripts/migrate/ (Plan F 산출물)
@@ -279,16 +279,18 @@ TypeError: (0 , __vite_ssr_import_0__.createStore)(...) is not a function
 | `HASENA_PLAYLIST_ID` | 하세나 플레이리스트 | 동일 | secret |
 | `NEXT_PUBLIC_HASENA_PLAYLIST_ID` | 클라이언트 노출 버전 | grep 발견 — 중복 사용 의심 | public |
 | `MAINTENANCE_MODE` | 유지보수 모드 토글 | middleware.ts | secret (Vercel env) |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase 클라이언트 | firebase/config | public |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | 동일 | 동일 | public |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | 동일 | 동일 | public |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | 동일 | 동일 | public |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | 동일 | 동일 | public |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | 동일 | 동일 | public |
-| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | FCM 웹 VAPID | firebase/messaging | public |
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | 서버 FCM | firebase/admin, send | secret |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Next 레거시 Firebase 클라이언트 | firebase/config | public |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Next 레거시 Firebase 클라이언트 | firebase/config | public |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Next 레거시 Firebase 클라이언트 | firebase/config | public |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Next 레거시 Firebase 클라이언트 | firebase/config | public |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Next 레거시 Firebase 클라이언트 | firebase/config | public |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Next 레거시 Firebase 클라이언트 | firebase/config | public |
+| `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Next 레거시 FCM 웹 VAPID | firebase/messaging | public |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Next 레거시 서버 FCM | firebase/admin, send | secret |
 
 ---
+
+> 참고: 위 Firebase/FCM 항목은 `maeil1dok-next` 전환 실험 인벤토리다. 현재 운영 Nuxt/Django 앱의 OS 푸시는 `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_VAPID_SUBJECT`를 사용하는 표준 Web Push(VAPID) 구현을 기준으로 한다.
 
 ## 검증 (자가)
 
