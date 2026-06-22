@@ -1,6 +1,5 @@
 from datetime import date
 from decimal import Decimal
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from rest_framework import serializers
 from .models import (
@@ -8,7 +7,6 @@ from .models import (
     PlanSubscription, VideoBibleIntro, UserPlanDisplaySettings,
     CatchupSession, CatchupSchedule,
     UserReadingPosition, BibleBookmark, ReflectionNote, BibleHighlight, PersonalReadingRecord,
-    Notification, NotificationSettings,
 )
 from django.contrib.auth import get_user_model
 from django.core.validators import URLValidator
@@ -115,62 +113,6 @@ class UserBibleProgressSerializer(serializers.ModelSerializer):
         # N+1 방지를 위해 schedule을 select_related로 가져오세요.
         return obj.schedule.date if obj.schedule else None
 
-
-class NotificationSerializer(serializers.ModelSerializer):
-    actor_name = serializers.SerializerMethodField()
-    is_read = serializers.SerializerMethodField()
-    target_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Notification
-        fields = [
-            'id', 'type', 'title', 'body', 'target_url', 'data',
-            'actor_name', 'is_read', 'read_at', 'created_at',
-        ]
-
-    def get_actor_name(self, obj):
-        if obj.actor:
-            return obj.actor.nickname
-        return None
-
-    def get_is_read(self, obj):
-        return obj.read_at is not None
-
-    def get_target_url(self, obj):
-        target_url = obj.target_url or ''
-        allowed_prefixes = (
-            '/bible',
-            '/friends',
-            '/hasena',
-            '/notifications',
-            '/plan',
-            '/plans',
-            '/profile/',
-        )
-        if target_url == '' or target_url.startswith(allowed_prefixes):
-            return target_url
-        return '/notifications'
-
-
-class NotificationSettingsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = NotificationSettings
-        fields = [
-            'notifications_enabled',
-            'reading_reminders_enabled',
-            'hasena_reminders_enabled',
-            'friend_activity_enabled',
-            'reading_reminder_time',
-            'hasena_reminder_time',
-            'timezone',
-        ]
-
-    def validate_timezone(self, value):
-        try:
-            ZoneInfo(value)
-        except ZoneInfoNotFoundError:
-            raise serializers.ValidationError('지원하지 않는 시간대입니다.')
-        return value
 
 class BibleProgressResponse(serializers.Serializer):
     status = serializers.CharField()  # completed, not_started

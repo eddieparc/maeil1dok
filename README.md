@@ -18,7 +18,7 @@
 
 ### 📱 모바일 최적화 (지원 예정)
 - (부분 지원 중)PWA(Progressive Web App) 지원
-- 웹 푸시 알림을 통한 통독 리마인더
+- OS 웹 푸시 알림을 통한 통독/하세나하시조 리마인더와 친구 활동 알림
 
 ### 🎥 미디어 콘텐츠
 - 주일: 성경개론 영상
@@ -29,7 +29,7 @@
 - Frontend: Vue.js, Nuxt.js
 - Infrastructure: Docker, Docker Compose
 - Authentication: OAuth 2.0 (Google, Kakao)
-- Notification: Firebase Cloud Messaging (FCM)
+- Notification: Web Push (VAPID), PWA Service Worker, Celery Beat
 
 ## 개발 로드맵
 
@@ -51,8 +51,20 @@
 - [ ] 소그룹/공동체별 통독 현황 및 스코어보드
 
 ### 3차 개발
-- [ ] PWA 설정 및 웹 푸시 알림
+- [x] PWA 기반 OS 웹 푸시 알림
 - [ ] 성능 최적화 및 테스트
+
+## OS 웹 푸시 환경 변수
+
+프로덕션에서 실제 OS 알림을 발송하려면 백엔드 환경에 다음 VAPID 값을 설정해야 합니다.
+
+```bash
+WEB_PUSH_VAPID_PUBLIC_KEY=...
+WEB_PUSH_VAPID_PRIVATE_KEY=...
+WEB_PUSH_VAPID_SUBJECT=mailto:admin@example.com
+```
+
+`WEB_PUSH_VAPID_PUBLIC_KEY`는 브라우저 구독에 사용되고, private key는 서버 발송에만 사용합니다. private key는 저장소에 커밋하지 말고 Railway/운영 환경 변수로만 관리하세요.
 
 ## 프로젝트 참여
 하나님 제게 맡겨주신 달란트를 하나님께 영광돌리는데에 사용해보고 싶었습니다.

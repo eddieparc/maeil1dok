@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia'
 import { useApi } from '~/composables/useApi'
+import {
+  isDevicePushSupported,
+  readBrowserPushState,
+  subscribeCurrentDevice,
+  unsubscribeCurrentDevice,
+} from '~/utils/devicePushRuntime'
 
 export interface NotificationItem {
   id: number
@@ -22,6 +28,16 @@ export interface NotificationSettings {
   reading_reminder_time: string
   hasena_reminder_time: string
   timezone: string
+}
+
+export type DevicePushPermission = NotificationPermission | 'unsupported' | 'unavailable'
+
+export interface DevicePushState {
+  supported: boolean
+  permission: DevicePushPermission
+  subscribed: boolean
+  isSyncing: boolean
+  error: string | null
 }
 
 export interface NotificationInboxResponse {
@@ -48,6 +64,13 @@ export const useNotificationsStore = defineStore('notifications', {
     isLoading: false,
     isSaving: false,
     error: null as string | null,
+    devicePush: {
+      supported: false,
+      permission: 'unsupported',
+      subscribed: false,
+      isSyncing: false,
+      error: null,
+    } as DevicePushState,
   }),
 
   getters: {
@@ -148,6 +171,78 @@ export const useNotificationsStore = defineStore('notifications', {
         this.isSaving = false
       }
     },
+
+    async syncDevicePushState() {
+      if (!isDevicePushSupported()) {
+        this.devicePush = {
+          supported: false,
+          permission: 'unsupported',
+          subscribed: false,
+          isSyncing: false,
+          error: null,
+        }
+        return
+      }
+
+      this.devicePush.isSyncing = true
+      this.devicePush.error = null
+      try {
+        Object.assign(this.devicePush, await readBrowserPushState())
+      } catch (error) {
+        this.devicePush.error = getErrorMessage(error, '기기 알림 상태를 확인할 수 없습니다.')
+      } finally {
+        this.devicePush.isSyncing = false
+      }
+    },
+
+    async enableDevicePush() {
+      if (!isDevicePushSupported()) {
+        this.devicePush.supported = false
+        this.devicePush.permission = 'unsupported'
+        return { success: false, error: '이 브라우저는 OS 푸시 알림을 지원하지 않습니다.' }
+      }
+
+      this.devicePush.isSyncing = true
+      this.devicePush.error = null
+      try {
+        await subscribeCurrentDevice()
+        Object.assign(this.devicePush, await readBrowserPushState())
+        return { success: true }
+      } catch (error) {
+        const message = getErrorMessage(error, '기기 푸시 알림을 켤 수 없습니다.')
+        if (message.includes('서버 설정')) {
+          this.devicePush.permission = 'unavailable'
+        } else if (typeof Notification !== 'undefined') {
+          this.devicePush.permission = Notification.permission
+        }
+        this.devicePush.error = message
+        return { success: false, error: message }
+      } finally {
+        this.devicePush.isSyncing = false
+      }
+    },
+
+    async disableDevicePush() {
+      if (!isDevicePushSupported()) {
+        this.devicePush.subscribed = false
+        return { success: true }
+      }
+
+      this.devicePush.isSyncing = true
+      this.devicePush.error = null
+      try {
+        await unsubscribeCurrentDevice()
+        Object.assign(this.devicePush, await readBrowserPushState())
+        return { success: true }
+      } catch (error) {
+        const message = getErrorMessage(error, '기기 푸시 알림을 끌 수 없습니다.')
+        this.devicePush.error = message
+        return { success: false, error: message }
+      } finally {
+        this.devicePush.isSyncing = false
+      }
+    },
+
   },
 })
 

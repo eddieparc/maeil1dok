@@ -266,6 +266,35 @@ class NotificationSettings(models.Model):
         return f"{self.user.nickname} 알림 설정"
 
 
+class NotificationPushSubscription(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notification_push_subscriptions',
+    )
+    endpoint = models.URLField(max_length=500, unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    user_agent = models.CharField(max_length=255, blank=True)
+    enabled = models.BooleanField(default=True)
+    failure_count = models.PositiveSmallIntegerField(default=0)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_failure_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'enabled']),
+            models.Index(fields=['endpoint']),
+        ]
+        verbose_name = '푸시 알림 구독'
+        verbose_name_plural = '푸시 알림 구독'
+
+    def __str__(self):
+        return f"{self.user.nickname} 푸시 구독"
+
+
 class Notification(models.Model):
     TYPE_CHOICES = [
         ('reading_reminder', '통독 리마인더'),

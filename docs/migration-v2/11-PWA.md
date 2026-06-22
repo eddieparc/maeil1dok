@@ -1,43 +1,61 @@
-# 11-PWA · PWA + FCM 푸시
+# 11-PWA · PWA + OS Web Push
 
-> **슬라이스 ID**: 11-PWA · **Wave**: 2 (병렬, 인프라만 선행) · **의존**: 11-FOUND · **크기**: M
+> **슬라이스 ID**: 11-PWA · **현재 구현 기준**: Nuxt 3 + Django Web Push(VAPID)
 
 ## 1. 목표
-- PWA 매니페스트/서비스워커 정상 (홈 화면 추가, 오프라인 fallback)
-- FCM 푸시 토큰 등록 + 통독 리마인더 발송 (Nuxt 미완 상태였음)
-- Apple Sign In 리뷰 통과 흔적 ([docs/APPLE_SIGN_IN_SETUP.md](file:///Users/jgp/GitHub/maeil1dok/docs/APPLE_SIGN_IN_SETUP.md)) 검증
+- PWA 매니페스트와 서비스워커를 통해 브라우저/설치형 PWA에서 OS 알림을 수신한다.
+- 통독 리마인더, 하세나하시조 리마인더, 친구 활동 알림을 실제 Web Push로 발송한다.
+- 사용자는 `/notifications/settings`에서 현재 기기의 푸시 구독을 켜고 끌 수 있다.
 
-## 2. 자산
-- Nuxt: [plugins/native-app.client.ts](file:///Users/jgp/GitHub/maeil1dok/frontend/app/plugins/native-app.client.ts), public/ 매니페스트
-- Django: FCM 토큰 등록 엔드포인트 위치 — 03a 확인
-- Supabase migration: `20260227000001_plan_e_avatar_fcm_notifications.sql` — FCM 토큰 테이블 존재
-- Next: 02 §3 의 컴포넌트 + 02 §12 의 환경변수 (FCM 키)
+## 2. 현재 구현 자산
+- Nuxt 서비스워커: `frontend/public/notification-sw.js`
+- 기기 구독 런타임: `frontend/app/utils/devicePushRuntime.ts`
+- 설정 UI: `frontend/app/components/notifications/DevicePushSetting.vue`
+- Django 구독 모델: `todos.NotificationPushSubscription`
+- Django 구독 API:
+  - `GET /api/v1/todos/notifications/push/config/`
+  - `POST /api/v1/todos/notifications/push/subscriptions/`
+  - `POST /api/v1/todos/notifications/push/subscriptions/remove/`
+- Django 발송 서비스: `backend/todos/services/push_notifications.py`
+- 리마인더 스케줄러: Celery beat `send-due-notification-reminders`
 
-## 3. 작업 — Wave 2 (인프라 부분, Mn7: SDK init OK, token register 만 Wave 3 지연)
-| # | 작업 | DoD |
-|---|---|---|
-| PW-1 | manifest.webmanifest — 아이콘/이름/색상/start_url | Lighthouse PWA score |
-| PW-2 | 서비스 워커 — Next 의 next-pwa 또는 수동 | offline fallback 페이지 동작 |
-| PW-3 | iOS PWA 호환 (메타 태그 + status bar) | iOS Safari 홈 추가 검증 |
-| **PW-3b** | **Firebase SDK init (Wave 2 OK, Mn7)** — `firebase.initializeApp(config)` + `getMessaging()` 호출까지는 Wave 2 에서 진행. **`getToken()` (FCM token 발급+서버 등록) 만 Wave 3 으로 지연**. SDK init 자체는 사용자 데이터 미접촉이므로 안전 | `firebase.initializeApp` 실행 + console error 0 |
-| PW-6 | Apple Sign In 리뷰 호환성 (Apple은 Sign In 시 push 표시 요구사항 있음) | Apple 리뷰 가이드 체크리스트 |
+## 3. 운영 환경 변수
 
-## 4. 작업 — Wave 3+ (FCM 실 등록은 사용자 사전 생성 후로 지연 — Momus R1 Minor #3)
-| # | 작업 | DoD |
-|---|---|---|
-| PW-4 | FCM 토큰 발급 + Supabase 등록 — **Wave 1/2 에서는 Mock 만, 실 DB 기록은 11-MIGRATE 완료 후 (Wave 3 이상)** | 로그인 후 토큰 row 존재 |
-| PW-5 | 통독 리마인더 푸시 (Edge function 또는 cron) | 테스트 디바이스 수신 |
+```bash
+WEB_PUSH_VAPID_PUBLIC_KEY=...
+WEB_PUSH_VAPID_PRIVATE_KEY=...
+WEB_PUSH_VAPID_SUBJECT=mailto:admin@maeil1dok.app
+```
 
-## 4. 결정
-- PWD-1: 푸시 발송 인프라 — Supabase Edge function / Vercel Cron / 외부 큐
-- PWD-2: 리마인더 시간/빈도 정책
+- public key는 브라우저 PushSubscription 생성에 사용한다.
+- private key는 Django 백엔드의 `pywebpush` 발송에만 사용한다.
+- private key는 저장소에 커밋하지 않고 Railway/운영 환경 변수로만 관리한다.
 
-## 5. DoD (Oracle R-final Major #6 + Momus #3 4-tuple 보강)
-- **CHANGE**: public/manifest.webmanifest, public/sw.js (또는 next-pwa config), src/lib/firebase/init.ts, src/lib/fcm/register.ts, src/app/api/fcm/register/route.ts
-- **EVIDENCE**: `.sisyphus/evidence/11-PWA-lighthouse.json` (PWA score), `.sisyphus/evidence/11-PWA-fcm-register.txt` (토큰 등록 row), `.sisyphus/evidence/11-PWA-ios-screenshot.png` (iOS 홈 추가), `.sisyphus/evidence/11-PWA-push-receive-{ios,android}.png` (실 디바이스 수신)
-- **REPRODUCE**: `npx lighthouse https://maeil1dok.app --only-categories=pwa --output=json --output-path=.sisyphus/evidence/11-PWA-lighthouse.json && npx playwright test tests/e2e/pwa/*.spec.ts`
-- **ASSERTION**:
-  - Lighthouse PWA score: >= 90
-  - FCM 토큰 등록 성공률: 100% (실 디바이스 5대 sample)
-  - iOS Safari 홈 추가 동작 검증 (manual screenshot)
-  - 푸시 수신 latency: < 5s (테스트 디바이스)
+## 4. DoD
+- `frontend/public/notification-sw.js`가 프로덕션 빌드 산출물에 포함된다.
+- 로그인 사용자가 `/notifications/settings`에서 현재 기기 푸시 알림을 켤 수 있다.
+- 구독 정보가 Django API에 저장되고, 같은 endpoint 재등록 시 활성 상태로 갱신된다.
+- 친구 활동 알림 생성 시 `Notification`과 Web Push 발송이 함께 수행된다.
+- Celery beat가 5분마다 due reminder를 생성해 통독/하세나하시조 OS 알림을 발송한다.
+- 만료된 Web Push endpoint(404/410)는 자동 비활성화된다.
+
+## 5. 검증
+
+```bash
+cd backend
+DJANGO_SETTINGS_MODULE=config.test_settings SECRET_KEY=test KAKAO_CLIENT_ID=test KAKAO_REDIRECT_URI=http://localhost ../.venv/bin/python manage.py test todos.test_notifications
+
+cd ../frontend
+npm test -- notifications-contract.test.mjs
+npm run build
+```
+
+수동 QA:
+- HTTPS 운영 도메인 또는 localhost에서 로그인한다.
+- `/notifications/settings`에서 현재 기기 푸시 알림을 켠다.
+- 브라우저 권한을 허용하고 OS 알림 수신을 확인한다.
+- iOS Safari는 홈 화면에 추가한 PWA에서 권한을 허용해야 OS 푸시가 동작한다.
+
+## 6. 레거시 참고
+
+`maeil1dok-next` 하위의 Firebase/FCM 파일과 Supabase FCM migration은 Next 전환 실험의 레거시 인벤토리다. 현재 운영 Nuxt/Django 앱의 OS 푸시는 FCM이 아니라 표준 Web Push(VAPID)를 기준으로 유지한다.

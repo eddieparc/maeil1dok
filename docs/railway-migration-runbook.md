@@ -106,6 +106,12 @@ RUN_MIGRATIONS=false
 RUN_COLLECTSTATIC=false
 ```
 
+`maeil1dok-celery-worker` must deploy from `railway/backend.worker.toml` and
+run `celery -A config worker -l info`. `maeil1dok-celery-beat` must deploy from
+`railway/backend.beat.toml` and run `celery -A config beat -l info`, so the
+`send-due-notification-reminders` schedule in `backend/config/celery.py` creates
+통독/하세나 OS push reminders without manual Railway cron edits.
+
 `healthcheck.railway.app` and `SECURE_SSL_REDIRECT=False` are required for the
 Railway internal HTTP healthcheck. Public traffic still terminates HTTPS at the
 Railway edge and receives the Django HSTS/security headers.
