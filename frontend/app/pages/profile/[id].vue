@@ -48,6 +48,13 @@
                 계정 설정
               </button>
               <button
+                v-if="isOwnProfile"
+                @click="navigateToNotificationSettings"
+                class="btn-action btn-secondary"
+              >
+                알림 설정
+              </button>
+              <button
                 v-else-if="isAuthenticated"
                 @click="toggleFollow"
                 :class="[
@@ -244,6 +251,10 @@ const handleAvatarError = () => {
 
 const navigateToAccountSettings = () => {
   navigateTo('/account/settings')
+}
+
+const navigateToNotificationSettings = () => {
+  navigateTo('/notifications/settings')
 }
 
 // 로딩/에러 상태
