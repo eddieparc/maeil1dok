@@ -33,13 +33,13 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         self.assertEqual(configs["backend-worker"]["build"]["dockerfilePath"], "Dockerfile.worker")
         self.assertEqual(
             configs["backend-worker"]["deploy"]["startCommand"],
-            "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}",
+            'sh -c "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}"',
         )
         self.assertEqual(configs["backend-beat"]["build"]["dockerfilePath"], "Dockerfile.beat")
         self.assertNotIn("cronSchedule", configs["backend-beat"]["deploy"])
         self.assertEqual(
             configs["backend-beat"]["deploy"]["startCommand"],
-            "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2} --beat",
+            'sh -c "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2} --beat"',
         )
         self.assertEqual(configs["backend-backup"]["build"]["dockerfilePath"], "Dockerfile.backup")
         self.assertEqual(configs["backend-backup"]["deploy"]["cronSchedule"], "0 18 * * *")
