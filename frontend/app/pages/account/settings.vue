@@ -192,7 +192,6 @@
             <h3>알림 설정</h3>
           </div>
         </div>
-
         <div class="setting-row">
           <div class="row-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -340,6 +339,8 @@ const { goBack } = useNavigation()
 type Provider = 'kakao' | 'google' | 'apple'
 type KeepAccount = 'current' | 'other'
 
+const PROVIDERS: Provider[] = ['kakao', 'google', 'apple']
+
 interface LinkedAccount {
   provider: Provider
   provider_display: string
@@ -395,7 +396,6 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   google: 'Google',
   apple: 'Apple',
 }
-const PROVIDERS: Provider[] = ['kakao', 'google', 'apple']
 
 const loading = ref(true)
 const linkedAccounts = ref<LinkedAccountsResponse | null>(null)
@@ -577,7 +577,8 @@ const getOAuthLinkState = async () => {
   if (typeof state !== 'string' || !state) {
     throw new Error('Invalid OAuth state')
   }
-  return encodeURIComponent(state)
+  const encodedState = encodeURIComponent(state)
+  return decodeURIComponent(encodedState)
 }
 
 const getOAuthProviderConfig = (provider: Provider) => {
@@ -603,7 +604,11 @@ const getOAuthProviderConfig = (provider: Provider) => {
   return providerConfig[provider]
 }
 
+const handleLinkGoogle = () => handleLinkProvider('google')
+
 const handleLinkProvider = async (provider: Provider) => {
+  if (linkingProvider.value) return
+
   const providerConfig = getOAuthProviderConfig(provider)
   const { clientId, redirectUri } = providerConfig
   if (!clientId || !redirectUri) {
@@ -626,11 +631,10 @@ const handleLinkProvider = async (provider: Provider) => {
       description: getErrorMessage(error, '소셜 계정 연결을 시작하지 못했습니다.'),
       icon: 'error',
     })
+  } finally {
     linkingProvider.value = null
   }
 }
-
-const handleLinkGoogle = () => handleLinkProvider('google')
 
 const handleUnlink = async (provider: Provider) => {
   const confirmed = await modal.confirm({
