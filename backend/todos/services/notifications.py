@@ -190,11 +190,18 @@ def _create_notification(
         'data': data or {},
     }
     if dedupe_key:
-        notification, created = Notification.objects.get_or_create(
-            recipient=recipient,
-            dedupe_key=dedupe_key,
-            defaults=defaults,
-        )
+        try:
+            notification, created = Notification.objects.get_or_create(
+                recipient=recipient,
+                dedupe_key=dedupe_key,
+                defaults=defaults,
+            )
+        except Notification.MultipleObjectsReturned:
+            notification = Notification.objects.filter(
+                recipient=recipient,
+                dedupe_key=dedupe_key,
+            ).order_by('created_at', 'id').first()
+            return notification, False
         if created:
             _queue_push_delivery(notification)
         return notification, created

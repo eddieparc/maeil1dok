@@ -16,7 +16,7 @@ from .models import (
     NotificationSettings,
     PlanSubscription,
 )
-from .services.notifications import send_due_reminder_notifications
+from .services.notifications import _create_notification, send_due_reminder_notifications
 from .services.push_notifications import PushDeliveryError, deliver_push_notification
 
 User = get_user_model()
@@ -434,3 +434,33 @@ class NotificationPushDeliveryTest(TestCase):
             dedupe_key=f'reading-reminder:{self.user.id}:{date.today().isoformat()}',
         ).exists())
         self.assertEqual(subscription.progress.count(), 0)
+
+    def test_create_notification_treats_duplicate_dedupe_rows_as_existing(self):
+        existing = Notification.objects.create(
+            recipient=self.user,
+            type='reading_reminder',
+            title='기존 알림',
+            body='이미 생성된 알림입니다.',
+            target_url='/plan',
+            dedupe_key='reading-reminder:duplicate',
+        )
+
+        with (
+            patch(
+                'todos.services.notifications.Notification.objects.get_or_create',
+                side_effect=Notification.MultipleObjectsReturned,
+            ),
+            patch('todos.services.notifications._queue_push_delivery') as queue_push_delivery,
+        ):
+            notification, created = _create_notification(
+                recipient=self.user,
+                notification_type='reading_reminder',
+                title='오늘의 통독이 기다리고 있어요',
+                body='오늘 배정된 말씀을 읽고 흐름을 이어가볼까요?',
+                target_url='/plan',
+                dedupe_key='reading-reminder:duplicate',
+            )
+
+        self.assertEqual(notification, existing)
+        self.assertFalse(created)
+        queue_push_delivery.assert_not_called()
