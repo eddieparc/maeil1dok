@@ -37,7 +37,10 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
         )
         self.assertEqual(configs["backend-beat"]["build"]["dockerfilePath"], "Dockerfile.beat")
         self.assertNotIn("cronSchedule", configs["backend-beat"]["deploy"])
-        self.assertEqual(configs["backend-beat"]["deploy"]["startCommand"], "celery -A config beat -l info")
+        self.assertEqual(
+            configs["backend-beat"]["deploy"]["startCommand"],
+            "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2} --beat",
+        )
         self.assertEqual(configs["backend-backup"]["build"]["dockerfilePath"], "Dockerfile.backup")
         self.assertEqual(configs["backend-backup"]["deploy"]["cronSchedule"], "0 18 * * *")
         self.assertIn("railway/backend.web.toml", configs["backend-web"]["build"]["watchPatterns"])
@@ -48,7 +51,9 @@ class RailwayDeploymentConfigTest(unittest.TestCase):
             regions = config["deploy"]["multiRegionConfig"]
             self.assertEqual(regions, {"asia-southeast1-eqsg3a": {"numReplicas": 1}})
         self.assertIn("celery -A config worker -l info", (repo_root / "backend" / "Dockerfile.worker").read_text(encoding="utf-8"))
-        self.assertIn("celery\", \"-A\", \"config\", \"beat\"", (repo_root / "backend" / "Dockerfile.beat").read_text(encoding="utf-8"))
+        beat_dockerfile = (repo_root / "backend" / "Dockerfile.beat").read_text(encoding="utf-8")
+        self.assertIn("celery -A config worker -l info", beat_dockerfile)
+        self.assertIn("--beat", beat_dockerfile)
         celery_config = (repo_root / "backend" / "config" / "celery.py").read_text(encoding="utf-8")
         self.assertIn("'send-due-notification-reminders'", celery_config)
         self.assertIn("'task': 'todos.tasks.send_due_notification_reminders_task'", celery_config)
