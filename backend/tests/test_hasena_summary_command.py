@@ -66,7 +66,7 @@ class HasenaSummaryCommandTest(SimpleTestCase):
 
         self.assertIn("failed no_video_info", out.getvalue())
 
-    def test_generate_hasena_summary_once_fails_latest_video_generation_without_fallback(self) -> None:
+    def test_generate_hasena_summary_once_tries_next_recent_video_after_generation_failure(self) -> None:
         out = StringIO()
 
         with (
@@ -93,15 +93,20 @@ class HasenaSummaryCommandTest(SimpleTestCase):
                 ],
             ) as generate_summary,
         ):
-            with self.assertRaises(CommandError):
-                call_command("generate_hasena_summary_once", stdout=out)
+            call_command("generate_hasena_summary_once", stdout=out)
 
-        generate_summary.assert_called_once_with(
+        self.assertEqual(generate_summary.call_count, 2)
+        generate_summary.assert_any_call(
             "LY-mfNxK90Y",
             video_date=date(2026, 6, 18),
             title="아직 자막 없는 영상",
         )
-        self.assertIn("failed RESOURCE_EXHAUSTED: free-tier quota exceeded", out.getvalue())
+        generate_summary.assert_any_call(
+            "CkJhOAlh_lg",
+            video_date=date(2026, 6, 17),
+            title="자막 준비된 영상",
+        )
+        self.assertIn("generated CkJhOAlh_lg", out.getvalue())
 
     def test_generate_hasena_summary_once_fail_soft_exits_successfully(self) -> None:
         out = StringIO()

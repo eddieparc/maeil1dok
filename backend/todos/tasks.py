@@ -27,12 +27,18 @@ def generate_hasena_summary_task(self):
         get_latest_hasena_video,
         get_hasena_summary,
     )
+    from .services.hasena_monitoring import capture_hasena_summary_issue
     from .models import HasenaSummary
     
     try:
         video_info = get_latest_hasena_video()
         if not video_info or not video_info.get('video_id'):
             logger.warning("Could not fetch latest video info")
+            capture_hasena_summary_issue(
+                "Hasena summary task could not fetch latest video",
+                level="warning",
+                extra={"date": today_str},
+            )
             return {'status': 'failed', 'reason': 'no_video_info'}
         
         video_id = video_info['video_id']
@@ -52,10 +58,23 @@ def generate_hasena_summary_task(self):
             return {'status': 'success', 'video_id': video_id}
         else:
             logger.warning(f"Failed to generate summary: {result.get('error')}")
+            capture_hasena_summary_issue(
+                "Hasena summary task failed",
+                extra={
+                    "date": today_str,
+                    "video_id": video_id,
+                    "reason": result.get('error'),
+                },
+            )
             return {'status': 'failed', 'reason': result.get('error'), 'video_id': video_id}
             
     except Exception as e:
         logger.error(f"Error in generate_hasena_summary_task: {str(e)}", exc_info=True)
+        capture_hasena_summary_issue(
+            "Hasena summary task raised an exception",
+            extra={"date": today_str},
+            exception=e,
+        )
         return {'status': 'error', 'reason': str(e)}
 
 
