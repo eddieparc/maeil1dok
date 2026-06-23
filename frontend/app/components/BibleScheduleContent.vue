@@ -40,7 +40,7 @@
 
       <!-- 비로그인 사용자 기본 플랜 안내 메시지 -->
       <Transition name="slide-fade">
-        <div v-if="showDefaultPlanMessage && !authStore.isAuthenticated"
+        <div v-if="showDefaultPlanMessage && !auth.isAuthenticated.value"
           class="bulk-edit-indicator default-plan-indicator">
           <span class="bulk-edit-message">비로그인 사용자는 <strong>{{ defaultPlanName }}</strong>이 기본 선택되요.</span>
         </div>
