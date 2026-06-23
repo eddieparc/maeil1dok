@@ -9,6 +9,7 @@ from todos.services.hasena_summary_service import (
     get_hasena_summary as generate_summary,
 )
 from todos.services.hasena_summary_service import get_recent_hasena_videos
+from todos.services.hasena_monitoring import capture_hasena_summary_issue
 
 NO_VIDEO_INFO: Final = "no_video_info"
 
@@ -39,34 +40,57 @@ class Command(BaseCommand):
                 return
 
             reason = result.get("error") or "unknown_error"
+            capture_hasena_summary_issue(
+                "Hasena summary generation failed for requested video",
+                extra={"video_id": video_id, "reason": reason},
+            )
             self._fail(reason, fail_soft=fail_soft)
             return
 
         candidates = get_recent_hasena_videos()
         if not candidates:
+            capture_hasena_summary_issue(
+                "Hasena summary generation could not find recent videos",
+                level="warning",
+            )
             self._fail(NO_VIDEO_INFO, fail_soft=fail_soft)
             return
 
-        candidate = next((item for item in candidates if item.get("video_id")), None)
-        if not candidate:
+        candidates_with_video = [item for item in candidates if item.get("video_id")]
+        if not candidates_with_video:
+            capture_hasena_summary_issue(
+                "Hasena summary generation candidates had no video IDs",
+                level="warning",
+                extra={"candidate_count": len(candidates)},
+            )
             self._fail(NO_VIDEO_INFO, fail_soft=fail_soft)
             return
 
-        candidate_video_date = video_date
-        if not candidate_video_date and candidate.get("published_at"):
-            candidate_video_date = self._parse_published_at(candidate["published_at"])
+        last_reason = "unknown_error"
+        failures = []
+        for candidate in candidates_with_video:
+            candidate_video_date = video_date
+            if not candidate_video_date and candidate.get("published_at"):
+                candidate_video_date = self._parse_published_at(candidate["published_at"])
 
-        result = generate_summary(
-            candidate["video_id"],
-            video_date=candidate_video_date,
-            title=title or candidate.get("title"),
+            result = generate_summary(
+                candidate["video_id"],
+                video_date=candidate_video_date,
+                title=title or candidate.get("title"),
+            )
+            if result.get("success"):
+                self.stdout.write(self.style.SUCCESS(f"generated {result.get('video_id')}"))
+                return
+
+            last_reason = result.get("error") or "unknown_error"
+            failures.append({"video_id": candidate["video_id"], "reason": last_reason})
+            self.stdout.write(self.style.WARNING(f"failed {candidate['video_id']} {last_reason}"))
+
+        capture_hasena_summary_issue(
+            "Hasena summary generation failed for all recent videos",
+            extra={"failures": failures},
         )
-        if result.get("success"):
-            self.stdout.write(self.style.SUCCESS(f"generated {result.get('video_id')}"))
-            return
-
-        reason = result.get("error") or "unknown_error"
-        self._fail(reason, fail_soft=fail_soft)
+        self._fail(last_reason, fail_soft=fail_soft)
 
     def _fail(self, reason: str, *, fail_soft: bool) -> None:
         self.stdout.write(self.style.ERROR(f"failed {reason}"))

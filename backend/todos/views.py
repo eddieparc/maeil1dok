@@ -2601,21 +2601,31 @@ def generate_hasena_summary_from_cron(request):
             get_hasena_summary as fetch_summary,
             get_recent_hasena_videos,
         )
+        from .services.hasena_monitoring import capture_hasena_summary_issue
 
         if video_id:
             result = fetch_summary(video_id, video_date=parsed_date, title=title)
             if result['success']:
                 return Response(result)
+            capture_hasena_summary_issue(
+                "Hasena summary cron failed for requested video",
+                extra={"video_id": video_id, "reason": result.get('error')},
+            )
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
         candidates = get_recent_hasena_videos()
         if not candidates:
+            capture_hasena_summary_issue(
+                "Hasena summary cron could not find recent videos",
+                level="warning",
+            )
             return Response({
                 'success': False,
                 'error': '최신 하세나 영상을 찾을 수 없습니다.'
             }, status=status.HTTP_502_BAD_GATEWAY)
 
         last_result = None
+        failures = []
         for candidate in candidates:
             candidate_video_id = candidate.get('video_id')
             if not candidate_video_id:
@@ -2633,16 +2643,37 @@ def generate_hasena_summary_from_cron(request):
             if result['success']:
                 return Response(result)
             last_result = result
+            failures.append({
+                'video_id': candidate_video_id,
+                'reason': result.get('error'),
+            })
 
         if not last_result:
+            capture_hasena_summary_issue(
+                "Hasena summary cron candidates had no video IDs",
+                level="warning",
+            )
             return Response({
                 'success': False,
                 'error': '최신 하세나 영상을 찾을 수 없습니다.'
             }, status=status.HTTP_502_BAD_GATEWAY)
 
+        capture_hasena_summary_issue(
+            "Hasena summary cron failed for all recent videos",
+            extra={"failures": failures},
+        )
         return Response(last_result, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error in generate_hasena_summary_from_cron: {str(e)}", exc_info=True)
+        try:
+            from .services.hasena_monitoring import capture_hasena_summary_issue
+
+            capture_hasena_summary_issue(
+                "Hasena summary cron raised an exception",
+                exception=e,
+            )
+        except Exception:
+            logger.debug("Failed to report Hasena cron exception", exc_info=True)
         return Response({
             'success': False,
             'error': 'AI 요약 생성 중 오류가 발생했습니다.'

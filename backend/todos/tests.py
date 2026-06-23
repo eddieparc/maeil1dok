@@ -1,9 +1,8 @@
 from datetime import date, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 
@@ -24,12 +23,43 @@ from .tasks import generate_hasena_summary_task
 User = get_user_model()
 
 
-class HasenaSummaryTaskTest(TestCase):
+class HasenaSummaryTaskTest(SimpleTestCase):
     def test_skips_outside_window_when_project_uses_naive_local_time(self):
-        with patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 17, 7, 0, 0)):
+        with (
+            patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 17, 7, 0, 0)),
+            patch('todos.tasks.cache.get', return_value=False),
+        ):
             result = generate_hasena_summary_task()
 
         self.assertEqual(result, {'status': 'skipped', 'reason': 'outside_window'})
+
+    def test_reports_summary_generation_failure_to_monitoring(self):
+        with (
+            patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 17, 1, 0, 0)),
+            patch('todos.tasks.cache.get', return_value=False),
+            patch('todos.tasks.cache.set'),
+            patch('todos.models.HasenaSummary.objects.filter', return_value=Mock(first=Mock(return_value=None))),
+            patch(
+                'todos.services.hasena_summary_service.get_latest_hasena_video',
+                return_value={'video_id': 'video-123', 'title': '하세나하시조'},
+            ),
+            patch(
+                'todos.services.hasena_summary_service.get_hasena_summary',
+                return_value={'success': False, 'error': 'AI 요약을 생성할 수 없습니다.'},
+            ),
+            patch('todos.services.hasena_monitoring.capture_hasena_summary_issue') as capture_issue,
+        ):
+            result = generate_hasena_summary_task()
+
+        self.assertEqual(
+            result,
+            {
+                'status': 'failed',
+                'reason': 'AI 요약을 생성할 수 없습니다.',
+                'video_id': 'video-123',
+            },
+        )
+        capture_issue.assert_called_once()
 
 
 class ProgressTestBase(TestCase):
