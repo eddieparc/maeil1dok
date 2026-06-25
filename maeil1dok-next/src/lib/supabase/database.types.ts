@@ -380,6 +380,47 @@ export type Database = {
           updated_at?: string
         }
       }
+      hasena_entries: {
+        Row: {
+          id: string
+          date: string
+          video_id: string
+          title: string
+          passage: string
+          body_text: string
+          verses: Json
+          source_url: string
+          body_source_url: string
+          fetched_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          date: string
+          video_id: string
+          title?: string
+          passage?: string
+          body_text?: string
+          verses?: Json
+          source_url?: string
+          body_source_url?: string
+          fetched_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          video_id?: string
+          title?: string
+          passage?: string
+          body_text?: string
+          verses?: Json
+          source_url?: string
+          body_source_url?: string
+          fetched_at?: string
+          updated_at?: string
+        }
+      }
       catchup_sessions: {
         Row: {
           id: string
@@ -710,6 +751,20 @@ export type Database = {
           total_completed_days: number
           longest_streak: number
         }[]
+      }
+      upsert_hasena_entry: {
+        Args: {
+          p_date: string
+          p_video_id: string
+          p_title: string
+          p_passage: string
+          p_body_text: string
+          p_verses: Json
+          p_source_url: string
+          p_body_source_url: string
+          p_fetched_at: string
+        }
+        Returns: void
       }
     }
     Enums: {
