@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from io import StringIO
 from unittest.mock import patch
 
@@ -14,6 +14,10 @@ class HasenaSummaryCommandTest(SimpleTestCase):
         out = StringIO()
 
         with (
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.timezone.now",
+                return_value=datetime(2026, 6, 17, 1, 0, 0),
+            ),
             patch(
                 "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
                 return_value=[
@@ -42,6 +46,42 @@ class HasenaSummaryCommandTest(SimpleTestCase):
         )
         self.assertIn("generated video-123", out.getvalue())
 
+    def test_generate_hasena_summary_once_uses_kst_video_date_for_midnight_video(self) -> None:
+        out = StringIO()
+
+        with (
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.timezone.now",
+                return_value=datetime(2026, 6, 25, 1, 0, 0),
+            ),
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
+                return_value=[
+                    {
+                        "video_id": "VkWhiXwG-Fw",
+                        "title": "2026년 6월 25일 목요일 하세나하시조",
+                        "published_at": "2026-06-24T15:00:02+00:00",
+                    }
+                ],
+            ),
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.generate_summary",
+                return_value={
+                    "success": True,
+                    "video_id": "VkWhiXwG-Fw",
+                    "created": True,
+                },
+            ) as generate_summary,
+        ):
+            call_command("generate_hasena_summary_once", stdout=out)
+
+        generate_summary.assert_called_once_with(
+            "VkWhiXwG-Fw",
+            video_date=date(2026, 6, 25),
+            title="2026년 6월 25일 목요일 하세나하시조",
+        )
+        self.assertIn("generated VkWhiXwG-Fw", out.getvalue())
+
     def test_generate_hasena_summary_once_fails_when_latest_video_missing(self) -> None:
         out = StringIO()
 
@@ -66,10 +106,14 @@ class HasenaSummaryCommandTest(SimpleTestCase):
 
         self.assertIn("failed no_video_info", out.getvalue())
 
-    def test_generate_hasena_summary_once_tries_next_recent_video_after_generation_failure(self) -> None:
+    def test_generate_hasena_summary_once_does_not_try_previous_date_after_generation_failure(self) -> None:
         out = StringIO()
 
         with (
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.timezone.now",
+                return_value=datetime(2026, 6, 18, 1, 0, 0),
+            ),
             patch(
                 "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
                 return_value=[
@@ -87,31 +131,27 @@ class HasenaSummaryCommandTest(SimpleTestCase):
             ),
             patch(
                 "todos.management.commands.generate_hasena_summary_once.generate_summary",
-                side_effect=[
-                    {"success": False, "error": "RESOURCE_EXHAUSTED: free-tier quota exceeded"},
-                    {"success": True, "video_id": "CkJhOAlh_lg", "created": True},
-                ],
+                return_value={"success": False, "error": "RESOURCE_EXHAUSTED: free-tier quota exceeded"},
             ) as generate_summary,
         ):
-            call_command("generate_hasena_summary_once", stdout=out)
+            with self.assertRaises(CommandError):
+                call_command("generate_hasena_summary_once", stdout=out)
 
-        self.assertEqual(generate_summary.call_count, 2)
-        generate_summary.assert_any_call(
+        generate_summary.assert_called_once_with(
             "LY-mfNxK90Y",
             video_date=date(2026, 6, 18),
             title="아직 자막 없는 영상",
         )
-        generate_summary.assert_any_call(
-            "CkJhOAlh_lg",
-            video_date=date(2026, 6, 17),
-            title="자막 준비된 영상",
-        )
-        self.assertIn("generated CkJhOAlh_lg", out.getvalue())
+        self.assertIn("failed RESOURCE_EXHAUSTED: free-tier quota exceeded", out.getvalue())
 
     def test_generate_hasena_summary_once_fail_soft_exits_successfully(self) -> None:
         out = StringIO()
 
         with (
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.timezone.now",
+                return_value=datetime(2026, 6, 18, 1, 0, 0),
+            ),
             patch(
                 "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
                 return_value=[

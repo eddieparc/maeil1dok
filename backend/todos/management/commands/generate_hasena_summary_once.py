@@ -4,14 +4,17 @@ from datetime import date, datetime
 from typing import Final
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from todos.services.hasena_summary_service import (
     get_hasena_summary as generate_summary,
+    get_hasena_video_for_date,
 )
 from todos.services.hasena_summary_service import get_recent_hasena_videos
 from todos.services.hasena_monitoring import capture_hasena_summary_issue
 
 NO_VIDEO_INFO: Final = "no_video_info"
+NO_VIDEO_FOR_DATE: Final = "no_video_for_date"
 
 
 class Command(BaseCommand):
@@ -66,31 +69,33 @@ class Command(BaseCommand):
             self._fail(NO_VIDEO_INFO, fail_soft=fail_soft)
             return
 
-        last_reason = "unknown_error"
-        failures = []
-        for candidate in candidates_with_video:
-            candidate_video_date = video_date
-            if not candidate_video_date and candidate.get("published_at"):
-                candidate_video_date = self._parse_published_at(candidate["published_at"])
-
-            result = generate_summary(
-                candidate["video_id"],
-                video_date=candidate_video_date,
-                title=title or candidate.get("title"),
+        target_date = video_date or self._get_current_local_date()
+        candidate = get_hasena_video_for_date(target_date, candidates_with_video)
+        if not candidate:
+            capture_hasena_summary_issue(
+                "Hasena summary generation could not find target-date video",
+                level="warning",
+                extra={"date": target_date.isoformat()},
             )
-            if result.get("success"):
-                self.stdout.write(self.style.SUCCESS(f"generated {result.get('video_id')}"))
-                return
+            self._fail(NO_VIDEO_FOR_DATE, fail_soft=fail_soft)
+            return
 
-            last_reason = result.get("error") or "unknown_error"
-            failures.append({"video_id": candidate["video_id"], "reason": last_reason})
-            self.stdout.write(self.style.WARNING(f"failed {candidate['video_id']} {last_reason}"))
-
-        capture_hasena_summary_issue(
-            "Hasena summary generation failed for all recent videos",
-            extra={"failures": failures},
+        result = generate_summary(
+            candidate["video_id"],
+            video_date=target_date,
+            title=title or candidate.get("title"),
         )
-        self._fail(last_reason, fail_soft=fail_soft)
+        if result.get("success"):
+            self.stdout.write(self.style.SUCCESS(f"generated {result.get('video_id')}"))
+            return
+
+        reason = result.get("error") or "unknown_error"
+        self.stdout.write(self.style.WARNING(f"failed {candidate['video_id']} {reason}"))
+        capture_hasena_summary_issue(
+            "Hasena summary generation failed for target-date video",
+            extra={"date": target_date.isoformat(), "video_id": candidate["video_id"], "reason": reason},
+        )
+        self._fail(reason, fail_soft=fail_soft)
 
     def _fail(self, reason: str, *, fail_soft: bool) -> None:
         self.stdout.write(self.style.ERROR(f"failed {reason}"))
@@ -106,5 +111,11 @@ class Command(BaseCommand):
             return None
         return datetime.strptime(value, "%Y-%m-%d").date()
 
-    def _parse_published_at(self, value: str) -> date | None:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+    def _get_current_local_date(self) -> date:
+        current_time = timezone.now()
+        current_local_time = (
+            timezone.localtime(current_time)
+            if timezone.is_aware(current_time)
+            else current_time
+        )
+        return current_local_time.date()

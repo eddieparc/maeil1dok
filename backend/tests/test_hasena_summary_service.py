@@ -1,16 +1,76 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from datetime import date
+from unittest.mock import Mock, patch
 
 import requests
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from todos.models import HasenaSummary
 from todos.services.hasena_summary_service import (
     _generate_content_with_gemini_fallback,
     get_hasena_summary,
+    get_hasena_video_date,
+    get_hasena_video_for_date,
     get_recent_hasena_videos,
 )
+
+
+class HasenaSummaryServiceDateTest(SimpleTestCase):
+    def test_get_hasena_video_date_uses_kst_published_at(self) -> None:
+        result = get_hasena_video_date(
+            {
+                "video_id": "VkWhiXwG-Fw",
+                "title": "",
+                "published_at": "2026-06-24T15:00:02+00:00",
+            }
+        )
+
+        self.assertEqual(result, date(2026, 6, 25))
+
+    def test_get_hasena_video_date_falls_back_to_title_when_timestamp_is_absent(self) -> None:
+        result = get_hasena_video_date(
+            {
+                "video_id": "VkWhiXwG-Fw",
+                "title": "2026년 6월 25일 목요일 하세나하시조",
+                "published_at": None,
+            }
+        )
+
+        self.assertEqual(result, date(2026, 6, 25))
+
+    def test_get_hasena_video_for_date_returns_none_when_only_previous_date_is_visible(self) -> None:
+        result = get_hasena_video_for_date(
+            date(2026, 6, 25),
+            [
+                {
+                    "video_id": "GEP5Hi4Rp_A",
+                    "title": "2026년 6월 24일 수요일 하세나하시조",
+                    "published_at": "2026-06-23T15:00:31+00:00",
+                }
+            ],
+        )
+
+        self.assertIsNone(result)
+
+    def test_get_hasena_video_for_date_selects_current_service_date_after_feed_update(self) -> None:
+        result = get_hasena_video_for_date(
+            date(2026, 6, 25),
+            [
+                {
+                    "video_id": "VkWhiXwG-Fw",
+                    "title": "2026년 6월 25일 목요일 하세나하시조",
+                    "published_at": "2026-06-24T15:00:02+00:00",
+                },
+                {
+                    "video_id": "GEP5Hi4Rp_A",
+                    "title": "2026년 6월 24일 수요일 하세나하시조",
+                    "published_at": "2026-06-23T15:00:31+00:00",
+                },
+            ],
+        )
+
+        self.assertEqual(result["video_id"], "VkWhiXwG-Fw")
 
 
 class HasenaSummaryServiceTest(TestCase):
@@ -121,6 +181,45 @@ class HasenaSummaryServiceTest(TestCase):
 
         self.assertEqual(result, [])
         fetch.assert_not_called()
+
+    @override_settings(YOUTUBE_API_KEY="youtube-secret")
+    def test_get_recent_hasena_videos_uses_video_published_at_from_youtube_api(self) -> None:
+        class Response:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self):
+                return {
+                    "items": [
+                        {
+                            "snippet": {
+                                "resourceId": {"videoId": "VkWhiXwG-Fw"},
+                                "title": "2026년 6월 25일 목요일 하세나하시조",
+                                "publishedAt": "2026-06-24T12:00:00Z",
+                            },
+                            "contentDetails": {
+                                "videoPublishedAt": "2026-06-24T15:00:02+00:00",
+                            },
+                            "status": {"privacyStatus": "public"},
+                        }
+                    ]
+                }
+
+        with (
+            patch(
+                "todos.services.hasena_summary_service._get_recent_hasena_videos_from_feed",
+                return_value=[],
+            ),
+            patch(
+                "todos.services.hasena_summary_service._get_recent_hasena_videos_from_playlist_page",
+                return_value=[],
+            ),
+            patch("todos.services.hasena_summary_service.requests.get", return_value=Response()) as fetch,
+        ):
+            result = get_recent_hasena_videos()
+
+        self.assertEqual(result[0]["published_at"], "2026-06-24T15:00:02+00:00")
+        self.assertIn("contentDetails", fetch.call_args.kwargs["params"]["part"])
 
     @override_settings(YOUTUBE_API_KEY="youtube-secret")
     def test_get_recent_hasena_videos_redacts_api_key_from_errors(self) -> None:
@@ -249,3 +348,62 @@ class HasenaSummaryServiceTest(TestCase):
             client.models.calls,
             ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"],
         )
+
+
+class HasenaSummaryPersistenceContractTest(TestCase):
+    def test_saved_summary_returns_persisted_success(self) -> None:
+        with (
+            patch(
+                "todos.services.hasena_summary_service.get_youtube_transcript",
+                return_value=None,
+            ),
+            patch(
+                "todos.services.hasena_summary_service.summarize_youtube_video_with_gemini",
+                return_value={
+                    "summary": "**오늘의 본문**\n요약",
+                    "model": "gemini-2.5-flash-video",
+                },
+            ),
+        ):
+            result = get_hasena_summary(
+                "video-123",
+                video_date=date(2026, 6, 25),
+                title="2026년 6월 25일 목요일 하세나하시조",
+            )
+
+        self.assertTrue(result["success"])
+        self.assertTrue(result["persisted"])
+        self.assertTrue(result["cacheable"])
+        self.assertEqual(HasenaSummary.objects.get(video_id="video-123").video_date, date(2026, 6, 25))
+
+    def test_save_failure_returns_failure_not_success(self) -> None:
+        with (
+            patch(
+                "todos.services.hasena_summary_service.get_youtube_transcript",
+                return_value=None,
+            ),
+            patch(
+                "todos.services.hasena_summary_service.summarize_youtube_video_with_gemini",
+                return_value={
+                    "summary": "**오늘의 본문**\n요약",
+                    "model": "gemini-2.5-flash-video",
+                },
+            ),
+            patch(
+                "todos.models.HasenaSummary.objects.filter",
+                return_value=Mock(first=Mock(return_value=None)),
+            ),
+            patch(
+                "todos.models.HasenaSummary.objects.update_or_create",
+                side_effect=Exception("database unavailable"),
+            ),
+        ):
+            result = get_hasena_summary(
+                "video-123",
+                video_date=date(2026, 6, 25),
+                title="2026년 6월 25일 목요일 하세나하시조",
+            )
+
+        self.assertFalse(result["success"])
+        self.assertFalse(result["persisted"])
+        self.assertFalse(result["cacheable"])
