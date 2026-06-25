@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from unittest.mock import Mock, patch
 
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
@@ -40,8 +41,14 @@ class HasenaSummaryTaskTest(SimpleTestCase):
             patch('todos.tasks.cache.set'),
             patch('todos.models.HasenaSummary.objects.filter', return_value=Mock(first=Mock(return_value=None))),
             patch(
-                'todos.services.hasena_summary_service.get_latest_hasena_video',
-                return_value={'video_id': 'video-123', 'title': '하세나하시조'},
+                'todos.services.hasena_summary_service.get_recent_hasena_videos',
+                return_value=[
+                    {
+                        'video_id': 'video-123',
+                        'title': '2026년 6월 17일 수요일 하세나하시조',
+                        'published_at': '2026-06-16T15:00:31+00:00',
+                    }
+                ],
             ),
             patch(
                 'todos.services.hasena_summary_service.get_hasena_summary',
@@ -60,6 +67,165 @@ class HasenaSummaryTaskTest(SimpleTestCase):
             },
         )
         capture_issue.assert_called_once()
+
+    def test_does_not_mark_today_generated_when_latest_video_is_previous_day_summary(self):
+        existing_summary = Mock(video_date=date(2026, 6, 24))
+
+        with (
+            patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 25, 0, 0, 0)),
+            patch('todos.tasks.cache.get', return_value=False),
+            patch('todos.tasks.cache.set') as cache_set,
+            patch(
+                'todos.services.hasena_summary_service.get_recent_hasena_videos',
+                return_value=[
+                    {
+                        'video_id': 'GEP5Hi4Rp_A',
+                        'title': '2026년 6월 24일 수요일 하세나하시조',
+                        'published_at': '2026-06-23T15:00:31+00:00',
+                    },
+                ],
+            ),
+            patch(
+                'todos.models.HasenaSummary.objects.filter',
+                return_value=Mock(first=Mock(return_value=existing_summary)),
+            ),
+            patch('todos.services.hasena_summary_service.get_hasena_summary') as generate_summary,
+            patch('todos.services.hasena_monitoring.capture_hasena_summary_issue') as capture_issue,
+        ):
+            result = generate_hasena_summary_task()
+
+        self.assertEqual(
+            result,
+            {
+                'status': 'pending',
+                'reason': 'no_video_for_date',
+                'date': '2026-06-25',
+            },
+        )
+        cache_set.assert_not_called()
+        generate_summary.assert_not_called()
+        capture_issue.assert_called_once()
+
+    def test_generates_current_service_date_video_after_feed_update(self):
+        with (
+            patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 25, 0, 5, 0)),
+            patch('todos.tasks.cache.get', return_value=False),
+            patch('todos.tasks.cache.set') as cache_set,
+            patch(
+                'todos.services.hasena_summary_service.get_recent_hasena_videos',
+                return_value=[
+                    {
+                        'video_id': 'VkWhiXwG-Fw',
+                        'title': '2026년 6월 25일 목요일 하세나하시조',
+                        'published_at': '2026-06-24T15:00:02+00:00',
+                    },
+                ],
+            ),
+            patch(
+                'todos.models.HasenaSummary.objects.filter',
+                return_value=Mock(first=Mock(return_value=None)),
+            ),
+            patch(
+                'todos.services.hasena_summary_service.get_hasena_summary',
+                return_value={
+                    'success': True,
+                    'cacheable': True,
+                    'video_id': 'VkWhiXwG-Fw',
+                },
+            ) as generate_summary,
+        ):
+            result = generate_hasena_summary_task()
+
+        self.assertEqual(result, {'status': 'success', 'video_id': 'VkWhiXwG-Fw'})
+        generate_summary.assert_called_once_with(
+            'VkWhiXwG-Fw',
+            video_date=date(2026, 6, 25),
+            title='2026년 6월 25일 목요일 하세나하시조',
+        )
+        cache_set.assert_called_once_with(
+            'hasena_summary_success_2026-06-25',
+            {
+                'service_date': '2026-06-25',
+                'video_id': 'VkWhiXwG-Fw',
+            },
+            timeout=86400,
+        )
+
+    def test_matching_cache_payload_and_db_row_skips_generation(self):
+        existing_summary = Mock(video_date=date(2026, 6, 25))
+
+        with (
+            patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 25, 0, 10, 0)),
+            patch(
+                'todos.tasks.cache.get',
+                return_value={
+                    'service_date': '2026-06-25',
+                    'video_id': 'VkWhiXwG-Fw',
+                },
+            ),
+            patch('todos.tasks.cache.set') as cache_set,
+            patch(
+                'todos.services.hasena_summary_service.get_recent_hasena_videos',
+                return_value=[
+                    {
+                        'video_id': 'VkWhiXwG-Fw',
+                        'title': '2026년 6월 25일 목요일 하세나하시조',
+                        'published_at': '2026-06-24T15:00:02+00:00',
+                    },
+                ],
+            ),
+            patch(
+                'todos.models.HasenaSummary.objects.filter',
+                return_value=Mock(first=Mock(return_value=existing_summary)),
+            ),
+            patch('todos.services.hasena_summary_service.get_hasena_summary') as generate_summary,
+        ):
+            result = generate_hasena_summary_task()
+
+        self.assertEqual(
+            result,
+            {
+                'status': 'skipped',
+                'reason': 'already_generated',
+                'video_id': 'VkWhiXwG-Fw',
+            },
+        )
+        generate_summary.assert_not_called()
+        cache_set.assert_not_called()
+
+    def test_legacy_truthy_cache_value_does_not_skip_generation(self):
+        with (
+            patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 25, 0, 15, 0)),
+            patch('todos.tasks.cache.get', return_value=True),
+            patch('todos.tasks.cache.set') as cache_set,
+            patch(
+                'todos.services.hasena_summary_service.get_recent_hasena_videos',
+                return_value=[
+                    {
+                        'video_id': 'VkWhiXwG-Fw',
+                        'title': '2026년 6월 25일 목요일 하세나하시조',
+                        'published_at': '2026-06-24T15:00:02+00:00',
+                    },
+                ],
+            ),
+            patch(
+                'todos.models.HasenaSummary.objects.filter',
+                return_value=Mock(first=Mock(return_value=None)),
+            ),
+            patch(
+                'todos.services.hasena_summary_service.get_hasena_summary',
+                return_value={
+                    'success': True,
+                    'cacheable': True,
+                    'video_id': 'VkWhiXwG-Fw',
+                },
+            ) as generate_summary,
+        ):
+            result = generate_hasena_summary_task()
+
+        self.assertEqual(result, {'status': 'success', 'video_id': 'VkWhiXwG-Fw'})
+        generate_summary.assert_called_once()
+        cache_set.assert_called_once()
 
 
 class ProgressTestBase(TestCase):

@@ -4,7 +4,10 @@ import time
 import re
 import json
 import xml.etree.ElementTree as ET
-from datetime import date
+import unicodedata
+from datetime import date, datetime, timezone
+from typing import Final
+from zoneinfo import ZoneInfo
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -12,6 +15,10 @@ logger = logging.getLogger(__name__)
 # 하세나하시조 플레이리스트 ID
 HASENA_PLAYLIST_ID = 'PLMT1AJszhYtXkV936HNuExxjAmtFhp2tL'
 GEMINI_SUMMARY_MODELS = ('gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-flash-lite')
+HASENA_SERVICE_TIME_ZONE: Final = ZoneInfo('Asia/Seoul')
+HASENA_TITLE_DATE_PATTERN: Final = re.compile(
+    r'(?P<year>20\d{2})\D+(?P<month>\d{1,2})\D+(?P<day>\d{1,2})'
+)
 
 
 def _redact_api_keys(message: str) -> str:
@@ -139,7 +146,7 @@ def _get_recent_hasena_videos_from_api(max_results: int = 10) -> list[dict]:
     try:
         url = 'https://www.googleapis.com/youtube/v3/playlistItems'
         params = {
-            'part': 'snippet,status',
+            'part': 'snippet,status,contentDetails',
             'playlistId': HASENA_PLAYLIST_ID,
             'maxResults': max_results,
             'key': api_key
@@ -156,6 +163,7 @@ def _get_recent_hasena_videos_from_api(max_results: int = 10) -> list[dict]:
         videos = []
         for item in data['items']:
             snippet = item.get('snippet', {})
+            content_details = item.get('contentDetails', {})
             status = item.get('status', {})
             video_id = snippet.get('resourceId', {}).get('videoId')
             title = snippet.get('title') or ''
@@ -167,7 +175,7 @@ def _get_recent_hasena_videos_from_api(max_results: int = 10) -> list[dict]:
             videos.append({
                 'video_id': video_id,
                 'title': title,
-                'published_at': snippet.get('publishedAt'),
+                'published_at': content_details.get('videoPublishedAt') or snippet.get('publishedAt'),
             })
         
         if not videos:
@@ -182,9 +190,60 @@ def _get_recent_hasena_videos_from_api(max_results: int = 10) -> list[dict]:
         return []
 
 
-def get_latest_hasena_video() -> dict | None:
-    videos = get_recent_hasena_videos()
-    return videos[0] if videos else None
+def get_hasena_video_date(video_info: dict) -> date | None:
+    published_at_date = _parse_hasena_published_at_date(video_info.get('published_at'))
+    if published_at_date:
+        return published_at_date
+
+    return _parse_hasena_title_date(video_info.get('title') or '')
+
+
+def get_hasena_video_for_date(target_date: date, candidates: list[dict] | None = None) -> dict | None:
+    videos = candidates if candidates is not None else get_recent_hasena_videos()
+    for video_info in videos:
+        if not video_info.get('video_id'):
+            continue
+
+        if get_hasena_video_date(video_info) == target_date:
+            return video_info
+
+    return None
+
+
+def _parse_hasena_title_date(title: str) -> date | None:
+    if not title:
+        return None
+
+    normalized_title = unicodedata.normalize('NFC', title)
+    match = HASENA_TITLE_DATE_PATTERN.search(normalized_title)
+    if not match:
+        return None
+
+    try:
+        return date(
+            int(match.group('year')),
+            int(match.group('month')),
+            int(match.group('day')),
+        )
+    except ValueError:
+        logger.warning("Invalid Hasena title date: %s", title)
+        return None
+
+
+def _parse_hasena_published_at_date(value: str | None) -> date | None:
+    if not value:
+        return None
+
+    try:
+        published_at = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        logger.warning("Invalid Hasena published_at value: %s", value)
+        return None
+
+    if published_at.tzinfo is None:
+        published_at = published_at.replace(tzinfo=timezone.utc)
+
+    return published_at.astimezone(HASENA_SERVICE_TIME_ZONE).date()
 
 
 def get_youtube_transcript(video_id: str, languages: list = None) -> str | None:
@@ -404,6 +463,8 @@ def get_existing_summary(video_id: str) -> dict:
                 'is_edited': existing.is_edited,
                 'video_date': existing.video_date.isoformat() if existing.video_date else None,
                 'title': existing.title,
+                'persisted': True,
+                'cacheable': True,
             }
         return {
             'success': False,
@@ -433,6 +494,8 @@ def get_hasena_summary(video_id: str, video_date: date = None, title: str = None
                 'is_edited': existing.is_edited,
                 'video_date': existing.video_date.isoformat() if existing.video_date else None,
                 'title': existing.title,
+                'persisted': True,
+                'cacheable': True,
             }
     except Exception as e:
         logger.error(f"Error checking existing summary: {str(e)}")
@@ -477,15 +540,18 @@ def get_hasena_summary(video_id: str, video_date: date = None, title: str = None
             'video_date': summary_obj.video_date.isoformat() if summary_obj.video_date else None,
             'title': summary_obj.title,
             'created': created,
+            'persisted': True,
+            'cacheable': True,
         }
         
     except Exception as e:
         logger.error(f"Error saving summary: {str(e)}")
         return {
-            'success': True,
+            'success': False,
             'video_id': video_id,
-            'summary': summary_result['summary'],
-            'model': summary_result['model'],
+            'error': 'AI 요약 저장 중 오류가 발생했습니다.',
+            'persisted': False,
+            'cacheable': False,
         }
 
 

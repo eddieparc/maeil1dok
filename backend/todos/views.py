@@ -2599,6 +2599,7 @@ def generate_hasena_summary_from_cron(request):
     try:
         from .services.hasena_summary_service import (
             get_hasena_summary as fetch_summary,
+            get_hasena_video_for_date,
             get_recent_hasena_videos,
         )
         from .services.hasena_monitoring import capture_hasena_summary_issue
@@ -2624,45 +2625,45 @@ def generate_hasena_summary_from_cron(request):
                 'error': '최신 하세나 영상을 찾을 수 없습니다.'
             }, status=status.HTTP_502_BAD_GATEWAY)
 
-        last_result = None
-        failures = []
-        for candidate in candidates:
-            candidate_video_id = candidate.get('video_id')
-            if not candidate_video_id:
-                continue
-
-            candidate_date = parsed_date
-            if not candidate_date and candidate.get('published_at'):
-                candidate_date = datetime.fromisoformat(candidate['published_at'].replace('Z', '+00:00')).date()
-
-            result = fetch_summary(
-                candidate_video_id,
-                video_date=candidate_date,
-                title=title or candidate.get('title'),
-            )
-            if result['success']:
-                return Response(result)
-            last_result = result
-            failures.append({
-                'video_id': candidate_video_id,
-                'reason': result.get('error'),
-            })
-
-        if not last_result:
+        current_time = timezone.now()
+        current_local_time = (
+            timezone.localtime(current_time)
+            if timezone.is_aware(current_time)
+            else current_time
+        )
+        target_date = parsed_date or current_local_time.date()
+        candidate = get_hasena_video_for_date(target_date, candidates)
+        if not candidate:
             capture_hasena_summary_issue(
-                "Hasena summary cron candidates had no video IDs",
+                "Hasena summary cron could not find target-date video",
                 level="warning",
+                extra={"date": target_date.isoformat()},
             )
             return Response({
                 'success': False,
-                'error': '최신 하세나 영상을 찾을 수 없습니다.'
-            }, status=status.HTTP_502_BAD_GATEWAY)
+                'status': 'pending',
+                'reason': 'no_video_for_date',
+                'date': target_date.isoformat(),
+                'error': '오늘 날짜의 하세나 영상을 아직 찾을 수 없습니다.'
+            }, status=status.HTTP_202_ACCEPTED)
+
+        result = fetch_summary(
+            candidate['video_id'],
+            video_date=target_date,
+            title=title or candidate.get('title'),
+        )
+        if result['success']:
+            return Response(result)
 
         capture_hasena_summary_issue(
-            "Hasena summary cron failed for all recent videos",
-            extra={"failures": failures},
+            "Hasena summary cron failed for target-date video",
+            extra={
+                "date": target_date.isoformat(),
+                "video_id": candidate['video_id'],
+                "reason": result.get('error'),
+            },
         )
-        return Response(last_result, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error in generate_hasena_summary_from_cron: {str(e)}", exc_info=True)
         try:
