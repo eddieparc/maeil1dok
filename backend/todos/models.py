@@ -236,6 +236,28 @@ class HasenaSummary(models.Model):
         return f"[{date_str}] {self.video_id}"
 
 
+class HasenaEntry(models.Model):
+    date = models.DateField(unique=True, db_index=True, help_text="하세나 기준 날짜")
+    video_id = models.CharField(max_length=20, db_index=True)
+    title = models.CharField(max_length=200, blank=True)
+    passage = models.CharField(max_length=120, blank=True, help_text="본문 범위")
+    body_text = models.TextField(blank=True, help_text="파싱된 본문 텍스트")
+    verses = models.JSONField(default=list, blank=True, help_text="절 단위 본문")
+    source_url = models.URLField(blank=True)
+    body_source_url = models.URLField(blank=True)
+    fetched_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = '하세나 본문 캐시'
+        verbose_name_plural = '하세나 본문 캐시'
+
+    def __str__(self):
+        return f"[{self.date}] {self.passage or self.video_id}"
+
+
 class NotificationSettings(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

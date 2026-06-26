@@ -109,6 +109,20 @@
           </div>
         </div>
 
+        <div class="inline-complete-action fade-in" style="animation-delay: 0.22s">
+          <button
+            class="hasena-complete-floating-btn"
+            :class="{ completed: isButtonCompleted }"
+            :disabled="hasenaStore.isLoading"
+            :aria-label="buttonText"
+            @click="handleComplete"
+          >
+            <span v-if="hasenaStore.isLoading" class="loading-spinner nav-spinner" aria-hidden="true"></span>
+            <CheckCircleIcon v-else class="hasena-complete-icon" :size="18" aria-hidden="true" />
+            <span>{{ buttonText }}</span>
+          </button>
+        </div>
+
         <!-- 스트릭 & 달력 섹션 (로그인 시에만) -->
         <div v-if="auth.isAuthenticated.value" class="card streak-card fade-in" style="animation-delay: 0.25s">
           <!-- 스트릭 통계 -->
@@ -146,38 +160,16 @@
         </template>
       </main>
 
-      <!-- 하단 플로팅 바 -->
-      <FloatingBottomBar>
-        <template #popover>
-          <button
-            class="hasena-complete-floating-btn"
-            :class="{ completed: isButtonCompleted }"
-            :disabled="hasenaStore.isLoading"
-            :aria-label="buttonText"
-            @click="handleComplete"
-          >
-            <span v-if="hasenaStore.isLoading" class="loading-spinner nav-spinner" aria-hidden="true"></span>
-            <CheckCircleIcon v-else class="hasena-complete-icon" :size="18" aria-hidden="true" />
-            <span>{{ buttonText }}</span>
-          </button>
-        </template>
-
-        <template #center>
-          <div class="hasena-status-info">
-            <span class="hasena-date">{{ shortFormattedDate }}</span>
-            <span class="hasena-range">{{ bibleTitle || '하세나하시조' }}</span>
-          </div>
-        </template>
-      </FloatingBottomBar>
-
       <!-- Toast 컴포넌트 -->
       <Toast ref="toast" />
 
       <!-- 달력 모달 -->
       <HasenaCalendarModal 
         :is-open="isCalendarOpen" 
+        :selected-date="selectedDate"
         @close="isCalendarOpen = false"
         @updated="onCalendarUpdated"
+        @select-date="selectHasenaDate"
       />
     </div>
   </div>
@@ -193,7 +185,6 @@ import { useRouter } from 'vue-router'
 import { useSanitize } from '~/composables/useSanitize'
 import Toast from '~/components/Toast.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
-import FloatingBottomBar from '~/components/common/FloatingBottomBar.vue'
 import SkeletonHasenaCard from '~/components/ui/skeleton/SkeletonHasenaCard.vue'
 import {
   CalendarDaysIcon,
@@ -206,7 +197,7 @@ import {
   SparklesIcon,
   TrophyIcon,
 } from '@lucide/vue'
-import { formatHasenaSummary, parseHasenaContent } from '~/utils/hasenaFormatters'
+import { formatHasenaSummary } from '~/utils/hasenaFormatters'
 
 const api = useApi()
 const auth = useAuthService()
@@ -236,13 +227,15 @@ const verseContainerStyle = computed(() => ({
 }))
 
 const onCalendarUpdated = async () => {
-  // 달력에서 업데이트 시 오늘 상태 갱신
-  await hasenaStore.fetchStatus()
+  await fetchHasenaContent()
 }
 
 // 비디오 관련 상수
 const PLAYLIST_ID = 'PLMT1AJszhYtXkV936HNuExxjAmtFhp2tL'
-const videoUrl = ref(`https://www.youtube.com/embed/videoseries?list=${PLAYLIST_ID}`)
+const videoUrl = computed(() => latestVideoId.value
+  ? `https://www.youtube.com/embed/${latestVideoId.value}`
+  : `https://www.youtube.com/embed/videoseries?list=${PLAYLIST_ID}`
+)
 const latestVideoId = ref('') // 빈 값으로 초기화
 const isMobile = ref(false)
 const isIOS = ref(false)
@@ -319,31 +312,6 @@ const loadAISummary = async () => {
   }
 }
 
-const loadLatestHasenaVideo = async () => {
-  if (latestVideoId.value) return
-
-  summaryLoading.value = true
-  summaryError.value = null
-
-  try {
-    const data = await $fetch('/api/hasena/latest-video')
-
-    if (data?.videoId) {
-      latestVideoId.value = data.videoId
-      await loadAISummary()
-      return
-    }
-
-    summaryError.value = '최신 하세나 영상을 찾을 수 없습니다.'
-  } catch {
-    summaryError.value = '최신 영상 정보를 불러오지 못했습니다.'
-  } finally {
-    if (!latestVideoId.value) {
-      summaryLoading.value = false
-    }
-  }
-}
-
 // AI 요약 생성/재생성 (관리자 전용)
 const generateAISummary = async () => {
   if (!latestVideoId.value) {
@@ -384,64 +352,71 @@ const generateAISummary = async () => {
 
 // 날짜 관련
 const today = new Date()
-const formattedDate = ref(new Intl.DateTimeFormat('ko-KR', {
+const formatApiDate = (date) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+const selectedDate = ref(formatApiDate(today))
+const selectedDateObj = computed(() => new Date(`${selectedDate.value}T00:00:00`))
+const formattedDate = computed(() => new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
   weekday: 'long'
-}).format(today))
-const shortFormattedDate = computed(() => new Intl.DateTimeFormat('ko-KR', {
-  month: 'long',
-  day: 'numeric',
-  weekday: 'short'
-}).format(today))
-
-// API 날짜 포맷
-const formatApiDate = (date) => {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
+}).format(selectedDateObj.value))
 
 // 하세나 본문 가져오기
 const fetchHasenaContent = async () => {
   try {
     isLoading.value = true
     error.value = null
+    summaryError.value = null
+    summaryContent.value = ''
 
-    const targetDate = formatApiDate(today)
-    const response = await fetch(`/hasena-proxy/write.php?bo_table=hasena_record&targetDate=${targetDate}&forceView=true`)
+    const { data } = await api.get('/api/v1/todos/hasena/day/', {
+      params: { date: selectedDate.value }
+    })
 
-    if (!response.ok) {
-      throw new Error('본문을 불러오는데 실패했습니다')
+    if (!data?.success || !data.entry) {
+      throw new Error(data?.error || '본문을 불러오는데 실패했습니다')
     }
 
-    const html = await response.text()
-    const content = parseHasenaContent(html)
-    bibleTitle.value = content.title
-    parsedContent.value = content.html
-
-    // 로그인한 경우에만 완료 상태 조회
-    if (auth.isAuthenticated.value) {
-      await fetchHasenaStatus()
-    }
+    const entry = data.entry
+    bibleTitle.value = entry.passage || entry.title || '하세나하시조'
+    parsedContent.value = renderHasenaVerses(entry.verses || [])
+    latestVideoId.value = entry.video_id || ''
+    hasenaStore.setCompletionStatus(Boolean(data.is_completed))
+    await loadAISummary()
   } catch (err) {
-    error.value = err.message
+    error.value = err?.message || '본문을 불러오는데 실패했습니다'
+    latestVideoId.value = ''
   } finally {
     isLoading.value = false
   }
 }
 
-// 하세나 완료 상태 조회
-const fetchHasenaStatus = async () => {
-  // 로그인하지 않은 경우 조회하지 않음
-  if (!auth.isAuthenticated.value) return
-  
-  try {
-    await hasenaStore.fetchStatus()
-  } catch (error) {
-    // Toast 컴포넌트 메서드 호출
-    if (toast.value) {
-      toast.value.show('완료 상태를 불러오는데 실패했습니다', 'error')
-    }
+const renderHasenaVerses = (verses) => {
+  return verses.map((verse) => `
+    <div class="hasena-verse">
+      <span class="hasena-verse-number">${escapeHtml(verse.number || '')}</span>
+      <span class="hasena-verse-text">${escapeHtml(verse.text || '')}</span>
+    </div>
+  `).join('')
+}
+
+const escapeHtml = (value) => {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+const selectHasenaDate = async (date) => {
+  selectedDate.value = date
+  await fetchHasenaContent()
+  if (auth.isAuthenticated.value) {
+    await hasenaStore.fetchStats()
   }
 }
 
@@ -460,7 +435,8 @@ const handleComplete = async () => {
   if (hasenaStore.isLoading) return
 
   try {
-    await hasenaStore.updateStatus(today)
+    await hasenaStore.updateStatus(selectedDateObj.value)
+    await fetchHasenaContent()
     await nextTick()
   } catch (error) {
     toast.value?.show('완료 처리에 실패했습니다', 'error')
@@ -513,9 +489,8 @@ onMounted(async () => {
   // 읽기 설정 초기화
   await readingSettings.initialize()
 
-  fetchHasenaContent()
+  await fetchHasenaContent()
   setupYouTubeListener()
-  await loadLatestHasenaVideo()
   
   if (auth.isAuthenticated.value) {
     await hasenaStore.fetchStats()
@@ -639,7 +614,7 @@ onMounted(async () => {
 
 /* Main Content */
 .main-content {
-  padding: 1.5rem 1rem;
+  padding: 1.5rem 1rem calc(10.5rem + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -1245,12 +1220,17 @@ onMounted(async () => {
   transition: all 0.2s ease;
 }
 
+.inline-complete-action {
+  display: flex;
+  justify-content: center;
+}
+
 .hasena-complete-floating-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  width: calc(100% - 48px);
+  width: 100%;
   max-width: 360px;
   min-height: 46px;
   padding: 0.75rem 1.25rem;
@@ -1299,47 +1279,10 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-.hasena-status-info {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  flex: 1;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0.25rem 0.5rem;
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid var(--color-border-light);
-  border-radius: 10px;
-  pointer-events: none;
-}
-
-.hasena-date {
-  color: var(--color-text-tertiary);
-  font-size: clamp(0.5625rem, 2vw, 0.6875rem);
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.hasena-range {
-  color: var(--color-text-primary);
-  font-size: clamp(0.6875rem, 2.5vw, 0.8125rem);
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .nav-spinner {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-}
-
-[data-theme="dark"] .hasena-status-info {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Animations */

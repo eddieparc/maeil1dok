@@ -22,6 +22,14 @@ interface HasenaRecord {
   created_at: string
 }
 
+interface HasenaCalendarEntry {
+  date: string
+  passage: string
+  video_id: string
+  title: string
+  is_completed: boolean
+}
+
 interface HasenaStats {
   total_completed: number
   current_streak: number
@@ -38,6 +46,7 @@ export const useHasenaStore = defineStore('hasena', () => {
   const error = ref<string | null>(null)
   
   const calendarRecords = ref<HasenaRecord[]>([])
+  const calendarEntries = ref<HasenaCalendarEntry[]>([])
   const stats = ref<HasenaStats>({
     total_completed: 0,
     current_streak: 0,
@@ -89,7 +98,11 @@ export const useHasenaStore = defineStore('hasena', () => {
       })
       
       // 응답 구조 분석 및 안전한 처리
-      if (response.data) {
+      if (response?.success && response?.data) {
+        isCompleted.value = response.data.is_completed
+      } else if (response?.is_completed !== undefined) {
+        isCompleted.value = response.is_completed
+      } else if (response?.data) {
         // 응답 구조에 따라 처리
         if (response.data.success && response.data.data) {
           // success 필드가 있는 경우
@@ -100,7 +113,7 @@ export const useHasenaStore = defineStore('hasena', () => {
         }
       }
       
-      return response.data
+      return response
     } catch (err: any) {
       error.value = err.message || '완료 처리에 실패했습니다'
       throw err
@@ -124,14 +137,18 @@ export const useHasenaStore = defineStore('hasena', () => {
       // 오늘 날짜인 경우 isCompleted도 업데이트
       const todayStr = formatApiDate(new Date())
       if (formattedDate === todayStr) {
-        if (response.data?.success && response.data?.data) {
+        if (response?.success && response?.data) {
+          isCompleted.value = response.data.is_completed
+        } else if (response?.data?.success && response.data?.data) {
           isCompleted.value = response.data.data.is_completed
-        } else if (response.data?.is_completed !== undefined) {
+        } else if (response?.is_completed !== undefined) {
+          isCompleted.value = response.is_completed
+        } else if (response?.data?.is_completed !== undefined) {
           isCompleted.value = response.data.is_completed
         }
       }
       
-      return response.data
+      return response
     } catch (err: any) {
       error.value = err.message || '완료 처리에 실패했습니다'
       throw err
@@ -153,6 +170,30 @@ export const useHasenaStore = defineStore('hasena', () => {
       console.error('Failed to fetch hasena calendar records:', err)
       return []
     }
+  }
+
+  const fetchCalendarEntries = async (year: number, month: number): Promise<HasenaCalendarEntry[]> => {
+    try {
+      const { data } = await api.get<{ success: boolean; entries: HasenaCalendarEntry[] }>(
+        `/api/v1/todos/hasena/calendar/?year=${year}&month=${month}`
+      )
+      calendarEntries.value = data.entries || []
+      calendarRecords.value = calendarEntries.value.map((entry, index) => ({
+        id: index,
+        date: entry.date,
+        is_completed: entry.is_completed,
+        created_at: entry.date
+      }))
+      return calendarEntries.value
+    } catch (err: any) {
+      console.error('Failed to fetch hasena calendar entries:', err)
+      calendarEntries.value = []
+      return []
+    }
+  }
+
+  const setCompletionStatus = (completed: boolean): void => {
+    isCompleted.value = completed
   }
   
   const fetchStats = async (): Promise<HasenaStats | null> => {
@@ -180,6 +221,7 @@ export const useHasenaStore = defineStore('hasena', () => {
     isLoading.value = false
     error.value = null
     calendarRecords.value = []
+    calendarEntries.value = []
     stats.value = { total_completed: 0, current_streak: 0, longest_streak: 0 }
   }
   
@@ -188,12 +230,15 @@ export const useHasenaStore = defineStore('hasena', () => {
     isLoading,
     error,
     calendarRecords,
+    calendarEntries,
     stats,
     fetchStatus,
     updateStatus,
     updateStatusForDate,
     fetchCalendarRecords,
+    fetchCalendarEntries,
+    setCompletionStatus,
     fetchStats,
     reset
   }
-}) 
+})

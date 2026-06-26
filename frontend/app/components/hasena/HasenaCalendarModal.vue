@@ -65,17 +65,20 @@
                     'other-month': date.otherMonth,
                     'today': date.isToday,
                     'completed': date.completed,
+                    'has-entry': date.hasEntry,
+                    'selected': date.dateStr === selectedDate,
                     'sunday': date.isSunday,
                     'disabled': date.disabled,
                     'loading': loadingDate === date.dateStr
                   }"
                   :disabled="date.disabled || date.otherMonth || loadingDate !== null"
-                  @click="toggleDate(date)"
+                  @click="selectDate(date)"
                 >
                   <span class="date-number">{{ date.day }}</span>
                   <span v-if="date.completed && !date.otherMonth" class="check-icon">
                     <CheckIcon :size="14" :stroke-width="3" />
                   </span>
+                  <span v-else-if="date.hasEntry && !date.otherMonth" class="entry-dot"></span>
                   <span v-if="loadingDate === date.dateStr" class="loading-indicator"></span>
                 </button>
               </div>
@@ -93,13 +96,17 @@
               <span>오늘</span>
             </div>
             <div class="legend-item">
+              <span class="legend-dot entry"></span>
+              <span>본문 있음</span>
+            </div>
+            <div class="legend-item">
               <span class="legend-dot sunday"></span>
               <span>일요일 (휴무)</span>
             </div>
           </div>
 
           <!-- Help Text -->
-          <p class="help-text">날짜를 탭하여 완료 상태를 변경할 수 있습니다</p>
+          <p class="help-text">날짜를 탭하면 해당 하세나 본문으로 이동합니다</p>
         </div>
       </div>
     </Transition>
@@ -122,12 +129,14 @@ import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue'
 
 interface Props {
   isOpen: boolean
+  selectedDate: string
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'updated'): void
+  (e: 'select-date', date: string): void
 }>()
 
 const hasenaStore = useHasenaStore()
@@ -154,6 +163,7 @@ interface CalendarDate {
   otherMonth: boolean
   isToday: boolean
   completed: boolean
+  hasEntry: boolean
   isSunday: boolean
   disabled: boolean
   dateStr: string
@@ -171,8 +181,13 @@ const calendarDates = computed<CalendarDate[]>(() => {
   const daysInMonth = lastDay.getDate()
 
   const completedDates = new Set(
-    hasenaStore.calendarRecords
+    hasenaStore.calendarEntries
       .filter(r => r.is_completed)
+      .map(r => r.date)
+  )
+  const entryDates = new Set(
+    hasenaStore.calendarEntries
+      .filter(r => r.passage || r.video_id)
       .map(r => r.date)
   )
 
@@ -187,6 +202,7 @@ const calendarDates = computed<CalendarDate[]>(() => {
       otherMonth: true,
       isToday: false,
       completed: false,
+      hasEntry: false,
       isSunday: prevDate.getDay() === 0,
       disabled: true,
       dateStr: formatApiDate(prevDate),
@@ -206,8 +222,9 @@ const calendarDates = computed<CalendarDate[]>(() => {
       otherMonth: false,
       isToday: dateStr === todayStr,
       completed: completedDates.has(dateStr),
+      hasEntry: entryDates.has(dateStr),
       isSunday,
-      disabled: isSunday || isFuture,
+      disabled: isFuture || !entryDates.has(dateStr),
       dateStr,
       dateObj: currentDate
     })
@@ -222,6 +239,7 @@ const calendarDates = computed<CalendarDate[]>(() => {
       otherMonth: true,
       isToday: false,
       completed: false,
+      hasEntry: false,
       isSunday: nextDate.getDay() === 0,
       disabled: true,
       dateStr: formatApiDate(nextDate),
@@ -259,24 +277,22 @@ const isLoading = ref(true)
 const loadCalendarData = async () => {
   isLoading.value = true
   try {
-    await hasenaStore.fetchCalendarRecords(calendarYear.value, calendarMonth.value)
+    await hasenaStore.fetchCalendarEntries(calendarYear.value, calendarMonth.value)
   } finally {
     isLoading.value = false
   }
 }
 
-const toggleDate = async (date: CalendarDate) => {
+const selectDate = async (date: CalendarDate) => {
   if (date.disabled || date.otherMonth || loadingDate.value) return
 
   loadingDate.value = date.dateStr
 
   try {
-    await hasenaStore.updateStatusForDate(date.dateObj, date.completed)
-    await loadCalendarData()
-    await hasenaStore.fetchStats()
-    emit('updated')
+    emit('select-date', date.dateStr)
+    close()
   } catch (err) {
-    console.error('Failed to toggle date:', err)
+    console.error('Failed to select date:', err)
   } finally {
     loadingDate.value = null
   }
@@ -289,8 +305,9 @@ const close = () => {
 // Load data when modal opens
 watch(() => props.isOpen, async (isOpen) => {
   if (isOpen) {
-    calendarYear.value = today.getFullYear()
-    calendarMonth.value = today.getMonth() + 1
+    const selected = new Date(`${props.selectedDate}T00:00:00`)
+    calendarYear.value = selected.getFullYear()
+    calendarMonth.value = selected.getMonth() + 1
     await loadCalendarData()
   }
 })
@@ -484,6 +501,14 @@ watch(() => props.isOpen, async (isOpen) => {
   background: var(--color-bg-hover);
 }
 
+.date-cell.has-entry:not(.completed) {
+  background: var(--color-bg-tertiary);
+}
+
+.date-cell.selected {
+  box-shadow: 0 0 0 2px var(--color-accent-primary);
+}
+
 .date-cell.completed:not(.disabled):hover {
   background: #0d9668;
 }
@@ -550,6 +575,15 @@ watch(() => props.isOpen, async (isOpen) => {
   color: white;
 }
 
+.entry-dot {
+  position: absolute;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--color-accent-primary);
+}
+
 .loading-indicator {
   position: absolute;
   inset: 0;
@@ -603,6 +637,11 @@ watch(() => props.isOpen, async (isOpen) => {
 
 .legend-dot.today {
   background: var(--color-accent-primary-light, rgba(99, 102, 241, 0.2));
+  border: 1px solid var(--color-accent-primary);
+}
+
+.legend-dot.entry {
+  background: var(--color-bg-tertiary);
   border: 1px solid var(--color-accent-primary);
 }
 
