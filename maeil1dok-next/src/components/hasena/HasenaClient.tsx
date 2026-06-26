@@ -1,12 +1,13 @@
 'use client'
 
 import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle, ChevronDown, ChevronLeft, SlidersHorizontal } from 'lucide-react'
+import { CalendarDays, CheckCircle, ChevronDown, ChevronLeft, Flame, Play, Trophy, SlidersHorizontal } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useModal } from '@/hooks/useModal'
 import { useReadingSettings } from '@/hooks/bible/useReadingSettings'
 import { FONT_FAMILIES, FONT_WEIGHTS } from '@/hooks/bible/ReadingSettingsContext'
 import ReadingSettingsModal from '@/components/bible/ReadingSettingsModal'
+import { HasenaCalendarModal } from '@/components/hasena/HasenaCalendarModal'
 import { cn } from '@/lib/utils'
 
 interface HasenaStatus {
@@ -27,9 +28,17 @@ interface HasenaClientProps {
   isAuthenticated: boolean
 }
 
-interface ParsedBibleContent {
+interface HasenaDayEntry {
+  date: string
+  videoId: string
   title: string
+  passage: string
   verses: Array<{ number: string; text: string }>
+}
+
+interface HasenaDayResponse {
+  entry: HasenaDayEntry
+  isCompleted: boolean
 }
 
 interface SummarySections {
@@ -136,26 +145,6 @@ function parseChecklistItems(value: string): string[] {
     .filter(Boolean)
 }
 
-function parseHasenaContent(html: string): ParsedBibleContent {
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-
-  const title = doc.querySelector('.bible_tit')?.textContent?.trim() || '하세나하시조'
-  const verseParagraphs = Array.from(doc.querySelectorAll('.bible_contents p'))
-
-  const verses = verseParagraphs
-    .map((verse) => {
-      const number = verse.querySelector('.bullet_number')?.textContent?.trim()
-      const text = verse.querySelector('.bullet_txt')?.textContent?.trim()
-      if (!number || !text) return ''
-
-      return { number, text }
-    })
-    .filter((verse): verse is { number: string; text: string } => Boolean(verse))
-
-  return { title, verses }
-}
-
 function detectMobile(): { isMobile: boolean; isIOS: boolean; isAndroid: boolean } {
   if (typeof navigator === 'undefined') return { isMobile: false, isIOS: false, isAndroid: false }
   const ua = navigator.userAgent
@@ -172,12 +161,14 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
   const { settings } = useReadingSettings()
   const playerRef = useRef<YouTubePlayer | null>(null)
 
+  const [selectedDate, setSelectedDate] = useState(today)
   const [isCompleted, setIsCompleted] = useState(initialStatus.isCompleted)
   const [isSaving, setIsSaving] = useState(false)
   const [toggleError, setToggleError] = useState<string | null>(null)
   const [stats] = useState(initialStats)
 
   const [currentVideoId, setCurrentVideoId] = useState('')
+  const [currentEntryTitle, setCurrentEntryTitle] = useState('')
   const [mobileInfo] = useState(() => detectMobile())
 
   const [summary, setSummary] = useState('')
@@ -190,19 +181,22 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
   const [bibleLoading, setBibleLoading] = useState(true)
   const [bibleError, setBibleError] = useState<string | null>(null)
   const [isReadingSettingsOpen, setIsReadingSettingsOpen] = useState(false)
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
   const playlistId = process.env.NEXT_PUBLIC_HASENA_PLAYLIST_ID || 'PLMT1AJszhYtXkV936HNuExxjAmtFhp2tL'
-  const videoUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}`
+  const videoUrl = currentVideoId
+    ? `https://www.youtube.com/embed/${encodeURIComponent(currentVideoId)}?enablejsapi=1&rel=0`
+    : `https://www.youtube.com/embed/videoseries?list=${playlistId}`
 
   const todayLabel = useMemo(
     () =>
-      new Date(`${today}T00:00:00`).toLocaleDateString('ko-KR', {
+      new Date(`${selectedDate}T00:00:00`).toLocaleDateString('ko-KR', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         weekday: 'long',
       }),
-    [today],
+    [selectedDate],
   )
 
   const parsedSummary = useMemo(() => parseSummarySections(summary), [summary])
@@ -226,25 +220,27 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
       setBibleError(null)
 
       try {
-        const response = await fetch(
-          `/api/bible-proxy/hasena/write.php?bo_table=hasena_record&targetDate=${encodeURIComponent(today)}&forceView=true`,
-        )
+        const response = await fetch(`/api/hasena/day?date=${encodeURIComponent(selectedDate)}`)
 
         if (!response.ok) {
           throw new Error('본문을 불러오는데 실패했습니다')
         }
 
-        const html = await response.text()
-        const parsed = parseHasenaContent(html)
+        const data: HasenaDayResponse = await response.json()
 
         if (!cancelled) {
-          setBibleTitle(parsed.title)
-          setBibleContent(parsed.verses)
+          setBibleTitle(data.entry.passage || '하세나하시조')
+          setBibleContent(data.entry.verses)
+          setCurrentVideoId(data.entry.videoId)
+          setCurrentEntryTitle(data.entry.title)
+          setIsCompleted(data.isCompleted)
         }
       } catch {
         if (!cancelled) {
           setBibleError('오늘의 말씀을 불러올 수 없습니다')
           setBibleContent([])
+          setCurrentVideoId('')
+          setCurrentEntryTitle('')
         }
       } finally {
         if (!cancelled) {
@@ -258,7 +254,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
     return () => {
       cancelled = true
     }
-  }, [today])
+  }, [selectedDate])
 
   useEffect(() => {
     const initializePlayer = () => {
@@ -362,7 +358,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
 
     if (nextCompleted) {
       const confirmed = await modal.confirm({
-        title: '오늘 하세나를 완료할까요?',
+        title: selectedDate === today ? '오늘 하세나를 완료할까요?' : '선택한 하세나를 완료할까요?',
         description: '완료하면 기록이 저장됩니다.',
         confirmText: '완료하기',
         cancelText: '취소',
@@ -379,7 +375,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
       const response = await fetch('/api/hasena/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: today, completed: nextCompleted }),
+        body: JSON.stringify({ date: selectedDate, completed: nextCompleted }),
       })
 
       if (!response.ok) {
@@ -392,7 +388,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
     } finally {
       setIsSaving(false)
     }
-  }, [isSaving, isAuthenticated, isCompleted, modal, today])
+  }, [isSaving, isAuthenticated, isCompleted, modal, selectedDate, today])
 
   const handleBack = useCallback(() => {
     if (window.history.length > 1) {
@@ -423,12 +419,27 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
             >
               <ChevronLeft size={24} />
             </button>
-            <h1 className="text-lg font-semibold tracking-[-0.02em]">하세나</h1>
+            <h1 className="text-lg font-semibold">하세나</h1>
             <div className="w-8" aria-hidden="true" />
           </div>
         </header>
 
         <main className="flex flex-col gap-6 px-4 py-6">
+          <section className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-card)] px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-[var(--color-text-tertiary)]">선택한 하세나</p>
+              <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{todayLabel}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsCalendarOpen(true)}
+              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm font-semibold text-[var(--color-brand)] transition-colors hover:bg-[var(--color-accent-light)]"
+            >
+              <CalendarDays size={16} />
+              달력
+            </button>
+          </section>
+
           <section
             className="overflow-hidden rounded-[20px] border border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md shadow-[var(--shadow-md)]"
             style={{ animationDelay: '0.1s' }}
@@ -451,7 +462,7 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                   onClick={openYouTubeApp}
                   className="flex w-full items-center justify-center gap-2 bg-[var(--color-danger)] px-4 py-3 text-[0.9rem] font-medium text-white transition-opacity hover:opacity-90 active:opacity-80"
                 >
-                  <span className="text-base">▶</span>
+                  <Play size={16} fill="currentColor" />
                   YouTube 앱으로 시청하기
                 </button>
               ) : null}
@@ -583,6 +594,9 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
                   </div>
 
                   <h2 className="font-[var(--font-family-reading)] text-2xl font-bold text-[var(--color-text-primary)]">{bibleTitle}</h2>
+                  {currentEntryTitle ? (
+                    <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">{currentEntryTitle}</p>
+                  ) : null}
                 </div>
 
                 <div className="verse-container" style={verseContainerStyle}>
@@ -601,21 +615,21 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
             <section className="rounded-[20px] border border-[var(--color-rule)] bg-[var(--color-paper-warm)]/95 backdrop-blur-md p-5 shadow-[var(--shadow-md)]">
               <div className="flex justify-around">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🔥</span>
+                  <Flame size={24} className="text-[var(--color-warning)]" />
                   <div className="flex flex-col">
                     <span className="text-xl font-bold text-[var(--color-warning)]">{stats.currentStreak}</span>
                     <span className="text-xs text-[var(--color-text-tertiary)]">현재 연속</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🏆</span>
+                  <Trophy size={24} className="text-[var(--color-primary)]" />
                   <div className="flex flex-col">
                     <span className="text-xl font-bold text-[var(--color-primary)]">{stats.longestStreak}</span>
                     <span className="text-xs text-[var(--color-text-tertiary)]">최장 연속</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">📅</span>
+                  <CalendarDays size={24} className="text-[var(--color-brand)]" />
                   <div className="flex flex-col">
                     <span className="text-xl font-bold text-[var(--color-brand)]">{stats.totalCompleted}</span>
                     <span className="text-xs text-[var(--color-text-tertiary)]">총 완료</span>
@@ -664,6 +678,14 @@ export function HasenaClient({ initialStatus, initialStats, today, isAuthenticat
       <ReadingSettingsModal
         isOpen={isReadingSettingsOpen}
         onClose={() => setIsReadingSettingsOpen(false)}
+      />
+
+      <HasenaCalendarModal
+        isOpen={isCalendarOpen}
+        selectedDate={selectedDate}
+        today={today}
+        onClose={() => setIsCalendarOpen(false)}
+        onSelectDate={setSelectedDate}
       />
 
       <style jsx global>{`

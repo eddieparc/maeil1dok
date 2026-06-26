@@ -20,6 +20,34 @@ export interface HasenaSummary {
   updatedAt: string
 }
 
+export interface HasenaEntryVerse {
+  number: string
+  text: string
+}
+
+export interface HasenaEntry {
+  id: string
+  date: string
+  videoId: string
+  title: string
+  passage: string
+  bodyText: string
+  verses: HasenaEntryVerse[]
+  sourceUrl: string
+  bodySourceUrl: string
+  fetchedAt: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface HasenaCalendarEntry {
+  date: string
+  videoId: string
+  title: string
+  passage: string
+  isCompleted: boolean
+}
+
 export interface VideoBibleIntro {
   id: string
   planId: number

@@ -6,6 +6,10 @@
   "devCommand": "npm run dev",
   "crons": [
     {
+      "path": "/api/cron/hasena-sync",
+      "schedule": "45 23 * * 0-5"
+    },
+    {
       "path": "/api/cron/hasena-summary",
       "schedule": "0 0-1 * * 1-6"
     },
