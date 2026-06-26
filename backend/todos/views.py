@@ -4,7 +4,7 @@ from rest_framework.response import Response
 import pandas as pd
 from datetime import datetime
 from django.conf import settings
-from .models import DailyBibleSchedule, UserBibleProgress, BibleReadingPlan, PlanSubscription, VideoBibleIntro, HasenaRecord, UserVideoIntroProgress, VisitorCount
+from .models import DailyBibleSchedule, UserBibleProgress, BibleReadingPlan, PlanSubscription, VideoBibleIntro, HasenaRecord, HasenaEntry, UserVideoIntroProgress, VisitorCount
 from .serializers import DailyBibleScheduleSerializer, UserBibleProgressSerializer, BibleProgressResponse, BibleReadingPlanSerializer, PlanSubscriptionSerializer, VideoBibleIntroSerializer
 import logging
 from django.utils import timezone
@@ -2514,6 +2514,139 @@ def get_user_hasena_status(request):
         return Response({
             'success': False,
             'error': '요청 처리 중 오류가 발생했습니다.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def get_hasena_day(request):
+    date_str = request.query_params.get('date')
+    if not date_str:
+        return Response({
+            'success': False,
+            'error': 'date 파라미터가 필요합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    target_date = parse_date(date_str)
+    if not target_date:
+        return Response({
+            'success': False,
+            'error': 'date 형식은 YYYY-MM-DD 이어야 합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .services.hasena_entry_service import ensure_hasena_entry, serialize_hasena_entry
+
+        entry = ensure_hasena_entry(target_date)
+        if not entry:
+            return Response({
+                'success': False,
+                'error': '해당 날짜의 하세나 본문을 찾을 수 없습니다.',
+                'date': target_date.isoformat(),
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        is_completed = False
+        if request.user.is_authenticated:
+            is_completed = HasenaRecord.objects.filter(
+                user=request.user,
+                date=target_date,
+                is_completed=True,
+            ).exists()
+
+        return Response({
+            'success': True,
+            'entry': serialize_hasena_entry(entry),
+            'is_completed': is_completed,
+        })
+    except Exception as e:
+        logger.error(f"Error in get_hasena_day: {str(e)}", exc_info=True)
+        return Response({
+            'success': False,
+            'error': '하세나 본문 조회 중 오류가 발생했습니다.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def get_hasena_calendar(request):
+    try:
+        year = int(request.query_params.get('year', '0'))
+        month = int(request.query_params.get('month', '0'))
+    except ValueError:
+        return Response({
+            'success': False,
+            'error': 'year와 month는 숫자여야 합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if year < 2020 or month < 1 or month > 12:
+        return Response({
+            'success': False,
+            'error': 'year와 month 파라미터가 필요합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .services.hasena_entry_service import merge_calendar_entries, sync_hasena_entries
+
+        entries = HasenaEntry.objects.filter(date__year=year, date__month=month)
+        if entries.count() < 5:
+            sync_hasena_entries(max_entries=40)
+            entries = HasenaEntry.objects.filter(date__year=year, date__month=month)
+
+        completions = []
+        if request.user.is_authenticated:
+            completions = list(
+                HasenaRecord.objects.filter(
+                    user=request.user,
+                    date__year=year,
+                    date__month=month,
+                ).values('date', 'is_completed')
+            )
+
+        return Response({
+            'success': True,
+            'entries': merge_calendar_entries(entries, completions),
+        })
+    except Exception as e:
+        logger.error(f"Error in get_hasena_calendar: {str(e)}", exc_info=True)
+        return Response({
+            'success': False,
+            'error': '하세나 달력 조회 중 오류가 발생했습니다.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def sync_hasena_entries_from_cron(request):
+    cron_secret = getattr(settings, 'CRON_SECRET', None)
+    request_secret = request.headers.get('X-Cron-Secret') or request.headers.get('Authorization', '').removeprefix('Bearer ').strip()
+
+    if cron_secret and request_secret != cron_secret:
+        return Response({
+            'success': False,
+            'error': 'Unauthorized'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    if not cron_secret and not (request.user.is_authenticated and request.user.is_staff):
+        return Response({
+            'success': False,
+            'error': '관리자 권한이 필요합니다.'
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        from .services.hasena_entry_service import sync_hasena_entries
+
+        max_entries = int(request.data.get('max_entries', 40))
+        return Response(sync_hasena_entries(max_entries=max(1, min(max_entries, 80))))
+    except ValueError:
+        return Response({
+            'success': False,
+            'error': 'max_entries는 숫자여야 합니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Error in sync_hasena_entries_from_cron: {str(e)}", exc_info=True)
+        return Response({
+            'success': False,
+            'error': '하세나 동기화 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
