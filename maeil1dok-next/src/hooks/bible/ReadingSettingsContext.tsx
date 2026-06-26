@@ -383,14 +383,14 @@ export function ReadingSettingsProvider({
     initializedRef.current = true
 
     async function syncFromServer() {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      setIsLoading(true)
       try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) return
+
+        setIsLoading(true)
         const { data, error } = await supabase
           .from('user_reading_settings')
           .select('*')
@@ -415,14 +415,14 @@ export function ReadingSettingsProvider({
   // Debounced sync to Supabase
   const syncToServer = useCallback(
     async (settingsToSync: ReadingSettings) => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      setIsSyncing(true)
       try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) return
+
+        setIsSyncing(true)
         await supabase.from('user_reading_settings').upsert({
           user_id: user.id,
           ...settingsToSnakeCase(settingsToSync),
