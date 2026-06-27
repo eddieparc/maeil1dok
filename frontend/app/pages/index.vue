@@ -135,6 +135,7 @@ useHead({
   opacity: 1;
   visibility: visible;
   pointer-events: none;
+  animation: landing-skeleton-timeout 280ms ease 900ms forwards;
 }
 .landing-skeleton__inner {
   box-sizing: border-box;
@@ -319,9 +320,16 @@ useHead({
   background: #DEDDD9;
 }
 .sanctuary-theme.is-shell-ready .landing-skeleton {
+  animation: none;
   opacity: 0;
   visibility: hidden;
   transition: opacity 160ms ease, visibility 0s linear 160ms;
+}
+@keyframes landing-skeleton-timeout {
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
 }
 @media (max-width: 520px) {
   .landing-skeleton__inner { padding-inline: 16px; }
@@ -346,6 +354,9 @@ useHead({
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .landing-skeleton {
+    animation-duration: 1ms;
+  }
   .sanctuary-theme.is-shell-ready .landing-skeleton {
     transition: none;
   }

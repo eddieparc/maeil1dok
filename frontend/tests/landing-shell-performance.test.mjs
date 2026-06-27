@@ -17,4 +17,7 @@ test('landing shell renders SSR content immediately instead of hiding behind sty
   assert.doesNotMatch(scriptSetupSource, /waitForLocalStylesheets/);
   assert.doesNotMatch(scriptSetupSource, /querySelectorAll<HTMLLinkElement>\('link\[rel="stylesheet"\]'\)/);
   assert.match(scriptSetupSource, /onMounted\(\(\) => \{\s*revealShell\(\);/);
+  assert.match(scriptSetupSource, /animation:\s*landing-skeleton-timeout/);
+  assert.match(scriptSetupSource, /@keyframes landing-skeleton-timeout/);
+  assert.match(scriptSetupSource, /100%\s*\{\s*opacity:\s*0;\s*visibility:\s*hidden;/);
 });

@@ -163,6 +163,8 @@ test('landing renders content immediately while dismissing the non-blocking skel
   assert.match(landingPageSource, /requestAnimationFrame/, 'landing should reveal content on a clean animation frame');
   assert.match(landingPageSource, /\.landing-skeleton/, 'critical style should target the skeleton without waiting for scoped CSS');
   assert.match(landingPageSource, /\.landing-skeleton\s*\{[\s\S]*pointer-events:\s*none;/, 'skeleton should not block clicks while real content is visible');
+  assert.match(landingPageSource, /animation:\s*landing-skeleton-timeout/, 'skeleton should have a CSS-only timeout if hydration is delayed');
+  assert.match(landingPageSource, /@keyframes landing-skeleton-timeout/, 'critical style should define the CSS-only skeleton timeout');
   assert.doesNotMatch(landingPageSource, /\.landing-content\s*\{\s*opacity:\s*0;/, 'critical style should not hide real content before styles are ready');
   assert.match(landingPageSource, /onMounted\(\(\) => \{\s*revealShell\(\);/, 'landing should schedule skeleton dismissal before async auth work');
 });
