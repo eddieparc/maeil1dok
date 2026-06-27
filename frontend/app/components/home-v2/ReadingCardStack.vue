@@ -10,8 +10,7 @@
       </div>
 
       <h2 class="bible-verse">
-        <template v-if="isAuthPending">&nbsp;<br>&nbsp;</template>
-        <template v-else-if="isAuthenticated">오늘의 말씀을<br>이어 읽어보세요</template>
+        <template v-if="isAuthenticated">오늘의 말씀을<br>이어 읽어보세요</template>
         <template v-else>로그인하고<br>시작하세요</template>
       </h2>
 
@@ -37,26 +36,17 @@ import { useLandingAuthState } from '~/composables/useLandingAuthState';
 import ArrowRightIcon from '~/components/icons/ArrowRightIcon.vue';
 
 const router = useRouter();
-const { isFirstPaintPending, isKnownAuthenticated } = useLandingAuthState();
-const isAuthPending = computed(() => isFirstPaintPending.value);
+const { isKnownAuthenticated } = useLandingAuthState();
 const isAuthenticated = computed(() => isKnownAuthenticated.value);
-const cardLabel = computed(() => {
-  if (isAuthPending.value) return '\u00a0';
-  return isAuthenticated.value ? "TODAY'S READING" : 'WELCOME';
-});
+const cardLabel = computed(() => isAuthenticated.value ? "TODAY'S READING" : 'WELCOME');
 const chapterRange = computed(() => {
-  if (isAuthPending.value) return '\u00a0';
   return isAuthenticated.value
     ? '나의 통독표와 읽기 기록을 확인할 수 있습니다'
     : '나만의 통독 기록을 관리할 수 있습니다';
 });
-const startButtonText = computed(() => {
-  if (isAuthPending.value) return '\u00a0';
-  return isAuthenticated.value ? '통독 시작하기' : '로그인 / 회원가입';
-});
+const startButtonText = computed(() => isAuthenticated.value ? '통독 시작하기' : '로그인 / 회원가입');
 
 const goPrimary = (): void => {
-  if (isAuthPending.value) return;
   router.push(isAuthenticated.value ? '/bible' : '/login');
 };
 </script>
