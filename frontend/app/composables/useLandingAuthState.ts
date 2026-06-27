@@ -46,7 +46,6 @@ export function useLandingAuthState() {
   onMounted(() => {
     cachedUser.value = auth.user.value ?? readCachedAuthUser();
     hasHydrated.value = true;
-    void auth.initialize();
   });
 
   return {
