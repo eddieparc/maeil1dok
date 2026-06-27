@@ -125,7 +125,6 @@ useHead({
     {
       key: 'landing-critical-shell',
       innerHTML: `
-.landing-content { opacity: 0; }
 .landing-skeleton {
   position: fixed;
   inset: 0;
@@ -135,6 +134,7 @@ useHead({
   color: #2C3333;
   opacity: 1;
   visibility: visible;
+  pointer-events: none;
 }
 .landing-skeleton__inner {
   box-sizing: border-box;
@@ -318,13 +318,8 @@ useHead({
   border-radius: 999px;
   background: #DEDDD9;
 }
-.sanctuary-theme.is-shell-ready .landing-content {
-  opacity: 1;
-  transition: opacity 160ms ease;
-}
 .sanctuary-theme.is-shell-ready .landing-skeleton {
   opacity: 0;
-  pointer-events: none;
   visibility: hidden;
   transition: opacity 160ms ease, visibility 0s linear 160ms;
 }
@@ -351,7 +346,6 @@ useHead({
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sanctuary-theme.is-shell-ready .landing-content,
   .sanctuary-theme.is-shell-ready .landing-skeleton {
     transition: none;
   }
@@ -379,25 +373,6 @@ const toggleTheme = () => {
   isDark.value = !isDark.value;
 };
 
-const waitForLocalStylesheets = async (): Promise<void> => {
-  const localStylesheets = Array.from(
-    document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'),
-  ).filter((link) => link.href.includes('/_nuxt/'));
-
-  await Promise.all(
-    localStylesheets.map((link) => {
-      if (link.sheet) {
-        return Promise.resolve();
-      }
-
-      return new Promise<void>((resolve) => {
-        link.addEventListener('load', () => resolve(), { once: true });
-        link.addEventListener('error', () => resolve(), { once: true });
-      });
-    }),
-  );
-};
-
 const revealShell = (): void => {
   requestAnimationFrame(() => {
     isShellReady.value = true;
@@ -405,10 +380,10 @@ const revealShell = (): void => {
 };
 
 onMounted(() => {
+  revealShell();
   void auth.initialize();
   settingsStore.initialize();
   isDark.value = settingsStore.effectiveTheme === 'dark';
-  void waitForLocalStylesheets().then(revealShell);
 });
 </script>
 
