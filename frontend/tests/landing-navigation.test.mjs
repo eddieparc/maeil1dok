@@ -123,9 +123,7 @@ test('landing html is not edge cached', () => {
   assert.match(nuxtConfigSource, /'\/':\s*\{\s*headers:\s*\{\s*'cache-control':\s*'no-store'/s, 'landing root route should not serve stale HTML');
 });
 
-test('landing auth copy waits for auth initialization', () => {
-  assert.match(homeHeroSource, /isAuthPending/, 'hero greeting should have an auth-loading state');
-  assert.match(readingCardStackSource, /isAuthPending/, 'reading card should have an auth-loading state');
+test('landing auth copy renders useful visitor content during auth initialization', () => {
   assert.match(homeHeroSource, /useLandingAuthState/, 'hero should use the landing auth state helper');
   assert.match(readingCardStackSource, /useLandingAuthState/, 'reading card should use the landing auth state helper');
   assert.match(quickAccessSource, /useLandingAuthState/, 'landing profile cards should use the same first-paint auth state');
@@ -135,9 +133,17 @@ test('landing auth copy waits for auth initialization', () => {
   assert.match(landingAuthStateSource, /const isFirstPaintPending = computed\(\(\) => !hasHydrated\.value\);/, 'landing auth state should keep SSR and hydration output aligned');
   assert.match(landingAuthStateSource, /auth\.isInitialized\.value \? null : cachedUser\.value/, 'stale cached users should disappear after auth settles unauthenticated');
   assert.match(landingAuthStateSource, /hasHydrated\.value = true/, 'landing auth state should not stay pending forever');
+  assert.match(homeHeroSource, /if \(!user\) return '방문자님, 환영합니다';/, 'hero should show visitor copy while auth is initializing');
+  assert.match(readingCardStackSource, /isAuthenticated\.value \? "TODAY'S READING" : 'WELCOME'/, 'reading card should show visitor label while auth is initializing');
+  assert.match(readingCardStackSource, /<template v-else>로그인하고<br>시작하세요<\/template>/, 'reading card should show the login CTA copy while auth is initializing');
+  assert.match(readingCardStackSource, /: '나만의 통독 기록을 관리할 수 있습니다';/, 'reading card should show useful visitor description while auth is initializing');
+  assert.match(readingCardStackSource, /: '로그인 \/ 회원가입'\)/, 'reading card should show the login action while auth is initializing');
+  assert.doesNotMatch(homeHeroSource, /isAuthPending/, 'hero should not hide greeting text behind auth initialization');
+  assert.doesNotMatch(readingCardStackSource, /isAuthPending/, 'reading card should not hide card text behind auth initialization');
+  assert.doesNotMatch(readingCardStackSource, /&nbsp;/, 'reading card should not render blank first-paint placeholders');
+  assert.doesNotMatch(readingCardStackSource, /if \(isAuthPending\.value\) return/, 'reading card computed copy should not return blank placeholders while auth is loading');
   assert.doesNotMatch(homeHeroSource, /data-allow-mismatch/, 'hero should not suppress hydration mismatch warnings');
   assert.doesNotMatch(readingCardStackSource, /data-allow-mismatch/, 'reading card should not suppress hydration mismatch warnings');
-  assert.match(readingCardStackSource, /if \(isAuthPending\.value\) return;/, 'reading card click handler should not route while auth is loading');
 });
 
 test('landing logo is eager and preloaded for first paint', () => {

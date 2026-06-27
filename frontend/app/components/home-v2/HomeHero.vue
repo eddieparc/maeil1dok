@@ -12,7 +12,7 @@
 import { computed } from 'vue';
 import { useLandingAuthState } from '~/composables/useLandingAuthState';
 
-const { displayUser, isFirstPaintPending } = useLandingAuthState();
+const { displayUser } = useLandingAuthState();
 
 const getTimeGreeting = (date: Date): string => {
   const hour = date.getHours();
@@ -23,10 +23,7 @@ const getTimeGreeting = (date: Date): string => {
 };
 
 const timeGreeting = useState('home:timeGreeting', () => getTimeGreeting(new Date()));
-const isAuthPending = computed(() => isFirstPaintPending.value);
 const greetingMessage = computed(() => {
-  if (isAuthPending.value) return '\u00a0';
-
   const user = displayUser.value;
   if (!user) return '방문자님, 환영합니다';
 
