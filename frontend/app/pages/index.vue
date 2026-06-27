@@ -110,7 +110,6 @@ import MenuIcon from '~/components/icons/MenuIcon.vue';
 import SunIcon from '~/components/icons/SunIcon.vue';
 import MoonIcon from '~/components/icons/MoonIcon.vue';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
-import { useAuthService } from '~/composables/useAuthService';
 
 useHead({
   link: [
@@ -374,7 +373,6 @@ definePageMeta({
 const showMenu = ref(false);
 const isShellReady = ref(false);
 
-const auth = useAuthService();
 const settingsStore = useReadingSettingsStore();
 const isDark = ref(false);
 
@@ -392,7 +390,6 @@ const revealShell = (): void => {
 
 onMounted(() => {
   revealShell();
-  void auth.initialize();
   settingsStore.initialize();
   isDark.value = settingsStore.effectiveTheme === 'dark';
 });

@@ -281,7 +281,7 @@ export function useAuthService() {
           _user.value = cachedUser
         }
 
-        const user = await fetchUserWithRefresh()
+        const user = cachedUser ? await fetchUserWithRefresh() : await fetchUserFromApi()
         
         if (user) {
           _user.value = user

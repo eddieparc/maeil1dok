@@ -818,11 +818,16 @@ function AppContent() {
         onMessage={handleMessage}
         javaScriptEnabled={true}
         domStorageEnabled={true}
+        cacheEnabled={true}
+        cacheMode="LOAD_DEFAULT"
         startInLoadingState={true}
         scalesPageToFit={true}
         allowsBackForwardNavigationGestures={true}
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
+        androidLayerType="hardware"
+        decelerationRate="normal"
+        pullToRefreshEnabled={false}
         mediaPlaybackRequiresUserAction={false}
         allowsInlineMediaPlayback={true}
         injectedJavaScript={`
