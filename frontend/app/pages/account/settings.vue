@@ -1,5 +1,5 @@
 <template>
-  <PageLayout title="계정 설정" :on-back="handleBack" :show-floating-nav="false">
+  <PageLayout title="계정 설정" :on-back="handleBack">
     <div class="account-settings-page">
       <!-- 프로필 요약 -->
       <section class="profile-hero fade-in">

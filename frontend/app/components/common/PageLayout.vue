@@ -3,7 +3,9 @@
     <!-- 고정 영역 -->
     <div class="fixed-area">
       <PageHeader
+        v-if="hasHeaderAction"
         :title="title"
+        :fallback-path="fallbackPath"
         :show-back="showBackButton"
         :on-back="onBack"
       >
@@ -11,6 +13,13 @@
           <slot name="header-action"></slot>
         </template>
       </PageHeader>
+      <PageHeader
+        v-else
+        :title="title"
+        :fallback-path="fallbackPath"
+        :show-back="showBackButton"
+        :on-back="onBack"
+      />
     </div>
 
     <!-- 스크롤 영역 -->
@@ -24,6 +33,7 @@
 </template>
 
 <script setup>
+import { computed, useSlots } from 'vue'
 import FloatingNav from '~/components/home-v2/FloatingNav.vue'
 
 defineProps({
@@ -34,6 +44,10 @@ defineProps({
   showBackButton: {
     type: Boolean,
     default: true
+  },
+  fallbackPath: {
+    type: String,
+    default: '/'
   },
   onBack: {
     type: Function,
@@ -48,6 +62,9 @@ defineProps({
     default: true
   }
 })
+
+const slots = useSlots()
+const hasHeaderAction = computed(() => Boolean(slots['header-action']))
 </script>
 
 <style scoped>

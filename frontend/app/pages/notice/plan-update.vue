@@ -1,7 +1,5 @@
 <template>
-  <div class="container">
-    <PageHeader title="공지사항" fallback-path="/notice" />
-
+  <PageLayout title="공지사항" fallback-path="/notice">
     <div class="content-section fade-in" style="animation-delay: 0.2s">
       <div class="notice-content">
         <h2>매일일독이 드디어 푸른통독을 지원해요 🎉</h2>
@@ -42,11 +40,12 @@
         </div>
       </div>
     </div>
-  </div>
+  </PageLayout>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
+import PageLayout from '~/components/common/PageLayout.vue'
 
 const router = useRouter()
 
@@ -56,24 +55,6 @@ const navigateToPlans = () => {
 </script>
 
 <style scoped>
-.container {
-  max-width: 768px;
-  margin: 0 auto;
-  background: var(--color-bg-primary);
-  min-height: 100vh;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background: white;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
 .back-button {
   background: none;
   border: none;
@@ -82,12 +63,6 @@ const navigateToPlans = () => {
   margin-right: 0.5rem;
   color: var(--text-primary);
   cursor: pointer;
-}
-
-.header h1 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 .content-section {
@@ -216,4 +191,4 @@ h3 {
   opacity: 0;
   animation: fadeIn 0.4s ease-out forwards;
 }
-</style> 
+</style>

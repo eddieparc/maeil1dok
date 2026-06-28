@@ -1,11 +1,9 @@
 <template>
-  <div class="sanctuary-theme">
+  <PageLayout title="하세나하시조" fallback-path="/">
+    <div class="sanctuary-theme">
     <div class="bg-pattern"></div>
     
-    <div class="container">
-      <!-- Header -->
-      <PageHeader title="하세나하시조" back-path="/" />
-
+    <div class="sanctuary-container">
       <main class="main-content">
         <SkeletonHasenaCard v-if="isLoading" />
         
@@ -173,6 +171,7 @@
       />
     </div>
   </div>
+  </PageLayout>
 </template>
 
 <script setup>
@@ -186,6 +185,7 @@ import { useSanitize } from '~/composables/useSanitize'
 import Toast from '~/components/Toast.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
 import SkeletonHasenaCard from '~/components/ui/skeleton/SkeletonHasenaCard.vue'
+import PageLayout from '~/components/common/PageLayout.vue'
 import {
   CalendarDaysIcon,
   ChevronDownIcon,
@@ -556,60 +556,13 @@ onMounted(async () => {
   pointer-events: none;
 }
 
-.container {
+.sanctuary-container {
   max-width: 768px;
   margin: 0 auto;
   min-height: 100vh;
   position: relative;
   z-index: 1;
   padding-bottom: 3rem;
-}
-
-/* Header */
-.header {
-  position: sticky;
-  top: 0;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1rem;
-  background: var(--color-bg-primary);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  z-index: 50;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.header h1 {
-  font-family: var(--font-serif);
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.back-button {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  margin-left: -0.5rem;
-  cursor: pointer;
-  color: var(--color-text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background 0.2s;
-}
-
-.back-button:hover {
-  background: var(--color-bg-hover);
-}
-
-.back-button .icon {
-  width: 24px;
-  height: 24px;
 }
 
 /* Main Content */

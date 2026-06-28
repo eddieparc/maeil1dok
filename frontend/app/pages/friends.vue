@@ -1,8 +1,5 @@
 <template>
-  <div class="container">
-    <!-- 고정 헤더 -->
-    <PageHeader title="친구" fallback-path="/" />
-    
+  <PageLayout title="친구" fallback-path="/">
     <!-- 스크롤 영역 -->
     <div class="scroll-area">
       <!-- 탭 -->
@@ -132,7 +129,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </PageLayout>
 </template>
 
 <script setup>
@@ -142,6 +139,7 @@ import { useAuthService } from '~/composables/useAuthService'
 import { useSocialStore } from '~/stores/social'
 import UserCard from '~/components/UserCard.vue'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
+import PageLayout from '~/components/common/PageLayout.vue'
 
 const auth = useAuthService()
 const socialStore = useSocialStore()
@@ -308,47 +306,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.container {
-  min-height: 100vh;
-  background: var(--color-bg-base, #F9FAFB);
-  display: flex;
-  flex-direction: column;
-  max-width: 768px;
-  margin: 0 auto;
-}
-
-.header {
-  background: white;
-  border-bottom: 1px solid #E5E7EB;
-  padding: 1rem 1.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.header h1 {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.back-button {
-  padding: 0.5rem;
-  margin: -0.5rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.back-button:hover {
-  background-color: #F3F4F6;
-}
-
 .scroll-area {
   flex: 1;
   overflow-y: auto;
@@ -504,11 +461,6 @@ onMounted(async () => {
     font-size: 0.9375rem;
     padding: 0.625rem 1.125rem;
   }
-}
-
-/* ===== 다크모드 ===== */
-[data-theme="dark"] .container {
-  background: var(--color-bg-primary);
 }
 
 [data-theme="dark"] .tabs {

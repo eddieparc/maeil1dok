@@ -1,8 +1,5 @@
 <template>
-  <div class="container">
-    <!-- 고정 헤더 -->
-    <PageHeader title="플랜 관리" />
-
+  <PageLayout title="플랜 관리">
     <!-- 스크롤 영역 -->
     <div class="scroll-area">
       <div v-if="isLoading" class="flex flex-col gap-3 fade-in">
@@ -121,7 +118,7 @@
     </div>
 
     <Toast />
-  </div>
+  </PageLayout>
 </template>
 
 <script setup lang="ts">
@@ -131,7 +128,7 @@ import { useAuthService } from '~/composables/useAuthService';
 import { usePlanApi } from '~/composables/usePlanApi';
 import { useToast } from '~/composables/useToast';
 import { formatKoreanDate } from '~/utils/dateFormat';
-import PageHeader from '~/components/PageHeader.vue';
+import PageLayout from '~/components/common/PageLayout.vue';
 import Toast from '~/components/Toast.vue';
 import { useModal } from '~/composables/useModal';
 import type { Plan, Subscription } from '~/types/plan';
@@ -240,14 +237,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.container {
-  max-width: 768px;
-  margin: 0 auto;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
 .scroll-area {
   flex: 1;
   overflow-y: auto;

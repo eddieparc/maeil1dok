@@ -1,10 +1,7 @@
 <template>
-  <div class="legal-page">
-    <div class="bg-pattern"></div>
-    
-    <div class="container">
-      <PageHeader title="고객지원" fallback-path="/" />
-
+  <PageLayout title="고객지원" fallback-path="/">
+    <div class="legal-page">
+      <div class="bg-pattern"></div>
       <main class="main-content">
         <div class="card fade-in" style="animation-delay: 0.1s">
           <h1 class="page-title">Customer Support</h1>
@@ -59,11 +56,12 @@
         </div>
       </main>
     </div>
-  </div>
+  </PageLayout>
 </template>
 
 <script setup>
 import { useHead } from '#imports'
+import PageLayout from '~/components/common/PageLayout.vue'
 
 useHead({
   title: '고객지원 - 매일일독',
@@ -98,15 +96,6 @@ useHead({
   opacity: 0.1;
   z-index: 0;
   pointer-events: none;
-}
-
-.container {
-  max-width: 768px;
-  margin: 0 auto;
-  min-height: 100vh;
-  position: relative;
-  z-index: 1;
-  padding-bottom: 3rem;
 }
 
 .main-content {

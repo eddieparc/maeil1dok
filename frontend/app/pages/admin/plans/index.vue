@@ -1,16 +1,13 @@
 <template>
-  <div class="container">
-    <!-- 헤더 -->
-    <PageHeader title="성경 읽기 플랜 관리" fallback-path="/">
-      <template #right>
-        <button v-if="isStaff" @click="showCreateModal = true" class="create-button">
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-          </svg>
-          새 플랜
-        </button>
-      </template>
-    </PageHeader>
+  <PageLayout title="성경 읽기 플랜 관리" fallback-path="/">
+    <template #header-action>
+      <button v-if="isStaff" @click="showCreateModal = true" class="create-button">
+        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        새 플랜
+      </button>
+    </template>
 
     <!-- 스크롤 영역 -->
     <div class="scroll-area">
@@ -477,7 +474,7 @@
 
     <!-- Toast 컴포넌트 사용 -->
     <Toast ref="toast" />
-  </div>
+  </PageLayout>
 </template>
 
 <script setup>
@@ -486,6 +483,7 @@ import { useToast } from '~/composables/useToast'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
 import { useModal } from '~/composables/useModal'
+import PageLayout from '~/components/common/PageLayout.vue'
 import Toast from '~/components/Toast.vue'
 import BaseModal from '~/components/ui/modal/BaseModal.vue'
 import SkeletonPlanRow from '~/components/ui/skeleton/SkeletonPlanRow.vue'
@@ -1003,8 +1001,8 @@ watch(showScheduleModal, (newVal) => {
 
 <style scoped>
 /* 기본 스타일 */
-/* 페이지 로컬 변수 — 전역 :root를 덮어쓰지 않도록 컨테이너로 스코프 */
-.container {
+.scroll-area,
+.create-button {
   --primary-color: var(--color-accent-primary);
   --primary-light: var(--color-accent-primary-light);
   --primary-dark: var(--color-accent-primary-hover);
@@ -1015,49 +1013,6 @@ watch(showScheduleModal, (newVal) => {
   --success-color: var(--color-success);
   --warning-color: var(--color-warning);
   --error-color: var(--color-error);
-}
-
-.container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: var(--background-light);
-}
-
-/* 헤더 스타일 개선 */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.5rem;
-  background-color: white;
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.back-button {
-  padding: 0.5rem;
-  margin: -0.5rem;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.back-button:hover {
-  background: var(--primary-light);
-  color: var(--primary-color);
 }
 
 .create-button {
@@ -1497,10 +1452,6 @@ button:disabled {
 
 /* 반응형 디자인 */
 @media (max-width: 640px) {
-  .header {
-    padding: 0.75rem 1rem;
-  }
-  
   .scroll-area {
     padding: 1rem;
   }
@@ -1718,4 +1669,4 @@ button:disabled {
 .debug-button:hover {
   background-color: var(--primary-dark);
 }
-</style> 
+</style>
