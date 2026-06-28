@@ -114,6 +114,8 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
             encoding="utf-8",
         )
 
+        self.assertIn("'/**'", nuxt_config)
+        self.assertIn("'cache-control': 'no-store'", nuxt_config)
         self.assertIn("'/_nuxt/**'", nuxt_config)
         self.assertIn("max-age=31536000, immutable", nuxt_config)
         self.assertIn("s-maxage=300, stale-while-revalidate=86400", nuxt_config)
