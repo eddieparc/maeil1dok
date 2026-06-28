@@ -176,6 +176,11 @@ export default defineNuxtConfig({
   },
   nitro: {
     routeRules: {
+      '/**': {
+        headers: {
+          'cache-control': 'no-store'
+        }
+      },
       '/': {
         headers: {
           'cache-control': 'no-store'
