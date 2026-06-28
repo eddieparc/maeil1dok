@@ -1,16 +1,15 @@
 <template>
-  <div class="sanctuary-theme">
+  <PageLayout title="개론" fallback-path="/">
+    <template #header-action>
+      <button v-if="videoIntroId" class="list-button-right" @click="goToIntroList">
+        목록
+      </button>
+    </template>
+
+    <div class="sanctuary-theme">
     <div class="bg-pattern"></div>
     
-    <div class="container">
-      <PageHeader title="개론" fallback-path="/">
-        <template #right>
-          <button v-if="videoIntroId" class="list-button-right" @click="goToIntroList">
-            목록
-          </button>
-        </template>
-      </PageHeader>
-
+    <div class="intro-container">
       <!-- URL에 ID 파라미터가 있는 경우: 특정 영상 개론 표시 -->
       <template v-if="videoIntroId">
         <main class="main-content">
@@ -87,6 +86,7 @@
       </template>
     </div>
   </div>
+  </PageLayout>
 </template>
 
 <script setup>
@@ -96,6 +96,7 @@ import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
 import { useToast } from '~/composables/useToast'
 import IntroListContent from '~/components/IntroListContent.vue'
+import PageLayout from '~/components/common/PageLayout.vue'
 import CheckCircleIcon from '~/components/icons/CheckCircleIcon.vue'
 import { useHead } from '#imports'
 
@@ -335,37 +336,13 @@ watch(videoIntroId, (newId, oldId) => {
   pointer-events: none;
 }
 
-.container {
+.intro-container {
   max-width: 768px;
   margin: 0 auto;
   min-height: 100vh;
   position: relative;
   z-index: 1;
   padding-bottom: 3rem;
-}
-
-/* Header */
-.header {
-  position: sticky;
-  top: 0;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1rem;
-  background: var(--color-bg-primary);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  z-index: 50;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.header h1 {
-  font-family: var(--font-serif);
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0;
 }
 
 /* Header Button */

@@ -1,16 +1,14 @@
 <template>
-  <div class="container">
-    <PageHeader title="앱 설치 방법" fallback-path="/" />
-
+  <PageLayout title="앱 설치 방법" fallback-path="/">
     <div class="content-section fade-in" style="animation-delay: 0.2s">
       <PWAInstallGuide />
     </div>
-  </div>
+  </PageLayout>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
 import { useHead } from '#imports'
+import PageLayout from '~/components/common/PageLayout.vue'
 
 useHead({
   title: '앱 설치 방법 - 매일일독',
@@ -28,51 +26,9 @@ useHead({
   ],
 })
 
-const router = useRouter()
 </script>
 
 <style scoped>
-.container {
-  max-width: 768px;
-  margin: 0 auto;
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-bottom: 1.5rem;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background: white;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  height: 48px;
-}
-
-.back-button {
-  background: none;
-  border: none;
-  padding: 0.375rem;
-  margin: -0.375rem;
-  margin-right: 0.5rem;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.header h1 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.back-button svg {
-  width: 20px;
-  height: 20px;
-}
-
 .content-section {
   background: white;
   margin: 1rem;
@@ -95,4 +51,4 @@ const router = useRouter()
   opacity: 0;
   animation: fadeIn 0.4s ease-out forwards;
 }
-</style> 
+</style>

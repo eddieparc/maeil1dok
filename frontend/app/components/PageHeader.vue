@@ -103,8 +103,7 @@ const handleBack = () => {
   top: 0;
   z-index: 10;
   background: var(--color-bg-card);
-  box-shadow: var(--shadow-sm);
-  height: 50px;
+  border-bottom: 1px solid var(--color-border-default);
   flex-shrink: 0;
 }
 
@@ -113,39 +112,40 @@ const handleBack = () => {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--color-text-primary);
-  text-align: center;
+  margin: 0;
 }
 
 .back-button {
-  padding: 0.5rem;
-  margin: -0.5rem;
-  color: var(--color-text-primary);
+  width: 36px;
+  height: 36px;
+  color: var(--color-text-secondary);
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.2s ease;
-  min-width: 44px;
-  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .back-button:hover {
-  background: var(--primary-light);
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
 .back-placeholder {
-  min-width: 32px;
+  width: 36px;
+  height: 36px;
 }
 
 .right-slot {
-  min-width: 64px;
+  min-width: 36px;
   display: flex;
   justify-content: flex-end;
 }
 
 .right-placeholder {
-  min-width: 64px;
+  width: 36px;
+  height: 36px;
 }
 
 .notification-link {

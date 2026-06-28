@@ -1,23 +1,23 @@
 <template>
-  <div class="bible-page notes-page">
-    <PageHeader title="묵상노트" fallback-path="/bible" />
-
+  <BibleSubpageLayout title="묵상노트">
     <!-- 필터 -->
-    <div class="filter-bar">
-      <select v-model="filterBook" class="filter-select">
-        <option value="">전체</option>
-        <optgroup label="구약">
-          <option v-for="book in BIBLE_BOOKS.old" :key="book.id" :value="book.id">
-            {{ book.name }}
-          </option>
-        </optgroup>
-        <optgroup label="신약">
-          <option v-for="book in BIBLE_BOOKS.new" :key="book.id" :value="book.id">
-            {{ book.name }}
-          </option>
-        </optgroup>
-      </select>
-    </div>
+    <template #filter>
+      <div class="filter-bar">
+        <select v-model="filterBook" class="filter-select">
+          <option value="">전체</option>
+          <optgroup label="구약">
+            <option v-for="book in BIBLE_BOOKS.old" :key="book.id" :value="book.id">
+              {{ book.name }}
+            </option>
+          </optgroup>
+          <optgroup label="신약">
+            <option v-for="book in BIBLE_BOOKS.new" :key="book.id" :value="book.id">
+              {{ book.name }}
+            </option>
+          </optgroup>
+        </select>
+      </div>
+    </template>
 
     <!-- 로딩 -->
     <template v-if="isLoading">
@@ -76,7 +76,7 @@
     </ul>
 
     <Toast />
-  </div>
+  </BibleSubpageLayout>
 </template>
 
 <script setup lang="ts">
@@ -86,6 +86,7 @@ import { useNote } from '~/composables/useNote';
 import { useBibleData, BIBLE_BOOKS } from '~/composables/useBibleData';
 import { useAuthService } from '~/composables/useAuthService';
 import { useTextUtils } from '~/composables/useTextUtils';
+import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import Toast from '~/components/Toast.vue';
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import type { Note } from '~/types/bible';

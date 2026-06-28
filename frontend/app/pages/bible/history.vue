@@ -1,12 +1,10 @@
 <template>
-  <div class="bible-page history-page">
-    <PageHeader title="읽기 기록" fallback-path="/bible" />
-
-    <template v-if="isLoading">
+  <BibleSubpageLayout title="읽기 기록" :loading="isLoading">
+    <template #skeleton>
       <SkeletonList :count="5" variant="history" />
     </template>
 
-    <div v-else class="history-content">
+    <div class="history-content">
       <!-- 요약 카드 -->
       <div class="summary-cards">
         <div class="summary-card total">
@@ -104,7 +102,7 @@
         </div>
       </section>
     </div>
-  </div>
+  </BibleSubpageLayout>
 </template>
 
 <script setup lang="ts">
@@ -113,6 +111,7 @@ import { useRouter } from 'vue-router';
 import { useApi } from '~/composables/useApi';
 import { useBibleData } from '~/composables/useBibleData';
 import { useErrorHandler } from '~/composables/useErrorHandler';
+import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import type { ReadingStats, ReadingStatsResponse, ReadingDatesResponse } from '~/types/bible';
 

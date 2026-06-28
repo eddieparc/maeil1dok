@@ -1,7 +1,5 @@
 <template>
-  <div class="container">
-    <PageHeader title="공지사항" fallback-path="/" />
-
+  <PageLayout title="공지사항" fallback-path="/">
     <div class="content-section fade-in" style="animation-delay: 0.2s">
       <div class="notice-item">
         <div class="notice-date">2025년 03월 01일</div>
@@ -80,11 +78,12 @@
         </div>
       </div>
     </div>
-  </div>
+  </PageLayout>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
+import PageLayout from '~/components/common/PageLayout.vue'
 
 const router = useRouter()
 
@@ -98,27 +97,6 @@ const navigateToNoticeDetail = (path) => {
 </script>
 
 <style scoped>
-.container {
-  max-width: 768px;
-  margin: 0 auto;
-  background: var(--color-bg-primary);
-  min-height: 100vh;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background: var(--color-bg-card);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  height: 50px;
-  transition: all 0.15s ease;
-  margin: 0;
-}
-
 .back-button {
   background: none;
   border: none;
@@ -127,12 +105,6 @@ const navigateToNoticeDetail = (path) => {
   margin-right: 0.5rem;
   color: var(--text-primary);
   cursor: pointer;
-}
-
-.header h1 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 .content-section {

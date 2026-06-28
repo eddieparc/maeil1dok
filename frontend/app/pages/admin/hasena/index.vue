@@ -1,6 +1,5 @@
 <template>
-  <div class="container">
-    <PageHeader title="하세나 AI 요약 관리" fallback-path="/" />
+  <PageLayout title="하세나 AI 요약 관리" fallback-path="/">
 
     <div class="scroll-area">
       <div v-if="isAuthLoading" class="loading-indicator fade-in">
@@ -91,13 +90,14 @@
         </div>
       </div>
     </div>
-  </div>
+  </PageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthService } from '~/composables/useAuthService'
 import { useApi } from '~/composables/useApi'
+import PageLayout from '~/components/common/PageLayout.vue'
 
 interface Summary {
   id: number
@@ -249,13 +249,6 @@ const formatDate = (dateStr: string) => {
 </script>
 
 <style scoped>
-.container {
-  max-width: 1024px;
-  margin: 0 auto;
-  min-height: 100vh;
-  background: var(--color-bg-primary);
-}
-
 .scroll-area {
   padding: 1rem;
 }

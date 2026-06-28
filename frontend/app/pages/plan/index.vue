@@ -1,28 +1,23 @@
 <template>
-  <div class="container">
-    <!-- 고정 영역 -->
-    <div class="fixed-area">
-      <PageHeader title="성경통독표">
-        <template #right>
-          <ClientOnly>
-            <button
-              v-if="authStore.isAuthenticated"
-              class="edit-mode-button"
-              :class="{ active: isBulkEditMode }"
-              @click="toggleBulkEditMode"
-            >
-              {{ isBulkEditMode ? '완료' : '일괄수정' }}
-            </button>
-            <button v-else class="edit-mode-button" @click="goToLogin">
-              로그인
-            </button>
-            <template #fallback>
-              <button class="edit-mode-button" disabled>...</button>
-            </template>
-          </ClientOnly>
+  <PageLayout title="성경통독표">
+    <template #header-action>
+      <ClientOnly>
+        <button
+          v-if="authStore.isAuthenticated"
+          class="edit-mode-button"
+          :class="{ active: isBulkEditMode }"
+          @click="toggleBulkEditMode"
+        >
+          {{ isBulkEditMode ? '완료' : '일괄수정' }}
+        </button>
+        <button v-else class="edit-mode-button" @click="goToLogin">
+          로그인
+        </button>
+        <template #fallback>
+          <button class="edit-mode-button" disabled>...</button>
         </template>
-      </PageHeader>
-    </div>
+      </ClientOnly>
+    </template>
 
     <!-- 스크롤 영역 -->
     <div class="scroll-area">
@@ -35,7 +30,7 @@
     </div>
 
     <Toast />
-  </div>
+  </PageLayout>
 </template>
 
 <script setup lang="ts">
@@ -45,7 +40,7 @@ import { useAuthService } from '~/composables/useAuthService';
 import { useScheduleApi } from '~/composables/useScheduleApi';
 import { useToast } from '~/composables/useToast';
 import BibleScheduleContent from '~/components/BibleScheduleContent.vue';
-import PageHeader from '~/components/PageHeader.vue';
+import PageLayout from '~/components/common/PageLayout.vue';
 import Toast from '~/components/Toast.vue';
 import type { RangeSelectPayload } from '~/types/plan';
 
@@ -81,22 +76,6 @@ async function handleRangeSelect({ action, scheduleIds, planId }: RangeSelectPay
 </script>
 
 <style scoped>
-.container {
-  max-width: 768px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  background: var(--background-color);
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
-}
-
-.fixed-area {
-  flex-shrink: 0;
-}
-
 .scroll-area {
   flex: 1;
   min-height: 0;
