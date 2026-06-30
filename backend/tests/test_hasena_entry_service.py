@@ -57,6 +57,46 @@ class HasenaEntryApiTest(TestCase):
         self.assertEqual(response.data["entry"]["video_id"], "LYmfNxK90YA")
         self.assertEqual(response.data["entry"]["verses"][0]["text"], "아브라함과 다윗의 자손")
 
+    @patch("todos.services.hasena_entry_service.get_recent_hasena_videos")
+    def test_hasena_day_returns_latest_cached_entry_before_sunday(self, recent_videos):
+        recent_videos.return_value = []
+        saturday = HasenaEntry.objects.create(
+            date=date(2026, 6, 27),
+            video_id="_npuPXwLUbE",
+            title="2026년 6월 27일 토요일 하세나하시조",
+            passage="사무엘상 31:1-13",
+            body_text="1 블레셋 사람이 이스라엘에 싸움을 걸어 왔다.",
+            verses=[{"number": "1", "text": "블레셋 사람이 이스라엘에 싸움을 걸어 왔다."}],
+        )
+
+        response = self.client.get("/api/v1/todos/hasena/day/?date=2026-06-28")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        self.assertEqual(response.data["entry"]["date"], saturday.date.isoformat())
+        self.assertEqual(response.data["entry"]["video_id"], "_npuPXwLUbE")
+        self.assertEqual(response.data["entry"]["passage"], "사무엘상 31:1-13")
+
+    @patch("todos.services.hasena_entry_service.get_recent_hasena_videos")
+    def test_hasena_day_completion_uses_returned_entry_date_when_request_falls_back(self, recent_videos):
+        recent_videos.return_value = []
+        self.client.force_authenticate(self.user)
+        saturday = HasenaEntry.objects.create(
+            date=date(2026, 6, 27),
+            video_id="_npuPXwLUbE",
+            title="2026년 6월 27일 토요일 하세나하시조",
+            passage="사무엘상 31:1-13",
+            body_text="1 블레셋 사람이 이스라엘에 싸움을 걸어 왔다.",
+            verses=[{"number": "1", "text": "블레셋 사람이 이스라엘에 싸움을 걸어 왔다."}],
+        )
+        HasenaRecord.objects.create(user=self.user, date=saturday.date, is_completed=True)
+
+        response = self.client.get("/api/v1/todos/hasena/day/?date=2026-06-28")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["is_completed"])
+        self.assertEqual(response.data["entry"]["date"], "2026-06-27")
+
     @patch("todos.services.hasena_entry_service.sync_hasena_entries")
     def test_hasena_calendar_merges_cached_entries_and_completion_marks(self, sync_entries):
         self.client.force_authenticate(self.user)

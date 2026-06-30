@@ -54,7 +54,7 @@ def ensure_hasena_entry(target_date: date) -> HasenaEntry | None:
         if get_hasena_video_date(video) == target_date:
             return sync_hasena_entry_for_video(video, target_date)
 
-    return None
+    return HasenaEntry.objects.filter(date__lte=target_date).order_by('-date').first()
 
 
 def sync_hasena_entry_for_video(video: dict, video_date: date) -> HasenaEntry | None:

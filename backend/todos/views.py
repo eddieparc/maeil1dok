@@ -2549,7 +2549,7 @@ def get_hasena_day(request):
         if request.user.is_authenticated:
             is_completed = HasenaRecord.objects.filter(
                 user=request.user,
-                date=target_date,
+                date=entry.date,
                 is_completed=True,
             ).exists()
 

@@ -7,37 +7,20 @@ const hasenaSource = await readFile(
   'utf8',
 );
 
-const floatingStart = hasenaSource.indexOf('<FloatingBottomBar>');
-assert.notEqual(floatingStart, -1, 'hasena page should render FloatingBottomBar');
-
-const centerStart = hasenaSource.indexOf('<template #center>', floatingStart);
-assert.notEqual(centerStart, -1, 'hasena bottom bar should keep a center slot');
-
-const centerEnd = hasenaSource.indexOf('</template>', centerStart);
-assert.notEqual(centerEnd, -1, 'hasena bottom bar center slot should close');
-
-const beforeCenterBlock = hasenaSource.slice(floatingStart, centerStart);
-const centerSlotBlock = hasenaSource.slice(centerStart, centerEnd);
-
-test('renders Hasena completion as a standalone button above the bottom bar', () => {
+test('renders Hasena completion as an inline action after scripture content', () => {
   assert.doesNotMatch(
     hasenaSource,
     /hasena-complete-floating-scrim/,
-    'Hasena completion should not add an opaque bottom backdrop behind the separated action',
+    'Hasena completion should not add an opaque bottom backdrop',
   );
   assert.match(
-    beforeCenterBlock,
-    /<template\s+#popover>[\s\S]*class="hasena-complete-floating-btn"[\s\S]*@click="handleComplete"[\s\S]*{{ buttonText }}/,
-    'Hasena completion should render in the FloatingBottomBar popover above the bar',
+    hasenaSource,
+    /<div class="inline-complete-action[\s\S]*class="hasena-complete-floating-btn"[\s\S]*@click="handleComplete"[\s\S]*{{ buttonText }}/,
+    'Hasena completion should render inline after the scripture card',
   );
   assert.doesNotMatch(
-    centerSlotBlock,
-    /@click="handleComplete"|hasena-complete-info/,
-    'bottom bar center should not own the Hasena completion action',
-  );
-  assert.match(
-    centerSlotBlock,
-    /hasena-status-info/,
-    'bottom bar center should remain an informational date/title label',
+    hasenaSource,
+    /<FloatingBottomBar>|hasena-status-info/,
+    'Hasena page should not use a fixed bottom bar that can overlap scripture text',
   );
 });

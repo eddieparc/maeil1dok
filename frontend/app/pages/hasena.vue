@@ -197,7 +197,9 @@ import {
   SparklesIcon,
   TrophyIcon,
 } from '@lucide/vue'
+import { resolveHasenaDayState } from '~/utils/hasenaDay'
 import { formatHasenaSummary } from '~/utils/hasenaFormatters'
+import { buildHasenaYoutubeEmbedUrl, buildHasenaYoutubeWatchUrl } from '~/utils/hasenaYoutube'
 
 const api = useApi()
 const auth = useAuthService()
@@ -231,11 +233,7 @@ const onCalendarUpdated = async () => {
 }
 
 // 비디오 관련 상수
-const PLAYLIST_ID = 'PLMT1AJszhYtXkV936HNuExxjAmtFhp2tL'
-const videoUrl = computed(() => latestVideoId.value
-  ? `https://www.youtube.com/embed/${latestVideoId.value}`
-  : `https://www.youtube.com/embed/videoseries?list=${PLAYLIST_ID}`
-)
+const videoUrl = computed(() => buildHasenaYoutubeEmbedUrl(latestVideoId.value))
 const latestVideoId = ref('') // 빈 값으로 초기화
 const isMobile = ref(false)
 const isIOS = ref(false)
@@ -246,7 +244,7 @@ const openYouTubeApp = () => {
   if (!latestVideoId.value) return
   
   const videoId = latestVideoId.value
-  const webUrl = `https://www.youtube.com/watch?v=${videoId}`
+  const webUrl = buildHasenaYoutubeWatchUrl(videoId)
   
   if (window.__nativeBridge?.isNativeApp()) {
     window.__nativeBridge.sendToNative({ type: 'navigate', url: webUrl })
@@ -376,15 +374,13 @@ const fetchHasenaContent = async () => {
       params: { date: selectedDate.value }
     })
 
-    if (!data?.success || !data.entry) {
-      throw new Error(data?.error || '본문을 불러오는데 실패했습니다')
-    }
-
-    const entry = data.entry
-    bibleTitle.value = entry.passage || entry.title || '하세나하시조'
-    parsedContent.value = renderHasenaVerses(entry.verses || [])
-    latestVideoId.value = entry.video_id || ''
-    hasenaStore.setCompletionStatus(Boolean(data.is_completed))
+    const dayState = resolveHasenaDayState(data, selectedDate.value)
+    const { entry, entryDate } = dayState
+    selectedDate.value = entryDate
+    bibleTitle.value = dayState.bibleTitle
+    parsedContent.value = renderHasenaVerses(dayState.verses)
+    latestVideoId.value = dayState.videoId
+    hasenaStore.setCompletionStatus(dayState.isCompleted)
     await loadAISummary()
   } catch (err) {
     error.value = err?.message || '본문을 불러오는데 실패했습니다'
@@ -443,43 +439,6 @@ const handleComplete = async () => {
   }
 }
 
-// YouTube 현재 재생 비디오 가져오기
-const setupYouTubeListener = () => {
-  if (!window.YT) {
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    const firstScriptTag = document.getElementsByTagName('script')[0]
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
-    
-    window.onYouTubeIframeAPIReady = () => {
-      const iframe = document.querySelector('.video-container iframe')
-      if (iframe) {
-        // iframe의 ID 설정
-        iframe.id = 'hasena-youtube-player'
-        
-        // iframe src를 API 버전으로 변경
-        const currentSrc = iframe.src
-        iframe.src = currentSrc + '&enablejsapi=1'
-        
-        // YouTube Player 인스턴스 생성
-                new window.YT.Player('hasena-youtube-player', {
-          events: {
-            'onReady': (event) => {
-              // 플레이어가 준비되면 현재 비디오 ID 가져오기
-              const videoId = event.target.getVideoData().video_id
-
-              if (videoId && videoId !== latestVideoId.value) {
-                latestVideoId.value = videoId
-                loadAISummary()
-              }
-            }
-          }
-        })
-      }
-    }
-  }
-}
-
 onMounted(async () => {
   const ua = navigator.userAgent
   isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)
@@ -490,7 +449,6 @@ onMounted(async () => {
   await readingSettings.initialize()
 
   await fetchHasenaContent()
-  setupYouTubeListener()
   
   if (auth.isAuthenticated.value) {
     await hasenaStore.fetchStats()
