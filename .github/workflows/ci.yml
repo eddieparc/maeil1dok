@@ -13,6 +13,8 @@ on:
       - 'tests/test_frontend_deployment_config.py'
       - '.github/workflows/ci.yml'
   pull_request:
+    # draft PR은 앱 CI를 skip하고 ready_for_review 전환 시 실행 (중간 푸시 비용 제거).
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
     paths:
       - 'maeil1dok-next/**'
@@ -57,7 +59,7 @@ jobs:
 
   maeil1dok-next-ci:
     needs: changes
-    if: needs.changes.outputs.maeil1dok-next == 'true'
+    if: needs.changes.outputs.maeil1dok-next == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -93,7 +95,7 @@ jobs:
 
   backend-ci:
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -143,7 +145,7 @@ jobs:
 
   deployment-config-ci:
     needs: changes
-    if: needs.changes.outputs.deployment == 'true' || needs.changes.outputs.frontend == 'true'
+    if: (needs.changes.outputs.deployment == 'true' || needs.changes.outputs.frontend == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
 
     steps:
@@ -158,7 +160,7 @@ jobs:
 
   frontend-ci:
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.frontend == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
