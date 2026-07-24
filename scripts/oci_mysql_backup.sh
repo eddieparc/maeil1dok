@@ -13,7 +13,8 @@ umask 077   # 민감한 전체 DB 덤프가 world-readable 로 생성되지 않�
 
 cd "$(dirname "$0")/.."
 
-# .env.oci 에서 필요한 키만 dotenv-호환 방식으로 추출(값 실행 방지; = 이후 전체를 값으로, 따옴표 제거).
+# .env.oci 에서 필요한 키만 Compose dotenv-호환 방식으로 추출(값 실행 방지).
+# 규칙: 따옴표 없는 값은 공백+# 인라인 주석 제거 + 앞뒤 공백 트림; 따옴표 값은 1쌍만 제거.
 if [ -f .env.oci ]; then
   while IFS= read -r line; do
     case "$line" in \#*|'') continue ;; esac
@@ -22,6 +23,10 @@ if [ -f .env.oci ]; then
     case "$key" in
       OCI_DATA_ROOT|DB_NAME|DB_USER|DB_PASSWORD|DB_ROOT_PASSWORD|OCI_BUCKET|OCI_NAMESPACE|RETENTION_DAYS|BACKUP_DIR|COMPOSE_FILE)
         val="${val%$'\r'}"                       # CR 제거
+        case "$val" in
+          \"*|\'*) : ;;                          # 따옴표로 시작: 인라인 주석/트림 미적용
+          *) val="$(printf '%s' "$val" | sed -e 's/[[:space:]]#.*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')" ;;
+        esac
         val="${val#[\"\']}"; val="${val%[\"\']}" # 양끝 따옴표 1쌍 제거
         export "$key=$val" ;;
     esac
