@@ -1,5 +1,8 @@
 # Railway Migration Runbook
 
+> **상태: ✅ 완료 · 아카이브 (2026-07).** Railway→OCI 이전은 종료되었고 Railway 프로젝트는 삭제되었다.
+> 현재 운영/배포 절차는 루트 **[DEPLOY.md](../DEPLOY.md)** 를 따른다. 이 문서는 당시 절차의 역사적 기록이다.
+
 This runbook moves Maeil1Dok from `192.168.0.10:/home/jgp/maeil1dok` to
 Railway while keeping the source Docker volumes intact until Railway has been
 validated and DNS is ready to switch.

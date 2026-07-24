@@ -161,3 +161,6 @@ maeil1dok-next/playwright-report/.auth-state.json
 .gjc/_session-*/
 .gjc/**/token-log.jsonl
 .gjc/**/token-logs/
+
+# 세션 검증 아티팩트 (로컬 전용)
+artifacts/

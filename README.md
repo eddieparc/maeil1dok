@@ -37,7 +37,7 @@
 - [x] 프로젝트 기획 및 설계
 - [x] Django 백엔드 및 MariaDB 모델링
 - [x] Vue/Nuxt.js 프론트엔드 초기 화면
-- [x] Docker Compose 배포 환경
+- [x] OCI + Cloudflare Tunnel 배포 (DEPLOY.md)
 - [x] 유튜브 영상 등록 및 관리
 - [x] 회원 기능 구현
 - [x] 성경통독표 및 진행률 저장 기능
@@ -64,7 +64,7 @@ WEB_PUSH_VAPID_PRIVATE_KEY=...
 WEB_PUSH_VAPID_SUBJECT=mailto:admin@example.com
 ```
 
-`WEB_PUSH_VAPID_PUBLIC_KEY`는 브라우저 구독에 사용되고, private key는 서버 발송에만 사용합니다. private key는 저장소에 커밋하지 말고 Railway/운영 환경 변수로만 관리하세요.
+`WEB_PUSH_VAPID_PUBLIC_KEY`는 브라우저 구독에 사용되고, private key는 서버 발송에만 사용합니다. private key는 저장소에 커밋하지 말고 운영 환경 변수(`.env.oci`, DEPLOY.md 참조)로만 관리하세요.
 
 ## 프로젝트 참여
 하나님 제게 맡겨주신 달란트를 하나님께 영광돌리는데에 사용해보고 싶었습니다.

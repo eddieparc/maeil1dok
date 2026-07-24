@@ -20,9 +20,11 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 - Tailwind CSS for styling
 - Axios for API calls
 
-**Infrastructure:**
-- Docker and Docker Compose for containerization
-- Three containers: MySQL DB, Django backend, Nuxt frontend
+**Infrastructure (production):**
+- OCI single VM + Cloudflare Tunnel (no inbound ports; co-located with urban-blanks — never share networks/ports)
+- 7 containers via `docker-compose.oci.yml`: web(Django), frontend(Nuxt SSR), celery-worker, celery-beat(x1), mysql 8, redis, cloudflared
+- CI/CD: GitHub Actions — quality gates (backend tests on real MySQL 8) → auto deploy (`deploy-oci`) → live smoke
+- See **DEPLOY.md** for the full deployment guide (env/secrets, backup, rollback, troubleshooting)
 
 ## Development Commands
 
@@ -59,7 +61,7 @@ python manage.py runserver
 python manage.py test
 ```
 
-### Docker Compose (from root)
+### Docker Compose (local development only — production deploys via DEPLOY.md)
 ```bash
 # Start all services
 docker-compose up
