@@ -9,7 +9,7 @@
 Django admin 페이지를 통한 운영자 작업을 Next 측에서 대체. 가장 자주 쓰는 흐름만 v2 포함, 나머지는 Supabase Studio + SQL 로 대체.
 
 ## 2. 자산
-- Nuxt: [/admin/hasena](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/admin/hasena/index.vue) 524, [/admin/plans](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/admin/plans/index.vue) 1737, [/admin/video/intro](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/admin/video/intro.vue) 840
+- Nuxt: [/admin/hasena](../../frontend/app/pages/admin/hasena/index.vue) 524, [/admin/plans](../../frontend/app/pages/admin/plans/index.vue) 1737, [/admin/video/intro](../../frontend/app/pages/admin/video/intro.vue) 840
 - Django: backend/*/admin.py + 03b §C
 - 권한: Django staff/superuser → Supabase 의 service_role 또는 별도 admin role
 

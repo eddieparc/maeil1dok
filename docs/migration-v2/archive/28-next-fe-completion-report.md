@@ -3,8 +3,8 @@
 > **감사 일시**: 2026-05-28 (Asia/Seoul)
 > **감사 대상**: `maeil1dok-next/` (read-only)
 > **감사자**: Sisyphus (Claude Opus 4.7)
-> **선행 핸드오프**: [52-handoff-next-fe-audit.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/52-handoff-next-fe-audit.md)
-> **Evidence 디렉토리**: [.sisyphus/evidence/next-fe-audit/](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/)
+> **선행 핸드오프**: [52-handoff-next-fe-audit.md](52-handoff-next-fe-audit.md)
+> **Evidence 디렉토리**: [.sisyphus/evidence/next-fe-audit/](../../../.sisyphus/evidence/next-fe-audit)
 
 ---
 
@@ -32,13 +32,13 @@
 
 ## §1 정적 분석 (4 도구 실행 결과)
 
-모든 명령 출력은 [`/.sisyphus/evidence/next-fe-audit/*.log`](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/) 에 저장.
+모든 명령 출력은 [`/.sisyphus/evidence/next-fe-audit/*.log`](../../../.sisyphus/evidence/next-fe-audit) 에 저장.
 
 ### §1.1 `npm run build` — ❌ FAIL
 
 **재현 명령**: `cd maeil1dok-next && npm run build`
 
-**증거 ([build.log](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/build.log))**:
+**증거 ([build.log](../../../.sisyphus/evidence/next-fe-audit/build.log))**:
 
 ```
 ⚠ Compiled with warnings in 1394ms
@@ -56,12 +56,12 @@ Next.js build worker exited with code: 1 and signal: null
 
 **진단**:
 - 핸드오프(52-handoff §1.2)의 "catchup/page.tsx:154 missedCount" 에러는 **사라짐** (직전 세션 또는 다른 작업에서 fix됨)
-- 새 build blocker = [`BibleSettingsContent.tsx:166`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/%28authenticated%29/bible/settings/BibleSettingsContent.tsx#L166) — `<FontSection settings={settings} updateSetting={updateSetting} />`. 부모 시그니처 `<K extends keyof ReadingSettings>`가 자식 시그니처 `<K extends string>`보다 좁아 invariant 위반.
+- 새 build blocker = [`BibleSettingsContent.tsx:166`](../../../maeil1dok-next/src/app/%28authenticated%29/bible/settings/BibleSettingsContent.tsx#L166) — `<FontSection settings={settings} updateSetting={updateSetting} />`. 부모 시그니처 `<K extends keyof ReadingSettings>`가 자식 시그니처 `<K extends string>`보다 좁아 invariant 위반.
 - Warning(TongdokModeProvider 미export)은 §5.1 의 `/bible` 500 과 직결됨.
 
 ### §1.2 `npx tsc --noEmit` — ❌ 5건
 
-**증거 ([tsc.log](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/tsc.log))**:
+**증거 ([tsc.log](../../../.sisyphus/evidence/next-fe-audit/tsc.log))**:
 
 | # | 파일:라인 | 에러 코드 | 유형 |
 |---|---|---|---|
@@ -75,13 +75,13 @@ Next.js build worker exited with code: 1 and signal: null
 
 ### §1.3 `npm run lint` — ✅ PASS
 
-**증거 ([lint.log](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/lint.log))**: exit 0, 출력 없음.
+**증거 ([lint.log](../../../.sisyphus/evidence/next-fe-audit/lint.log))**: exit 0, 출력 없음.
 
 > ⚠ `next.config.ts`에 ESLint plugin 미설정 (build 시 `⚠ The Next.js plugin was not detected in your ESLint configuration` 경고). 룰셋 신뢰도 의문.
 
 ### §1.4 `npx vitest run` — ❌ 46 fail / 314 pass (360 total)
 
-**증거 ([vitest.log](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/vitest.log))**:
+**증거 ([vitest.log](../../../.sisyphus/evidence/next-fe-audit/vitest.log))**:
 
 ```
 Test Files  4 failed | 42 passed (46)
@@ -185,7 +185,7 @@ $ find src/components -name '*.tsx' | wc -l
 
 ### §3.1 atom 인벤토리 (19개)
 
-[`src/components/ui/`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/) 에 19 atom 정비됨. CLAUDE.md §UI Component Guidelines의 **통합 모달 시스템**은 `useModal()` composable + `ModalHost` + `ConfirmModal` + `AlertModal` 4종으로 구현되어 있음 ✅.
+[`src/components/ui/`](../../../maeil1dok-next/src/components/ui) 에 19 atom 정비됨. CLAUDE.md §UI Component Guidelines의 **통합 모달 시스템**은 `useModal()` composable + `ModalHost` + `ConfirmModal` + `AlertModal` 4종으로 구현되어 있음 ✅.
 
 ### §3.2 Modal SSOT 진단
 
@@ -195,7 +195,7 @@ $ find src/components -name '*.tsx' | wc -l
 
 ### §3.3 Tailwind 토큰 vs Hardcoded hex
 
-[`tests/token-coverage.test.ts`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/tests/token-coverage.test.ts) 1건 fail. **11 파일 26건 hardcoded hex 검출**:
+[`tests/token-coverage.test.ts`](../../../maeil1dok-next/tests/token-coverage.test.ts) 1건 fail. **11 파일 26건 hardcoded hex 검출**:
 
 | 파일 | 색상 | 비고 |
 |---|---|---|
@@ -236,11 +236,11 @@ $ find src/components -name '*.tsx' | wc -l
 
 | 파일:라인 | 패턴 | 평가 |
 |---|---|---|
-| [`api/catchup/create/route.ts:147`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/catchup/create/route.ts#L147) | `(supabase.from('catchup_sessions') as any)` | Supabase type 보강으로 제거 가능 |
-| [`api/catchup/create/route.ts:167`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/catchup/create/route.ts#L167) | `(supabase.from('catchup_schedules') as any).insert(...)` | 동일 |
-| [`api/catchup/create/route.ts:176`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/catchup/create/route.ts#L176) | `(supabase.from('catchup_sessions') as any)` | 동일 |
-| [`components/bible/ReadingSettingsModal.tsx:206`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/bible/ReadingSettingsModal.tsx#L206) | `updateSetting(key as any, value as any)` | §1.2 #1 build blocker와 동일 패턴 (해결 시 일괄 처리 가능) |
-| [`lib/bible/search.ts:43`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/lib/bible/search.ts#L43) | `CHOSUNG_LIST.includes(char as any)` | readonly array narrow — TS 5.5+ `Array.includes` widening 으로 제거 가능 |
+| [`api/catchup/create/route.ts:147`](../../../maeil1dok-next/src/app/api/catchup/create/route.ts#L147) | `(supabase.from('catchup_sessions') as any)` | Supabase type 보강으로 제거 가능 |
+| [`api/catchup/create/route.ts:167`](../../../maeil1dok-next/src/app/api/catchup/create/route.ts#L167) | `(supabase.from('catchup_schedules') as any).insert(...)` | 동일 |
+| [`api/catchup/create/route.ts:176`](../../../maeil1dok-next/src/app/api/catchup/create/route.ts#L176) | `(supabase.from('catchup_sessions') as any)` | 동일 |
+| [`components/bible/ReadingSettingsModal.tsx:206`](../../../maeil1dok-next/src/components/bible/ReadingSettingsModal.tsx#L206) | `updateSetting(key as any, value as any)` | §1.2 #1 build blocker와 동일 패턴 (해결 시 일괄 처리 가능) |
+| [`lib/bible/search.ts:43`](../../../maeil1dok-next/src/lib/bible/search.ts#L43) | `CHOSUNG_LIST.includes(char as any)` | readonly array narrow — TS 5.5+ `Array.includes` widening 으로 제거 가능 |
 
 ---
 
@@ -253,7 +253,7 @@ $ find src/components -name '*.tsx' | wc -l
 
 ### §5.1 (authenticated) 22 라우트 — **21/22 OK, 1건 500**
 
-**증거 ([authenticated-walk.json](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/walks/authenticated-walk.json) + 22 PNG)**.
+**증거 ([authenticated-walk.json](../../../.sisyphus/evidence/next-fe-audit/walks/authenticated-walk.json) + 22 PNG)**.
 
 | 라우트 | status | h1 | bodyLen | console err | net 4xx/5xx | 평가 |
 |---|---|---|---|---|---|---|
@@ -292,12 +292,12 @@ or you might have mixed up default and named imports.
 
 **진단**:
 
-[`src/app/(authenticated)/bible/page.tsx:2`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/%28authenticated%29/bible/page.tsx#L2):
+[`src/app/(authenticated)/bible/page.tsx:2`](../../../maeil1dok-next/src/app/%28authenticated%29/bible/page.tsx#L2):
 ```typescript
 import { TongdokModeProvider, createTongdokModeStore } from '@/stores/bible/tongdokMode'
 ```
 
-[`src/stores/bible/tongdokMode.ts:270-274`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/stores/bible/tongdokMode.ts#L270-L274):
+[`src/stores/bible/tongdokMode.ts:270-274`](../../../maeil1dok-next/src/stores/bible/tongdokMode.ts#L270-L274):
 ```typescript
 export const {
   StoreProvider: TongdokModeProvider,
@@ -317,7 +317,7 @@ export const {
 
 ### §5.2 (public) 13 라우트 — **13/13 OK**
 
-**증거 ([public-walk.json](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/walks/public-walk.json) + 13 PNG)**.
+**증거 ([public-walk.json](../../../.sisyphus/evidence/next-fe-audit/walks/public-walk.json) + 13 PNG)**.
 
 모두 HTTP 200, console error 0, network 4xx/5xx 0. 일부 bodyLen 작음 (login 97, register-email 80, auth-* 82-103) — render skeleton 또는 minimal UI (브랜드 로고 + 입력 폼만). screenshot 시각 검증 가능.
 
@@ -355,7 +355,7 @@ export const {
 
 ### §6.1 라벨 변경 제안
 
-[`05-feature-matrix.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/05-feature-matrix.md) 의 27 PARITY 행 중 본 감사 결과 변경 필요 항목:
+[`05-feature-matrix.md`](../05-feature-matrix.md) 의 27 PARITY 행 중 본 감사 결과 변경 필요 항목:
 
 | 행 (05-feature-matrix.md 라인) | 현 라벨 | 변경 제안 | 사유 |
 |---|---|---|---|

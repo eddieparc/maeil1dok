@@ -66,8 +66,8 @@
 | `update_stats_and_achievements` | `UserBibleProgress` 모델 `post_save` (`is_completed` 완료 설정 시) | `todos/signals.py:26` | 사용자가 성경 읽기를 완료 처리했을 때 프로필의 누적 통계(`total_completed_days`, streak 등)를 업데이트하고 달성한 업적(`UserAchievement`)을 검증 및 부여 |
 
 ### Signals 등록 위치 (apps.py)
-- **`accounts` 앱**: `/Users/jgp/GitHub/maeil1dok/backend/accounts/apps.py:10`의 `ready()` 메소드에서 `import accounts.signals`을 통해 임포트 및 데코레이터 등록
-- **`todos` 앱**: `/Users/jgp/GitHub/maeil1dok/backend/todos/apps.py:9`의 `ready()` 메소드에서 `import todos.signals`을 통해 임포트 및 데코레이터 등록
+- **`accounts` 앱**: `backend/accounts/apps.py:10`의 `ready()` 메소드에서 `import accounts.signals`을 통해 임포트 및 데코레이터 등록
+- **`todos` 앱**: `backend/todos/apps.py:9`의 `ready()` 메소드에서 `import todos.signals`을 통해 임포트 및 데코레이터 등록
 
 ---
 

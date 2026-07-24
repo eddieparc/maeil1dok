@@ -17,7 +17,7 @@
 ## BLOCKING (Wave 1 진입 전 반드시 fix)
 
 ### B1. M-5b — Supabase `auth.identities` 직접 INSERT 가능성 미검증
-- **증거**: [11-MIGRATE.md M-5b](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-MIGRATE.md) — "service_role 로 직접 insert".
+- **증거**: [11-MIGRATE.md M-5b](../11-MIGRATE.md) — "service_role 로 직접 insert".
 - **위험**: Supabase `auth.identities` 는 **GoTrue 가 관리하는 system table**. service_role 키도 INSERT 가능 여부 불명. 대안: `auth.admin.createUser({...identities})` 또는 `auth.admin.linkIdentity()` 사용. 직접 INSERT 가 거부되면 Wave 1 전체가 막힘.
 - **요구**: M-5b 에 "Supabase docs 확인 + 빈 프로젝트에서 1건 sample INSERT 시도 → 동작 여부 입증" 사전 작업 추가. 실패 시 `auth.admin.linkIdentity()` 경로 전환.
 
@@ -36,7 +36,7 @@
 
 ### B4. C-14b ↔ C-21 시간선 모순
 - **증거**: 
-  - [11-CUTOVER C-14b](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-CUTOVER.md) — "VPS Django Hard Block 503 유지 **48h**".
+  - [11-CUTOVER C-14b](../11-CUTOVER.md) — "VPS Django Hard Block 503 유지 **48h**".
   - C-21 — "**VPS Django 컨테이너 중지**" — 위치는 §3.5 "폐기 (T+7d ~ T+30d)" 인데 명시적 시점 없음. T+48h 이후라고 가정하면 OK 지만, "DNS 캐시 잔존 사용자" 보호 만료가 48h vs VPS shutdown 1주 = 48h~7d 사이 공백 처리 안 됨.
 - **위험**: 48h 이후 VPS 가 어떻게 동작하는지 (계속 503? shutdown? 권한 일부 복구?) 미명세. 만약 그 사이 DNS 캐시 더 지속되는 ISP 가 있으면 사용자 영향 큼.
 - **요구**: C-14b 와 C-21 사이에 "T+48h ~ T+7d: VPS 는 503 응답 유지 + DB shutdown 미실행. 7일 stable 후 컨테이너 중지" 명시 단계 추가.
@@ -60,7 +60,7 @@
 - **요구**: M-5c 본문에 "F-17 통과 후만 시작" + 만약 free tier 결정 시 M-5c (b) 강제 reset 로 회귀 명시.
 
 ### M4. A-2/A-3 — Apple Sign In credential 누락
-- **증거**: [11-AUTH A-3](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-AUTH.md) — "Apple Sign In Provider 등록 (Service ID + Private Key)".
+- **증거**: [11-AUTH A-3](../11-AUTH.md) — "Apple Sign In Provider 등록 (Service ID + Private Key)".
 - **위험**: Apple Sign In 은 (1) Service ID (2) Team ID (3) Key ID (4) Private Key (.p8) 4개 모두 필요. Team ID/Key ID 누락 시 OAuth flow 실패.
 - **요구**: A-3 의 credential 항목 4개 모두 명시.
 

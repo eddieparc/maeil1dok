@@ -34,24 +34,24 @@ Oracle sub-agent 호출이 **CreditsError (Insufficient balance)** 로 실패 �
 - M-5e 가 `sub/email/email_verified` 언급하지만 `provider_id` 중복 명시는 빠짐. **자가 보완 권장.**
 
 ### A.4 구 클라이언트 503 처리 (C-9c)
-- **현재 Nuxt 클라이언트가 503 처리 코드 가지고 있나?** [frontend/app/composables/useApi.ts](file:///Users/jgp/GitHub/maeil1dok/frontend/app/composables/useApi.ts) 검증 필요. **자가 작업으로 grep 시도 안 됨 — 본 검증은 Wave 0 (11-FOUND) 진입 전 의무.**
-- **모바일 클라이언트**: [mobile/](file:///Users/jgp/GitHub/maeil1dok/mobile/) 디렉토리 존재. 자가 검증 시도 안 됨. Wave 0 의무.
+- **현재 Nuxt 클라이언트가 503 처리 코드 가지고 있나?** [frontend/app/composables/useApi.ts](../../../frontend/app/composables/useApi.ts) 검증 필요. **자가 작업으로 grep 시도 안 됨 — 본 검증은 Wave 0 (11-FOUND) 진입 전 의무.**
+- **모바일 클라이언트**: [mobile/](../../../mobile) 디렉토리 존재. 자가 검증 시도 안 됨. Wave 0 의무.
 
 ### A.5 service_role grep CI (00-meta §2.5)
-- **CI 워크플로우 파일 어디?** [11-FOUND.md F-13](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-FOUND.md) 의 placeholder grep CI 와 함께 한 워크플로우에 묶기. **자가 보완: F-13 description 에 service_role grep 통합 명시.**
+- **CI 워크플로우 파일 어디?** [11-FOUND.md F-13](../11-FOUND.md) 의 placeholder grep CI 와 함께 한 워크플로우에 묶기. **자가 보완: F-13 description 에 service_role grep 통합 명시.**
 
 ---
 
 ## 자가 신규 위험 탐지
 
 ### B.1 마이그레이션 순서 race condition
-- [11-MIGRATE.md M-5/M-5b/M-5d](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-MIGRATE.md) 의 순서: `auth.users 사전 생성` → `auth.identities 추가` → `profiles INSERT (트리거 DISABLE 후)`. **순서 명시 누락**. M-5/5b/5d 라벨 순서로 추론 가능하나 한 줄 명시 부재. 🟡 자가 보완 권장.
+- [11-MIGRATE.md M-5/M-5b/M-5d](../11-MIGRATE.md) 의 순서: `auth.users 사전 생성` → `auth.identities 추가` → `profiles INSERT (트리거 DISABLE 후)`. **순서 명시 누락**. M-5/5b/5d 라벨 순서로 추론 가능하나 한 줄 명시 부재. 🟡 자가 보완 권장.
 
 ### B.2 Cloudflare DNS Only 모드 WAF 손실
-- [11-CUTOVER.md C-12](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-CUTOVER.md) DNS A→CNAME 전환 시 Cloudflare proxy off (grey cloud). WAF/DDoS 보호 사라짐. Vercel 자체 인프라가 흡수하나 명시 없음. 🟡 자가 보완 권장.
+- [11-CUTOVER.md C-12](../11-CUTOVER.md) DNS A→CNAME 전환 시 Cloudflare proxy off (grey cloud). WAF/DDoS 보호 사라짐. Vercel 자체 인프라가 흡수하나 명시 없음. 🟡 자가 보완 권장.
 
 ### B.3 GH Issue 186개 폭주 추적
-- 사용자가 186 issue 를 직접 따라가기 어려움. **GitHub Project (kanban) 활용**, Wave별 view 필요. [40-github-mapping.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/40-github-mapping.md) 에 Project 사용 정책 추가 권장. 🟡
+- 사용자가 186 issue 를 직접 따라가기 어려움. **GitHub Project (kanban) 활용**, Wave별 view 필요. [40-github-mapping.md](../40-github-mapping.md) 에 Project 사용 정책 추가 권장. 🟡
 
 ### B.4 Supabase Free tier 제한
 - 200K MAU / 500MB DB / Edge Functions 시간 등 free tier 한계. 매일일독 사용자 ~200명 + DB ~10K row 면 free tier 충분 (verify 필요). Pro tier 의 필요성 (Auth Hooks 등) 사전 확인. 🟡

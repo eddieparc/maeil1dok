@@ -50,7 +50,7 @@ GOOGLE_CLIENT_SECRET=your-actual-client-secret
 GOOGLE_REDIRECT_URI=https://maeil1dok.app/auth/google/callback
 ```
 
-### Frontend (Railway 환경 변수)
+### Frontend (VM `.env.frontend.oci`)
 ```env
 GOOGLE_CLIENT_ID=your-actual-client-id.apps.googleusercontent.com
 GOOGLE_REDIRECT_URI=https://maeil1dok.app/auth/google/callback
@@ -58,13 +58,12 @@ GOOGLE_REDIRECT_URI=https://maeil1dok.app/auth/google/callback
 
 ## 5. 서비스 재시작
 
-### Backend (Docker)
-```bash
-docker-compose restart backend
-```
+VM에서 환경 변수를 변경한 서비스를 재생성합니다.
 
-### Frontend (Railway)
-Railway `maeil1dok-frontend` 서비스에 환경 변수를 설정한 뒤 재배포
+```bash
+docker compose -f docker-compose.oci.yml --env-file .env.oci \
+  up -d --force-recreate web frontend
+```
 
 ## 6. 테스트
 
@@ -86,4 +85,4 @@ Railway `maeil1dok-frontend` 서비스에 환경 변수를 설정한 뒤 재배�
 
 ### 토큰 교환 실패
 - GOOGLE_CLIENT_SECRET이 백엔드에 올바르게 설정되었는지 확인
-- Railway 백엔드 서비스 재시작 필요
+- VM의 `.env.oci`를 수정한 뒤 `web` 컨테이너를 재생성했는지 확인

@@ -6,7 +6,7 @@
 `/profile/[id]` — 닉네임/아바타/통계/업적/팔로우/연간 잔디 표시 + 본인 프로필 편집.
 
 ## 2. 자산
-- Nuxt: [pages/profile/[id].vue](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/profile/%5Bid%5D.vue) 840
+- Nuxt: [pages/profile/[id].vue](../../frontend/app/pages/profile/%5Bid%5D.vue) 840
 - Django: `/api/v1/accounts/profile/<id>/`, `profile/<id>/calendar/`, `profile/<id>/achievements/`
 - 모델: `UserProfile`, `UserAchievement`
 - Plan F: UserAchievement SKIP. v2 는 재계산 (MD-2)

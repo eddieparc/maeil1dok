@@ -19,18 +19,21 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.env
+.env*
+!.env*.example
 
 # Virtual Environment
 venv/
 env/
 ENV/
+.venv/
 
 # Django
 *.log
 local_settings.py
-db.sqlite3
-db.sqlite3-journal
+*.sqlite3
+*.sqlite3-*
+celerybeat-schedule*
 media/
 static/
 backend/staticfiles/
@@ -51,6 +54,12 @@ test-results/
 playwright-report/
 coverage/
 screenshots/
+!mobile/screenshots/
+!mobile/screenshots/**
+.coverage
+.coverage.*
+htmlcov/
+.eslintcache
 *-snapshot.md
 prod-*.md
 .pytest_cache/
@@ -78,7 +87,6 @@ prod-*.md
 # Cursor
 .cursor/ 
 
-logo/
 
 # Serena MCP
 .serena/
@@ -123,7 +131,7 @@ mobile/google-service-account.json
 
 # Analysis & temporary files
 api_usages.txt
-app.json
+/app.json
 
 # OS generated files (redundant safety)
 Thumbs.db
@@ -136,6 +144,7 @@ maeil1dok-poc/.env.local
 maeil1dok-poc/node_modules/
 maeil1dok-poc/.next/
 maeil1dok-poc/out/
+maeil1dok-poc/mobile/app.json
 !maeil1dok-poc/src/lib/
 
 # Next.js Project (Plan B)
@@ -161,6 +170,7 @@ maeil1dok-next/playwright-report/.auth-state.json
 .gjc/_session-*/
 .gjc/**/token-log.jsonl
 .gjc/**/token-logs/
+.gjc/state/
 
 # 세션 검증 아티팩트 (로컬 전용)
 artifacts/

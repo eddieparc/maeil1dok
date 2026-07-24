@@ -8,7 +8,7 @@
 > **세션 시작**: 2026-05-28 (50-handoff-verification-loop.md trigger 후)
 > **목적**: 핸드오프 §3 Phase 1~5 재실행 + Oracle/Momus 모델 매칭 의심 해소 + 라이브 BUG 단정 + GH 동기화.
 > **운영 모델**: anthropic/claude-opus-4-7 (오케스트레이터), openai/gpt-5.5 (oracle/momus, 모두 실 모델 매칭 확인).
-> **참조**: [50-handoff-verification-loop.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/50-handoff-verification-loop.md)
+> **참조**: [50-handoff-verification-loop.md](50-handoff-verification-loop.md)
 
 ---
 
@@ -227,7 +227,7 @@ GH 16+1 milestone 의 description 의 Wave 메타가 10-plan-overview.md §3 SSO
 
 ### 3.1 환경
 
-- Browser: chrome (headed), session `maeil1dok-qa`, profile `/Users/jgp/Library/Caches/ms-playwright/daemon/13531abfcc04282a/ud-maeil1dok-qa-chrome`
+- Browser: chrome (headed), session `maeil1dok-qa`, local Playwright persistent profile
 - Target: https://maeil1dok.app (production)
 - 사용자 결정 (직전 질문 답변): "그럼 네가 브라우저 띄워주면 내 계정 로그인해줄게" — 본인 계정 직접 로그인. production User 테이블 신 row 생성 회피.
 

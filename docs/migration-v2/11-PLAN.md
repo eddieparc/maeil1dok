@@ -19,10 +19,10 @@
 
 | 라우트 | 파일 | 라인 |
 |---|---|---|
-| /plan | [pages/plan/index.vue](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/plan/index.vue) | 158 |
-| /plans | [pages/plans/index.vue](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/plans/index.vue) | 496 |
-| /intro | [pages/intro.vue](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/intro.vue) | 652 |
-| /intro/:id | [pages/intro/[id].vue](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/intro/[id].vue) | 17 |
+| /plan | [pages/plan/index.vue](../../frontend/app/pages/plan/index.vue) | 158 |
+| /plans | [pages/plans/index.vue](../../frontend/app/pages/plans/index.vue) | 496 |
+| /intro | [pages/intro.vue](../../frontend/app/pages/intro.vue) | 652 |
+| /intro/:id | [pages/intro/[id].vue](../../frontend/app/pages/intro/[id].vue) | 17 |
 
 ### 2.2 Django 측 (03a §A 발췌)
 

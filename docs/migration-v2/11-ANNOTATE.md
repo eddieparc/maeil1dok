@@ -6,7 +6,7 @@
 Plan F 는 **데이터만 마이그레이션하고 UI는 제외**했다. v2 는 UI를 완성해 사용자가 자신의 북마크/하이라이트/노트를 라이브에서 본다. 라이브 BUG-005 ("Task 3-3에서 구현 예정") 해소.
 
 ## 2. 자산
-- Nuxt: [/bible/bookmarks](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/bible/bookmarks.vue) 262, [/bible/highlights](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/bible/highlights/index.vue) 336, [/bible/notes](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/bible/notes/index.vue) 236, `/bible/notes/[id]` 398
+- Nuxt: [/bible/bookmarks](../../frontend/app/pages/bible/bookmarks.vue) 262, [/bible/highlights](../../frontend/app/pages/bible/highlights/index.vue) 336, [/bible/notes](../../frontend/app/pages/bible/notes/index.vue) 236, `/bible/notes/[id]` 398
 - Django: `/api/v1/todos/bible/bookmarks/*`, `notes/*`, `highlights/*`, `personal-records/*`
 - 모델: `BibleBookmark`, `BibleHighlight`, `ReflectionNote`, `PersonalReadingRecord`
 - Supabase: 20260301000001_plan_f_new_tables.sql 에 신규 3 테이블 + RLS 완비

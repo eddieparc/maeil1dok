@@ -6,7 +6,7 @@
 사용자가 일정 며칠 놓쳤을 때 재배치 (catchup session) 생성/표시/완료. Plan F 시기 production data 는 0행이지만 기능 자체는 Nuxt에 존재.
 
 ## 2. 자산
-- Nuxt: 컴포넌트 [components/catchup](file:///Users/jgp/GitHub/maeil1dok/frontend/app/components/catchup) (01 §2)
+- Nuxt: 컴포넌트 [components/catchup](../../frontend/app/components/catchup) (01 §2)
 - Django: `/api/v1/todos/catchup/*` (preview/create/sessions-active/session-detail/update/schedules/toggle/abandon/complete)
 - 모델: `CatchupSession`, `CatchupSchedule`
 - Next: src/app/(authenticated)/catchup/ — 02 §8 TS 에러 1건 (`CatchupClient missingCount`)

@@ -12,38 +12,38 @@
 
 | 경로 | 내용 |
 |---|---|
-| [`docs/migration-v2/README.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/README.md) | 전체 구조 + 게이트 진행 현황 |
-| [`docs/migration-v2/00-meta-system.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/00-meta-system.md) | AI 실수 방지 시스템 — F1~F8 직전 실패 패턴 + 8개 규칙 카테고리 |
-| [`docs/migration-v2/01-nuxt-inventory.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/01-nuxt-inventory.md) | Nuxt 41p/128c/11s/38co 전수 |
-| [`docs/migration-v2/02-next-inventory.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/02-next-inventory.md) | Next 35p/33API/111c + TS 5 에러 실측 |
-| [`docs/migration-v2/03a-backend-api.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/03a-backend-api.md) | Django 129 endpoint |
-| [`docs/migration-v2/03b-backend-domain.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/03b-backend-domain.md) | Django 28 모델 + signals + admin + settings |
-| [`docs/migration-v2/04-production-live-audit.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/04-production-live-audit.md) | maeil1dok.app Webfetch 실측 |
-| [`docs/migration-v2/05-feature-matrix.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/05-feature-matrix.md) | 4 인벤토리 교차 합성 (PARITY/MISSING/OBSOLETE/DEFER/NEW) |
-| [`docs/migration-v2/06-quality-scorecard.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/06-quality-scorecard.md) | 신뢰도 점수 + P0~P3 우선순위 (자동 합성) |
-| [`docs/migration-v2/10-plan-overview.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/10-plan-overview.md) | 마스터 플랜 + PRE-1~7 + Wave 구조 (R1 fix 반영) |
-| [`docs/migration-v2/11-FOUND.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-FOUND.md) ~ [`11-CUTOVER.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-CUTOVER.md) | 15 슬라이스 |
-| [`docs/migration-v2/20-momus-critique-round-1.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/20-momus-critique-round-1.md) ~ [`25-round-6.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/25-momus-critique-round-6.md) | Momus 6 라운드 (R1 REJECT → R2~R6 OKAY) |
-| [`docs/migration-v2/26-sisyphus-self-critique.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/26-sisyphus-self-critique.md) | Sisyphus 자가 종합 critique (Claude Opus 4.7) |
-| [`docs/migration-v2/30-oracle-final-review.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/30-oracle-final-review.md) | Oracle R1 (Critical 2 + Major 3 REJECT) |
-| [`docs/migration-v2/31-oracle-final-review-r2.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/31-oracle-final-review-r2.md) | Oracle R2 (Critical 2 + Major 3 REJECT) |
-| [`docs/migration-v2/32-oracle-final-review-r3.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/32-oracle-final-review-r3.md) | Oracle R3 자가 (credits 차단 대체) |
-| [`docs/migration-v2/40-github-mapping.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/40-github-mapping.md) | GH Milestone + 라벨 + Issue 템플릿 + Kanban Project 정책 |
+| [`docs/migration-v2/README.md`](../README.md) | 전체 구조 + 게이트 진행 현황 |
+| [`docs/migration-v2/00-meta-system.md`](../00-meta-system.md) | AI 실수 방지 시스템 — F1~F8 직전 실패 패턴 + 8개 규칙 카테고리 |
+| [`docs/migration-v2/01-nuxt-inventory.md`](../01-nuxt-inventory.md) | Nuxt 41p/128c/11s/38co 전수 |
+| [`docs/migration-v2/02-next-inventory.md`](../02-next-inventory.md) | Next 35p/33API/111c + TS 5 에러 실측 |
+| [`docs/migration-v2/03a-backend-api.md`](../03a-backend-api.md) | Django 129 endpoint |
+| [`docs/migration-v2/03b-backend-domain.md`](../03b-backend-domain.md) | Django 28 모델 + signals + admin + settings |
+| [`docs/migration-v2/04-production-live-audit.md`](../04-production-live-audit.md) | maeil1dok.app Webfetch 실측 |
+| [`docs/migration-v2/05-feature-matrix.md`](../05-feature-matrix.md) | 4 인벤토리 교차 합성 (PARITY/MISSING/OBSOLETE/DEFER/NEW) |
+| [`docs/migration-v2/06-quality-scorecard.md`](../06-quality-scorecard.md) | 신뢰도 점수 + P0~P3 우선순위 (자동 합성) |
+| [`docs/migration-v2/10-plan-overview.md`](../10-plan-overview.md) | 마스터 플랜 + PRE-1~7 + Wave 구조 (R1 fix 반영) |
+| [`docs/migration-v2/11-FOUND.md`](../11-FOUND.md) ~ [`11-CUTOVER.md`](../11-CUTOVER.md) | 15 슬라이스 |
+| [`docs/migration-v2/archive/20-momus-critique-round-1.md`](20-momus-critique-round-1.md) ~ [`25-round-6.md`](25-momus-critique-round-6.md) | Momus 6 라운드 (R1 REJECT → R2~R6 OKAY) |
+| [`docs/migration-v2/archive/26-sisyphus-self-critique.md`](26-sisyphus-self-critique.md) | Sisyphus 자가 종합 critique (Claude Opus 4.7) |
+| [`docs/migration-v2/archive/30-oracle-final-review.md`](30-oracle-final-review.md) | Oracle R1 (Critical 2 + Major 3 REJECT) |
+| [`docs/migration-v2/archive/31-oracle-final-review-r2.md`](31-oracle-final-review-r2.md) | Oracle R2 (Critical 2 + Major 3 REJECT) |
+| [`docs/migration-v2/archive/32-oracle-final-review-r3.md`](32-oracle-final-review-r3.md) | Oracle R3 자가 (credits 차단 대체) |
+| [`docs/migration-v2/40-github-mapping.md`](../40-github-mapping.md) | GH Milestone + 라벨 + Issue 템플릿 + Kanban Project 정책 |
 
 ### 1.2 자동화 스크립트 (10개)
 
 | 경로 | 역할 |
 |---|---|
-| [`scripts/migrate-v2/validate-plan.sh`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/validate-plan.sh) | plan 자가 검증 47개 항목 (현재 47 PASS / 0 FAIL) |
-| [`scripts/migrate-v2/extract-tasks.py`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/extract-tasks.py) | 11-*.md → catalog.json 추출 (190 issue) |
-| [`scripts/migrate-v2/01-create-labels.sh`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/01-create-labels.sh) | 49 라벨 idempotent 생성 |
-| [`scripts/migrate-v2/02-create-milestones.sh`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/02-create-milestones.sh) | 16 마일스톤 idempotent 생성 |
-| [`scripts/migrate-v2/03-create-issues.sh`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/03-create-issues.sh) | catalog 기반 이슈 일괄 생성 |
-| [`scripts/migrate-v2/sync-issues.sh`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/sync-issues.sh) | catalog ↔ GH title + body diff 양방향 sync |
-| [`scripts/migrate-v2/verify-issues.sh`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/verify-issues.sh) | catalog 190 ↔ GH 190 1:1 검증 |
-| [`scripts/migrate-v2/catalog.json`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/catalog.json) | 190 issue + 15 milestone 메타 |
-| [`scripts/migrate-v2/lib/common.sh`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/lib/common.sh) | 공유 유틸 (dry-run / log / idempotent) |
-| [`scripts/migrate-v2/RUNBOOK.md`](file:///Users/jgp/GitHub/maeil1dok/scripts/migrate-v2/RUNBOOK.md) | Gate G 실행 절차 |
+| [`scripts/migrate-v2/validate-plan.sh`](../../../scripts/migrate-v2/validate-plan.sh) | plan 자가 검증 47개 항목 (현재 47 PASS / 0 FAIL) |
+| [`scripts/migrate-v2/extract-tasks.py`](../../../scripts/migrate-v2/extract-tasks.py) | 11-*.md → catalog.json 추출 (190 issue) |
+| [`scripts/migrate-v2/01-create-labels.sh`](../../../scripts/migrate-v2/01-create-labels.sh) | 49 라벨 idempotent 생성 |
+| [`scripts/migrate-v2/02-create-milestones.sh`](../../../scripts/migrate-v2/02-create-milestones.sh) | 16 마일스톤 idempotent 생성 |
+| [`scripts/migrate-v2/03-create-issues.sh`](../../../scripts/migrate-v2/03-create-issues.sh) | catalog 기반 이슈 일괄 생성 |
+| [`scripts/migrate-v2/sync-issues.sh`](../../../scripts/migrate-v2/sync-issues.sh) | catalog ↔ GH title + body diff 양방향 sync |
+| [`scripts/migrate-v2/verify-issues.sh`](../../../scripts/migrate-v2/verify-issues.sh) | catalog 190 ↔ GH 190 1:1 검증 |
+| [`scripts/migrate-v2/catalog.json`](../../../scripts/migrate-v2/catalog.json) | 190 issue + 15 milestone 메타 |
+| [`scripts/migrate-v2/lib/common.sh`](../../../scripts/migrate-v2/lib/common.sh) | 공유 유틸 (dry-run / log / idempotent) |
+| [`scripts/migrate-v2/RUNBOOK.md`](../../../scripts/migrate-v2/RUNBOOK.md) | Gate G 실행 절차 |
 
 ### 1.3 GitHub 라이브 상태 (`eddieparc/maeil1dok` PUBLIC)
 
@@ -124,7 +124,7 @@
    - `python3 scripts/migrate-v2/extract-tasks.py` 재추출
    - `APPLY=1 bash scripts/migrate-v2/sync-issues.sh` 로 GH 동기화
    - `bash scripts/migrate-v2/verify-issues.sh` 로 1:1 재검증
-2. 변경분을 **신규 파일** `docs/migration-v2/27-handoff-rerun-critique.md` 에 기록 (본 핸드오프 시점에는 미존재 — 새 세션의 산출물).
+2. 변경분을 **신규 파일** `docs/migration-v2/archive/27-handoff-rerun-critique.md` 에 기록 (본 핸드오프 시점에는 미존재 — 새 세션의 산출물).
 
 ### Phase 5: 최종 사용자 보고
 - Verdict (APPROVE / CONDITIONAL / REJECT)
@@ -136,7 +136,7 @@
 
 ## 4. 메타 시스템 규칙 (반드시 준수)
 
-[`00-meta-system.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/00-meta-system.md) 의 8개 카테고리 + 본 핸드오프에서 강조:
+[`00-meta-system.md`](../00-meta-system.md) 의 8개 카테고리 + 본 핸드오프에서 강조:
 
 1. **추측 금지** — file:line 또는 명령 실행 결과만 근거.
 2. **요약 표현 금지** — "기타", "etc.", "나머지", "그 외 항목들" 모두 grep 0 hits.
@@ -172,7 +172,7 @@
 ```
 매일일독 마이그레이션 v2 plan 의 검증 + 적대적 크리틱 루프 재실행.
 
-핸드오프 문서: /Users/jgp/GitHub/maeil1dok/docs/migration-v2/50-handoff-verification-loop.md
+핸드오프 문서: docs/migration-v2/archive/50-handoff-verification-loop.md
 이 파일을 먼저 Read 한 뒤, §3 의 Phase 1 ~ Phase 5 순서로 진행.
 
 핵심 신뢰성 우려:

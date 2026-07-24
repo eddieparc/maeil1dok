@@ -2,7 +2,7 @@
 
 > **목적**: `maeil1dok-next/` 프로젝트의 현 완성도를 객관적·증거 기반으로 측정해 Gate H (실 코드 작업) 진입 후 첫 우선순위를 결정한다.
 > **기준 시점**: 2026-05-28 (본 핸드오프 작성 시점)
-> **선행 핸드오프**: [50-handoff-verification-loop.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/50-handoff-verification-loop.md) (v2 plan 검증) → [27-handoff-rerun-critique.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/27-handoff-rerun-critique.md) (APPROVE 받음)
+> **선행 핸드오프**: [50-handoff-verification-loop.md](50-handoff-verification-loop.md) (v2 plan 검증) → [27-handoff-rerun-critique.md](27-handoff-rerun-critique.md) (APPROVE 받음)
 > **트리거 prompt**: 본 문서 §8 참조.
 
 ---
@@ -40,11 +40,11 @@
 
 | 문서 | 역할 |
 |---|---|
-| [`02-next-inventory.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/02-next-inventory.md) | 35 page / 33 API / 111 component 전수 (직전 작성) |
-| [`05-feature-matrix.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/05-feature-matrix.md) | PARITY 27 / MISSING 17 / OBSOLETE 9 / DEFER 6 / NEW 11 (직전 합성) |
-| [`04-production-live-audit.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/04-production-live-audit.md) | 라이브 사이트 BUG 단정 (BUG-001 false positive / BUG-003/004 REPRODUCED / BUG-005 해결 / **BUG-006 신규 발견** — `/bible/highlights` 로그인 사용자 null TypeError 크래시) |
-| [`11-FOUND.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-FOUND.md) | F-1~F-17 Foundation 복구 작업 (TS 에러 5건 fix 의무 포함) |
-| [`CLAUDE.md`](file:///Users/jgp/GitHub/maeil1dok/CLAUDE.md) | UI 디자인 시스템 가이드 (Modal SSOT) |
+| [`02-next-inventory.md`](../02-next-inventory.md) | 35 page / 33 API / 111 component 전수 (직전 작성) |
+| [`05-feature-matrix.md`](../05-feature-matrix.md) | PARITY 27 / MISSING 17 / OBSOLETE 9 / DEFER 6 / NEW 11 (직전 합성) |
+| [`04-production-live-audit.md`](../04-production-live-audit.md) | 라이브 사이트 BUG 단정 (BUG-001 false positive / BUG-003/004 REPRODUCED / BUG-005 해결 / **BUG-006 신규 발견** — `/bible/highlights` 로그인 사용자 null TypeError 크래시) |
+| [`11-FOUND.md`](../11-FOUND.md) | F-1~F-17 Foundation 복구 작업 (TS 에러 5건 fix 의무 포함) |
+| [`CLAUDE.md`](../../../CLAUDE.md) | UI 디자인 시스템 가이드 (Modal SSOT) |
 
 ### 1.4 디자인 시스템 SSOT
 
@@ -289,7 +289,7 @@ Playwright headed Chrome 으로 35 page 모두 순회:
 
 ### Phase 7 — 최종 보고서 작성
 
-**출력 파일**: [`docs/migration-v2/28-next-fe-completion-report.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/28-next-fe-completion-report.md)
+**출력 파일**: [`docs/migration-v2/archive/28-next-fe-completion-report.md`](28-next-fe-completion-report.md)
 
 구조:
 - §0 한 줄 verdict (READY / PARTIAL / BROKEN 등 등급)
@@ -309,7 +309,7 @@ Playwright headed Chrome 으로 35 page 모두 순회:
 
 ### 4.1 신규 파일
 
-`docs/migration-v2/28-next-fe-completion-report.md` (본 감사 산출물)
+`docs/migration-v2/archive/28-next-fe-completion-report.md` (본 감사 산출물)
 
 ### 4.2 갱신 파일 (수정 허용)
 
@@ -358,7 +358,7 @@ Playwright headed Chrome 으로 35 page 모두 순회:
 
 ## 6. 메타 시스템 규칙 (반드시 준수)
 
-[`00-meta-system.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/00-meta-system.md) 의 8 카테고리 + 본 핸드오프 강조:
+[`00-meta-system.md`](../00-meta-system.md) 의 8 카테고리 + 본 핸드오프 강조:
 
 1. **추측 금지** — 모든 수치/주장은 명령 출력 또는 파일 grep 결과 인용 의무 (`build.log:42` 식).
 2. **요약 표현 금지** — "기타", "etc.", "그 외", "나머지" 모두 grep 0 hits 의무.
@@ -386,7 +386,7 @@ Playwright headed Chrome 으로 35 page 모두 순회:
 ```
 매일일독 Next.js Frontend 완성도 감사 진행.
 
-핸드오프 문서: /Users/jgp/GitHub/maeil1dok/docs/migration-v2/52-handoff-next-fe-audit.md
+핸드오프 문서: docs/migration-v2/archive/52-handoff-next-fe-audit.md
 
 이 파일을 먼저 Read 한 뒤, §3 Phase 1 ~ Phase 7 순서로 진행:
 
@@ -396,7 +396,7 @@ Phase 3: placeholder / TODO / FIXME / TS 우회 패턴 hunt
 Phase 4: 환경/인프라 (.env / next.config / tsconfig / supabase)
 Phase 5: 로컬 dev 서버 + Playwright 라이브 런타임 검증 (사용자 로그인 필요)
 Phase 6: 05-feature-matrix.md 와 대조 + REGRESSION 라벨 갱신
-Phase 7: docs/migration-v2/28-next-fe-completion-report.md 작성
+Phase 7: docs/migration-v2/archive/28-next-fe-completion-report.md 작성
 
 성공 기준:
 - 4 정적 도구 실 실행 결과 단정

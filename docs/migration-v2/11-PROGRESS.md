@@ -20,10 +20,10 @@
 
 | 라우트/컴포저블 | 파일 | 비고 |
 |---|---|---|
-| /bible/history | [pages/bible/history.vue](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/bible/history.vue) | 통독 기록 (447 line) |
-| 컴포저블 | [composables/usePersonalRecord.ts](file:///Users/jgp/GitHub/maeil1dok/frontend/app/composables/usePersonalRecord.ts) | personal-records API |
-| 컴포저블 | [composables/useScheduleApi.ts](file:///Users/jgp/GitHub/maeil1dok/frontend/app/composables/useScheduleApi.ts) | reading/update API |
-| 컴포저블 | [composables/useTongdokMode.ts](file:///Users/jgp/GitHub/maeil1dok/frontend/app/composables/useTongdokMode.ts) | 통독 모드 |
+| /bible/history | [pages/bible/history.vue](../../frontend/app/pages/bible/history.vue) | 통독 기록 (447 line) |
+| 컴포저블 | [composables/usePersonalRecord.ts](../../frontend/app/composables/usePersonalRecord.ts) | personal-records API |
+| 컴포저블 | [composables/useScheduleApi.ts](../../frontend/app/composables/useScheduleApi.ts) | reading/update API |
+| 컴포저블 | [composables/useTongdokMode.ts](../../frontend/app/composables/useTongdokMode.ts) | 통독 모드 |
 
 ### 2.2 Django 측 (03a)
 

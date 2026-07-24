@@ -6,7 +6,7 @@
 `/hasena` (Nuxt 1416 lines) 의 일정/요약 표시·완료 토글·과거 묵상 조회를 Next 에서 동작.
 
 ## 2. 자산
-- Nuxt: [pages/hasena.vue](file:///Users/jgp/GitHub/maeil1dok/frontend/app/pages/hasena.vue), [stores/hasena](file:///Users/jgp/GitHub/maeil1dok/frontend/app/stores/) 
+- Nuxt: [pages/hasena.vue](../../frontend/app/pages/hasena.vue), [stores/hasena](../../frontend/app/stores)
 - Django: `/api/v1/todos/hasena/summary/`, `summaries/`, `summaries/regenerate/`, `status/`, `record/*`
 - 모델: `HasenaRecord`, `HasenaSummary`
 - Next: src/app/(authenticated)/hasena/, src/app/api/hasena/ (02 도착 후 정확화)

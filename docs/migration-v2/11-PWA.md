@@ -1,61 +1,62 @@
-# 11-PWA · PWA + OS Web Push
+# 11-PWA · PWA + FCM Push
 
-> **슬라이스 ID**: 11-PWA · **현재 구현 기준**: Nuxt 3 + Django Web Push(VAPID)
+> **슬라이스 ID**: 11-PWA · **Wave**: 2 (AUTH와 병렬) · **상태**: v1 Web Push 기준선에서 v2 FCM으로 전환
 
 ## 1. 목표
-- PWA 매니페스트와 서비스워커를 통해 브라우저/설치형 PWA에서 OS 알림을 수신한다.
-- 통독 리마인더, 하세나하시조 리마인더, 친구 활동 알림을 실제 Web Push로 발송한다.
-- 사용자는 `/notifications/settings`에서 현재 기기의 푸시 구독을 켜고 끌 수 있다.
 
-## 2. 현재 구현 자산
-- Nuxt 서비스워커: `frontend/public/notification-sw.js`
-- 기기 구독 런타임: `frontend/app/utils/devicePushRuntime.ts`
-- 설정 UI: `frontend/app/components/notifications/DevicePushSetting.vue`
-- Django 구독 모델: `todos.NotificationPushSubscription`
-- Django 구독 API:
-  - `GET /api/v1/todos/notifications/push/config/`
-  - `POST /api/v1/todos/notifications/push/subscriptions/`
-  - `POST /api/v1/todos/notifications/push/subscriptions/remove/`
-- Django 발송 서비스: `backend/todos/services/push_notifications.py`
-- 리마인더 스케줄러: Celery beat `send-due-notification-reminders`
+- 설치형 PWA와 일반 브라우저에서 알림 수신을 유지한다.
+- 통독·하세나 리마인더와 친구 활동 알림을 FCM으로 발송한다.
+- v1의 활성 Web Push 구독은 자동 이전이 불가능하므로 컷오버 후 재동의를 명시적으로 받는다.
 
-## 3. 운영 환경 변수
+## 2. 기준선과 v2 자산
 
-```bash
-WEB_PUSH_VAPID_PUBLIC_KEY=...
-WEB_PUSH_VAPID_PRIVATE_KEY=...
-WEB_PUSH_VAPID_SUBJECT=mailto:admin@maeil1dok.app
-```
+v1 프로덕션 기준선:
 
-- public key는 브라우저 PushSubscription 생성에 사용한다.
-- private key는 Django 백엔드의 `pywebpush` 발송에만 사용한다.
-- private key는 저장소에 커밋하지 않고 Railway/운영 환경 변수로만 관리한다.
+- `frontend/public/notification-sw.js`
+- `todos.NotificationPushSubscription`
+- Celery beat `send-due-notification-reminders`
+- Django Web Push(VAPID)
 
-## 4. DoD
-- `frontend/public/notification-sw.js`가 프로덕션 빌드 산출물에 포함된다.
-- 로그인 사용자가 `/notifications/settings`에서 현재 기기 푸시 알림을 켤 수 있다.
-- 구독 정보가 Django API에 저장되고, 같은 endpoint 재등록 시 활성 상태로 갱신된다.
-- 친구 활동 알림 생성 시 `Notification`과 Web Push 발송이 함께 수행된다.
-- Celery beat가 5분마다 due reminder를 생성해 통독/하세나하시조 OS 알림을 발송한다.
-- 만료된 Web Push endpoint(404/410)는 자동 비활성화된다.
+v2 구현:
 
-## 5. 검증
+- `maeil1dok-next/src/lib/firebase/config.ts`
+- `maeil1dok-next/src/lib/firebase/messaging.ts`
+- `maeil1dok-next/src/lib/firebase/send.ts`
+- `maeil1dok-next/src/app/api/notifications/token/route.ts`
+- `maeil1dok-next/src/app/api/cron/daily-reminder/route.ts`
+- Supabase `fcm_tokens`, `notification_settings`
 
-```bash
-cd backend
-DJANGO_SETTINGS_MODULE=config.test_settings SECRET_KEY=test KAKAO_CLIENT_ID=test KAKAO_REDIRECT_URI=http://localhost ../.venv/bin/python manage.py test todos.test_notifications
+## 3. 설정
 
-cd ../frontend
-npm test -- notifications-contract.test.mjs
-npm run build
-```
+클라이언트에는 `NEXT_PUBLIC_FIREBASE_*`와 `NEXT_PUBLIC_FIREBASE_VAPID_KEY`만 노출합니다. `FIREBASE_SERVICE_ACCOUNT_KEY`는 서버 전용이며 저장소, 브라우저 번들, 로그, 응답에 포함하면 안 됩니다. 전체 변수 목록은 `maeil1dok-next/.env.local.example`을 따릅니다.
 
-수동 QA:
-- HTTPS 운영 도메인 또는 localhost에서 로그인한다.
-- `/notifications/settings`에서 현재 기기 푸시 알림을 켠다.
-- 브라우저 권한을 허용하고 OS 알림 수신을 확인한다.
-- iOS Safari는 홈 화면에 추가한 PWA에서 권한을 허용해야 OS 푸시가 동작한다.
+## 4. 작업
 
-## 6. 레거시 참고
+| ID | 작업 | 완료 조건 |
+|---|---|---|
+| PW-1 | manifest 아이콘·이름·색상·`start_url` 검증 | Lighthouse PWA 기준 통과 |
+| PW-2 | 서비스 워커와 오프라인 fallback 검증 | 오프라인 fallback 동작 |
+| PW-3 | iOS PWA 메타 태그와 status bar 검증 | iOS Safari 홈 화면 설치 확인 |
+| PW-3b | Firebase SDK 초기화와 messaging 연결 | 초기화 오류 0건 |
+| PW-4 | FCM 토큰 발급·등록·삭제 수명주기 검증 | 사용자·기기별 토큰 정합성 |
+| PW-5 | 통독·하세나 리마인더 발송 검증 | 테스트 기기 수신 및 실패 가시성 |
+| PW-6 | Apple 심사 요구사항 점검 | 심사 체크리스트 완료 |
 
-`maeil1dok-next` 하위의 Firebase/FCM 파일과 Supabase FCM migration은 Next 전환 실험의 레거시 인벤토리다. 현재 운영 Nuxt/Django 앱의 OS 푸시는 FCM이 아니라 표준 Web Push(VAPID)를 기준으로 유지한다.
+## 5. DoD
+- **CHANGE**: FCM service worker, 토큰 등록·삭제 API, 알림 설정 UI, 발송 cron
+- **EVIDENCE**: Vitest 결과, Next 빌드 결과, 브라우저별 수신 영수증
+- **REPRODUCE**: `(cd maeil1dok-next && npm test && npm run build)`
+- **ASSERTION**:
+  - 로그인 사용자가 현재 기기의 알림을 켜고 끌 수 있다.
+  - 동일 토큰 재등록은 중복 행을 만들지 않는다.
+  - 로그아웃 또는 설정 해제 시 해당 토큰을 삭제한다.
+  - 만료·무효 토큰은 발송 결과에 따라 정리한다.
+  - cron 인증 실패는 발송과 데이터 접근 전에 거부한다.
+  - 서비스 계정과 FCM 토큰은 공개 응답이나 로그에 노출되지 않는다.
+
+## 6. 수동 QA
+
+- Chrome과 Android WebView에서 포그라운드·백그라운드 알림을 확인한다.
+- iOS Safari 홈 화면 PWA에서 권한 요청과 알림 수신을 확인한다.
+- 알림 클릭이 의도한 HTTPS 앱 경로로 이동하는지 확인한다.
+- v1 사용자가 컷오버 후 재동의 안내를 받고 새 FCM 토큰을 등록하는지 확인한다.

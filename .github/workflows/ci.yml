@@ -10,7 +10,9 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'mobile/**'
-      - 'docs/railway-migration-runbook.md'
+      - 'docs/**'
+      - '*.md'
+      - 'scripts/migrate-v2/**'
       - 'tests/test_frontend_deployment_config.py'
       - 'tests/test_backend_ci_config.py'
       - 'tests/test_mobile_ci_config.py'
@@ -24,7 +26,9 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'mobile/**'
-      - 'docs/railway-migration-runbook.md'
+      - 'docs/**'
+      - '*.md'
+      - 'scripts/migrate-v2/**'
       - 'tests/test_frontend_deployment_config.py'
       - 'tests/test_backend_ci_config.py'
       - 'tests/test_mobile_ci_config.py'
@@ -59,10 +63,13 @@ jobs:
               - 'mobile/**'
               - '.github/workflows/ci.yml'
             deployment:
-              - 'docs/railway-migration-runbook.md'
+              - 'docs/**'
+              - '*.md'
+              - 'scripts/migrate-v2/**'
               - 'tests/test_frontend_deployment_config.py'
               - 'tests/test_backend_ci_config.py'
               - 'tests/test_mobile_ci_config.py'
+              - 'tests/test_documentation_integrity.py'
               - '.github/workflows/ci.yml'
 
   maeil1dok-next-ci:
@@ -180,7 +187,12 @@ jobs:
           python-version: '3.12'
 
       - name: Deployment config tests
-        run: python -m unittest tests.test_frontend_deployment_config tests.test_backend_ci_config tests.test_mobile_ci_config
+        run: >-
+          python -m unittest
+          tests.test_frontend_deployment_config
+          tests.test_backend_ci_config
+          tests.test_mobile_ci_config
+          tests.test_documentation_integrity
 
   mobile-ci:
     needs: changes

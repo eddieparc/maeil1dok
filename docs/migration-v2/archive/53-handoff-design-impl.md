@@ -1,7 +1,7 @@
 # 53 · Handoff — Refined v3.1 디자인 실 구현 (Design Implementation)
 
 > **작성일**: 2026-05-28
-> **선행 핸드오프**: [52-handoff-next-fe-audit.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/52-handoff-next-fe-audit.md) (감사 PARTIAL) → 디자인 매너 4종 거절 → **Refined v1 → v2 → v3 → v3.1 사용자 확정**
+> **선행 핸드오프**: [52-handoff-next-fe-audit.md](52-handoff-next-fe-audit.md) (감사 PARTIAL) → 디자인 매너 4종 거절 → **Refined v1 → v2 → v3 → v3.1 사용자 확정**
 > **본 세션 종료 시점**: v3.1 시안 사용자 OK
 > **다음 세션 목적**: v3.1 시안을 19 atom + 35 page 실 코드에 구현 (Wave 0 동반 fix 빅뱅)
 
@@ -19,7 +19,7 @@
 
 ### §1.1 코드
 
-[`maeil1dok-next/src/stories/design-manners/Refined.stories.tsx`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/stories/design-manners/Refined.stories.tsx) — 1100+ 라인 단일 파일
+[`maeil1dok-next/src/stories/design-manners/Refined.stories.tsx`](../../../maeil1dok-next/src/stories/design-manners/Refined.stories.tsx) — 1100+ 라인 단일 파일
 
 - 토큰 정의 (color / typography / radius)
 - 5 컴포넌트 (`Btn` `Badge` `Alert` `Icon` `Logo` `TopNav` `Frame` `ReaderHeader/Body/Footer`)
@@ -90,7 +90,7 @@ npx storybook dev -p 6007 --no-open
 
 ### §2.3 globals.css 마이그레이션
 
-현재 [`maeil1dok-next/src/app/globals.css`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/globals.css) 의 `@theme` 토큰 (sage `#4B9F7E` primary + cream `#faf8f6` 등) **전체 교체 의무**. 본 §2.1 + §2.2 의 29개로 갱신.
+현재 [`maeil1dok-next/src/app/globals.css`](../../../maeil1dok-next/src/app/globals.css) 의 `@theme` 토큰 (sage `#4B9F7E` primary + cream `#faf8f6` 등) **전체 교체 의무**. 본 §2.1 + §2.2 의 29개로 갱신.
 
 ---
 
@@ -175,37 +175,37 @@ npx storybook dev -p 6007 --no-open
 
 | 컴포넌트 | variant | size | 대응 atom |
 |---|---|---|---|
-| **`Btn`** | primary / secondary / outline / ghost | sm / md / lg | [Button.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Button.tsx) |
-| **`Badge`** | default / solid / brand / success / warning / danger / info / outline | (size 1) | [Badge.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Badge.tsx) |
-| **`Alert`** | success / warning / danger / info | (size 1) | 신규 atom 또는 [Toast.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Toast.tsx) 확장 |
+| **`Btn`** | primary / secondary / outline / ghost | sm / md / lg | [Button.tsx](../../../maeil1dok-next/src/components/ui/Button.tsx) |
+| **`Badge`** | default / solid / brand / success / warning / danger / info / outline | (size 1) | [Badge.tsx](../../../maeil1dok-next/src/components/ui/Badge.tsx) |
+| **`Alert`** | success / warning / danger / info | (size 1) | 신규 atom 또는 [Toast.tsx](../../../maeil1dok-next/src/components/ui/Toast.tsx) 확장 |
 | **`Icon`** | Lucide 26종 inline SVG | 11-22 dynamic | 신규 atom — `lucide-react` 설치 권장 |
 | **`Logo`** | - | size prop | 신규 atom |
-| **`TopNav`** | active prop | - | [Header.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/layout/Header.tsx) 또는 [HeaderClient.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/layout/HeaderClient.tsx) 갱신 |
-| **`Frame`** | bg / dark prop | - | [Container.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Container.tsx) 재작성 |
+| **`TopNav`** | active prop | - | [Header.tsx](../../../maeil1dok-next/src/components/layout/Header.tsx) 또는 [HeaderClient.tsx](../../../maeil1dok-next/src/components/layout/HeaderClient.tsx) 갱신 |
+| **`Frame`** | bg / dark prop | - | [Container.tsx](../../../maeil1dok-next/src/components/ui/Container.tsx) 재작성 |
 
 ### §5.2 19 atom 재디자인 매핑
 
 | atom 파일 | v3.1 대응 | 작업 |
 |---|---|---|
-| [Avatar.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Avatar.tsx) | Friends 페이지의 `<div circle>` 패턴 | `R.circle` + `paper-warm` bg + `rule` border |
-| [Badge.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Badge.tsx) | `Badge` 컴포넌트 (8 variant) | **pill 통일** |
-| [Button.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Button.tsx) | `Btn` (4 variant × 3 size) | **pill 통일** |
-| [Card.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Card.tsx) | 모든 카드 패턴 (paper + rule + R.lg) | base 카드 + `variant="faint"` for brand-faint 배경 |
-| [Container.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Container.tsx) | `Frame` | bg / max-w / padding prop |
-| [EmptyState.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/EmptyState.tsx) | (시안 미정 — 빈 상태 카드) | icon + serif title + sans description + CTA |
-| [Input.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Input.tsx) | Atoms 페이지 인풋 | `R.md` (12px) + focused border `ink` |
-| [Modal.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Modal.tsx) | (시안 미정) | `R.modal` (24px) + overlay + paper bg |
-| [modal/AlertModal.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/modal/AlertModal.tsx) | `Alert` 컴포넌트 패턴 (시맨틱 4 톤) | 시맨틱 컬러 매핑 |
-| [modal/ConfirmModal.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/modal/ConfirmModal.tsx) | (시안 미정) | primary Btn (ink) + ghost Btn (cancel) |
-| [modal/ModalHost.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/modal/ModalHost.tsx) | 기존 유지 | useModal SSOT 보존 |
-| [PageHeader.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/PageHeader.tsx) | `<h1 ...S.heroL>` 페이지 타이틀 | serif (hero-l) + back button + optional badge |
-| [ProgressBar.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/ProgressBar.tsx) | Home 카드 내부 `height: 4 + R.pill` | percent prop + variant (primary/brand) |
-| [Select.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Select.tsx) | (시안 미정) | R.md (12px) + chevron-down icon |
-| [Skeleton.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Skeleton.tsx) | (시안 미정) | rule bg + animate-pulse |
-| [Tabs.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Tabs.tsx) | Friends 페이지 "이번 주/이번 달/전체" 토글 | pill segment + active=ink bg |
-| [Textarea.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Textarea.tsx) | (시안 미정) | Input과 동일 룰 |
-| [ThemeToggle.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/ThemeToggle.tsx) | (시안 미정) | sun/moon icon toggle |
-| [Toast.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/Toast.tsx) | Alert 컴포넌트와 유사 | 시맨틱 4 톤 + auto-dismiss + portal |
+| [Avatar.tsx](../../../maeil1dok-next/src/components/ui/Avatar.tsx) | Friends 페이지의 `<div circle>` 패턴 | `R.circle` + `paper-warm` bg + `rule` border |
+| [Badge.tsx](../../../maeil1dok-next/src/components/ui/Badge.tsx) | `Badge` 컴포넌트 (8 variant) | **pill 통일** |
+| [Button.tsx](../../../maeil1dok-next/src/components/ui/Button.tsx) | `Btn` (4 variant × 3 size) | **pill 통일** |
+| [Card.tsx](../../../maeil1dok-next/src/components/ui/Card.tsx) | 모든 카드 패턴 (paper + rule + R.lg) | base 카드 + `variant="faint"` for brand-faint 배경 |
+| [Container.tsx](../../../maeil1dok-next/src/components/ui/Container.tsx) | `Frame` | bg / max-w / padding prop |
+| [EmptyState.tsx](../../../maeil1dok-next/src/components/ui/EmptyState.tsx) | (시안 미정 — 빈 상태 카드) | icon + serif title + sans description + CTA |
+| [Input.tsx](../../../maeil1dok-next/src/components/ui/Input.tsx) | Atoms 페이지 인풋 | `R.md` (12px) + focused border `ink` |
+| [Modal.tsx](../../../maeil1dok-next/src/components/ui/Modal.tsx) | (시안 미정) | `R.modal` (24px) + overlay + paper bg |
+| [modal/AlertModal.tsx](../../../maeil1dok-next/src/components/ui/modal/AlertModal.tsx) | `Alert` 컴포넌트 패턴 (시맨틱 4 톤) | 시맨틱 컬러 매핑 |
+| [modal/ConfirmModal.tsx](../../../maeil1dok-next/src/components/ui/modal/ConfirmModal.tsx) | (시안 미정) | primary Btn (ink) + ghost Btn (cancel) |
+| [modal/ModalHost.tsx](../../../maeil1dok-next/src/components/ui/modal/ModalHost.tsx) | 기존 유지 | useModal SSOT 보존 |
+| [PageHeader.tsx](../../../maeil1dok-next/src/components/ui/PageHeader.tsx) | `<h1 ...S.heroL>` 페이지 타이틀 | serif (hero-l) + back button + optional badge |
+| [ProgressBar.tsx](../../../maeil1dok-next/src/components/ui/ProgressBar.tsx) | Home 카드 내부 `height: 4 + R.pill` | percent prop + variant (primary/brand) |
+| [Select.tsx](../../../maeil1dok-next/src/components/ui/Select.tsx) | (시안 미정) | R.md (12px) + chevron-down icon |
+| [Skeleton.tsx](../../../maeil1dok-next/src/components/ui/Skeleton.tsx) | (시안 미정) | rule bg + animate-pulse |
+| [Tabs.tsx](../../../maeil1dok-next/src/components/ui/Tabs.tsx) | Friends 페이지 "이번 주/이번 달/전체" 토글 | pill segment + active=ink bg |
+| [Textarea.tsx](../../../maeil1dok-next/src/components/ui/Textarea.tsx) | (시안 미정) | Input과 동일 룰 |
+| [ThemeToggle.tsx](../../../maeil1dok-next/src/components/ui/ThemeToggle.tsx) | (시안 미정) | sun/moon icon toggle |
+| [Toast.tsx](../../../maeil1dok-next/src/components/ui/Toast.tsx) | Alert 컴포넌트와 유사 | 시맨틱 4 톤 + auto-dismiss + portal |
 
 ---
 
@@ -309,7 +309,7 @@ npm install lucide-react
 ```
 매일일독 Next.js 디자인 실 구현 진행.
 
-핸드오프 문서: /Users/jgp/GitHub/maeil1dok/docs/migration-v2/53-handoff-design-impl.md
+핸드오프 문서: docs/migration-v2/archive/53-handoff-design-impl.md
 
 이 파일을 먼저 Read 한 뒤, §7 Phase 1 → 2 → 3 → 4 순서로 진행:
 

@@ -1,7 +1,7 @@
 # 54 · Phase 4 Walk Gap Report — Refined v3.1 검증
 
 > **작성일**: 2026-05-30
-> **선행 핸드오프**: [53-handoff-design-impl.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/53-handoff-design-impl.md)
+> **선행 핸드오프**: [53-handoff-design-impl.md](53-handoff-design-impl.md)
 > **목적**: v3.1 디자인 시안 실 적용 후 35 페이지 × 4 모드 = 140 shots 라이브 검증 + 갭 식별 + fix
 > **결과**: **132/132 real-PASS** (4개 bogus UUID 404 제외) · 3 P0 버그 발견 · **모두 fix**
 
@@ -18,7 +18,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 스크립트 | [`maeil1dok-next/scripts/walk-v3.1.mjs`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/scripts/walk-v3.1.mjs) |
+| 스크립트 | [`maeil1dok-next/scripts/walk-v3.1.mjs`](../../../maeil1dok-next/scripts/walk-v3.1.mjs) |
 | 대상 routes | 34개 (Phase 4 spec 35개 중 root `/` 와 (authenticated)/page.tsx 가 동일 라우트) |
 | Modes | 4 (light/dark × desktop 1280/mobile 390) |
 | 총 shots | 34 × 4 = **136** |
@@ -44,20 +44,20 @@
 
 ### §3.1 BUG-A: `/` (home) Hydration Mismatch
 
-**원인**: [`src/components/home/HomeShell.tsx`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/home/HomeShell.tsx#L17-L70) 의 `HomeThemeToggle` 컴포넌트 — `next-themes` `useTheme()` 의 `theme` 값이 SSR에서 `undefined`, client에서 `system`이 되어 mismatch.
+**원인**: [`src/components/home/HomeShell.tsx`](../../../maeil1dok-next/src/components/home/HomeShell.tsx#L17-L70) 의 `HomeThemeToggle` 컴포넌트 — `next-themes` `useTheme()` 의 `theme` 값이 SSR에서 `undefined`, client에서 `system`이 되어 mismatch.
 
 ```
 - server:  aria-label="현재 테마: undefined. 클릭하여 전환"  (no SVG)
 + client:  aria-label="현재 테마: system. 클릭하여 전환"     (Monitor SVG)
 ```
 
-**Fix**: 기존 [`ThemeToggle.tsx`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/ui/ThemeToggle.tsx)와 동일한 `mounted` gate 패턴 적용. 마운트 전엔 placeholder, 후엔 실제 아이콘 렌더.
+**Fix**: 기존 [`ThemeToggle.tsx`](../../../maeil1dok-next/src/components/ui/ThemeToggle.tsx)와 동일한 `mounted` gate 패턴 적용. 마운트 전엔 placeholder, 후엔 실제 아이콘 렌더.
 
 **검증**: `/` 4 modes 재 walk → page errors 0, hydration error 0.
 
 ### §3.2 BUG-B: `/bible` Infinite Loop (`getServerSnapshot`)
 
-**원인**: [`src/components/bible/BiblePageClient.tsx`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/bible/BiblePageClient.tsx)의 zustand selector 안에서 action을 호출하는 패턴:
+**원인**: [`src/components/bible/BiblePageClient.tsx`](../../../maeil1dok-next/src/components/bible/BiblePageClient.tsx)의 zustand selector 안에서 action을 호출하는 패턴:
 
 ```ts
 // 매 렌더링마다 새 객체 { completed, total } 반환 → zustand가 ref 변화 감지 → 무한 루프
@@ -87,13 +87,13 @@ const tongdokProgress = useTongdokMode(
 
 ### §3.3 BUG-C: `/bible/home` 400 on `/api/bible/highlights`
 
-**원인**: [`src/components/bible/BibleHome.tsx:96`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/bible/BibleHome.tsx#L96) 가 highlights API를 **무파라미터**로 호출:
+**원인**: [`src/components/bible/BibleHome.tsx:96`](../../../maeil1dok-next/src/components/bible/BibleHome.tsx#L96) 가 highlights API를 **무파라미터**로 호출:
 
 ```ts
 fetch('/api/bible/highlights').then((r) => (r.ok ? r.json() : null))
 ```
 
-하지만 [`/api/bible/highlights`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/bible/highlights/route.ts) GET 핸들러는 `book`, `chapter`, `version` 필수 → 400 반환.
+하지만 [`/api/bible/highlights`](../../../maeil1dok-next/src/app/api/bible/highlights/route.ts) GET 핸들러는 `book`, `chapter`, `version` 필수 → 400 반환.
 
 `BibleHome`은 dashboard 카운트(`stats.highlightCount = highlights.length`)만 사용하므로 전체 highlights 리스트가 필요.
 
@@ -119,7 +119,7 @@ if (!book && !chapterParam && !version) {
 
 ### §4.1 P0 페이지
 
-- **`/login`** ([page.tsx](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/(public)/login/page.tsx)) — **시안 100% 일치** ✅
+- **`/login`** (`page.tsx`/login/page.tsx)) — **시안 100% 일치** ✅
   - h1 captured: `"매일,\n말씀과 함께"` (시안 Refined Login `S.heroXL` 그대로)
   - Logo serif 16px, hero 38px serif font-weight 500 tracking -0.04em, verse italic mute, Kakao/Google/Apple/이메일 4 sign-in
 - **`/`** (home) — **시안 100% 일치** ✅
@@ -167,7 +167,7 @@ Phase 4 walk + minimal fix로 **v3.1 디자인 실 구현이 라이브 환경에
 ## §7 산출물
 
 ```
-docs/migration-v2/54-phase4-walk-gaps.md           본 문서
+docs/migration-v2/archive/54-phase4-walk-gaps.md           본 문서
 maeil1dok-next/scripts/walk-v3.1.mjs               walk 자동화 스크립트 (재사용 가능)
 .sisyphus/evidence/next-fe-audit/
 ├── walks/v3.1/
@@ -178,9 +178,9 @@ maeil1dok-next/scripts/walk-v3.1.mjs               walk 자동화 스크립트 (
 ```
 
 **3 fix 적용 파일**:
-- [`src/components/home/HomeShell.tsx`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/home/HomeShell.tsx) — HomeThemeToggle mounted gate
-- [`src/components/bible/BiblePageClient.tsx`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/components/bible/BiblePageClient.tsx) — useShallow + tongdokModeSelectors
-- [`src/app/api/bible/highlights/route.ts`](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/api/bible/highlights/route.ts) — no-param fallback to user-wide highlights
+- [`src/components/home/HomeShell.tsx`](../../../maeil1dok-next/src/components/home/HomeShell.tsx) — HomeThemeToggle mounted gate
+- [`src/components/bible/BiblePageClient.tsx`](../../../maeil1dok-next/src/components/bible/BiblePageClient.tsx) — useShallow + tongdokModeSelectors
+- [`src/app/api/bible/highlights/route.ts`](../../../maeil1dok-next/src/app/api/bible/highlights/route.ts) — no-param fallback to user-wide highlights
 
 ---
 

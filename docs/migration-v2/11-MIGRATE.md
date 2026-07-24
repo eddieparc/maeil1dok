@@ -102,7 +102,7 @@ Django/MySQL → Supabase/PostgreSQL 데이터 마이그레이션을 **5% 손실
 
 | # | 작업 | DoD |
 |---|---|---|
-| M-11 | [supabase/migrations/20260301000001_plan_f_new_tables.sql](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/supabase/migrations/20260301000001_plan_f_new_tables.sql) 검증 — bible_bookmarks/reflection_notes/personal_reading_records/migration_user_mapping | 적용 + 스키마 검증 |
+| M-11 | [supabase/migrations/20260301000001_plan_f_new_tables.sql](../../maeil1dok-next/supabase/migrations/20260301000001_plan_f_new_tables.sql) 검증 — bible_bookmarks/reflection_notes/personal_reading_records/migration_user_mapping | 적용 + 스키마 검증 |
 | M-12 | 그룹 기능 (`ReadingGroup`, `GroupMembership`, `GroupInvitation`) — v2 포함 여부 결정 | 결정 + 포함 시 SQL 작성 |
 | M-13 | `BibleContentCache` — Supabase로 옮길지 / 재생성할지 결정 | 결정 + 실행 |
 

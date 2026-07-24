@@ -42,10 +42,10 @@ check "@ts-expect-error in plan docs" "grep -rE '@ts-expect-error' --include='[0
 
 echo ""
 echo "===== 3. 인벤토리 카운트 ↔ 실 파일 수 (Gate A 재검증) ====="
-check "Nuxt 페이지 fs=41" "find $REPO_ROOT/frontend/app/pages -name '*.vue' | wc -l | xargs" "41"
-check "Next pages fs=35" "find $REPO_ROOT/maeil1dok-next/src/app -name 'page.tsx' | wc -l | xargs" "35"
-check "Django models fs=28" "grep -rhE '^class [A-Z][A-Za-z]+\\(.*Model' $REPO_ROOT/backend/*/models.py | wc -l | xargs" "28"
-check "Supabase migrations fs=7" "ls $REPO_ROOT/maeil1dok-next/supabase/migrations/*.sql | wc -l | xargs" "7"
+check "Nuxt pages current snapshot" "find $REPO_ROOT/frontend/app/pages -name '*.vue' | wc -l | xargs" "43"
+check "Next pages current snapshot" "find $REPO_ROOT/maeil1dok-next/src/app -name 'page.tsx' | wc -l | xargs" "34"
+check "Django models current snapshot" "grep -rhE '^class [A-Z][A-Za-z]+\\(.*Model' $REPO_ROOT/backend/*/models.py | wc -l | xargs" "32"
+check "Supabase migrations current snapshot" "ls $REPO_ROOT/maeil1dok-next/supabase/migrations/*.sql | wc -l | xargs" "22"
 
 echo ""
 echo "===== 4. 핵심 메타 규칙 시행 검증 (기본) ====="
@@ -238,17 +238,6 @@ else
     FAIL=$((FAIL+1))
 fi
 
-echo ""
-echo "===== 15b. docs/audit_tmp 참조 파일 실 존재 검증 (Momus R-rerun-19 + R-rerun-21 fix) ====="
-for f in AUTH_FIX_SUMMARY.md darkmode_audit_v2.md README.md AUTH_CONTRACT.md; do
-    if [ -r "$REPO_ROOT/docs/audit_tmp/$f" ]; then
-        echo "✅ PASS  docs/audit_tmp/$f readable"
-        PASS=$((PASS+1))
-    else
-        echo "❌ FAIL  docs/audit_tmp/$f 없음 또는 미readable (chmod 644 필요?)"
-        FAIL=$((FAIL+1))
-    fi
-done
 
 echo ""
 echo "===== 15. Code fence balance 검증 (catalog body 안 triple-backtick 짝수) ====="

@@ -1,6 +1,6 @@
 매일일독 마이그레이션 v2 plan 의 검증 + 적대적 크리틱 루프 재실행.
 
-핸드오프 문서: /Users/jgp/GitHub/maeil1dok/docs/migration-v2/50-handoff-verification-loop.md
+핸드오프 문서: docs/migration-v2/archive/50-handoff-verification-loop.md
 
 이 파일을 먼저 Read 한 뒤, §3 의 Phase 1 ~ Phase 5 순서로 진행:
 
@@ -30,7 +30,7 @@ Phase 4: 신 발견 사항 동기화
   - verify-issues.sh 재검증
 
 Phase 5: 최종 보고서 작성
-  - docs/migration-v2/27-handoff-rerun-critique.md 작성
+  - docs/migration-v2/archive/27-handoff-rerun-critique.md 작성
   - Verdict (APPROVE/CONDITIONAL/REJECT) + 신 patch + 라이브 결과
   - 사용자에게 다음 단계 결정 요청
 

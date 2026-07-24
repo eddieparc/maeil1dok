@@ -27,9 +27,9 @@
 | `v2/CUTOVER — 실 컷오버` | 6 | 11-CUTOVER.md | P0 (마지막) |
 | `v2/INFRA — 메타 시스템·CI` | 0 | 00-meta-system.md | P0 |
 
-> **Oracle R-final Critical #1 일관화**: 본 표의 Wave 순서가 [10-plan-overview.md §3 Wave 구조](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/10-plan-overview.md) 와 각 [11-*.md 슬라이스 헤더](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/) 와 1:1 일치하도록 갱신됨. `validate-plan.sh` 가 3중 일치를 강제 검사.
+> **Oracle R-final Critical #1 일관화**: 본 표의 Wave 순서가 [10-plan-overview.md §3 Wave 구조](10-plan-overview.md) 와 각 [11-*.md 슬라이스 헤더](.) 와 1:1 일치하도록 갱신됨. `validate-plan.sh` 가 3중 일치를 강제 검사.
 
-> **Momus #2 / PRE-5 일관화**: ADMIN 마일스톤이 CORE (메인 컷오버 포함, P1) / EXTENDED (별도 트랙, P3) 로 분리됨. [10-plan-overview §0 PRE-5](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/10-plan-overview.md#L19) 와 [11-ADMIN.md §3·§4](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-ADMIN.md) 의 분할 결정 반영.
+> **Momus #2 / PRE-5 일관화**: ADMIN 마일스톤이 CORE (메인 컷오버 포함, P1) / EXTENDED (별도 트랙, P3) 로 분리됨. [10-plan-overview §0 PRE-5](10-plan-overview.md#L19) 와 [11-ADMIN.md §3·§4](11-ADMIN.md) 의 분할 결정 반영.
 
 ---
 

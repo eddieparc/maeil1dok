@@ -8,12 +8,12 @@
 
 | # | 패턴 | 증거 |
 |---|---|---|
-| F1 | **인증 우회 스크린샷을 "통과"로 처리** | [next-design-clone/issues.md](file:///Users/jgp/GitHub/maeil1dok/.omo/notepads/next-design-clone/issues.md): "Task 16: required evidence file ... is generated, but currently captures the auth-related server error page instead of the settings UI." |
-| F2 | **VRT 설정 모순 미검출** | [design-polish/issues.md](file:///Users/jgp/GitHub/maeil1dok/.omo/notepads/design-polish/issues.md): "playwright.config.ts sets testMatch ... but also ignores that same file, so the configured dark VRT run never executes." → 한 번도 안 돌았음 |
+| F1 | **인증 우회 스크린샷을 "통과"로 처리** | 과거 로컬 증거 `next-design-clone/issues.md`: "Task 16: required evidence file ... is generated, but currently captures the auth-related server error page instead of the settings UI." |
+| F2 | **VRT 설정 모순 미검출** | 과거 로컬 증거 `design-polish/issues.md`: "playwright.config.ts sets testMatch ... but also ignores that same file, so the configured dark VRT run never executes." → 한 번도 안 돌았음 |
 | F3 | **VRT diff 35,407 픽셀 fail 무시** | 같은 파일: "home-light.png with 35407 diff pixels and stops the remaining serial light snapshots" |
-| F4 | **데이터 95% 손실 silent skip** | [validation_report.json](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/scripts/migrate/data/validation_report.json): user_progress 7921→381. 매핑 안 된 사용자 데이터를 fail-soft로 warn만 남기고 통과 |
-| F5 | **빌드 깨진 채로 종료** | [build.log](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/build.log): TS error on catchup/page.tsx, 빌드 fail 상태로 세션 종료 |
-| F6 | **placeholder 프로덕션 노출** | [bible-renewal-qa-report.md](file:///Users/jgp/GitHub/maeil1dok/docs/bible-renewal-qa-report.md) BUG-005: "Task 3-3에서 구현 예정" 텍스트가 라이브에 노출 |
+| F4 | **데이터 95% 손실 silent skip** | 과거 로컬 `validation_report.json`: user_progress 7921→381. 매핑 안 된 사용자 데이터를 fail-soft로 warn만 남기고 통과 |
+| F5 | **빌드 깨진 채로 종료** | `build.log`: TS error on catchup/page.tsx, 빌드 fail 상태로 세션 종료 |
+| F6 | **placeholder 프로덕션 노출** | `bible-renewal-qa-report.md` BUG-005: "Task 3-3에서 구현 예정" 텍스트가 라이브에 노출 |
 | F7 | **WIP 커밋 main에 직접 푸시** | git log: `e5269db WIP(backend): update 24 files` — 마이그레이션 트랙과 무관한 프론트 변경이 섞임 |
 | F8 | **계획서 체크박스와 실 진척 불일치** | Plan F: 13 태스크 전부 `[ ]` 인데 산출물은 거의 다 존재 → "끝났는데 마킹 안 했나" vs "정말 미완" 구분 불가 |
 
@@ -107,7 +107,7 @@
 ```bash
 # 누락 표현 검출
 for f in 01-nuxt-inventory.md 02-next-inventory.md 03-backend-inventory.md 04-production-live-audit.md; do
-  cd /Users/jgp/GitHub/maeil1dok/docs/migration-v2
+  cd docs/migration-v2
   grep -nE "기타 등등|etc\.|and so on|그 외 다수|\.\.\.\s*$" "$f" && echo "FAIL: $f"
 done
 

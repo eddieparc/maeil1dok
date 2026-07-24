@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Maeil1Dok v2
 
-## Getting Started
+Next.js와 Supabase 기반의 차기 버전입니다. 현재 개발 중이며 프로덕션에는 배포되지 않았습니다.
 
-First, run the development server:
+## 실행
 
 ```bash
+npm ci
+cp .env.local.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 검증
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm test
+npm run lint
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+추가 명령:
 
-## Learn More
+```bash
+npm run test:e2e
+npm run storybook
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 문서
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- 전환 계획과 기능 매트릭스: [`../docs/migration-v2/README.md`](../docs/migration-v2/README.md)
+- 데이터 마이그레이션: [`scripts/migrate/RUNBOOK.md`](scripts/migrate/RUNBOOK.md)
+- Vercel 설정: [`docs/vercel-setup.md`](docs/vercel-setup.md)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+실제 `.env.local`, Supabase service-role key, 마이그레이션 추출 데이터는 커밋하지 않습니다.

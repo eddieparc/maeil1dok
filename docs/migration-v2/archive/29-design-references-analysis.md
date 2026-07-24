@@ -1,7 +1,7 @@
 # 29 · 디자인 레퍼런스 분석 + 디자인 매너 후보
 
 > **작성일**: 2026-05-28
-> **선행**: [28-next-fe-completion-report.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/28-next-fe-completion-report.md) (감사 완료 — Verdict PARTIAL)
+> **선행**: [28-next-fe-completion-report.md](28-next-fe-completion-report.md) (감사 완료 — Verdict PARTIAL)
 > **목적**: 80장 lazyweb 레퍼런스 분석 → 매일일독에 적용할 디자인 매너 4종 후보 도출 → 사용자 선택 → Storybook 시각화 → 19 atom 재디자인 → 35 page 빅뱅 재구현 (별도 세션)
 
 ---
@@ -102,7 +102,7 @@
 
 ## §2 현 매일일독 토큰 + 패턴 매칭
 
-[현 globals.css](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/app/globals.css#L72-L113) 가지고 있는 자산:
+[현 globals.css](../../../maeil1dok-next/src/app/globals.css#L72-L113) 가지고 있는 자산:
 
 ```css
 --color-primary: #4B9F7E;          /* sage green */
@@ -233,7 +233,7 @@
 
 ## §5 evidence 보존
 
-본 §1-2 의 vision 캡션 + similarity 점수 raw 데이터는 lazyweb API 응답 그대로 [.sisyphus/evidence/next-fe-audit/references/](file:///Users/jgp/GitHub/maeil1dok/.sisyphus/evidence/next-fe-audit/references/) 에 저장하지 않음 (data:URL token expires in 1 hour 이므로 이미지 자체는 lazyweb backend 에 의존). 본 보고서 §1.2 의 핵심 패턴 추출이 evidence 역할.
+본 §1-2 의 vision 캡션 + similarity 점수 raw 데이터는 lazyweb API 응답 그대로 [.sisyphus/evidence/next-fe-audit/references/](../../../.sisyphus/evidence/next-fe-audit/references) 에 저장하지 않음 (data:URL token expires in 1 hour 이므로 이미지 자체는 lazyweb backend 에 의존). 본 보고서 §1.2 의 핵심 패턴 추출이 evidence 역할.
 
 **다운로드 필요 시**: 매너 결정 후 해당 카테고리 top 5장씩 다운로드하여 본 evidence 디렉토리 보존 가능.
 

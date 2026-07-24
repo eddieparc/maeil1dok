@@ -18,7 +18,7 @@
 
 | 항목 | 증거 | 상태 |
 |---|---|---|
-| Next 빌드 | [build.log](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/build.log): `Type error: Property 'missedCount' is missing` | ❌ FAIL |
+| Next 빌드 | `build.log`: `Type error: Property 'missedCount' is missing` | ❌ FAIL |
 | TS 에러 | 02-next-inventory.md (배경 작업): 5건 (BibleSettingsContent.tsx, FontSection.tsx, PlanPageClient.tsx, ModalRegistry.ts) | ❌ 5건 |
 | Vitest | 02 배경: 46개 중 42 pass / 4 fail | ⚠️ 4 fail |
 | node_modules | `next: command not found` | ❌ 부재 |

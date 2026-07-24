@@ -4,7 +4,7 @@
 > **Wave**: 2 (병렬 — MIGRATE 산출물 위에서; Oracle R-final Critical #1 + Momus #1 일관화)  
 > **의존**: 11-FOUND, 11-MIGRATE  
 > **추정 크기**: M  
-> **상태**: 스켈레톤 — 03a 인증 엔드포인트 + [`docs/audit_tmp/AUTH_FIX_SUMMARY.md`](file:///Users/jgp/GitHub/maeil1dok/docs/audit_tmp/AUTH_FIX_SUMMARY.md) 의 직전 버그 증거 기반 (Momus R-rerun-19 fix — 실 경로 `docs/audit_tmp/` 명시)
+> **상태**: 스켈레톤 — 03a 인증 엔드포인트와 과거 인증 감사 결과를 기준으로 작성
 
 ---
 
@@ -40,8 +40,8 @@
 
 ### 2.2 Next 측 기존 코드 (02 도착 후 매핑 보완)
 
-- [src/lib/supabase/middleware.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/lib/supabase/middleware.ts) — 세션 갱신 (02 도착 후 검증)
-- [src/middleware.ts](file:///Users/jgp/GitHub/maeil1dok/maeil1dok-next/src/middleware.ts) — Apple POST 콜백 처리 + maintenance 분기 — 검증
+- [src/lib/supabase/middleware.ts](../../maeil1dok-next/src/lib/supabase/middleware.ts) — 세션 갱신 (02 도착 후 검증)
+- [src/middleware.ts](../../maeil1dok-next/src/middleware.ts) — Apple POST 콜백 처리 + maintenance 분기 — 검증
 - `src/app/auth/callback/` — OAuth 콜백 핸들러
 - `src/app/(public)/login/` — 로그인 페이지
 - `src/app/(public)/register-email/` — 이메일 가입

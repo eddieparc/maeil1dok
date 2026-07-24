@@ -80,7 +80,7 @@
 | **P3** (컷오버 후 안정화) | Admin 별도 컷오버 (PRE-5), VPS 폐기 검증 | 안정화 |
 | **BACKLOG** | 11-SOCIAL Group 부분 (PRE-4), `/install` PWA 페이지, `/intro/[id]` stub | 의사결정 따라 |
 
-→ 신규 마스터 플랜 [10-plan-overview.md](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/10-plan-overview.md) 의 Wave 구조와 일치.
+→ 신규 마스터 플랜 [10-plan-overview.md](10-plan-overview.md) 의 Wave 구조와 일치.
 
 <!-- scorecard-version: 1 -->
 <!-- auto-recommended: true (사용자 contest 가능) -->

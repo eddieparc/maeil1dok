@@ -1,7 +1,7 @@
 # 10 · Migration Master Plan v2 (Overview)
 
 > **상태**: 스켈레톤 — Gate C(품질 스코어카드 + 사용자 직감) 완료 후 본문 채움.  
-> **전제**: 본 플랜은 [`05-feature-matrix.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/05-feature-matrix.md) 의 GAP 컬럼과 [`06-quality-scorecard.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/06-quality-scorecard.md) 의 우선순위 매트릭스에서 직접 도출된다.  
+> **전제**: 본 플랜은 [`05-feature-matrix.md`](05-feature-matrix.md) 의 GAP 컬럼과 [`06-quality-scorecard.md`](06-quality-scorecard.md) 의 우선순위 매트릭스에서 직접 도출된다.
 > **체크섬**: 작성 완료 시 `<!-- plan-checksum: sha256-first-8 -->` 메타 박음 (00-meta-system.md §2.6).
 
 ---
@@ -34,7 +34,7 @@
 
 ## 1. 마스터 플랜 v2의 8가지 원칙
 
-> 본 8개 원칙은 [`00-meta-system.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/00-meta-system.md) 에서 도출. 모든 슬라이스 플랜에 강제 적용.
+> 본 8개 원칙은 [`00-meta-system.md`](00-meta-system.md) 에서 도출. 모든 슬라이스 플랜에 강제 적용.
 
 1. **Definition of Done 4중 강제** — CHANGE / EVIDENCE / REPRODUCE / ASSERTION
 2. **5% 데이터 손실 임계 = hard fail** — fail-soft 금지
@@ -140,21 +140,21 @@ Wave 6 (직렬):
 
 | 파일 | 라인 | 상태 | 비고 |
 |---|---|---|---|
-| [`11-FOUND.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-FOUND.md) | ~190 | 1차 산출 | 빌드 그린 + WIP 정리 + 환경 복구 |
-| [`11-AUTH.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-AUTH.md) | ~210 | 1차 산출 | 03a 기반 인증 흐름 + 직전 3개 버그 회귀 방지 |
-| [`11-MIGRATE.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-MIGRATE.md) | ~180 | 1차 산출 | Plan F 95% 손실 근본 원인 + v2 변경점 |
-| [`11-READER.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-READER.md) | ~140 | 1차 산출 | /bible 뷰어 (Nuxt 1198 → Next 슬림) |
-| [`11-PLAN.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-PLAN.md) | ~80 | 1차 산출 | 플랜 구독/해지/캘린더 |
-| [`11-PROGRESS.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-PROGRESS.md) | ~120 | 1차 산출 | 읽음/통계/히스토리 (CRITICAL) |
-| [`11-HASENA.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-HASENA.md) | ~40 | 1차 산출 | 하세나 일정/요약 |
-| [`11-CATCHUP.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-CATCHUP.md) | ~40 | 1차 산출 | 캐치업 |
-| [`11-SOCIAL.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-SOCIAL.md) | ~50 | 1차 산출 | 친구/그룹/스코어보드 (T0002·T0004 회귀 방지) |
-| [`11-PROFILE.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-PROFILE.md) | ~40 | 1차 산출 | 프로필/업적/잔디 |
-| [`11-ANNOTATE.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-ANNOTATE.md) | ~55 | 1차 산출 | 북마크/하이라이트/노트 (BUG-005 해소) |
-| [`11-DESIGN.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-DESIGN.md) | ~100 | 1차 산출 | VRT 회복 + a11y 7건 + 다크모드 |
-| [`11-PWA.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-PWA.md) | ~50 | 1차 산출 | PWA + FCM + Apple |
-| [`11-ADMIN.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-ADMIN.md) | ~45 | 1차 산출 | 조건부 (PRE-6) |
-| [`11-CUTOVER.md`](file:///Users/jgp/GitHub/maeil1dok/docs/migration-v2/11-CUTOVER.md) | ~110 | 1차 산출 | DNS/OAuth/smoke/폐기 |
+| [`11-FOUND.md`](11-FOUND.md) | ~190 | 1차 산출 | 빌드 그린 + WIP 정리 + 환경 복구 |
+| [`11-AUTH.md`](11-AUTH.md) | ~210 | 1차 산출 | 03a 기반 인증 흐름 + 직전 3개 버그 회귀 방지 |
+| [`11-MIGRATE.md`](11-MIGRATE.md) | ~180 | 1차 산출 | Plan F 95% 손실 근본 원인 + v2 변경점 |
+| [`11-READER.md`](11-READER.md) | ~140 | 1차 산출 | /bible 뷰어 (Nuxt 1198 → Next 슬림) |
+| [`11-PLAN.md`](11-PLAN.md) | ~80 | 1차 산출 | 플랜 구독/해지/캘린더 |
+| [`11-PROGRESS.md`](11-PROGRESS.md) | ~120 | 1차 산출 | 읽음/통계/히스토리 (CRITICAL) |
+| [`11-HASENA.md`](11-HASENA.md) | ~40 | 1차 산출 | 하세나 일정/요약 |
+| [`11-CATCHUP.md`](11-CATCHUP.md) | ~40 | 1차 산출 | 캐치업 |
+| [`11-SOCIAL.md`](11-SOCIAL.md) | ~50 | 1차 산출 | 친구/그룹/스코어보드 (T0002·T0004 회귀 방지) |
+| [`11-PROFILE.md`](11-PROFILE.md) | ~40 | 1차 산출 | 프로필/업적/잔디 |
+| [`11-ANNOTATE.md`](11-ANNOTATE.md) | ~55 | 1차 산출 | 북마크/하이라이트/노트 (BUG-005 해소) |
+| [`11-DESIGN.md`](11-DESIGN.md) | ~100 | 1차 산출 | VRT 회복 + a11y 7건 + 다크모드 |
+| [`11-PWA.md`](11-PWA.md) | ~50 | 1차 산출 | PWA + FCM + Apple |
+| [`11-ADMIN.md`](11-ADMIN.md) | ~45 | 1차 산출 | 조건부 (PRE-6) |
+| [`11-CUTOVER.md`](11-CUTOVER.md) | ~110 | 1차 산출 | DNS/OAuth/smoke/폐기 |
 
 > 정밀화 단계: 02-next-inventory.md + 04-production-live-audit.md 도착 후 각 슬라이스의 "기존 자산" 섹션에서 Next 측 상태를 정확한 file:line 으로 채운다.
 

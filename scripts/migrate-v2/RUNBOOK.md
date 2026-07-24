@@ -8,7 +8,7 @@
 ## 0. 사전 점검 (실행 5분 전)
 
 ```bash
-cd /Users/jgp/GitHub/maeil1dok
+cd "$(git rev-parse --show-toplevel)"
 
 # 1. plan validator PASS 확인
 bash scripts/migrate-v2/validate-plan.sh                # 39 PASS / 0 FAIL 기대

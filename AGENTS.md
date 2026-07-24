@@ -40,7 +40,11 @@ npm test            # node --test
 npm run typecheck
 
 # 배포 계약 테스트 (루트)
-python3 -m unittest tests.test_frontend_deployment_config tests.test_backend_ci_config tests.test_mobile_ci_config
+python3 -m unittest \
+  tests.test_frontend_deployment_config \
+  tests.test_backend_ci_config \
+  tests.test_mobile_ci_config \
+  tests.test_documentation_integrity
 ```
 
 로컬 풀스택은 루트 `docker-compose.yml`(개발 전용 — 프로덕션 배포와 무관).
