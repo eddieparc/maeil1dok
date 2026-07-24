@@ -1,163 +1,55 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+에이전트용 리포 가이드. 상세 배포/운영은 **DEPLOY.md**, 디자인 토큰은 **DESIGN.md**.
 
-## Project Overview
+## 프로젝트
 
-매일일독 (Maeil1Dok) is a Bible reading tracking application. It helps users systematically complete Bible reading with a structured reading schedule.
+매일일독(Maeil1Dok) — 성경 통독 트래킹 서비스. 모노레포:
 
-## Tech Stack
+| 디렉토리 | 스택 | 상태 |
+|---|---|---|
+| `backend/` | Django 5.2 + DRF + MySQL 8 + Celery/Redis, JWT + OAuth(Kakao/Google/Apple) | **프로덕션** (api.maeil1dok.app) |
+| `frontend/` | Nuxt 4 SSR + Pinia + Tailwind | **프로덕션** (maeil1dok.app) |
+| `maeil1dok-next/` | Next.js + Supabase | v2 WIP (미배포, 계획: `docs/migration-v2/`) |
+| `mobile/` | Expo React Native (WebView 앱) | EAS로 별도 배포 |
 
-**Backend:**
-- Django 4.2+ with Django REST Framework
-- MySQL 8.0 database
-- JWT authentication (djangorestframework-simplejwt)
-- OAuth2 integration (Kakao, Google)
+## 프로덕션 / 배포
 
-**Frontend:**
-- Nuxt 3 with Vue 3
-- Pinia for state management  
-- Tailwind CSS for styling
-- Axios for API calls
+OCI 단일 VM + **Cloudflare Tunnel** (인바운드 포트 없음). urban-blanks 와 VM 공존 —
+**네트워크·포트·nginx 절대 공유 금지** (과거 장애 이력).
+`main` push → GitHub Actions 품질 게이트(백엔드는 실제 MySQL 8) → `deploy-oci` 자동 배포 → 라이브 스모크.
+시크릿(`.env.oci` 등)은 VM에만 존재. `$` 값은 `$$` 이스케이프 필수. 전부 **DEPLOY.md** 참조.
 
-**Infrastructure (production):**
-- OCI single VM + Cloudflare Tunnel (no inbound ports; co-located with urban-blanks — never share networks/ports)
-- 7 containers via `docker-compose.oci.yml`: web(Django), frontend(Nuxt SSR), celery-worker, celery-beat(x1), mysql 8, redis, cloudflared
-- CI/CD: GitHub Actions — quality gates (backend tests on real MySQL 8) → auto deploy (`deploy-oci`) → live smoke
-- See **DEPLOY.md** for the full deployment guide (env/secrets, backup, rollback, troubleshooting)
+## 명령어
 
-## Development Commands
-
-### Frontend (in `/frontend` directory)
 ```bash
-# Install dependencies
-npm install
+# backend (backend/, .venv 사용)
+.venv/bin/python manage.py test accounts todos tests bible_cache   # SQLite 빠른 실행
+TEST_DB_ENGINE=mysql DB_HOST=... manage.py test ...                # CI와 동일(실 MySQL)
+# 필수 env: SECRET_KEY, KAKAO_CLIENT_ID, KAKAO_REDIRECT_URI (테스트: DJANGO_SETTINGS_MODULE=config.test_settings)
 
-# Development server (http://localhost:3000)
-npm run dev
+# frontend (frontend/)
+npm run dev | npm run test | npm run build
 
-# Build for production
+# maeil1dok-next (maeil1dok-next/)
+npm run test        # vitest
 npm run build
 
-# Preview production build
-npm run preview
+# mobile (mobile/)
+npm test            # node --test
+npm run typecheck
 
-# Start production server
-npm run start
+# 배포 계약 테스트 (루트)
+python3 -m unittest tests.test_frontend_deployment_config tests.test_backend_ci_config tests.test_mobile_ci_config
 ```
 
-### Backend (in `/backend` directory)
-```bash
-# Run migrations
-python manage.py migrate
+로컬 풀스택은 루트 `docker-compose.yml`(개발 전용 — 프로덕션 배포와 무관).
 
-# Create superuser
-python manage.py createsuperuser
+## 컨벤션
 
-# Run development server
-python manage.py runserver
-
-# Run tests
-python manage.py test
-```
-
-### Docker Compose (local development only — production deploys via DEPLOY.md)
-```bash
-# Start all services
-docker-compose up
-
-# Start in background
-docker-compose up -d
-
-# Stop all services
-docker-compose down
-
-# Rebuild containers
-docker-compose build
-```
-
-## Architecture
-
-### Backend Structure
-- `accounts/` - User authentication and profile management
-- `todos/` - Bible reading schedule and progress tracking
-- `config/` - Django settings and root URL configuration
-- API endpoints are versioned under `/api/v1/`
-
-### Frontend Structure
-- `pages/` - Nuxt page components with file-based routing
-  - `auth/` - Authentication related pages
-  - `admin/` - Admin functionality
-  - `reading.vue` - Main reading tracking interface
-- `components/` - Reusable Vue components
-- `stores/` - Pinia state management stores
-- `composables/` - Vue composition functions
-- `server/middleware/` - Server-side middleware (proxy)
-
-### Key Features
-- Bible reading schedule management (`DailyBibleSchedule` model)
-- User progress tracking (`UserBibleProgress` model)
-- Multiple reading plans support (`BibleReadingPlan` model)
-- Social login integration (Kakao, Google OAuth)
-- PWA support (in development)
-
-## Environment Configuration
-
-Required environment variables:
-- Backend: `SECRET_KEY`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`
-- Frontend: `KAKAO_CLIENT_ID`, `KAKAO_JS_KEY`, `GOOGLE_CLIENT_ID`, API endpoints
-
-## API Structure
-
-Main API endpoints:
-- `/api/v1/auth/` - Authentication (login, token refresh)
-- `/api/v1/todos/` - Bible reading schedules and progress
-- `/api/v1/accounts/` - User profile management
-
-## Database Models
-
-Key models:
-- `User` - Custom user model with nickname and profile image
-- `DailyBibleSchedule` - Daily Bible reading assignments
-- `UserBibleProgress` - Tracks user's reading completion
-- `BibleReadingPlan` - Different reading plan options
-- `PlanSubscription` - User's plan subscriptions
-
-## UI Component Guidelines
-
-### Modal (통합 모달 시스템)
-
-모든 모달은 통합 모달 시스템을 사용합니다. 개별 모달 컴포넌트를 직접 구현하지 마세요.
-
-**사용 방법:**
-```typescript
-import { useModal } from '~/composables/useModal';
-
-const modal = useModal();
-
-// Confirm 모달 (확인/취소)
-const confirmed = await modal.confirm({
-  title: '제목',
-  description: '설명 텍스트',
-  confirmText: '확인',    // optional, default: '확인'
-  cancelText: '취소',     // optional, default: '취소'
-  confirmVariant: 'danger', // optional: 'primary' | 'danger'
-  icon: 'warning'         // optional: 'warning' | 'error' | 'info' | 'success'
-});
-
-// Alert 모달 (확인만)
-await modal.alert({
-  title: '제목',
-  description: '설명 텍스트',
-  confirmText: '확인',    // optional
-  icon: 'info'            // optional
-});
-```
-
-**컴포넌트 위치:**
-- `components/ui/modal/ModalHost.vue` - 모달 호스트 (app.vue에 배치)
-- `components/ui/modal/ModalContainer.vue` - 모달 컨테이너
-- `components/ui/modal/ConfirmModal.vue` - 확인 모달
-- `components/ui/modal/AlertModal.vue` - 알림 모달
-- `composables/useModal.ts` - 모달 composable
-- `composables/useModalState.ts` - 모달 상태 관리
+- 백엔드: 앱 단위 구조(`accounts/`, `todos/`, `bible_cache/`). 무결성은 DB 제약(fail-closed
+  마이그레이션) + 테스트로 강제. 헬스: `/health/`(DB), `/ready/`(beat 하트비트).
+- 프론트 모달: 개별 모달 컴포넌트 만들지 말고 통합 모달 사용 —
+  `const modal = useModal()` → `await modal.confirm({...})` / `await modal.alert({...})`
+  (구현: `frontend/app/components/ui/modal/`, `composables/useModal.ts`).
+- 시크릿/키는 커밋 금지(.env.oci 계열은 gitignore).
