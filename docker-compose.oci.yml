@@ -1,0 +1,138 @@
+# maeil1dok OCI 프로덕션 스택 — 단일 Ampere A1 VM (urban-blanks 와 공존).
+#
+# Railway 대체: web(gunicorn) + celery-worker + celery-beat(단일) + mysql8 + redis.
+# - TLS/라우팅은 공유 nginx(urban-blanks-nginx-1)가 종단: api.maeil1dok.app server block 이
+#   http://maeil1dok-web:8000 으로 프록시(resolver 변수 upstream). 이 스택은 nginx 미포함.
+# - web 는 자체 network(maeil1dok_default) + 외부 공유 network(urban-blanks_default, alias
+#   maeil1dok-web)에 동시 연결되어 공유 nginx 가 이름으로 도달. urban nginx 는 재생성되지 않음.
+# - 데이터(mysql/redis)는 ${OCI_DATA_ROOT:-/mnt/data/maeil1dok} 하위에 바인드 마운트.
+# - 정적파일은 whitenoise 가 서빙(별도 static 볼륨 불필요). 사용자 업로드 미디어 없음(R2 불필요).
+#
+# 실행:
+#   sudo mkdir -p ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/{mysql,redis,backups}
+#   docker compose -f docker-compose.oci.yml --env-file .env.oci up -d --build
+name: maeil1dok
+
+services:
+  mysql:
+    image: mysql:8.0
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-authentication-plugin=caching_sha2_password
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:?DB_NAME 필수}
+      MYSQL_USER: ${DB_USER:?DB_USER 필수}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필수}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD 필수}
+    volumes:
+      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1500m
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 300m
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: .env.oci
+    environment:
+      - DEBUG=False
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # entrypoint.sh: DB 대기 → migrate → collectstatic → gunicorn (DEBUG=False)
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1',8000),timeout=3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      default: {}
+      shared:
+        aliases:
+          - maeil1dok-web
+    mem_limit: 900m
+    restart: unless-stopped
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: .env.oci
+    environment:
+      - DEBUG=False
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    entrypoint: []
+    command: sh -c "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}"
+    mem_limit: 600m
+    restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: .env.oci
+    environment:
+      - DEBUG=False
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - REDIS_URL=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    entrypoint: []
+    # 반드시 단일 인스턴스 (예약 발행/알림 중복 방지)
+    command: celery -A config beat -l info
+    deploy:
+      replicas: 1
+    mem_limit: 300m
+    restart: unless-stopped
+
+networks:
+  default:
+    name: maeil1dok_default
+  shared:
+    external: true
+    name: urban-blanks_default
