@@ -179,11 +179,8 @@ services:
     depends_on:
       web:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "cloudflared --version >/dev/null 2>&1 || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    # (헬스체크 없음: cloudflared 이미지는 distroless(쉘 없음)라 CMD-SHELL 불가.
+    #  터널 상태는 로그의 "Registered tunnel connection" + CF 대시보드로 관측.)
     mem_limit: 150m
     cpus: 0.3
     logging: *default-logging
