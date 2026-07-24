@@ -154,3 +154,6 @@ maeil1dok-next/test-results/
 maeil1dok-next/playwright-report/.auth-state.json
 .vercel
 .env*.local
+
+# OCI production secrets (never commit; .example is tracked)
+.env.oci
