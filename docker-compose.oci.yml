@@ -146,11 +146,15 @@ services:
 
   # Cloudflare Tunnel — api.maeil1dok.app 를 아웃바운드 터널로 web:8000 에 라우팅.
   #   인바운드 포트 없음(80/443 미사용) → urban-blanks nginx/포트와 완전 분리, 공유 네트워크 없음.
-  #   퍼블릭 호스트명→서비스 매핑(api.maeil1dok.app → http://web:8000)은 CF 원격 관리(대시보드/API).
-  #   토큰은 .env.oci 의 CF_TUNNEL_TOKEN 사용.
+  #   credentials + config.yml 기반(로컬 완전제어). ingress(api.maeil1dok.app → http://web:8000)는
+  #   ${OCI_DATA_ROOT}/cloudflared/config.yml, 자격증명 JSON 은 같은 디렉토리(secret, git 미포함, scp 배치).
   cloudflared:
     image: cloudflare/cloudflared:2025.7.0
-    command: tunnel --no-autoupdate --metrics 0.0.0.0:2000 run --token ${CF_TUNNEL_TOKEN:?CF_TUNNEL_TOKEN 필수}
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:2000 --config /etc/cloudflared/config.yml run
+    # 마운트된 secret(600, ubuntu 소유)을 읽기 위해 컨테이너 root(=호스트 root)로 실행.
+    user: "0:0"
+    volumes:
+      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/cloudflared:/etc/cloudflared:ro
     depends_on:
       web:
         condition: service_healthy
