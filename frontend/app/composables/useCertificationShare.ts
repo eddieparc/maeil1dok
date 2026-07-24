@@ -137,7 +137,7 @@ const createCertificationPngBlob = async (payload?: CertificationSharePayload): 
 
   const paper = readCssToken('--color-bg-primary', '#faf8f6');
   const card = readCssToken('--color-bg-card', '#ffffff');
-  const accent = readCssToken('--color-accent-primary', '#4B9F7E');
+  const accent = readCssToken('--color-accent-primary', '#2A1111');
   const textPrimary = readCssToken('--color-text-primary', '#1f2937');
   const textSecondary = readCssToken('--color-text-secondary', '#4b5563');
   const border = readCssToken('--color-border-default', '#e5e7eb');

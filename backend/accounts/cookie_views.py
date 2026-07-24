@@ -16,6 +16,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 
 from .authentication import (
+    CSRFCheck,
     set_auth_cookies,
     clear_auth_cookies,
     get_tokens_for_user,
@@ -24,6 +25,7 @@ from .authentication import (
     REFRESH_TOKEN_COOKIE,
 )
 from .serializers import CustomTokenObtainPairSerializer, UserSerializer
+from .throttles import LoginThrottle
 
 import logging
 
@@ -38,6 +40,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
     프론트엔드가 완전히 마이그레이션되면 본문에서 토큰 제거 가능
     """
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [LoginThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -79,6 +82,15 @@ class CookieTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
         # 쿠키에서 refresh 토큰 읽기 (우선)
         refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE)
+        used_cookie = refresh_token is not None
+
+        if used_cookie:
+            csrf_rejection = CSRFCheck(lambda req: None).process_view(request, None, (), {})
+            if csrf_rejection:
+                return Response(
+                    {'error': 'CSRF validation failed'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         # 쿠키에 없으면 요청 본문에서 읽기 (하위 호환)
         if not refresh_token:
@@ -169,34 +181,26 @@ def cookie_logout(request):
     - access_token이 만료된 상태에서도 사용자가 로그아웃할 수 있어야 함
     - 쿠키 삭제는 인증 상태와 관계없이 수행되어야 함
     """
-    blacklist_success = False
-    blacklist_error = None
-
     refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE)
     if refresh_token:
-        for attempt in range(2):
-            try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-                blacklist_success = True
-                logger.info("Refresh token blacklisted")
-                break
-            except (TokenError, AttributeError) as e:
-                blacklist_error = str(e)
-                if attempt == 0:
-                    logger.warning(f"Blacklist attempt {attempt + 1} failed: {e}, retrying...")
-                else:
-                    logger.error(f"Failed to blacklist token after {attempt + 1} attempts: {e}")
-    else:
-        blacklist_success = True
+        csrf_rejection = CSRFCheck(lambda req: None).process_view(request, None, (), {})
+        if csrf_rejection:
+            return Response(
+                {'error': 'CSRF validation failed'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-    if blacklist_success:
-        response = Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
-    else:
-        response = Response(
-            {'message': 'Logged out, but token revocation failed', 'warning': blacklist_error},
-            status=status.HTTP_200_OK
-        )
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            logger.info("Refresh token blacklisted")
+        except (TokenError, AttributeError) as e:
+            logger.warning(
+                "Refresh token blacklist failed during logout: %s",
+                e.__class__.__name__,
+            )
+
+    response = Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
 
     clear_auth_cookies(response)
     return response

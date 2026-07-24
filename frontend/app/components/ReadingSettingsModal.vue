@@ -560,7 +560,7 @@ function handleModelValueUpdate(value: boolean) {
   width: 24px;
   height: 24px;
   border: 2px solid var(--border-color, #e5e7eb);
-  border-top-color: var(--accent-primary, #4B9F7E);
+  border-top-color: var(--accent-primary, #2A1111);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -687,13 +687,13 @@ function handleModelValueUpdate(value: boolean) {
 }
 
 .theme-chip:hover {
-  border-color: var(--accent-primary, #4B9F7E);
+  border-color: var(--accent-primary, #2A1111);
 }
 
 .theme-chip.active {
-  border-color: var(--accent-primary, #4B9F7E);
+  border-color: var(--accent-primary, #2A1111);
   background: var(--accent-primary-light, #e9f5f0);
-  color: var(--accent-primary, #4B9F7E);
+  color: var(--accent-primary, #2A1111);
 }
 
 .theme-icon {
@@ -781,11 +781,11 @@ function handleModelValueUpdate(value: boolean) {
 }
 
 .font-button:hover {
-  border-color: var(--accent-primary, #4B9F7E);
+  border-color: var(--accent-primary, #2A1111);
 }
 
 .font-button.active {
-  border-color: var(--accent-primary, #4B9F7E);
+  border-color: var(--accent-primary, #2A1111);
   background: var(--accent-primary-light, #e9f5f0);
 }
 
@@ -845,7 +845,7 @@ function handleModelValueUpdate(value: boolean) {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--accent-primary, #4B9F7E);
+  background: var(--accent-primary, #2A1111);
   cursor: pointer;
 }
 
@@ -853,7 +853,7 @@ function handleModelValueUpdate(value: boolean) {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--accent-primary, #4B9F7E);
+  background: var(--accent-primary, #2A1111);
   cursor: pointer;
   border: none;
 }
@@ -863,7 +863,7 @@ function handleModelValueUpdate(value: boolean) {
   text-align: right;
   font-size: 13px;
   font-weight: 600;
-  color: var(--accent-primary, #4B9F7E);
+  color: var(--accent-primary, #2A1111);
 }
 
 /* Chip Buttons Row */
@@ -902,12 +902,12 @@ function handleModelValueUpdate(value: boolean) {
 }
 
 .chip-button:hover {
-  border-color: var(--accent-primary, #4B9F7E);
+  border-color: var(--accent-primary, #2A1111);
 }
 
 .chip-button.active {
-  border-color: var(--accent-primary, #4B9F7E);
-  background: var(--accent-primary, #4B9F7E);
+  border-color: var(--accent-primary, #2A1111);
+  background: var(--accent-primary, #2A1111);
   color: white;
 }
 
@@ -998,7 +998,7 @@ function handleModelValueUpdate(value: boolean) {
 }
 
 .switch input:checked + .switch-slider {
-  background-color: var(--accent-primary, #4B9F7E);
+  background-color: var(--accent-primary, #2A1111);
 }
 
 .switch input:checked + .switch-slider:before {
@@ -1052,8 +1052,8 @@ function handleModelValueUpdate(value: boolean) {
 
 .quick-link:hover {
   background: var(--accent-primary-light, #e9f5f0);
-  border-color: var(--accent-primary, #4B9F7E);
-  color: var(--accent-primary, #4B9F7E);
+  border-color: var(--accent-primary, #2A1111);
+  color: var(--accent-primary, #2A1111);
 }
 
 .quick-link:active {
@@ -1095,7 +1095,7 @@ function handleModelValueUpdate(value: boolean) {
   padding: 12px;
   border: none;
   border-radius: 10px;
-  background: var(--accent-primary, #4B9F7E);
+  background: var(--accent-primary, #2A1111);
   color: white;
   cursor: pointer;
   font-size: 14px;
@@ -1104,7 +1104,7 @@ function handleModelValueUpdate(value: boolean) {
 }
 
 .save-button:hover {
-  background: var(--color-accent-primary-hover, #3B7E63);
+  background: var(--color-accent-primary-hover, #3A1A1A);
 }
 
 /* Collapse Transition */

@@ -13,7 +13,9 @@ from .serializers import (
     AccountEmailSerializer, NotificationSettingsSerializer
 )
 from .authentication import clear_auth_cookies, get_tokens_for_user, set_auth_cookies
+from .email_identity import normalize_email_identity
 from .models import SocialAccount, EmailVerificationToken, PasswordResetToken, UserReadingSettings
+from .visibility import is_live_user
 from .email_utils import send_verification_email, send_password_reset_email, send_welcome_email
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
@@ -40,11 +42,104 @@ OAUTH_LINK_STATE_SALT = 'oauth-link-state'
 OAUTH_LINK_STATE_MAX_AGE = 600
 SOCIAL_MERGE_TOKEN_SALT = 'social-merge-token'
 SOCIAL_MERGE_TOKEN_MAX_AGE = 600
+SESSION_BRIDGE_TTL_SECONDS = 60
 
-def generate_signup_token(provider, provider_id):
+
+class OAuthProviderError(Exception):
+    """Sanitized provider failure safe to include in server logs."""
+
+
+def _valid_session_bridge_code(code):
+    if not isinstance(code, str):
+        return False
+    try:
+        return str(uuid.UUID(code)) == code
+    except ValueError:
+        return False
+
+
+def _consume_session_bridge_user_id(cache, code):
+    if not _valid_session_bridge_code(code):
+        return None
+
+    consumed_key = f'session_bridge_consumed:{code}'
+    if not cache.add(consumed_key, True, timeout=SESSION_BRIDGE_TTL_SECONDS):
+        return None
+
+    cache_key = f'session_bridge:{code}'
+    user_id = cache.get(cache_key)
+    if user_id is None:
+        return None
+
+    cache.delete(cache_key)
+    return user_id
+
+
+def _is_session_bridge_user_eligible(user):
+    return is_live_user(user)
+
+
+def _raise_oauth_provider_error(provider, reason):
+    raise OAuthProviderError(f"{provider} OAuth failed: {reason}")
+
+
+def _is_active_email_identity_conflict(error):
+    return 'active_email_identity' in str(error).lower()
+
+
+def _resolve_email_login_identity(email_identity):
+    """Select the login user for a normalized email.
+
+    The ``active_email_identity`` generated field is unique, so at most one active
+    user can own a normalized email. Prefer that active account so a legitimate
+    active user is never locked out by an intentionally-preserved inactive
+    duplicate (e.g. a scheduled-deletion account). When no active account owns the
+    email, fall back to a single inactive duplicate so scheduled-deletion restore
+    still works; ambiguous inactive duplicates resolve to ``None``.
+    """
+    active_user = User.objects.filter(
+        email__iexact=email_identity, is_active=True
+    ).first()
+    if active_user is not None:
+        return active_user
+    inactive_users = list(
+        User.objects.filter(email__iexact=email_identity, is_active=False)
+        .order_by('id')[:2]
+    )
+    return inactive_users[0] if len(inactive_users) == 1 else None
+
+
+def _create_email_user_with_default_subscription(email, password, nickname):
+    with transaction.atomic():
+        user = User.objects.create(
+            username=f"email_{uuid.uuid4().hex[:12]}",
+            email=email,
+            nickname=nickname,
+            is_social=False,
+            has_usable_password_flag=True,
+        )
+        user.set_password(password)
+        user.save(update_fields=['password'])
+        _create_default_subscription(user)
+    return user
+
+
+def _require_oauth_field(data, field, provider):
+    value = data.get(field) if isinstance(data, dict) else None
+    if value in (None, ''):
+        _raise_oauth_provider_error(provider, f"missing {field}")
+    return value
+
+
+def generate_signup_token(provider, provider_id, email=None, profile_image=None):
     """소셜 로그인 검증 완료 후 회원가입용 서명 토큰 생성"""
     return signing.dumps(
-        {'provider': provider, 'provider_id': str(provider_id)},
+        {
+            'provider': provider,
+            'provider_id': str(provider_id),
+            'email': email or '',
+            'profile_image': profile_image or '',
+        },
         salt=SIGNUP_TOKEN_SALT
     )
 
@@ -54,6 +149,20 @@ def verify_signup_token(token):
         return signing.loads(token, salt=SIGNUP_TOKEN_SALT, max_age=SIGNUP_TOKEN_MAX_AGE)
     except (signing.BadSignature, signing.SignatureExpired):
         return None
+
+
+def _social_signup_claims(provider, social_info):
+    if provider == 'kakao':
+        return {
+            'email': social_info.get('kakao_account', {}).get('email') or '',
+            'profile_image': social_info.get('properties', {}).get('profile_image') or '',
+        }
+    if provider == 'google':
+        return {
+            'email': social_info.get('email') or '',
+            'profile_image': social_info.get('picture') or '',
+        }
+    return {'email': '', 'profile_image': ''}
 
 def generate_oauth_link_state(user):
     return signing.dumps(
@@ -105,6 +214,17 @@ def verify_social_merge_token(token, user):
         return None
     return data
 
+
+def _required_probe_value(request, field_name):
+    value = request.data.get(field_name)
+    if not isinstance(value, str) or not value.strip():
+        return None, Response(
+            {'error': f'{field_name}은(는) 필수입니다.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return value.strip(), None
+
+
 # Create your views here.
 
 @api_view(['POST'])
@@ -112,21 +232,17 @@ def verify_social_merge_token(token, user):
 def register(request):
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
-        user = serializer.save()
-        
-        # 기본 플랜 구독 자동 생성
-        default_plan = BibleReadingPlan.objects.filter(is_default=True).first()
-        if default_plan:
-            subscription = PlanSubscription.objects.create(
-                user=user,
-                plan=default_plan,
-                start_date=timezone.now().date(),
-                is_active=True
+        try:
+            with transaction.atomic():
+                user = serializer.save()
+                _create_default_subscription(user)
+        except IntegrityError as exc:
+            logger.warning(
+                "Legacy register failed during account creation: %s",
+                exc.__class__.__name__,
             )
-            logger.info(f"사용자 {user.username}의 기본 플랜 구독이 생성되었습니다. 플랜: {default_plan.name}")
-        else:
-            logger.warning("기본 플랜이 설정되어 있지 않아 구독을 생성할 수 없습니다.")
-        
+            return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -185,7 +301,12 @@ def social_login(request):
                 suggested_nickname = user_info.get('properties', {}).get('nickname', '')
                 # 카카오 계정에서 이메일 가져오기 (동의한 경우에만 제공됨)
                 kakao_email = user_info.get('kakao_account', {}).get('email')
-                signup_token = generate_signup_token('kakao', user_info['id'])
+                signup_token = generate_signup_token(
+                    'kakao',
+                    user_info['id'],
+                    email=kakao_email,
+                    profile_image=user_info.get('properties', {}).get('profile_image'),
+                )
                 return Response({
                     'needsSignup': True,
                     'kakao_id': user_info['id'],
@@ -227,7 +348,7 @@ def get_kakao_user_info(code, redirect_uri=None):
     # 토큰 응답 확인
     token_data = token_response.json()
     if 'access_token' not in token_data:
-        raise Exception(f"Failed to get access token: {token_data}")
+        _raise_oauth_provider_error('Kakao', 'missing access_token')
         
     access_token = token_data['access_token']
     
@@ -240,8 +361,7 @@ def get_kakao_user_info(code, redirect_uri=None):
     logger.debug(f"Kakao user info response status: {user_response.status_code}")
     
     user_info = user_response.json()
-    if 'id' not in user_info:
-        raise Exception(f"Failed to get user info: {user_info}")
+    _require_oauth_field(user_info, 'id', 'Kakao')
         
     # 프로필 이미지 URL 가져오기
     profile_image = user_info.get('properties', {}).get('profile_image')
@@ -262,9 +382,7 @@ def get_kakao_user_info_by_token(access_token):
     )
     logger.debug(f"Kakao user info by token response status: {response.status_code}")
     data = response.json()
-    if 'id' not in data:
-        logger.warning("Kakao user info response missing 'id' field")
-        return data
+    _require_oauth_field(data, 'id', 'Kakao')
     return data
 
 def get_google_user_info(code, redirect_uri=None):
@@ -291,8 +409,7 @@ def get_google_user_info(code, redirect_uri=None):
     
     token_data = token_response.json()
     if 'error' in token_data:
-        logger.error(f"Google token exchange error: {token_data}")
-        raise Exception(f"Google token exchange failed: {token_data.get('error_description', token_data.get('error'))}")
+        _raise_oauth_provider_error('Google', token_data.get('error') or 'token exchange error')
     
     access_token = token_data.get('access_token')
     if not access_token:
@@ -397,14 +514,18 @@ def get_apple_user_info(id_token):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def check_username(request):
-    username = request.data.get('username')
+    username, error_response = _required_probe_value(request, 'username')
+    if error_response:
+        return error_response
     exists = User.objects.filter(username=username).exists()
     return Response({'available': not exists})
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def check_nickname(request):
-    nickname = request.data.get('nickname')
+    nickname, error_response = _required_probe_value(request, 'nickname')
+    if error_response:
+        return error_response
     exists = User.objects.filter(nickname=nickname).exists()
     return Response({'available': not exists})
 
@@ -415,9 +536,7 @@ def complete_kakao_signup(request):
     try:
         nickname = request.data.get('nickname')
         kakao_id = request.data.get('kakao_id')
-        profile_image = request.data.get('profile_image')
         access_token = request.data.get('access_token')
-        email = request.data.get('email')  # 카카오에서 제공받은 이메일
         
         if not nickname or not kakao_id or not access_token:
             return Response({'error': '필수 정보가 누락되었습니다.'}, status=400)
@@ -428,33 +547,24 @@ def complete_kakao_signup(request):
             return Response({'error': '카카오 계정 인증에 실패했습니다.'}, status=400)
         if str(verified_kakao_id) != str(kakao_id):
             return Response({'error': '카카오 계정 정보가 일치하지 않습니다.'}, status=400)
-            
+        provider_claims = _social_signup_claims('kakao', user_info)
+        email = provider_claims['email']
+        profile_image = provider_claims['profile_image']
+
         social_id = f"kakao_{kakao_id}"
-        
-        # 소셜 로그인은 이메일 인증 완료 처리 (email_verified=True)
-        user = User.objects.create(
-            username=social_id,
-            nickname=nickname,
-            email=email,
-            email_verified=True,  # 소셜 로그인은 이미 인증된 것으로 처리
-            is_social=True,
-            social_provider='kakao',
-            social_id=social_id,
-            profile_image=profile_image
-        )
-        
-        # 기본 플랜 구독 자동 생성
-        default_plan = BibleReadingPlan.objects.filter(is_default=True).first()
-        if default_plan:
-            subscription = PlanSubscription.objects.create(
-                user=user,
-                plan=default_plan,
-                start_date=timezone.now().date(),
-                is_active=True
+
+        with transaction.atomic():
+            user = User.objects.create(
+                username=social_id,
+                nickname=nickname,
+                email=email,
+                email_verified=bool(email),
+                is_social=True,
+                social_provider='kakao',
+                social_id=social_id,
+                profile_image=profile_image
             )
-            logger.info(f"카카오 사용자 {user.nickname}의 기본 플랜 구독이 생성되었습니다. 플랜: {default_plan.name}")
-        else:
-            logger.warning("기본 플랜이 설정되어 있지 않아 구독을 생성할 수 없습니다.")
+            _create_default_subscription(user)
         
         tokens = get_tokens_for_user(user)
         logger.info(f"카카오 회원가입 및 토큰 발급 성공: user_id={user.id}, username={user.username}")
@@ -486,34 +596,18 @@ def email_register(request):
     """이메일/비밀번호로 회원가입"""
     serializer = EmailRegisterSerializer(data=request.data)
     if not serializer.is_valid():
-        return Response(serializer.errors, status=400)
+        return Response({'error': _first_serializer_error(serializer.errors), 'errors': serializer.errors}, status=400)
     
     try:
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
         nickname = serializer.validated_data['nickname']
-        
-        # 이메일 중복 확인
-        if User.objects.filter(email=email).exists():
-            return Response({'error': '이미 사용 중인 이메일입니다.'}, status=400)
-        
+
         # 닉네임 중복 확인
         if User.objects.filter(nickname=nickname).exists():
             return Response({'error': '이미 사용 중인 닉네임입니다.'}, status=400)
-        
-        # 사용자 생성
-        user = User.objects.create(
-            username=f"email_{uuid.uuid4().hex[:12]}",  # 고유 username
-            email=email,
-            nickname=nickname,
-            is_social=False,
-            has_usable_password_flag=True
-        )
-        user.set_password(password)
-        user.save()
-        
-        # 기본 플랜 구독 생성
-        _create_default_subscription(user)
+
+        user = _create_email_user_with_default_subscription(email, password, nickname)
         
         # 토큰 발급
         tokens = get_tokens_for_user(user)
@@ -524,10 +618,12 @@ def email_register(request):
         })
         set_auth_cookies(response, tokens['access'], tokens['refresh'])
         
-        logger.info(f"이메일 회원가입 성공: user_id={user.id}, email={email}")
+        logger.info(f"이메일 회원가입 성공: user_id={user.id}")
         return response
         
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic signup error
+        if isinstance(e, IntegrityError) and _is_active_email_identity_conflict(e):
+            return Response({'error': '이미 사용 중인 이메일입니다.'}, status=400)
         logger.error(f"이메일 회원가입 중 오류: {str(e)}", exc_info=True)
         return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
 
@@ -538,16 +634,17 @@ def email_register(request):
 @throttle_classes([LoginThrottle])
 def email_login(request):
     """이메일 또는 아이디/비밀번호로 로그인 (레거시 아이디 로그인 지원)"""
-    identifier = request.data.get('email')
+    raw_identifier = request.data.get('email')
     password = request.data.get('password')
     
-    if not identifier or not password:
+    if not raw_identifier or not password:
         return Response({'error': '이메일(또는 아이디)과 비밀번호를 입력해주세요.'}, status=400)
+    identifier = str(raw_identifier).strip()
     
     try:
         if '@' in identifier:
-            users = list(User.objects.filter(email=identifier).order_by('id')[:2])
-            user = users[0] if len(users) == 1 else None
+            email_identity = normalize_email_identity(identifier)
+            user = _resolve_email_login_identity(email_identity)
         else:
             user = User.objects.filter(Q(email=identifier) | Q(username=identifier)).first()
         
@@ -746,25 +843,25 @@ def social_login_v2(request):
                     username = f"{provider}_{''.join(random.choices(string.ascii_lowercase + string.digits, k=8))}"
                     break
             
-            user = User.objects.create(
-                username=username,
-                nickname=nickname,
-                email=email or '',
-                email_verified=bool(email),
-                profile_image=profile_image or ''
-            )
-            
-            # SocialAccount 생성
-            SocialAccount.objects.create(
-                user=user,
-                provider=provider,
-                provider_id=provider_id,
-                email=email,
-                profile_image=profile_image,
-                extra_data=social_info if 'social_info' in dir() else {}
-            )
-            
-            _create_default_subscription(user)
+            with transaction.atomic():
+                user = User.objects.create(
+                    username=username,
+                    nickname=nickname,
+                    email=email or '',
+                    email_verified=bool(email),
+                    profile_image=profile_image or ''
+                )
+
+                SocialAccount.objects.create(
+                    user=user,
+                    provider=provider,
+                    provider_id=provider_id,
+                    email=email,
+                    profile_image=profile_image,
+                    extra_data=social_info if 'social_info' in dir() else {}
+                )
+
+                _create_default_subscription(user)
             
             tokens = get_tokens_for_user(user)
             response = Response({
@@ -778,7 +875,12 @@ def social_login_v2(request):
             return response
         
         # 기존 동작: 회원가입 필요 응답
-        signup_token = generate_signup_token(provider, provider_id)
+        signup_token = generate_signup_token(
+            provider,
+            provider_id,
+            email=email,
+            profile_image=profile_image,
+        )
         return Response({
             'needsSignup': True,
             'provider': provider,
@@ -815,6 +917,8 @@ def complete_social_signup(request):
                 return Response({'error': '유효하지 않거나 만료된 인증 토큰입니다.'}, status=400)
             provider = token_data['provider']
             provider_id = token_data['provider_id']
+            email = token_data.get('email') or ''
+            profile_image = token_data.get('profile_image') or ''
         elif access_token and provider and provider_id:
             # 레거시 방식: access_token으로 소셜 API 재검증
             if provider == 'kakao':
@@ -830,6 +934,9 @@ def complete_social_signup(request):
                 return Response({'error': '소셜 계정 인증에 실패했습니다.'}, status=400)
             if str(verified_provider_id) != str(provider_id):
                 return Response({'error': '소셜 계정 정보가 일치하지 않습니다.'}, status=400)
+            provider_claims = _social_signup_claims(provider, social_info)
+            email = provider_claims['email']
+            profile_image = provider_claims['profile_image']
         else:
             return Response({'error': '필수 정보가 누락되었습니다.'}, status=400)
         
@@ -850,7 +957,7 @@ def complete_social_signup(request):
                 username=f"{provider}_{provider_id}",
                 nickname=nickname,
                 email=email,
-                email_verified=True,  # 소셜 로그인은 이미 인증됨
+                email_verified=bool(email),
                 profile_image=profile_image,
                 is_social=True,
                 social_provider=provider,
@@ -947,7 +1054,7 @@ def account_email(request):
         return Response({'error': _first_serializer_error(serializer.errors), 'errors': serializer.errors}, status=400)
 
     new_email = serializer.validated_data['email']
-    if (user.email or '').lower() == new_email:
+    if normalize_email_identity(user.email) == new_email:
         return Response({
             'success': True,
             'email': user.email,
@@ -955,9 +1062,14 @@ def account_email(request):
             'message': '이메일이 유지되었습니다.',
         })
 
-    user.email = new_email
-    user.email_verified = False
-    user.save(update_fields=['email', 'email_verified'])
+    try:
+        user.email = new_email
+        user.email_verified = False
+        user.save(update_fields=['email', 'email_verified'])
+    except IntegrityError as exc:
+        if _is_active_email_identity_conflict(exc):
+            return Response({'error': '이미 사용 중인 이메일입니다.'}, status=400)
+        raise
     logger.info(f"계정 이메일 변경: user_id={user.id}")
     return Response({
         'success': True,
@@ -1152,7 +1264,7 @@ def set_password(request):
     serializer = SetPasswordSerializer(data=request.data, context={'user': user})
     
     if not serializer.is_valid():
-        return Response(serializer.errors, status=400)
+        return Response({'error': _first_serializer_error(serializer.errors), 'errors': serializer.errors}, status=400)
     
     new_password = serializer.validated_data['new_password']
     current_password = serializer.validated_data.get('current_password')
@@ -1221,6 +1333,11 @@ def merge_accounts(request):
 
     if keep_account not in ['current', 'other']:
         return Response({'error': 'keep_account는 current 또는 other여야 합니다.'}, status=400)
+
+    if keep_account == 'other':
+        proof_error = _current_account_proof_error(user, request.data.get('current_password'))
+        if proof_error:
+            return proof_error
 
     if merge_token:
         token_data = verify_social_merge_token(merge_token, user)
@@ -1413,6 +1530,16 @@ def _first_serializer_error(errors):
     return str(errors)
 
 
+def _current_account_proof_error(user, current_password):
+    if not user.has_password_set():
+        return Response({'error': '현재 계정 비밀번호 설정 후 병합할 수 있습니다.'}, status=400)
+    if not current_password:
+        return Response({'error': '현재 계정 비밀번호를 입력해주세요.'}, status=400)
+    if not user.check_password(current_password):
+        return Response({'error': '현재 계정 비밀번호가 올바르지 않습니다.'}, status=400)
+    return None
+
+
 def _merge_user_records(keep_user, delete_user, provider=None, provider_id=None, email=None, profile_image=None, extra_data=None):
     with transaction.atomic():
         for social_account in SocialAccount.objects.select_for_update().filter(user=delete_user):
@@ -1488,7 +1615,7 @@ def send_verification_email_view(request):
 
     계정 존재 여부가 응답으로 드러나지 않도록 항상 동일한 성공 응답을 반환한다.
     """
-    email = request.data.get('email')
+    email = normalize_email_identity(request.data.get('email'))
 
     if not email:
         return Response({'error': '이메일을 입력해주세요.'}, status=400)
@@ -1499,7 +1626,7 @@ def send_verification_email_view(request):
     })
 
     try:
-        users = list(User.objects.filter(email=email, is_active=True).order_by('id')[:2])
+        users = list(User.objects.filter(email__iexact=email, is_active=True).order_by('id')[:2])
         user = users[0] if len(users) == 1 else None
     except Exception:  # noqa: BROAD_EXCEPT_OK  — email enumeration guard intentionally collapses lookup errors
         user = None
@@ -1510,9 +1637,9 @@ def send_verification_email_view(request):
     if user.email_verified:
         return generic_response
 
-    token_obj = EmailVerificationToken.create_token(user, email)
+    token_obj = EmailVerificationToken.create_token(user, user.email)
 
-    if send_verification_email(email, token_obj.token, user.nickname):
+    if send_verification_email(user.email, token_obj.token, user.nickname):
         logger.info(f"이메일 인증 메일 발송: user_id={user.id}")
 
     return generic_response
@@ -1588,12 +1715,12 @@ def resend_verification_email(request):
 @throttle_classes([PasswordResetThrottle])
 def request_password_reset(request):
     """비밀번호 재설정 요청"""
-    email = request.data.get('email')
+    email = normalize_email_identity(request.data.get('email'))
     
     if not email:
         return Response({'error': '이메일을 입력해주세요.'}, status=400)
     
-    users = list(User.objects.filter(email=email, is_active=True).order_by('id')[:2])
+    users = list(User.objects.filter(email__iexact=email, is_active=True).order_by('id')[:2])
     if len(users) != 1:
         return Response({
             'success': True, 
@@ -1609,7 +1736,7 @@ def request_password_reset(request):
     
     token_obj = PasswordResetToken.create_token(user)
     
-    if send_password_reset_email(email, token_obj.token, user.nickname):
+    if send_password_reset_email(user.email, token_obj.token, user.nickname):
         logger.info(f"비밀번호 재설정 메일 발송: user_id={user.id}")
     
     return Response({
@@ -1668,12 +1795,14 @@ def reset_password(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=400)
 
-    user.set_password(new_password)
-    user.has_usable_password_flag = True
-    user.token_version += 1
-    user.save(update_fields=['password', 'has_usable_password_flag', 'token_version'])
-    
-    token_obj.use_token()
+    with transaction.atomic():
+        if not token_obj.use_token():
+            return Response({'error': '링크가 만료되었습니다. 새로운 재설정 링크를 요청해주세요.'}, status=400)
+
+        user.set_password(new_password)
+        user.has_usable_password_flag = True
+        user.token_version += 1
+        user.save(update_fields=['password', 'has_usable_password_flag', 'token_version'])
     
     tokens = get_tokens_for_user(user)
     response = Response({
@@ -1764,10 +1893,16 @@ def session_bridge_issue(request):
     from django.core.cache import cache
     
     user = request.user
+    if not _is_session_bridge_user_eligible(user):
+        return Response(
+            {'error': '삭제 예정이거나 비활성화된 계정은 세션 브리지를 사용할 수 없습니다.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
     code = str(uuid.uuid4())
     cache_key = f'session_bridge:{code}'
     
-    cache.set(cache_key, user.id, timeout=60)
+    cache.set(cache_key, user.id, timeout=SESSION_BRIDGE_TTL_SECONDS)
     
     logger.info(f"세션 브리지 코드 발급: user_id={user.id}, code={code[:8]}...")
     
@@ -1807,22 +1942,18 @@ def session_bridge_consume(request):
             logger.warning("세션 브리지: 코드 없음")
             return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=code_required")
         
-        cache_key = f'session_bridge:{code}'
-        user_id = cache.get(cache_key)
-        
+        user_id = _consume_session_bridge_user_id(cache, code)
         if user_id is None:
             logger.warning(f"세션 브리지: 유효하지 않거나 만료된 코드 code={code[:8]}...")
             return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=invalid_code")
-        
-        cache.delete(cache_key)
         
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             logger.warning(f"세션 브리지: 사용자 없음 user_id={user_id}")
             return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=user_not_found")
-        if not user.is_active:
-            logger.warning(f"세션 브리지: 비활성 사용자 user_id={user_id}")
+        if not _is_session_bridge_user_eligible(user):
+            logger.warning(f"세션 브리지: 비활성 또는 삭제 예정 사용자 user_id={user_id}")
             return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=inactive_user")
         
         tokens = get_tokens_for_user(user)

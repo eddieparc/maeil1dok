@@ -179,6 +179,32 @@ describe('useNote', () => {
       const createCall = (global.fetch as any).mock.calls[1]
       const body = JSON.parse(createCall[1].body)
       expect(body.start_verse).toBe(5)
+      expect(body.end_verse).toBe(5)
+    })
+
+    it('sends both verse bounds as null when no verse is provided', async () => {
+      ;(global.fetch as any)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: { id: '1', book: 'gen', chapter: 1, content: 'Test', created_at: '2026-03-02' },
+          }),
+        })
+
+      const { result } = renderHook(() => useNote('gen', 1))
+
+      await act(async () => {
+        await result.current.createNote('Test')
+      })
+
+      const createCall = (global.fetch as any).mock.calls[1]
+      const body = JSON.parse(createCall[1].body)
+      expect(body.start_verse).toBeNull()
+      expect(body.end_verse).toBeNull()
     })
 
     it('updates noteCount after creating a note', async () => {

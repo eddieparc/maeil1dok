@@ -530,10 +530,10 @@ onMounted(async () => {
 .sanctuary-theme {
   --font-serif: 'Noto Serif KR', 'RIDIBatang', serif;
   --font-sans: 'Pretendard', sans-serif;
-  --primary-color: #6366f1;
-  --primary-dark: #4f46e5;
-  --color-success: #10b981;
-  --color-success-dark: #059669;
+  --primary-color: var(--color-accent-primary);
+  --primary-dark: var(--color-accent-primary-hover);
+  --color-success: var(--color-accent-primary);
+  --color-success-dark: var(--color-accent-primary-dark);
 
   font-family: var(--font-sans);
   background-color: var(--color-bg-primary);
@@ -738,7 +738,7 @@ onMounted(async () => {
 }
 
 .summary-btn:hover {
-  background: var(--color-accent-primary-dark, #4f46e5);
+  background: var(--color-accent-primary-dark, #3A1A1A);
   transform: translateY(-1px);
 }
 
@@ -928,11 +928,11 @@ onMounted(async () => {
   font-size: 0.65rem;
   font-weight: 700;
   color: var(--color-accent-primary);
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(42, 17, 17, 0.1);
   padding: 0.2rem 0.4rem;
   border-radius: 6px;
   letter-spacing: 0.5px;
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(42, 17, 17, 0.2);
 }
 
 /* 툴팁 스타일 */
@@ -1188,12 +1188,12 @@ onMounted(async () => {
   min-height: 46px;
   padding: 0.75rem 1.25rem;
   color: white;
-  background: linear-gradient(135deg, var(--color-success) 0%, #34d399 100%);
+  background: linear-gradient(135deg, var(--color-success) 0%, #3A1A1A 100%);
   border: none;
   border-radius: 12px;
   box-shadow:
-    0 10px 24px rgba(16, 185, 129, 0.28),
-    0 3px 8px rgba(16, 185, 129, 0.2);
+    0 10px 24px rgba(42, 17, 17, 0.28),
+    0 3px 8px rgba(42, 17, 17, 0.2);
   cursor: pointer;
   font-family: inherit;
   font-size: 0.9rem;

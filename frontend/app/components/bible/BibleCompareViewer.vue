@@ -188,8 +188,8 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
 
 .swap-btn:hover {
   background: var(--primary-light, #eef2ff);
-  color: var(--primary-color, #6366f1);
-  border-color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
+  border-color: var(--primary-color, #2A1111);
 }
 
 .bible-content {
@@ -247,7 +247,7 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
 }
 
 .theme-dark .swap-btn:hover {
-  background: rgba(99, 102, 241, 0.15);
+  background: rgba(42, 17, 17, 0.15);
 }
 
 @media (max-width: 640px) {

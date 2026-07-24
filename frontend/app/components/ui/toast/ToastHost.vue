@@ -38,8 +38,8 @@ function handleDismiss(id: string) {
   --z-toast: 9999;
 
   /* Colors */
-  --toast-bg-info: #2563eb;
-  --toast-bg-success: #059669;
+  --toast-bg-info: #3A1A1A;
+  --toast-bg-success: #1F0C0C;
   --toast-bg-warning: #d97706;
   --toast-bg-error: #dc2626;
 }
@@ -47,8 +47,8 @@ function handleDismiss(id: string) {
 /* Dark mode */
 [data-theme="dark"],
 .dark {
-  --toast-bg-info: #3b82f6;
-  --toast-bg-success: #10b981;
+  --toast-bg-info: #2A1111;
+  --toast-bg-success: #2A1111;
   --toast-bg-warning: #f59e0b;
   --toast-bg-error: #ef4444;
 }

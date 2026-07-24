@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useApi } from '~/composables/useApi'
+import { getTodayString } from '~/utils/dateFormat'
 import type {
   CatchupSession,
   CatchupSchedule,
@@ -33,7 +34,8 @@ export const useCatchupStore = defineStore('catchup', () => {
     loading.value = true
     error.value = null
     try {
-      status.value = await api.get(`/api/v1/todos/subscriptions/${subscriptionId}/catchup-status/`)
+      const res = await api.get(`/api/v1/todos/subscriptions/${subscriptionId}/catchup-status/`)
+      status.value = res.data
       if (status.value?.active_catchup_session) {
         activeSession.value = status.value.active_catchup_session
       }
@@ -48,7 +50,8 @@ export const useCatchupStore = defineStore('catchup', () => {
     loading.value = true
     error.value = null
     try {
-      activeSessions.value = await api.get('/api/v1/todos/catchup-sessions/active/')
+      const res = await api.get('/api/v1/todos/catchup-sessions/active/')
+      activeSessions.value = res.data
       if (activeSessions.value.length > 0) {
         activeSession.value = activeSessions.value[0]
       }
@@ -65,11 +68,12 @@ export const useCatchupStore = defineStore('catchup', () => {
     loading.value = true
     error.value = null
     try {
-      const today = new Date().toISOString().split('T')[0]
-      const response: CatchupSchedulesResponse = await api.get(
+      const today = getTodayString()
+      const res = await api.get(
         `/api/v1/todos/catchup-sessions/${activeSession.value.id}/schedules/?date=${today}`
       )
-      if (response.schedules.length > 0) {
+      const response: CatchupSchedulesResponse = res.data
+      if (response?.schedules?.length > 0) {
         todaySchedules.value = response.schedules[0].items
       } else {
         todaySchedules.value = []

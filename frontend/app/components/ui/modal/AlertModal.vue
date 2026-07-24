@@ -81,12 +81,12 @@ function handleConfirm() {
 
 .alert-icon-info {
   background: #dbeafe;
-  color: #2563eb;
+  color: #3A1A1A;
 }
 
 .alert-icon-success {
   background: #d1fae5;
-  color: #059669;
+  color: #1F0C0C;
 }
 
 .alert-title {
@@ -116,12 +116,12 @@ function handleConfirm() {
   border: none;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: var(--color-primary, #3b82f6);
+  background: var(--color-primary, #2A1111);
   color: white;
 }
 
 .alert-btn:hover {
-  background: var(--color-primary-dark, #2563eb);
+  background: var(--color-primary-dark, #3A1A1A);
 }
 
 /* Dark mode */
@@ -146,12 +146,12 @@ function handleConfirm() {
 [data-theme="dark"] .alert-icon-info,
 .dark .alert-icon-info {
   background: #1e3a8a;
-  color: #60a5fa;
+  color: #2A1111;
 }
 
 [data-theme="dark"] .alert-icon-success,
 .dark .alert-icon-success {
   background: #064e3b;
-  color: #34d399;
+  color: #3A1A1A;
 }
 </style>

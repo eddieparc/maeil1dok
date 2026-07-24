@@ -6,7 +6,7 @@ from calendar import monthrange
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Subquery
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -17,8 +17,39 @@ from .models import (
     UserPlanDisplaySettings, PlanSubscription,
     DailyBibleSchedule, UserBibleProgress
 )
-from .serializers import UserPlanDisplaySettingsSerializer
+from .serializers import (
+    CalendarMonthQuerySerializer,
+    CalendarSettingReorderItemSerializer,
+    CalendarSettingUpdateSerializer,
+    UserPlanDisplaySettingsSerializer,
+)
 from .views import book_to_code
+
+
+def _calendar_settings_for_user(user):
+    return UserPlanDisplaySettings.objects.filter(
+        user=user,
+        subscription__is_active=True,
+    ).select_related('subscription', 'subscription__plan')
+
+
+def _settings_by_id(user, setting_ids):
+    settings = UserPlanDisplaySettings.objects.filter(
+        user=user,
+        id__in=setting_ids,
+        subscription__is_active=True,
+    )
+    return {setting.id: setting for setting in settings}
+
+
+def _duplicate_values(values):
+    seen = set()
+    duplicates = set()
+    for value in values:
+        if value in seen:
+            duplicates.add(value)
+        seen.add(value)
+    return duplicates
 
 
 @api_view(['GET'])
@@ -28,10 +59,7 @@ def get_calendar_settings(request):
     사용자의 모든 플랜 표시 설정 조회
     GET /api/v1/todos/calendar/settings/
     """
-    settings = UserPlanDisplaySettings.objects.filter(
-        user=request.user,
-        subscription__is_active=True
-    ).select_related('subscription', 'subscription__plan').order_by('display_order')
+    settings = _calendar_settings_for_user(request.user).order_by('display_order')
 
     serializer = UserPlanDisplaySettingsSerializer(settings, many=True)
 
@@ -49,20 +77,29 @@ def update_calendar_setting(request, pk):
     PATCH /api/v1/todos/calendar/settings/<id>/
     """
     try:
-        setting = UserPlanDisplaySettings.objects.get(pk=pk, user=request.user)
+        setting = UserPlanDisplaySettings.objects.get(
+            pk=pk,
+            user=request.user,
+            subscription__is_active=True,
+        )
     except UserPlanDisplaySettings.DoesNotExist:
         return Response({
             'success': False,
             'error': '설정을 찾을 수 없습니다.'
         }, status=status.HTTP_404_NOT_FOUND)
 
-    # 허용된 필드만 업데이트
-    allowed_fields = ['color', 'is_visible']
-    for field in allowed_fields:
-        if field in request.data:
-            setattr(setting, field, request.data[field])
+    serializer = CalendarSettingUpdateSerializer(
+        setting,
+        data=request.data,
+        partial=True,
+    )
+    if not serializer.is_valid():
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
-    setting.save()
+    serializer.save()
     serializer = UserPlanDisplaySettingsSerializer(setting)
 
     return Response({
@@ -87,24 +124,38 @@ def reorder_calendar_settings(request):
             'error': '순서 정보가 필요합니다.'
         }, status=status.HTTP_400_BAD_REQUEST)
 
+    serializer = CalendarSettingReorderItemSerializer(data=orders, many=True)
+    if not serializer.is_valid():
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    validated_orders = serializer.validated_data
+    setting_ids = [item['id'] for item in validated_orders]
+    if _duplicate_values(setting_ids):
+        return Response({
+            'success': False,
+            'error': '중복된 설정 ID가 포함되어 있습니다.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    settings_map = _settings_by_id(request.user, setting_ids)
+    if len(settings_map) != len(setting_ids):
+        return Response({
+            'success': False,
+            'error': '설정을 찾을 수 없습니다.'
+        }, status=status.HTTP_404_NOT_FOUND)
+
     with transaction.atomic():
-        for item in orders:
-            setting_id = item.get('id')
-            display_order = item.get('display_order')
-
-            if setting_id is None or display_order is None:
-                continue
-
-            UserPlanDisplaySettings.objects.filter(
-                pk=setting_id,
-                user=request.user
-            ).update(display_order=display_order)
+        settings = []
+        for item in validated_orders:
+            setting = settings_map[item['id']]
+            setting.display_order = item['display_order']
+            settings.append(setting)
+        UserPlanDisplaySettings.objects.bulk_update(settings, ['display_order'])
 
     # 업데이트된 설정 반환
-    settings = UserPlanDisplaySettings.objects.filter(
-        user=request.user,
-        subscription__is_active=True
-    ).select_related('subscription', 'subscription__plan').order_by('display_order')
+    settings = _calendar_settings_for_user(request.user).order_by('display_order')
 
     serializer = UserPlanDisplaySettingsSerializer(settings, many=True)
 
@@ -114,6 +165,60 @@ def reorder_calendar_settings(request):
     })
 
 
+def _format_schedule_chapters(schedule):
+    if schedule.start_chapter == schedule.end_chapter:
+        return f"{schedule.start_chapter}장"
+    return f"{schedule.start_chapter}-{schedule.end_chapter}장"
+
+
+def _month_schedules_by_plan(plan_ids, start_date, end_date):
+    if not plan_ids:
+        return {}, []
+
+    schedules_by_plan = defaultdict(list)
+    schedule_ids = []
+    schedules = DailyBibleSchedule.objects.filter(
+        plan_id__in=plan_ids,
+        date__range=[start_date, end_date],
+    ).order_by('date', 'id')
+
+    for schedule in schedules:
+        schedules_by_plan[schedule.plan_id].append(schedule)
+        schedule_ids.append(schedule.id)
+
+    return schedules_by_plan, schedule_ids
+
+
+def _progress_completion_map(subscription_ids, schedule_ids):
+    if not subscription_ids or not schedule_ids:
+        return {}
+
+    progress_rows = UserBibleProgress.objects.filter(
+        subscription_id__in=subscription_ids,
+        schedule_id__in=schedule_ids,
+    ).values_list('subscription_id', 'schedule_id', 'is_completed')
+    return {
+        (subscription_id, schedule_id): is_completed
+        for subscription_id, schedule_id, is_completed in progress_rows
+    }
+
+
+def _calendar_item(display_setting, schedule, is_completed):
+    subscription = display_setting.subscription
+    plan = subscription.plan
+    return {
+        'plan_id': plan.id,
+        'plan_name': plan.name,
+        'subscription_id': subscription.id,
+        'color': display_setting.color,
+        'book': schedule.book,
+        'chapters': _format_schedule_chapters(schedule),
+        'is_completed': is_completed,
+        'schedule_id': schedule.id,
+        'is_visible': display_setting.is_visible
+    }
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_calendar_month_data(request):
@@ -121,17 +226,17 @@ def get_calendar_month_data(request):
     멀티플랜 월별 캘린더 데이터 조회
     GET /api/v1/todos/calendar/month/?year=2025&month=12
     """
-    year = request.query_params.get('year')
-    month = request.query_params.get('month')
+    query_serializer = CalendarMonthQuerySerializer(data=request.query_params)
+    if not query_serializer.is_valid():
+        return Response({
+            'success': False,
+            'errors': query_serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     # 기본값: 현재 월
     today = date.today()
-    if not year or not month:
-        year = today.year
-        month = today.month
-    else:
-        year = int(year)
-        month = int(month)
+    year = query_serializer.validated_data.get('year', today.year)
+    month = query_serializer.validated_data.get('month', today.month)
 
     # 해당 월의 시작일과 종료일
     _, last_day = monthrange(year, month)
@@ -139,71 +244,49 @@ def get_calendar_month_data(request):
     end_date = date(year, month, last_day)
 
     # 사용자의 활성 구독 및 표시 설정 조회
-    display_settings = UserPlanDisplaySettings.objects.filter(
-        user=request.user,
-        subscription__is_active=True
-    ).select_related('subscription', 'subscription__plan')
+    display_settings = list(
+        _calendar_settings_for_user(request.user).order_by(
+            'display_order',
+            'created_at',
+        )
+    )
+    subscription_ids = [setting.subscription_id for setting in display_settings]
+    plan_ids = [setting.subscription.plan_id for setting in display_settings]
+    display_rank_by_subscription_id = {
+        setting.subscription_id: index
+        for index, setting in enumerate(display_settings)
+    }
 
-    # 설정을 subscription_id로 매핑
-    settings_map = {ds.subscription_id: ds for ds in display_settings}
+    schedules_by_plan, schedule_ids = _month_schedules_by_plan(
+        plan_ids,
+        start_date,
+        end_date,
+    )
+    progress_map = _progress_completion_map(subscription_ids, schedule_ids)
 
-    # 결과 데이터 구조
     calendar_data = defaultdict(list)
-
-    # 각 구독에 대해 스케줄 및 진행 상태 조회
     for display_setting in display_settings:
-        subscription = display_setting.subscription
-        plan = subscription.plan
-
-        # 해당 플랜의 스케줄 조회
-        schedules = DailyBibleSchedule.objects.filter(
-            plan=plan,
-            date__range=[start_date, end_date]
-        ).order_by('date')
-
-        # 진행 상태 조회 (해당 구독의)
-        progress_map = {}
-        progress_records = UserBibleProgress.objects.filter(
-            subscription=subscription,
-            schedule__date__range=[start_date, end_date]
-        ).select_related('schedule')
-
-        for progress in progress_records:
-            progress_map[progress.schedule_id] = progress.is_completed
-
-        # 날짜별 데이터 구성
-        for schedule in schedules:
+        subscription_id = display_setting.subscription_id
+        plan_id = display_setting.subscription.plan_id
+        for schedule in schedules_by_plan.get(plan_id, []):
             date_str = schedule.date.isoformat()
-
-            # 챕터 형식화
-            if schedule.start_chapter == schedule.end_chapter:
-                chapters = f"{schedule.start_chapter}장"
-            else:
-                chapters = f"{schedule.start_chapter}-{schedule.end_chapter}장"
-
-            calendar_data[date_str].append({
-                'plan_id': plan.id,
-                'plan_name': plan.name,
-                'subscription_id': subscription.id,
-                'color': display_setting.color,
-                'book': schedule.book,
-                'chapters': chapters,
-                'is_completed': progress_map.get(schedule.id, False),
-                'schedule_id': schedule.id,
-                'is_visible': display_setting.is_visible
-            })
+            is_completed = progress_map.get((subscription_id, schedule.id), False)
+            calendar_data[date_str].append(
+                _calendar_item(display_setting, schedule, is_completed)
+            )
 
     # 표시 순서에 따라 각 날짜의 데이터 정렬
     for date_str in calendar_data:
         calendar_data[date_str].sort(
-            key=lambda x: settings_map.get(x['subscription_id'], {}).display_order
-            if hasattr(settings_map.get(x['subscription_id'], {}), 'display_order')
-            else 999
+            key=lambda item: display_rank_by_subscription_id.get(
+                item['subscription_id'],
+                999,
+            )
         )
 
     # 설정 정보도 함께 반환
     settings_serializer = UserPlanDisplaySettingsSerializer(
-        display_settings.order_by('display_order'), many=True
+        display_settings, many=True
     )
 
     return Response({
@@ -225,59 +308,78 @@ def get_last_incomplete_positions(request):
     GET /api/v1/todos/calendar/last-incomplete/
     """
     today = date.today()
+
+    # 완료된 진도가 있는지 확인하기 위한 상관 서브쿼리
+    # (바깥쪽 구독 + 후보 스케줄로 스코프)
+    completed_progress = UserBibleProgress.objects.filter(
+        subscription_id=OuterRef(OuterRef('pk')),
+        schedule_id=OuterRef('pk'),
+        is_completed=True,
+    )
+
+    # 각 구독별 마지막 미완료 스케줄 id를 구하는 상관 서브쿼리
+    last_incomplete_schedule = DailyBibleSchedule.objects.filter(
+        plan_id=OuterRef('plan_id'),
+        date__lte=today,
+    ).filter(
+        ~Exists(completed_progress)
+    ).order_by('-date', '-id').values('id')[:1]
+
+    # 활성 구독을 한 번만 조회하면서 마지막 미완료 스케줄 id를 주석으로 첨부
+    subscriptions = list(
+        PlanSubscription.objects.filter(
+            user=request.user,
+            is_active=True,
+        ).select_related('plan').annotate(
+            last_incomplete_schedule_id=Subquery(last_incomplete_schedule)
+        )
+    )
+
+    # 주석된 스케줄 id를 대량 조회
+    schedule_ids = [
+        subscription.last_incomplete_schedule_id
+        for subscription in subscriptions
+        if subscription.last_incomplete_schedule_id is not None
+    ]
+    schedule_by_id = {}
+    if schedule_ids:
+        schedule_by_id = {
+            schedule.id: schedule
+            for schedule in DailyBibleSchedule.objects.filter(id__in=schedule_ids)
+        }
+
+    # 표시 색상을 대량 조회 (없으면 기본색 대체)
+    subscription_ids = [subscription.id for subscription in subscriptions]
+    color_by_subscription_id = dict(
+        UserPlanDisplaySettings.objects.filter(
+            user=request.user,
+            subscription_id__in=subscription_ids,
+        ).values_list('subscription_id', 'color')
+    )
+
     positions = []
-
-    # 사용자의 활성 구독 조회
-    subscriptions = PlanSubscription.objects.filter(
-        user=request.user,
-        is_active=True
-    ).select_related('plan')
-
     for subscription in subscriptions:
+        schedule_id = subscription.last_incomplete_schedule_id
+        if schedule_id is None:
+            continue
+        schedule = schedule_by_id.get(schedule_id)
+        if schedule is None:
+            continue
+
         plan = subscription.plan
-
-        # 오늘 이전의 미완료 스케줄 찾기
-        # 1. 해당 플랜의 모든 스케줄 중 오늘 이전 것
-        # 2. UserBibleProgress가 없거나 is_completed=False인 것
-        incomplete_schedules = DailyBibleSchedule.objects.filter(
-            plan=plan,
-            date__lte=today
-        ).exclude(
-            progress_records__subscription=subscription,
-            progress_records__is_completed=True
-        ).order_by('-date')
-
-        if incomplete_schedules.exists():
-            schedule = incomplete_schedules.first()
-
-            # 챕터 형식화
-            if schedule.start_chapter == schedule.end_chapter:
-                chapters = f"{schedule.start_chapter}장"
-            else:
-                chapters = f"{schedule.start_chapter}-{schedule.end_chapter}장"
-
-            # 표시 설정에서 색상 가져오기
-            try:
-                display_setting = UserPlanDisplaySettings.objects.get(
-                    user=request.user,
-                    subscription=subscription
-                )
-                color = display_setting.color
-            except UserPlanDisplaySettings.DoesNotExist:
-                color = '#3B82F6'
-
-            positions.append({
-                'plan_id': plan.id,
-                'plan_name': plan.name,
-                'subscription_id': subscription.id,
-                'color': color,
-                'date': schedule.date.isoformat(),
-                'book': schedule.book,
-                'book_code': book_to_code.get(schedule.book, 'gen'),
-                'chapters': chapters,
-                'start_chapter': schedule.start_chapter,
-                'schedule_id': schedule.id
-            })
+        color = color_by_subscription_id.get(subscription.id, '#3B82F6')
+        positions.append({
+            'plan_id': plan.id,
+            'plan_name': plan.name,
+            'subscription_id': subscription.id,
+            'color': color,
+            'date': schedule.date.isoformat(),
+            'book': schedule.book,
+            'book_code': book_to_code.get(schedule.book, 'gen'),
+            'chapters': _format_schedule_chapters(schedule),
+            'start_chapter': schedule.start_chapter,
+            'schedule_id': schedule.id
+        })
 
     # 날짜 기준 정렬 (가장 최근 미완료가 먼저)
     positions.sort(key=lambda x: x['date'], reverse=True)

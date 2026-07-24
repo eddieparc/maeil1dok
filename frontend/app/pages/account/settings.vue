@@ -89,16 +89,16 @@
           <div class="setting-info">
             <p class="setting-label">비밀번호 설정</p>
             <p class="setting-description">
-              {{ linkedAccounts?.has_password ? '비밀번호가 설정되어 있습니다' : '이메일 로그인을 위해 비밀번호를 설정하세요' }}
+              {{ linkedAccounts?.has_password ? '비밀번호가 설정되어 있습니다' : '비밀번호 재설정 이메일로 본인 확인 후 설정하세요' }}
             </p>
           </div>
-          <button @click="showPasswordPanel = !showPasswordPanel" class="btn btn-secondary">
-            {{ showPasswordPanel ? '닫기' : (linkedAccounts?.has_password ? '변경' : '설정') }}
+          <button @click="handlePasswordAction" class="btn btn-secondary">
+            {{ linkedAccounts?.has_password ? (showPasswordPanel ? '닫기' : '변경') : '재설정' }}
           </button>
         </div>
 
-        <form v-if="showPasswordPanel" @submit.prevent="handleSetPassword" class="inline-form">
-          <div v-if="linkedAccounts?.has_password" class="input-wrapper">
+        <form v-if="showPasswordPanel && linkedAccounts?.has_password" @submit.prevent="handleSetPassword" class="inline-form">
+          <div class="input-wrapper">
             <label for="current-password">현재 비밀번호</label>
             <input id="current-password" v-model="currentPassword" type="password" placeholder="현재 비밀번호" autocomplete="current-password">
           </div>
@@ -427,6 +427,14 @@ const emailButtonText = computed(() => {
   if (emailCooldown.value > 0) return `${emailCooldown.value}초`
   return '인증 메일 발송'
 })
+
+const handlePasswordAction = () => {
+  if (!linkedAccounts.value?.has_password) {
+    navigateTo('/auth/forgot-password')
+    return
+  }
+  showPasswordPanel.value = !showPasswordPanel.value
+}
 
 const isKakaoLinked = computed(() => isProviderLinked('kakao'))
 const isGoogleLinked = computed(() => isProviderLinked('google'))

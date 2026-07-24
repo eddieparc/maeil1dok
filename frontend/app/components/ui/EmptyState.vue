@@ -103,7 +103,7 @@ withDefaults(defineProps<{
   justify-content: center;
   width: 24px;
   height: 24px;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
   font-size: 0.75rem;
   font-weight: 600;

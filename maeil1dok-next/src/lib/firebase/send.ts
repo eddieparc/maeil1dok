@@ -1,5 +1,7 @@
 import { getFirebaseAdmin } from './admin'
 
+const FCM_MULTICAST_TOKEN_LIMIT = 500
+
 export async function sendPushNotification(
   token: string,
   title: string,
@@ -33,32 +35,42 @@ export async function sendMulticastNotification(
   if (tokens.length === 0) return { successCount: 0, failureCount: 0, staleTokens: [] }
 
   const messaging = getFirebaseAdmin()
-  const response = await messaging.sendEachForMulticast({
-    tokens,
-    notification: { title, body },
-    data,
-    webpush: {
-      notification: { title, body, icon: '/icon-192x192.png' },
-      fcmOptions: { link: data?.url ?? '/' },
-    },
-  })
 
+  let successCount = 0
+  let failureCount = 0
   const staleTokens: string[] = []
-  response.responses.forEach((resp, idx) => {
-    if (!resp.success) {
-      const code = resp.error?.code
-      if (
-        code === 'messaging/registration-token-not-registered' ||
-        code === 'messaging/invalid-registration-token'
-      ) {
-        staleTokens.push(tokens[idx])
+
+  for (let start = 0; start < tokens.length; start += FCM_MULTICAST_TOKEN_LIMIT) {
+    const chunk = tokens.slice(start, start + FCM_MULTICAST_TOKEN_LIMIT)
+    const response = await messaging.sendEachForMulticast({
+      tokens: chunk,
+      notification: { title, body },
+      data,
+      webpush: {
+        notification: { title, body, icon: '/icon-192x192.png' },
+        fcmOptions: { link: data?.url ?? '/' },
+      },
+    })
+
+    successCount += response.successCount
+    failureCount += response.failureCount
+
+    response.responses.forEach((resp, idx) => {
+      if (!resp.success) {
+        const code = resp.error?.code
+        if (
+          code === 'messaging/registration-token-not-registered' ||
+          code === 'messaging/invalid-registration-token'
+        ) {
+          staleTokens.push(chunk[idx])
+        }
       }
-    }
-  })
+    })
+  }
 
   return {
-    successCount: response.successCount,
-    failureCount: response.failureCount,
+    successCount,
+    failureCount,
     staleTokens,
   }
 }

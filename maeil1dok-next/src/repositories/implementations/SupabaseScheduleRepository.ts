@@ -50,6 +50,22 @@ export class SupabaseScheduleRepository implements IScheduleRepository {
     return (data ?? []).map(mapSchedule)
   }
 
+  async getSchedulesForPlans(planIds: number[], start: string, end: string): Promise<DailySchedule[]> {
+    const uniquePlanIds = [...new Set(planIds)]
+    if (uniquePlanIds.length === 0) return []
+
+    const { data, error } = await this.supabase
+      .from('daily_schedules')
+      .select('*')
+      .in('plan_id', uniquePlanIds)
+      .gte('date', start)
+      .lte('date', end)
+      .order('date')
+
+    if (error) throw new NetworkError(error.message, error)
+    return (data ?? []).map(mapSchedule)
+  }
+
   async getCurrentSchedule(): Promise<DailySchedule | null> {
     const today = new Date().toISOString().split('T')[0]
     return this.getScheduleByDate(today)

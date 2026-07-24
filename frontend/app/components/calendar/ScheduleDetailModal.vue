@@ -208,8 +208,8 @@ const handleNavigate = (item: ScheduleDetail) => {
 }
 
 .status-badge.completed {
-  background: var(--green-100, #DCFCE7);
-  color: var(--green-700, #15803D);
+  background: var(--color-accent-primary-light);
+  color: var(--color-accent-primary);
 }
 
 .status-badge.pending {

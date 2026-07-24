@@ -946,7 +946,7 @@ defineExpose({
 }
 
 .bible-content :deep(.verse-num) {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-weight: 700;
   font-size: 0.75em;
   margin-right: 0.25em;
@@ -956,7 +956,7 @@ defineExpose({
 }
 
 .bible-content :deep(.verse-num:hover) {
-  color: var(--primary-dark, #4f46e5);
+  color: var(--primary-dark, #3A1A1A);
 }
 
 /* 절 연결 모드 */
@@ -1063,7 +1063,7 @@ defineExpose({
 
 .bible-content :deep(.external-link) {
   padding: 0.75rem 1.5rem;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
   border-radius: 8px;
   font-size: 0.875rem;
@@ -1073,7 +1073,7 @@ defineExpose({
 }
 
 .bible-content :deep(.external-link:hover) {
-  background: var(--primary-dark, #4f46e5);
+  background: var(--primary-dark, #3A1A1A);
 }
 
 /* iOS 안전영역 */
@@ -1147,7 +1147,7 @@ defineExpose({
 
 /* 선택된 절 하이라이트 */
 .bible-content :deep(.verse.selected-verse) {
-  background-color: rgba(75, 159, 126, 0.15) !important; /* 앱 primary 그린 */
+  background-color: rgba(42, 17, 17, 0.15) !important; /* 앱 primary 그린 */
   transition: background-color 0.2s ease;
   border-radius: 8px;
   position: relative;
@@ -1155,7 +1155,7 @@ defineExpose({
 }
 
 .theme-dark .bible-content :deep(.verse.selected-verse) {
-  background-color: rgba(107, 201, 159, 0.2) !important; /* 다크모드 그린 */
+  background-color: rgba(42, 17, 17, 0.2) !important; /* 다크모드 그린 */
 }
 
 /* 다중 절 선택: 연속 블록으로 표시 */
@@ -1177,13 +1177,13 @@ defineExpose({
 
 /* 하이라이트된 절이 선택되었을 때 - 외곽선으로 선택 표시 (배경색 유지) */
 .bible-content :deep(.verse.highlighted.selected-verse) {
-  box-shadow: 0 0 0 2px var(--color-accent-primary, #4B9F7E);
+  box-shadow: 0 0 0 2px var(--color-accent-primary, #2A1111);
 }
 
 /* 다크모드에서 하이라이트된 절이 선택되었을 때 */
 .theme-dark .bible-content :deep(.verse.highlighted.selected-verse),
 :root[data-theme="dark"] .bible-content :deep(.verse.highlighted.selected-verse) {
-  box-shadow: 0 0 0 2px var(--color-accent-primary, #6bc99f);
+  box-shadow: 0 0 0 2px var(--color-accent-primary, #2A1111);
 }
 
 /* 절 hover 효과 */
@@ -1332,7 +1332,7 @@ defineExpose({
 
 /* 각주 마커 */
 .bible-content :deep(.footnote-marker) {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   cursor: help;
   font-size: 0.75em;
   vertical-align: super;
@@ -1484,13 +1484,13 @@ defineExpose({
 
 /* 하이라이트된 절이 선택되었을 때 - 외곽선으로 선택 표시 (배경색 유지) */
 .bible-content .verse.highlighted.selected-verse {
-  box-shadow: 0 0 0 2px var(--color-accent-primary, #4B9F7E);
+  box-shadow: 0 0 0 2px var(--color-accent-primary, #2A1111);
 }
 
 /* 다크모드에서 하이라이트된 절이 선택되었을 때 - 초록색 외곽선 */
 .theme-dark .bible-content .verse.highlighted.selected-verse,
 :root[data-theme="dark"] .bible-content .verse.highlighted.selected-verse {
-  box-shadow: 0 0 0 2px var(--color-accent-primary, #6bc99f) !important;
+  box-shadow: 0 0 0 2px var(--color-accent-primary, #2A1111) !important;
   filter: none !important; /* 기존 필터 제거 */
 }
 </style>

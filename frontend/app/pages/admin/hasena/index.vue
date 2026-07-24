@@ -338,7 +338,7 @@ const formatDate = (dateStr: string) => {
 }
 
 .action-btn.regenerate {
-  background: #10b981;
+  background: #2A1111;
   color: white;
 }
 

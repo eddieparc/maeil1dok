@@ -104,7 +104,7 @@ const formatDate = (dateStr: string | null) => {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary, #3b82f6), var(--color-primary-light, #60a5fa));
+  background: linear-gradient(90deg, var(--color-primary, #2A1111), var(--color-primary-light, #2A1111));
   border-radius: 6px;
   transition: width 0.3s ease;
 }
@@ -118,7 +118,7 @@ const formatDate = (dateStr: string | null) => {
 
 .progress-percent {
   font-weight: 600;
-  color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #2A1111);
 }
 
 .progress-count {
@@ -187,13 +187,13 @@ const formatDate = (dateStr: string | null) => {
 }
 
 .action-button.primary {
-  background: var(--color-primary, #3b82f6);
+  background: var(--color-primary, #2A1111);
   border: none;
   color: white;
 }
 
 .action-button.primary:hover {
-  background: var(--color-primary-dark, #2563eb);
+  background: var(--color-primary-dark, #3A1A1A);
 }
 
 .action-icon {

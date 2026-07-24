@@ -1,5 +1,5 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import AuthenticationFailed
 from django.middleware.csrf import CsrfViewMiddleware
@@ -45,7 +45,7 @@ class CookieJWTAuthentication(JWTAuthentication):
 
         try:
             validated_token = self.get_validated_token(raw_token)
-        except TokenError as e:
+        except (InvalidToken, TokenError) as e:
             logger.debug(f"[AUTH] Token validation failed: {e}")
             if not used_cookie:
                 return None
@@ -59,7 +59,7 @@ class CookieJWTAuthentication(JWTAuthentication):
             used_cookie = False
             try:
                 validated_token = self.get_validated_token(raw_token)
-            except TokenError as e:
+            except (InvalidToken, TokenError) as e:
                 logger.debug(f"[AUTH] Header fallback token also failed: {e}")
                 return None
 
@@ -77,7 +77,7 @@ class CookieJWTAuthentication(JWTAuthentication):
                     return None
                 try:
                     validated_token = self.get_validated_token(raw_token)
-                except TokenError as e:
+                except (InvalidToken, TokenError) as e:
                     logger.debug(f"[AUTH] Header fallback token failed after stale cookie: {e}")
                     return None
                 user = self.get_user(validated_token)
@@ -87,7 +87,7 @@ class CookieJWTAuthentication(JWTAuthentication):
             else:
                 return None
 
-        require_csrf = used_cookie and not has_header
+        require_csrf = used_cookie
         if require_csrf:
             self.enforce_csrf(request)
 

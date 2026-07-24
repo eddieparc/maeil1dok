@@ -1,9 +1,13 @@
+from collections import defaultdict
+
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from accounts.models import Follow
 from todos.models import (
+    DailyBibleSchedule,
     HasenaRecord,
     Notification,
     NotificationSettings,
@@ -19,55 +23,176 @@ def get_notification_settings(user):
 
 def ensure_reminder_notifications(user):
     settings = get_notification_settings(user)
-    _ensure_reminders_for_settings(settings)
+    _send_reminders_for_settings_batch([settings])
 
 
 def send_due_reminder_notifications():
-    created_count = 0
-    for settings in NotificationSettings.objects.filter(
+    settings_iterable = NotificationSettings.objects.filter(
         notifications_enabled=True,
-    ).select_related('user'):
-        created_count += _ensure_reminders_for_settings(settings)
-    return created_count
+    ).select_related('user')
+    return _send_reminders_for_settings_batch(settings_iterable)
 
 
-def _ensure_reminders_for_settings(settings):
-    if not settings.notifications_enabled:
+_READING_REMINDER = {
+    'notification_type': 'reading_reminder',
+    'title': '오늘의 통독이 기다리고 있어요',
+    'body': '오늘 배정된 말씀을 읽고 흐름을 이어가볼까요?',
+    'target_url': '/plan',
+}
+_HASENA_REMINDER = {
+    'notification_type': 'hasena_reminder',
+    'title': '오늘의 하세나하시조를 함께해요',
+    'body': '잠시 멈추고 말씀을 마음에 새겨보세요.',
+    'target_url': '/hasena',
+}
+
+
+def _send_reminders_for_settings_batch(settings_iterable):
+    candidates = _build_due_candidates(settings_iterable)
+    if not candidates:
         return 0
 
-    local_now = _local_now(settings)
-    today = local_now.date()
-    created_count = 0
-    if (
-        settings.reading_reminders_enabled
-        and _is_due(local_now, settings.reading_reminder_time)
-        and _has_incomplete_today_schedule(settings.user, today)
-    ):
-        _notification, created = _create_notification(
-            recipient=settings.user,
-            notification_type='reading_reminder',
-            title='오늘의 통독이 기다리고 있어요',
-            body='오늘 배정된 말씀을 읽고 흐름을 이어가볼까요?',
-            target_url='/plan',
-            dedupe_key=f'reading-reminder:{settings.user_id}:{today.isoformat()}',
-        )
-        created_count += int(created)
+    candidates = _drop_already_created(candidates)
+    if not candidates:
+        return 0
 
-    if (
-        settings.hasena_reminders_enabled
-        and _is_due(local_now, settings.hasena_reminder_time)
-        and not _has_completed_hasena(settings.user, today)
-    ):
+    _mark_eligible_reading([c for c in candidates if c['kind'] == 'reading'])
+    _mark_eligible_hasena([c for c in candidates if c['kind'] == 'hasena'])
+
+    created_count = 0
+    for candidate in candidates:
+        if not candidate['eligible']:
+            continue
+        template = _READING_REMINDER if candidate['kind'] == 'reading' else _HASENA_REMINDER
         _notification, created = _create_notification(
-            recipient=settings.user,
-            notification_type='hasena_reminder',
-            title='오늘의 하세나하시조를 함께해요',
-            body='잠시 멈추고 말씀을 마음에 새겨보세요.',
-            target_url='/hasena',
-            dedupe_key=f'hasena-reminder:{settings.user_id}:{today.isoformat()}',
+            recipient=candidate['user'],
+            dedupe_key=candidate['dedupe_key'],
+            **template,
         )
         created_count += int(created)
     return created_count
+
+
+def _build_due_candidates(settings_iterable):
+    candidates = []
+    for settings in settings_iterable:
+        if not settings.notifications_enabled:
+            continue
+        local_now = _local_now(settings)
+        local_date = local_now.date()
+        if settings.reading_reminders_enabled and _is_due(local_now, settings.reading_reminder_time):
+            candidates.append({
+                'kind': 'reading',
+                'user': settings.user,
+                'user_id': settings.user_id,
+                'local_date': local_date,
+                'dedupe_key': f'reading-reminder:{settings.user_id}:{local_date.isoformat()}',
+                'eligible': False,
+            })
+        if settings.hasena_reminders_enabled and _is_due(local_now, settings.hasena_reminder_time):
+            candidates.append({
+                'kind': 'hasena',
+                'user': settings.user,
+                'user_id': settings.user_id,
+                'local_date': local_date,
+                'dedupe_key': f'hasena-reminder:{settings.user_id}:{local_date.isoformat()}',
+                'eligible': False,
+            })
+    return candidates
+
+
+def _drop_already_created(candidates):
+    user_ids = {c['user_id'] for c in candidates}
+    dedupe_keys = {c['dedupe_key'] for c in candidates}
+    existing = set(
+        Notification.objects.filter(
+            recipient_id__in=user_ids,
+            dedupe_key__in=dedupe_keys,
+        ).values_list('recipient_id', 'dedupe_key')
+    )
+    return [c for c in candidates if (c['user_id'], c['dedupe_key']) not in existing]
+
+
+def _mark_eligible_reading(candidates):
+    if not candidates:
+        return
+
+    user_ids = {c['user_id'] for c in candidates}
+    local_dates = {c['local_date'] for c in candidates}
+
+    subscriptions = list(
+        PlanSubscription.objects.filter(
+            user_id__in=user_ids,
+            is_active=True,
+        ).values('id', 'user_id', 'plan_id')
+    )
+    subs_by_user = defaultdict(list)
+    for sub in subscriptions:
+        subs_by_user[sub['user_id']].append(sub)
+
+    plan_ids = {sub['plan_id'] for sub in subscriptions}
+    schedules_by_plan_date = defaultdict(list)
+    if plan_ids:
+        for row in DailyBibleSchedule.objects.filter(
+            plan_id__in=plan_ids,
+            date__in=local_dates,
+        ).values('id', 'plan_id', 'date'):
+            schedules_by_plan_date[(row['plan_id'], row['date'])].append(row['id'])
+
+    all_subscription_ids = set()
+    all_schedule_ids = set()
+    per_candidate = {}
+    for candidate in candidates:
+        user_subs = subs_by_user.get(candidate['user_id'], [])
+        subscription_ids = {sub['id'] for sub in user_subs}
+        today_schedule_ids = set()
+        for sub in user_subs:
+            today_schedule_ids.update(
+                schedules_by_plan_date.get((sub['plan_id'], candidate['local_date']), [])
+            )
+        per_candidate[id(candidate)] = (subscription_ids, today_schedule_ids)
+        all_subscription_ids |= subscription_ids
+        all_schedule_ids |= today_schedule_ids
+
+    completed_pairs = set()
+    if all_subscription_ids and all_schedule_ids:
+        completed_pairs = set(
+            UserBibleProgress.objects.filter(
+                subscription_id__in=all_subscription_ids,
+                schedule_id__in=all_schedule_ids,
+                is_completed=True,
+            ).values_list('subscription_id', 'schedule_id')
+        )
+
+    for candidate in candidates:
+        subscription_ids, today_schedule_ids = per_candidate[id(candidate)]
+        if not subscription_ids or not today_schedule_ids:
+            continue
+        completed_count = sum(
+            1
+            for (sub_id, sch_id) in completed_pairs
+            if sub_id in subscription_ids and sch_id in today_schedule_ids
+        )
+        if completed_count < len(today_schedule_ids):
+            candidate['eligible'] = True
+
+
+def _mark_eligible_hasena(candidates):
+    if not candidates:
+        return
+
+    user_ids = {c['user_id'] for c in candidates}
+    local_dates = {c['local_date'] for c in candidates}
+    completed = set(
+        HasenaRecord.objects.filter(
+            user_id__in=user_ids,
+            date__in=local_dates,
+            is_completed=True,
+        ).values_list('user_id', 'date')
+    )
+    for candidate in candidates:
+        if (candidate['user_id'], candidate['local_date']) not in completed:
+            candidate['eligible'] = True
 
 
 def notify_friend_reading_completed(actor, schedules):
@@ -112,34 +237,6 @@ def mark_all_read(user):
     )
 
 
-def _has_incomplete_today_schedule(user, today):
-    subscriptions = PlanSubscription.objects.filter(user=user, is_active=True)
-    if not subscriptions.exists():
-        return False
-
-    today_schedule_ids = []
-    for subscription in subscriptions.select_related('plan'):
-        today_schedule_ids.extend(subscription.plan.schedules.filter(date=today).values_list('id', flat=True))
-
-    if not today_schedule_ids:
-        return False
-
-    completed_count = UserBibleProgress.objects.filter(
-        subscription__in=subscriptions,
-        schedule_id__in=today_schedule_ids,
-        is_completed=True,
-    ).count()
-    return completed_count < len(today_schedule_ids)
-
-
-def _has_completed_hasena(user, today):
-    return HasenaRecord.objects.filter(
-        user=user,
-        date=today,
-        is_completed=True,
-    ).exists()
-
-
 def _friend_recipients(actor):
     following_ids = Follow.objects.filter(follower=actor).values_list('following_id', flat=True)
     recipient_ids = Follow.objects.filter(
@@ -147,22 +244,21 @@ def _friend_recipients(actor):
         follower_id__in=following_ids,
     ).values_list('follower_id', flat=True)
 
-    users = actor.__class__.objects.filter(id__in=recipient_ids)
-    return [
-        user for user in users
-        if _friend_activity_enabled(user)
-    ]
-
-
-def _friend_activity_enabled(user):
-    settings = get_notification_settings(user)
-    return settings.notifications_enabled and settings.friend_activity_enabled
+    return list(
+        actor.__class__.objects.filter(id__in=recipient_ids).filter(
+            Q(notification_settings__isnull=True)
+            | Q(
+                notification_settings__notifications_enabled=True,
+                notification_settings__friend_activity_enabled=True,
+            )
+        )
+    )
 
 
 def _local_now(settings):
     try:
         user_timezone = ZoneInfo(settings.timezone)
-    except ZoneInfoNotFoundError:
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
         user_timezone = ZoneInfo('Asia/Seoul')
     return timezone.now().astimezone(user_timezone)
 

@@ -4,6 +4,7 @@
 
 import json
 from datetime import timedelta
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
@@ -281,6 +282,76 @@ class BibleCacheAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    @patch('bible_cache.views.BibleFetchService.get_bible_content')
+    def test_invalid_book_is_rejected_before_fetch(self, mock_get_content):
+        response = self.client.get('/api/v1/bible-cache/GAE/notabook/1/')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response.data['success'])
+        mock_get_content.assert_not_called()
+
+    @patch('bible_cache.views.BibleFetchService.get_bible_content')
+    def test_chapter_beyond_book_range_is_rejected_before_fetch(self, mock_get_content):
+        response = self.client.get('/api/v1/bible-cache/GAE/jud/2/')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response.data['success'])
+        mock_get_content.assert_not_called()
+
+    @patch('bible_cache.views.BibleFetchService.get_bible_content')
+    def test_anonymous_force_refresh_is_denied_before_fetch(self, mock_get_content):
+        response = self.client.get('/api/v1/bible-cache/GAE/gen/1/?force_refresh=true')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(response.data['success'])
+        mock_get_content.assert_not_called()
+
+    @patch('bible_cache.views.BibleFetchService.get_bible_content')
+    def test_non_staff_force_refresh_is_denied_before_fetch(self, mock_get_content):
+        user = get_user_model().objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='password123',
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.get('/api/v1/bible-cache/GAE/gen/1/?force_refresh=true')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(response.data['success'])
+        mock_get_content.assert_not_called()
+
+    @patch('bible_cache.views.BibleFetchService.get_bible_content')
+    def test_staff_force_refresh_is_allowed(self, mock_get_content):
+        staff = get_user_model().objects.create_user(
+            username='staff',
+            email='staff@example.com',
+            password='password123',
+            is_staff=True,
+        )
+        self.client.force_authenticate(user=staff)
+        mock_get_content.return_value = ('Fresh content', 'html', False)
+
+        response = self.client.get('/api/v1/bible-cache/GAE/gen/1/?force_refresh=true')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        mock_get_content.assert_called_once_with(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            force_refresh=True,
+        )
+
+    def test_service_rejects_invalid_reference_before_source_fetch(self):
+        with patch(
+            'bible_cache.services.bible_fetch_service.BibleFetchService._refresh_cache_from_source'
+        ) as mock_refresh:
+            with self.assertRaises(BibleFetchError):
+                BibleFetchService.get_bible_content('GAE', 'jud', 2)
+
+        mock_refresh.assert_not_called()
+
     @patch('bible_cache.services.bible_fetch_service.requests.get')
     def test_get_bible_content_success(self, mock_get):
         """성경 본문 조회 성공"""
@@ -295,6 +366,24 @@ class BibleCacheAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['success'])
         self.assertEqual(response.data['data']['version'], 'GAE')
+
+    @patch('bible_cache.views.BibleFetchService.get_bible_content')
+    def test_fetch_error_response_does_not_expose_internal_detail(self, mock_get_content):
+        mock_get_content.side_effect = BibleFetchError(
+            'upstream timeout api_key=secret-token /tmp/cache-path'
+        )
+
+        response = self.client.get('/api/v1/bible-cache/GAE/gen/1/')
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertFalse(response.data['success'])
+        self.assertEqual(
+            response.data['error'],
+            '성경 본문을 일시적으로 가져올 수 없습니다. 잠시 후 다시 시도해주세요.',
+        )
+        self.assertIn('fallback_url', response.data)
+        self.assertNotIn('secret-token', str(response.data))
+        self.assertNotIn('/tmp/cache-path', str(response.data))
 
     def test_cache_status_not_found(self):
         """캐시 상태 - 캐시 없음"""

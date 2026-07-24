@@ -128,12 +128,12 @@ const profileLink = computed(() => {
 }
 
 [data-theme="dark"] .nav-item:hover:not(.active) {
-  color: var(--color-accent-primary, #4B9F7E);
+  color: var(--color-accent-primary, #2A1111);
   background: var(--color-accent-primary-light);
 }
 
 [data-theme="dark"] .nav-item.active {
-  background: var(--color-accent-primary, #4B9F7E);
+  background: var(--color-accent-primary, #2A1111);
   color: var(--color-text-inverse, #fff);
   box-shadow: var(--shadow-md);
 }

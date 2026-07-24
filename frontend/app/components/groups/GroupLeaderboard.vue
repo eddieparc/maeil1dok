@@ -562,6 +562,6 @@ watch(() => props.groupId, () => {
 }
 
 [data-theme="dark"] .highlight-row {
-  background: rgba(107, 201, 159, 0.1) !important;
+  background: rgba(42, 17, 17, 0.1) !important;
 }
 </style>

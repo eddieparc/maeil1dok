@@ -223,7 +223,7 @@ watch([editContent, isPrivate], () => {
 
 .back-link {
   margin-top: 1rem;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-size: 0.875rem;
   text-decoration: none;
 }
@@ -248,7 +248,7 @@ watch([editContent, isPrivate], () => {
   background: var(--color-bg-card, #fff);
   border-radius: 8px;
   margin-bottom: 1rem;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
@@ -281,8 +281,8 @@ watch([editContent, isPrivate], () => {
 
 .content-editor:focus {
   outline: none;
-  border-color: var(--primary-color, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--primary-color, #2A1111);
+  box-shadow: 0 0 0 3px rgba(42, 17, 17, 0.1);
 }
 
 .note-options {
@@ -327,7 +327,7 @@ watch([editContent, isPrivate], () => {
 }
 
 .private-toggle input:checked + .toggle-slider {
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
 }
 
 .private-toggle input:checked + .toggle-slider::after {
@@ -352,7 +352,7 @@ watch([editContent, isPrivate], () => {
 
 .save-btn {
   padding: 0.75rem 1.5rem;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
   border: none;
   border-radius: 10px;
@@ -368,7 +368,7 @@ watch([editContent, isPrivate], () => {
 }
 
 .save-btn:hover:not(:disabled) {
-  background: var(--primary-dark, #4f46e5);
+  background: var(--primary-dark, #3A1A1A);
 }
 
 .save-btn:disabled {

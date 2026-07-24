@@ -4,6 +4,10 @@ import { syncHasenaEntries } from '@/lib/hasena/hasenaSync'
 import type { Database, Json } from '@/lib/supabase/database.types'
 
 type HasenaEntryRow = Database['public']['Tables']['hasena_entries']['Row']
+type EntryLookupResult =
+  | { readonly kind: 'found'; readonly entry: HasenaEntryRow }
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'failed' }
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -17,20 +21,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'date must be YYYY-MM-DD' }, { status: 400 })
   }
 
-  const entry = await getEntryForDate(supabase, date)
-  if (!entry) {
+  const entryResult = await getEntryForDate(supabase, date)
+  if (entryResult.kind === 'failed') {
+    return NextResponse.json({ error: 'Failed to load Hasena day' }, { status: 500 })
+  }
+  if (entryResult.kind === 'missing') {
     return NextResponse.json({ error: 'Hasena entry not available' }, { status: 404 })
   }
 
-  const { data: record } = await supabase
+  const { data: record, error: recordError } = await supabase
     .from('hasena_records')
     .select('is_completed')
     .eq('user_id', user.id)
     .eq('date', date)
     .maybeSingle()
 
+  if (recordError) {
+    return NextResponse.json({ error: 'Failed to load Hasena day' }, { status: 500 })
+  }
+
   return NextResponse.json({
-    entry: mapEntry(entry),
+    entry: mapEntry(entryResult.entry),
     isCompleted: record?.is_completed ?? false,
   })
 }
@@ -38,14 +49,14 @@ export async function GET(request: NextRequest) {
 async function getEntryForDate(
   supabase: Awaited<ReturnType<typeof createClient>>,
   date: string,
-): Promise<HasenaEntryRow | null> {
+): Promise<EntryLookupResult> {
   const cached = await selectEntry(supabase, date)
-  if (cached) return cached
+  if (cached.kind === 'found' || cached.kind === 'failed') return cached
 
   try {
     await syncHasenaEntries({ maxEntries: 14 })
   } catch {
-    return null
+    return { kind: 'missing' }
   }
 
   return selectEntry(supabase, date)
@@ -54,15 +65,16 @@ async function getEntryForDate(
 async function selectEntry(
   supabase: Awaited<ReturnType<typeof createClient>>,
   date: string,
-): Promise<HasenaEntryRow | null> {
+): Promise<EntryLookupResult> {
   const { data, error } = await supabase
     .from('hasena_entries')
     .select('*')
     .eq('date', date)
     .maybeSingle()
 
-  if (error) return null
-  return data
+  if (error) return { kind: 'failed' }
+  if (!data) return { kind: 'missing' }
+  return { kind: 'found', entry: data }
 }
 
 function mapEntry(row: HasenaEntryRow) {

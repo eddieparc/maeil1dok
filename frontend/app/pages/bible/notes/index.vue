@@ -147,7 +147,7 @@ const { formatRelativeDate } = useDateFormat();
 
 .filter-select:focus {
   outline: none;
-  border-color: var(--primary-color, #6366f1);
+  border-color: var(--primary-color, #2A1111);
 }
 
 /* 노트 목록 */
@@ -183,7 +183,7 @@ const { formatRelativeDate } = useDateFormat();
 .note-location {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .note-date {

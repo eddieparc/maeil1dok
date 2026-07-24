@@ -50,7 +50,7 @@ export default function ReadingProgressButton({
         void fetch('/api/notifications/friend-activity', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ activityType: 'reading' }),
+          body: JSON.stringify({ activityType: 'reading', subscriptionId, scheduleId }),
         }).catch(() => {
           /* ignore notification errors */
         })

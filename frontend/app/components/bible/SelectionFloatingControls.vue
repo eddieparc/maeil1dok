@@ -160,7 +160,7 @@ defineEmits<{
 
 .selection-copy-label {
   flex-shrink: 0;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-size: 0.875rem;
   font-weight: 700;
   white-space: nowrap;

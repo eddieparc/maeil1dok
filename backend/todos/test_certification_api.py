@@ -188,7 +188,7 @@ class CertificationProgressApiTest(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertFalse(response.json()["success"])
 
-    def test_progress_rejects_schedule_from_another_plan(self):
+    def test_progress_hides_schedule_from_another_plan(self):
         # Given
         other_plan = BibleReadingPlan.objects.create(name="다른 플랜", created_by=self.user)
         other_schedule = DailyBibleSchedule.objects.create(
@@ -206,5 +206,7 @@ class CertificationProgressApiTest(TestCase):
         )
 
         # Then
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(response.json()["success"])
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertFalse(data["success"])
+        self.assertEqual(data["error"], "선택한 스케줄을 찾을 수 없습니다.")

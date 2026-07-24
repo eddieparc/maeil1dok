@@ -95,6 +95,11 @@
     "extra": {
       "webAppUrl": "https://maeil1dok.app",
       "apiUrl": "https://api.maeil1dok.app",
+      "webviewTarget": "legacy",
+      "webviewNextPercent": 0,
+      "webviewLegacyUrl": "https://maeil1dok.app",
+      "webviewNextUrl": "",
+      "webviewKillSwitch": false,
       "kakaoClientId": "1e2c46689a5200779c15e6a356b1a8ab",
       "googleClientId": "199679842064-qm1eb0kenunp27qto2rj50pesb1mdkip.apps.googleusercontent.com",
       "eas": {

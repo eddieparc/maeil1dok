@@ -6,6 +6,7 @@ from html import unescape
 
 from django.conf import settings
 from django.core.cache import cache as django_cache
+from django.db.models import Q
 from django.utils.html import strip_tags
 
 from bible_cache.models import BibleContentCache
@@ -65,7 +66,8 @@ class BibleCacheSearchService:
 
         queryset = BibleContentCache.objects.filter(
             fetch_success=True,
-            content__icontains=normalized_query,
+        ).filter(
+            Q(content__icontains=normalized_query) | Q(content_type='json'),
         )
         if normalized_version:
             queryset = queryset.filter(version=normalized_version)
@@ -197,6 +199,20 @@ class BibleCacheSearchService:
         ]
         if verses:
             return verses
+
+        simple_span_verses = [
+            BibleCacheVerseSearchHit(
+                verse=int(match.group(1)),
+                text=BibleCacheSearchService._clean_text(match.group(2)),
+            )
+            for match in re.finditer(
+                r'<span\b[^>]*>\s*(\d{1,3})(?:&nbsp;|\s)+([\s\S]*?)</span>',
+                content,
+                re.IGNORECASE,
+            )
+        ]
+        if simple_span_verses:
+            return simple_span_verses
 
         text = BibleCacheSearchService._clean_text(strip_tags(content))
         return [BibleCacheVerseSearchHit(verse=None, text=text)] if text else []

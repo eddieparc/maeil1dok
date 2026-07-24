@@ -529,10 +529,10 @@ const scrollToSearchedChapter = (chapter: number) => {
 }
 
 .version-chip.active {
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
-  border-color: var(--primary-color, #6366f1);
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+  border-color: var(--primary-color, #2A1111);
+  box-shadow: 0 2px 4px rgba(42, 17, 17, 0.2);
 }
 
 /* 검색 섹션 */
@@ -554,7 +554,7 @@ const scrollToSearchedChapter = (chapter: number) => {
   gap: 0.375rem;
   padding: 0.375rem 0.625rem;
   background: var(--primary-light, #eef2ff);
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   border: none;
   border-radius: 6px;
   font-size: 0.8125rem;
@@ -564,7 +564,7 @@ const scrollToSearchedChapter = (chapter: number) => {
 }
 
 .status-badge:hover {
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
 }
 
@@ -585,7 +585,7 @@ const scrollToSearchedChapter = (chapter: number) => {
 .input-prefix {
   position: absolute;
   left: 0.75rem;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-size: 0.875rem;
   font-weight: 500;
   pointer-events: none;
@@ -612,9 +612,9 @@ const scrollToSearchedChapter = (chapter: number) => {
 
 .search-input:focus {
   outline: none;
-  border-color: var(--primary-color, #6366f1);
+  border-color: var(--primary-color, #2A1111);
   background: var(--color-bg-card, #fff);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px rgba(42, 17, 17, 0.1);
 }
 
 .search-input.input-error {
@@ -655,13 +655,13 @@ const scrollToSearchedChapter = (chapter: number) => {
   border: none;
   border-radius: 8px;
   color: white;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .search-submit-button:hover {
-  background: var(--primary-hover, #4f46e5);
+  background: var(--primary-hover, #3A1A1A);
 }
 
 .search-submit-button:active {
@@ -690,13 +690,13 @@ const scrollToSearchedChapter = (chapter: number) => {
   align-items: center;
   gap: 0.375rem;
   font-size: 0.75rem;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   margin-bottom: 0.5rem;
   font-weight: 500;
 }
 
 .ai-sparkle {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .search-results-list {
@@ -724,9 +724,9 @@ const scrollToSearchedChapter = (chapter: number) => {
 }
 
 .search-result-item.selected {
-  border-color: var(--primary-color, #6366f1);
+  border-color: var(--primary-color, #2A1111);
   background: var(--primary-light, #eef2ff);
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .search-result-button {
@@ -737,19 +737,19 @@ const scrollToSearchedChapter = (chapter: number) => {
   padding: 0.75rem 1rem;
   border: none;
   border-radius: 10px;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 2px 4px rgba(42, 17, 17, 0.2);
 }
 
 .search-result-button:hover {
-  background: var(--primary-dark, #4f46e5);
+  background: var(--primary-dark, #3A1A1A);
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 6px rgba(42, 17, 17, 0.25);
 }
 
 .search-result-button:active {
@@ -846,7 +846,7 @@ const scrollToSearchedChapter = (chapter: number) => {
 
 .book-item.active {
   background-color: var(--primary-light, #eef2ff);
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-weight: 500;
 }
 
@@ -889,14 +889,14 @@ const scrollToSearchedChapter = (chapter: number) => {
 }
 
 .chapter-item.active {
-  background-color: var(--primary-color, #6366f1);
+  background-color: var(--primary-color, #2A1111);
   color: white;
   font-weight: 500;
 }
 
 .chapter-item.searched:not(.active) {
   background-color: var(--primary-light, #eef2ff);
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .chapter-num {
@@ -939,8 +939,8 @@ const scrollToSearchedChapter = (chapter: number) => {
 
 :root.dark .version-chip.active,
 [data-theme="dark"] .version-chip.active {
-  background-color: var(--primary-color, #818cf8);
-  border-color: var(--primary-color, #818cf8);
+  background-color: var(--primary-color, #3A1A1A);
+  border-color: var(--primary-color, #3A1A1A);
   color: #fff;
 }
 
@@ -951,19 +951,19 @@ const scrollToSearchedChapter = (chapter: number) => {
 
 :root.dark .status-badge,
 [data-theme="dark"] .status-badge {
-  background-color: rgba(99, 102, 241, 0.2);
-  color: var(--primary-color, #818cf8);
+  background-color: rgba(42, 17, 17, 0.2);
+  color: var(--primary-color, #3A1A1A);
 }
 
 :root.dark .status-badge:hover,
 [data-theme="dark"] .status-badge:hover {
-  background-color: var(--primary-color, #818cf8);
+  background-color: var(--primary-color, #3A1A1A);
   color: white;
 }
 
 :root.dark .input-prefix,
 [data-theme="dark"] .input-prefix {
-  color: var(--primary-color, #818cf8);
+  color: var(--primary-color, #3A1A1A);
 }
 
 :root.dark .search-input,
@@ -976,7 +976,7 @@ const scrollToSearchedChapter = (chapter: number) => {
 :root.dark .search-input:focus,
 [data-theme="dark"] .search-input:focus {
   background-color: var(--color-bg-card);
-  border-color: var(--primary-color, #818cf8);
+  border-color: var(--primary-color, #3A1A1A);
   box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
 }
 
@@ -1022,20 +1022,20 @@ const scrollToSearchedChapter = (chapter: number) => {
 
 :root.dark .search-result-item.selected,
 [data-theme="dark"] .search-result-item.selected {
-  background-color: rgba(99, 102, 241, 0.2);
-  border-color: var(--primary-color, #818cf8);
-  color: var(--primary-color, #818cf8);
+  background-color: rgba(42, 17, 17, 0.2);
+  border-color: var(--primary-color, #3A1A1A);
+  color: var(--primary-color, #3A1A1A);
 }
 
 :root.dark .search-result-button,
 [data-theme="dark"] .search-result-button {
-  background-color: var(--primary-color, #818cf8);
+  background-color: var(--primary-color, #3A1A1A);
   color: #fff;
 }
 
 :root.dark .search-result-button:hover,
 [data-theme="dark"] .search-result-button:hover {
-  background-color: #6366f1;
+  background-color: #2A1111;
 }
 
 :root.dark .modal-body,
@@ -1068,8 +1068,8 @@ const scrollToSearchedChapter = (chapter: number) => {
 
 :root.dark .book-item.active,
 [data-theme="dark"] .book-item.active {
-  background-color: rgba(99, 102, 241, 0.15);
-  color: var(--primary-color, #818cf8);
+  background-color: rgba(42, 17, 17, 0.15);
+  color: var(--primary-color, #3A1A1A);
 }
 
 :root.dark .chapters-section,
@@ -1091,20 +1091,20 @@ const scrollToSearchedChapter = (chapter: number) => {
 
 :root.dark .chapter-item.active,
 [data-theme="dark"] .chapter-item.active {
-  background-color: var(--primary-color, #818cf8);
+  background-color: var(--primary-color, #3A1A1A);
   color: #fff;
 }
 
 :root.dark .chapter-item.searched:not(.active),
 [data-theme="dark"] .chapter-item.searched:not(.active) {
-  background-color: rgba(99, 102, 241, 0.15);
-  color: var(--primary-color, #818cf8);
+  background-color: rgba(42, 17, 17, 0.15);
+  color: var(--primary-color, #3A1A1A);
 }
 
 :root.dark .ai-result-label,
 [data-theme="dark"] .ai-result-label,
 :root.dark .ai-sparkle,
 [data-theme="dark"] .ai-sparkle {
-  color: var(--primary-color, #818cf8);
+  color: var(--primary-color, #3A1A1A);
 }
 </style>

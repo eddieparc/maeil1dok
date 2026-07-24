@@ -464,11 +464,11 @@ const formatTodayDate = () => {
 }
 
 .today-card {
-  background: linear-gradient(135deg, var(--primary-color, #6366f1) 0%, #818cf8 100%);
+  background: linear-gradient(135deg, var(--primary-color, #2A1111) 0%, #3A1A1A 100%);
   border-radius: 16px;
   padding: 1.25rem;
   color: white;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(42, 17, 17, 0.3);
 }
 
 .today-card-header {
@@ -547,7 +547,7 @@ const formatTodayDate = () => {
   width: 100%;
   padding: 0.875rem;
   background: white;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -577,7 +577,7 @@ const formatTodayDate = () => {
 }
 
 .plan-link {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-weight: 500;
   margin-left: auto;
 }
@@ -632,12 +632,12 @@ const formatTodayDate = () => {
 }
 
 .welcome-btn.primary {
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
 }
 
 .welcome-btn.primary:hover {
-  background: var(--primary-dark, #4f46e5);
+  background: var(--primary-dark, #3A1A1A);
 }
 
 .welcome-btn.secondary {
@@ -694,7 +694,7 @@ const formatTodayDate = () => {
 
 .feature-icon.note {
   background: #dbeafe;
-  color: #2563eb;
+  color: #3A1A1A;
 }
 
 .feature-icon.highlight {
@@ -729,7 +729,7 @@ const formatTodayDate = () => {
 .feature-count {
   padding: 0.125rem 0.5rem;
   background: var(--primary-light, #eef2ff);
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-size: 0.75rem;
   font-weight: 600;
   border-radius: 10px;
@@ -794,7 +794,7 @@ const formatTodayDate = () => {
 }
 
 .tip-content em {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-style: normal;
   font-weight: 500;
 }
@@ -834,7 +834,7 @@ const formatTodayDate = () => {
 
 .continue-card:hover {
   background: var(--color-bg-secondary, #f3f4f6);
-  border-color: var(--primary-color, #6366f1);
+  border-color: var(--primary-color, #2A1111);
 }
 
 .continue-info {
@@ -914,11 +914,11 @@ const formatTodayDate = () => {
 
 .toc-btn:hover {
   background: var(--color-bg-secondary, #f3f4f6);
-  border-color: var(--primary-color, #6366f1);
+  border-color: var(--primary-color, #2A1111);
 }
 
 .toc-btn svg {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 /* ========== 다크모드 ========== */
@@ -928,7 +928,7 @@ const formatTodayDate = () => {
 }
 
 :root.dark .today-card {
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #3A1A1A 0%, #2A1111 100%);
 }
 
 :root.dark .no-plan-hint {

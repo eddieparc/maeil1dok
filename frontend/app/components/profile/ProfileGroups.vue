@@ -305,8 +305,8 @@ const navigateToGroups = () => {
 }
 
 :root.dark .status-public {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  background: rgba(42, 17, 17, 0.2);
+  color: #3A1A1A;
 }
 
 .status-private {

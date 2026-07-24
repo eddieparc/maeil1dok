@@ -5,6 +5,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.environ.get('SQLITE_TEST_DB', ':memory:'),
+        'TEST': {
+            'NAME': os.environ.get('SQLITE_TEST_DB'),
+        },
     }
 }
 

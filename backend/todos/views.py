@@ -1,11 +1,15 @@
-from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+import numbers
 import pandas as pd
-from datetime import datetime
+from calendar import monthrange
+from datetime import date, datetime
 from django.conf import settings
-from .models import DailyBibleSchedule, UserBibleProgress, BibleReadingPlan, PlanSubscription, VideoBibleIntro, HasenaRecord, HasenaEntry, UserVideoIntroProgress, VisitorCount
-from .serializers import DailyBibleScheduleSerializer, UserBibleProgressSerializer, BibleProgressResponse, BibleReadingPlanSerializer, PlanSubscriptionSerializer, VideoBibleIntroSerializer
+import hmac
+import time
+from .models import DailyBibleSchedule, UserBibleProgress, BibleReadingPlan, PlanSubscription, VideoBibleIntro, HasenaRecord, HasenaEntry, UserVideoIntroProgress, VisitorCount, PersonalReadingRecord
+from .serializers import DailyBibleScheduleSerializer, UserBibleProgressSerializer, BibleProgressResponse, BibleReadingPlanSerializer, PlanSubscriptionSerializer, PlanSubscriptionUpdateSerializer, VideoBibleIntroSerializer, HasenaRecordCreateSerializer, HasenaRecordListQuerySerializer
 import logging
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -13,19 +17,243 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
-from django.db import transaction
-from django.db.models import Q
+from django.db import IntegrityError, OperationalError, transaction
+from django.db.models import Q, Count
 from django.utils.dateparse import parse_date
 import re
 from io import BytesIO
 from django.utils.timezone import localtime
+from accounts.services.achievement_service import AchievementService
 from .services.notifications import (
     on_commit_notify_hasena_completed,
     on_commit_notify_reading_completed,
 )
 
+from .services.catchup import sync_catchup_schedules
+
 logger = logging.getLogger(__name__)
 User = get_user_model()
+SUBSCRIPTION_CREATE_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
+HASENA_RECORD_UPSERT_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
+PERSONAL_READING_RECORD_UPSERT_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
+
+
+def _get_cron_request_secret(request):
+    authorization = request.headers.get('Authorization', '')
+    bearer_secret = authorization.removeprefix('Bearer ').strip()
+    return request.headers.get('X-Cron-Secret') or bearer_secret
+
+
+def _cron_secret_error(request):
+    cron_secret = getattr(settings, 'CRON_SECRET', None)
+    if not cron_secret:
+        return Response({
+            'success': False,
+            'error': 'CRON_SECRET이 설정되어 있지 않습니다.'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    request_secret = _get_cron_request_secret(request)
+    if not hmac.compare_digest(str(request_secret), str(cron_secret)):
+        return Response({
+            'success': False,
+            'error': 'Unauthorized'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    return None
+
+
+def _is_database_lock_error(exc):
+    return 'locked' in str(exc).lower()
+
+
+def _get_existing_subscription(user, plan):
+    return PlanSubscription.objects.filter(user=user, plan=plan).first()
+
+
+def _get_subscription_plan(plan_id):
+    for delay in SUBSCRIPTION_CREATE_RETRY_DELAYS:
+        if delay:
+            time.sleep(delay)
+        try:
+            return BibleReadingPlan.objects.get(id=plan_id)
+        except BibleReadingPlan.DoesNotExist:
+            return None
+        except OperationalError as exc:
+            if not _is_database_lock_error(exc):
+                raise
+
+    raise OperationalError("Could not load subscription plan because the database stayed locked.")
+
+
+def _get_or_create_plan_subscription(user, plan):
+    for delay in SUBSCRIPTION_CREATE_RETRY_DELAYS:
+        if delay:
+            time.sleep(delay)
+        try:
+            with transaction.atomic():
+                return PlanSubscription.objects.get_or_create(
+                    user=user,
+                    plan=plan,
+                    defaults={'start_date': timezone.now().date()}
+                )
+        except IntegrityError:
+            existing = _get_existing_subscription(user, plan)
+            if existing:
+                return existing, False
+            raise
+        except OperationalError as exc:
+            if not _is_database_lock_error(exc):
+                raise
+
+    existing = _get_existing_subscription(user, plan)
+    if existing:
+        return existing, False
+    raise OperationalError("Could not create subscription because the database stayed locked.")
+
+
+def _delete_plan_subscription_with_artifacts(subscription):
+    plan = subscription.plan
+    user = subscription.user
+    # Bulk deletes do not fire progress post_save signals; recompute stats explicitly.
+    UserBibleProgress.objects.filter(subscription=subscription).delete()
+    UserVideoIntroProgress.objects.filter(
+        user=user,
+        video_intro__plan=plan,
+    ).delete()
+    subscription.delete()
+    AchievementService.update_user_stats(user)
+
+
+def _upsert_hasena_record(user, target_date, is_completed):
+    """Race-safe upsert for HasenaRecord.
+
+    Uses UPDATE-first then CREATE-on-miss to avoid the SELECT-FOR-UPDATE gap
+    locks that make `update_or_create` deadlock-prone on InnoDB under
+    concurrent writes to the same (user, date) key. Retries on lock/deadlock
+    OperationalError and on IntegrityError races the same way
+    `_get_or_create_plan_subscription` does.
+    """
+    for delay in HASENA_RECORD_UPSERT_RETRY_DELAYS:
+        if delay:
+            time.sleep(delay)
+        try:
+            with transaction.atomic():
+                updated = HasenaRecord.objects.filter(
+                    user=user, date=target_date
+                ).update(
+                    is_completed=is_completed,
+                    updated_at=timezone.now(),
+                )
+                if updated:
+                    record = HasenaRecord.objects.get(user=user, date=target_date)
+                    if record.is_completed:
+                        AchievementService.check_and_grant_achievements(user)
+                    return record, False
+                record = HasenaRecord.objects.create(
+                    user=user, date=target_date, is_completed=is_completed
+                )
+                return record, True
+        except IntegrityError:
+            continue
+        except OperationalError as exc:
+            if not _is_database_lock_error(exc):
+                raise
+            continue
+
+    existing = HasenaRecord.objects.filter(user=user, date=target_date).first()
+    if existing:
+        return existing, False
+    raise OperationalError(
+        "Could not upsert Hasena record because the database stayed locked."
+    )
+
+
+def _upsert_personal_reading_record(user, book, chapter, read_date):
+    """Race-safe upsert for PersonalReadingRecord.
+
+    The uniqueness key is ``(user, book, chapter)``. The observable API
+    semantics on repeat POST are:
+
+      * First insert → return (record, True) — HTTP 201 upstream.
+      * Repeat/duplicate → refresh ``read_date`` in place, return
+        (record, False) — HTTP 200 upstream.
+
+    Under concurrency the naive check-then-create pattern raises
+    ``IntegrityError`` for the loser thread and surfaces as HTTP 500. This
+    helper mirrors ``_upsert_hasena_record``: UPDATE-first (bounded lock
+    footprint, no gap locks) then CREATE-on-miss, wrapped in an atomic
+    block and retried on lock/deadlock ``OperationalError`` and on
+    ``IntegrityError`` races. On exhaustion of the retry budget it falls
+    through to a final read; only if no row exists does it raise, which
+    reflects a genuinely unavailable database.
+    """
+    for delay in PERSONAL_READING_RECORD_UPSERT_RETRY_DELAYS:
+        if delay:
+            time.sleep(delay)
+        try:
+            with transaction.atomic():
+                updated = PersonalReadingRecord.objects.filter(
+                    user=user, book=book, chapter=chapter
+                ).update(read_date=read_date)
+                if updated:
+                    record = PersonalReadingRecord.objects.get(
+                        user=user, book=book, chapter=chapter
+                    )
+                    return record, False
+                record = PersonalReadingRecord.objects.create(
+                    user=user, book=book, chapter=chapter, read_date=read_date
+                )
+                return record, True
+        except IntegrityError:
+            continue
+        except OperationalError as exc:
+            if not _is_database_lock_error(exc):
+                raise
+            continue
+
+    existing = PersonalReadingRecord.objects.filter(
+        user=user, book=book, chapter=chapter
+    ).first()
+    if existing:
+        return existing, False
+    raise OperationalError(
+        "Could not upsert PersonalReadingRecord because the database stayed locked."
+    )
+
+
+def _validate_positive_int(value, name, default, min_value=1, max_value=None):
+    """
+    Validate and bound-check a positive integer parameter.
+    
+    Args:
+        value: The value to validate (can be None, string, or int)
+        name: Parameter name for error messages
+        default: Default value if None
+        min_value: Minimum allowed value (default: 1)
+        max_value: Maximum allowed value (default: None for no limit)
+    
+    Returns:
+        Validated integer value
+    
+    Raises:
+        ValueError: If value is invalid or out of bounds
+    """
+    if value is None:
+        return default
+    
+    try:
+        int_value = int(value)
+    except (ValueError, TypeError):
+        raise ValueError(f'{name}은(는) 정수여야 합니다.')
+    
+    if int_value < min_value:
+        raise ValueError(f'{name}은(는) {min_value} 이상이어야 합니다.')
+    
+    if max_value is not None and int_value > max_value:
+        raise ValueError(f'{name}은(는) {max_value} 이하여야 합니다.')
+    
+    return int_value
+
 
 # 최상단에 book_to_code 딕셔너리 정의
 book_to_code = {
@@ -84,6 +312,117 @@ def get_last_chapter(book_name):
     result = book_chapters.get(book_name, 1)  # 기본값 1
     return result
 
+
+def _progress_error(message, response_status=status.HTTP_400_BAD_REQUEST):
+    return Response({'success': False, 'error': message}, status=response_status)
+
+MAX_DB_BIGINT = 9223372036854775807
+MAX_PROGRESS_SCHEDULE_IDS_PER_REQUEST = 500
+
+
+def _parse_positive_id(value):
+    if isinstance(value, bool):
+        return None
+
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str):
+        stripped_value = value.strip()
+        if not stripped_value:
+            return None
+        try:
+            parsed = int(stripped_value)
+        except ValueError:
+            return None
+    else:
+        return None
+
+    if parsed < 1 or parsed > MAX_DB_BIGINT:
+        return None
+    return parsed
+
+
+def _parse_bounded_limit(value, *, default, maximum):
+    """Parse a positive query limit clamped to [1, maximum].
+
+    Returns ``default`` when the value is absent and ``None`` for
+    non-integer input so callers can fail closed with a 400 instead of
+    surfacing an unhandled 500 (e.g. ``int('abc')`` or a negative slice).
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed < 1:
+        return 1
+    return min(parsed, maximum)
+
+
+def _schedule_base_queryset():
+    return DailyBibleSchedule.objects.select_related('plan')
+
+
+def _readable_schedule_queryset(user):
+    schedules = _schedule_base_queryset()
+    if user.is_staff:
+        return schedules
+
+    return schedules.filter(
+        plan__is_active=True,
+        plan__plansubscription__user=user,
+        plan__plansubscription__is_active=True,
+    )
+
+
+def _can_read_plan_schedules(user, plan_id):
+    if user.is_staff:
+        return BibleReadingPlan.objects.filter(pk=plan_id).exists()
+
+    return PlanSubscription.objects.filter(
+        user=user,
+        plan_id=plan_id,
+        plan__is_active=True,
+        is_active=True,
+    ).exists()
+
+
+def _validate_progress_request(data):
+    plan_id = _parse_positive_id(data.get('plan_id'))
+    schedule_ids = data.get('schedule_ids', [])
+    action = data.get('action')
+
+    if not plan_id or not schedule_ids or not action:
+        return None, _progress_error('필수 파라미터(plan_id, schedule_ids, action)가 누락되었습니다.')
+
+    if action not in ['complete', 'cancel']:
+        return None, _progress_error('action은 complete 또는 cancel이어야 합니다.')
+
+    if not isinstance(schedule_ids, list):
+        return None, _progress_error('schedule_ids는 배열이어야 합니다.')
+
+    if len(schedule_ids) > MAX_PROGRESS_SCHEDULE_IDS_PER_REQUEST:
+        return None, _progress_error(
+            f'schedule_ids는 한 번에 최대 {MAX_PROGRESS_SCHEDULE_IDS_PER_REQUEST}개까지 처리할 수 있습니다.'
+        )
+
+    parsed_schedule_ids = [_parse_positive_id(schedule_id) for schedule_id in schedule_ids]
+    if any(schedule_id is None for schedule_id in parsed_schedule_ids):
+        return None, _progress_error('schedule_ids는 양의 정수 배열이어야 합니다.')
+
+    if len(set(parsed_schedule_ids)) != len(parsed_schedule_ids):
+        return None, _progress_error('schedule_ids에 중복된 값이 있습니다.')
+
+    return {
+        'plan_id': plan_id,
+        'schedule_ids': parsed_schedule_ids,
+        'action': action,
+    }, None
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def update_bible_progress(request):
@@ -117,27 +456,20 @@ def update_bible_progress(request):
     }
     """
     try:
-        plan_id = request.data.get('plan_id')
-        schedule_ids = request.data.get('schedule_ids', [])
-        action = request.data.get('action')
+        progress_request, error_response = _validate_progress_request(request.data)
+        if error_response:
+            return error_response
 
-        # 필수 파라미터 검증
-        if not all([plan_id, schedule_ids, action]):
-            return Response({
-                'success': False,
-                'error': '필수 파라미터(plan_id, schedule_ids, action)가 누락되었습니다.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
-        if action not in ['complete', 'cancel']:
-            return Response({
-                'success': False,
-                'error': 'action은 complete 또는 cancel이어야 합니다.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        plan_id = progress_request['plan_id']
+        schedule_ids = progress_request['schedule_ids']
+        action = progress_request['action']
 
         # 1. 스케줄 조회 및 검증
         try:
-            daily_schedules = DailyBibleSchedule.objects.filter(id__in=schedule_ids)
-            if not daily_schedules.exists():
+            requested_schedules = list(
+                _readable_schedule_queryset(request.user).filter(id__in=schedule_ids)
+            )
+            if not requested_schedules:
                 return Response({
                     'success': False,
                     'error': '존재하지 않는 스케줄입니다.'
@@ -150,7 +482,18 @@ def update_bible_progress(request):
             }, status=status.HTTP_400_BAD_REQUEST)
             
         # 2. 스케줄의 plan_id와 요청의 plan_id 일치 여부 검증
-        if daily_schedules.filter(plan_id=plan_id).count() != len(schedule_ids):
+        found_schedule_ids = {schedule.id for schedule in requested_schedules}
+        if found_schedule_ids != set(schedule_ids):
+            return Response({
+                'success': False,
+                'error': '존재하지 않는 스케줄입니다.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        daily_schedules = [
+            schedule for schedule in requested_schedules
+            if schedule.plan_id == plan_id
+        ]
+        if len(daily_schedules) != len(schedule_ids):
             return Response({
                 'success': False,
                 'error': '스케줄 ID와 플랜 ID가 일치하지 않습니다.'
@@ -161,6 +504,7 @@ def update_bible_progress(request):
             subscription = PlanSubscription.objects.get(
                 user=request.user,
                 plan_id=plan_id,
+                plan__is_active=True,
                 is_active=True
             )
         except PlanSubscription.DoesNotExist:
@@ -204,13 +548,20 @@ def update_bible_progress(request):
             if new_progress:
                 UserBibleProgress.objects.bulk_create(new_progress, ignore_conflicts=True)
 
+            # 메인 읽기 흐름에서 토글된 진도를 활성 따라잡기 세션 스케줄에 동기화
+            sync_catchup_schedules(subscription, daily_schedules, is_completed, now)
+            # 벌크 연산은 post_save 시그널을 발생시키지 않으므로 통계/업적을 직접 재계산
+            AchievementService.update_user_stats(request.user)
+            if is_completed:
+                AchievementService.check_and_grant_achievements(request.user)
+
             if is_completed:
                 on_commit_notify_reading_completed(request.user, completed_schedules)
 
         return Response({
             'success': True,
             'plan_id': str(plan_id),
-            'schedule_ids': [str(id) for id in schedule_ids],
+            'schedule_ids': [str(schedule_id) for schedule_id in schedule_ids],
             'is_completed': is_completed
         }, status=status.HTTP_200_OK)
 
@@ -235,9 +586,17 @@ def get_reading_history(request):
         
     try:
         plan_id = int(plan_id)
+
+        if not _can_read_plan_schedules(request.user, plan_id):
+            return Response({'error': '구독 중인 플랜이 아닙니다.'}, status=404)
         
         if month:
             month = int(month)
+            if month < 1 or month > 12:
+                return Response(
+                    {'error': 'month는 1 이상 12 이하이어야 합니다.'},
+                    status=400,
+                )
             logger.info(f"Filtering progress for plan_id={plan_id}, month={month}")
             # schedule을 통해 해당 월의 progress 조회
             schedules = DailyBibleSchedule.objects.filter(
@@ -248,13 +607,13 @@ def get_reading_history(request):
                 subscription__plan_id=plan_id,
                 subscription__user=request.user,
                 schedule__in=schedules
-            ).select_related('schedule').order_by('schedule__date')
+            ).select_related('schedule', 'subscription__plan').order_by('schedule__date')
         else:
             logger.info(f"Filtering progress for plan_id={plan_id}")
             progress = UserBibleProgress.objects.filter(
                 subscription__plan_id=plan_id,
                 subscription__user=request.user
-            ).select_related('schedule').order_by('schedule__date')
+            ).select_related('schedule', 'subscription__plan').order_by('schedule__date')
             
         serializer = UserBibleProgressSerializer(progress, many=True)
         logger.info(f"Found {len(progress)} progress records")
@@ -266,7 +625,6 @@ def get_reading_history(request):
         logger.error(f"Error in get_reading_history: {str(e)}", exc_info=True)
         return Response({'error': '요청 처리 중 오류가 발생했습니다.'}, status=500)
 
-MAX_DB_BIGINT = 9223372036854775807
 
 
 def parse_positive_int_param(request, name):
@@ -326,12 +684,15 @@ def certification_progress(request):
 
     selected_schedule = None
     if schedule_id:
-        selected_schedule = DailyBibleSchedule.objects.filter(id=schedule_id).first()
-        if not selected_schedule or selected_schedule.plan_id != subscription.plan_id:
+        selected_schedule = DailyBibleSchedule.objects.filter(
+            id=schedule_id,
+            plan=subscription.plan,
+        ).first()
+        if not selected_schedule:
             return Response({
                 'success': False,
-                'error': '선택한 스케줄이 플랜에 속하지 않습니다.',
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'error': '선택한 스케줄을 찾을 수 없습니다.',
+            }, status=status.HTTP_404_NOT_FOUND)
 
     schedules = DailyBibleSchedule.objects.filter(plan=subscription.plan)
     total_schedules = schedules.count()
@@ -399,64 +760,98 @@ def certification_progress(request):
         },
     })
 
+def _parse_optional_year(raw_year):
+    if raw_year is None:
+        return None, None
+
+    try:
+        year = int(raw_year)
+    except (TypeError, ValueError):
+        return None, Response({'error': 'Invalid year format'}, status=400)
+
+    if year < 1 or year > 9999:
+        return None, Response({'error': 'Year must be between 1 and 9999'}, status=400)
+
+    return year, None
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_schedules_for_month(request):
     month = request.query_params.get('month')
+    raw_year = request.query_params.get('year')
     plan_id = request.query_params.get('plan_id')
     user = request.user
-    
+
     if not month or not plan_id:
         return Response({
             'error': 'Month and plan ID are required'
         }, status=400)
-    
+
     try:
         month = int(month)
         plan_id = int(plan_id)
-        
-        plan = BibleReadingPlan.objects.get(id=plan_id)
-        schedules = DailyBibleSchedule.objects.filter(
-            plan=plan,
-            date__month=month
-        ).order_by('date')
-        
+    except (TypeError, ValueError):
+        return Response({'error': 'Invalid plan ID or month format'}, status=400)
+
+    if month < 1 or month > 12:
+        return Response({'error': 'Month must be between 1 and 12'}, status=400)
+    year, year_error = _parse_optional_year(raw_year)
+    if year_error:
+        return year_error
+
+
+    plan = _get_active_public_plan(plan_id)
+    if plan is None:
+        return Response(
+            {"detail": "존재하지 않는 플랜입니다."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        schedules = DailyBibleSchedule.objects.filter(plan=plan).select_related('plan')
+
+        if year is not None:
+            start_date = date(year, month, 1)
+            end_date = date(year, month, monthrange(year, month)[1])
+            schedules = schedules.filter(date__range=(start_date, end_date))
+        else:
+            schedules = schedules.filter(date__month=month)
+
+        schedule_list = list(schedules.order_by('date', 'id'))
+
         # 비로그인 사용자인 경우 기본 일정 정보만 반환
         if not user.is_authenticated:
-            schedule_data = [DailyBibleScheduleSerializer(schedule).data for schedule in schedules]
+            schedule_data = [DailyBibleScheduleSerializer(schedule).data for schedule in schedule_list]
             return Response(schedule_data)
-        
+
         # 로그인 사용자인 경우 읽기 상태 정보 포함
         subscription = PlanSubscription.objects.filter(
             user=user,
             plan=plan,
             is_active=True
         ).first()
-        
+
         if subscription:
-            # schedule을 기준으로 progress 조회
+            schedule_ids = [schedule.id for schedule in schedule_list]
             progress_records = UserBibleProgress.objects.filter(
                 subscription=subscription,
-                schedule__in=schedules
-            ).select_related('schedule')
-            
-            # schedule_id를 키로 하는 progress 딕셔너리 생성
-            progress_dict = {
-                record.schedule_id: record.is_completed 
-                for record in progress_records
-            }
-            
+                schedule_id__in=schedule_ids
+            ).values_list('schedule_id', 'is_completed')
+
+            progress_dict = dict(progress_records)
+
             schedule_data = []
-            for schedule in schedules:
+            for schedule in schedule_list:
                 schedule_dict = DailyBibleScheduleSerializer(schedule).data
                 schedule_dict['is_completed'] = progress_dict.get(schedule.id, False)
                 schedule_data.append(schedule_dict)
-            
+
             return Response(schedule_data)
-        
+
         # 구독이 없는 경우 기본 일정 정보만 반환
-        return Response([DailyBibleScheduleSerializer(schedule).data for schedule in schedules])
-        
+        return Response([DailyBibleScheduleSerializer(schedule).data for schedule in schedule_list])
+
     except Exception as e:
         logger.error(f"Error in get_schedules_for_month: {str(e)}", exc_info=True)
         return Response({
@@ -472,21 +867,129 @@ class IsStaffOrReadOnly(permissions.BasePermission):
             return True
         return request.user.is_staff
 
+
+def _get_active_public_plan(plan_id):
+    try:
+        return BibleReadingPlan.objects.get(id=plan_id, is_active=True)
+    except (BibleReadingPlan.DoesNotExist, TypeError, ValueError):
+        return None
+
+
+def _parse_positive_chapter(value):
+    if isinstance(value, bool):
+        return None
+
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        return None
+
+    if isinstance(value, numbers.Integral):
+        chapter = int(value)
+    elif isinstance(value, numbers.Real):
+        if not value.is_integer():
+            return None
+        chapter = int(value)
+    elif isinstance(value, str):
+        stripped_value = value.strip()
+        if not re.fullmatch(r'[+-]?\d+', stripped_value):
+            return None
+        chapter = int(stripped_value)
+    else:
+        return None
+
+    if chapter < 1:
+        return None
+    return chapter
+
+
+def _parse_excel_schedule_date(value):
+    if isinstance(value, str):
+        date_value = value.strip()
+        if re.match(r'\d{4}\.\d{1,2}\.\d{1,2}', date_value):
+            date_value = date_value.replace('.', '-')
+        return datetime.strptime(date_value, '%Y-%m-%d').date()
+
+    return value.date() if hasattr(value, 'date') else value
+
+
+def _parse_required_excel_text(value):
+    if value is None:
+        raise ValueError('required text is blank')
+
+    try:
+        if pd.isna(value):
+            raise ValueError('required text is blank')
+    except TypeError:
+        pass
+
+    text = str(value).strip()
+    if not text:
+        raise ValueError('required text is blank')
+    return text
+
+
+def _parse_excel_chapter_range(start_value, end_value):
+    start_chapter = _parse_positive_chapter(start_value)
+    end_chapter = _parse_positive_chapter(end_value)
+
+    if start_chapter is None or end_chapter is None:
+        raise ValueError('chapter must be a positive integer')
+
+    if end_chapter < start_chapter:
+        raise ValueError('end chapter cannot be less than start chapter')
+
+    return start_chapter, end_chapter
+
+
+def _clean_function_upload_url(url):
+    if isinstance(url, float) and pd.isna(url):
+        return ''
+    return url
+
+
+def _parse_excel_schedule_row(row, url_cleaner):
+    start_chapter, end_chapter = _parse_excel_chapter_range(row['시작장'], row['끝장'])
+    return {
+        'date': _parse_excel_schedule_date(row['날짜']),
+        'book': _parse_required_excel_text(row['성경']),
+        'start_chapter': start_chapter,
+        'end_chapter': end_chapter,
+        'audio_link': url_cleaner(row.get('오디오', '')),
+        'guide_link': url_cleaner(row.get('가이드', '')),
+    }
+
+
+def _build_excel_row_error(index):
+    return f"행 {index + 2}: 처리 중 오류가 발생했습니다."
+
+
+def _excel_upload_error_response(errors):
+    return Response({
+        "detail": f"0개의 일정이 처리되었습니다. 오류: {len(errors)}개",
+        "errors": errors,
+    })
+
+
 class DailyBibleScheduleViewSet(viewsets.ModelViewSet):
     queryset = DailyBibleSchedule.objects.all()
     serializer_class = DailyBibleScheduleSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
     
     def get_queryset(self):
+        # N+1 쿼리 방지: plan을 미리 로드
+        queryset = DailyBibleSchedule.objects.select_related('plan')
+        
         # 플랜 ID로 필터링
         plan_id = self.request.query_params.get('plan_id')
         if plan_id:
             # 디버깅 로그 추가
             logger.info(f"Fetching schedules for plan_id: {plan_id}")
-            queryset = DailyBibleSchedule.objects.filter(plan_id=plan_id)
-            logger.info(f"Found {queryset.count()} schedules")
-            return queryset
-        return super().get_queryset()
+            filtered_queryset = queryset.filter(plan_id=plan_id)
+            logger.info(f"Found {filtered_queryset.count()} schedules")
+            return filtered_queryset
+        return queryset
     
     @action(detail=False, methods=['post'])
     def upload_excel(self, request):
@@ -517,82 +1020,44 @@ class DailyBibleScheduleViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # 기존 일정 관리
-            if update_mode == 'replace':
-                # 기존 일정 모두 삭제
-                DailyBibleSchedule.objects.filter(plan=plan).delete()
-            
-            # 데이터 변환 및 저장
-            success_count = 0
-            error_count = 0
+            pending_rows = []
             errors = []
-            
+
             for index, row in df.iterrows():
                 try:
-                    # 날짜 변환
-                    date_str = row['날짜']
-                    if isinstance(date_str, str):
-                        # YYYY-MM-DD 형식이 아닌 경우 변환
-                        if re.match(r'\d{4}\.\d{1,2}\.\d{1,2}', date_str):
-                            date_str = date_str.replace('.', '-')
-                        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-                    else:
-                        # pandas가 자동으로 datetime으로 변환한 경우
-                        date_obj = date_str.date() if hasattr(date_str, 'date') else date_str
-                    
-                    # 필드 값 추출
-                    book = row['성경']
-                    start_chapter = int(row['시작장'])
-                    end_chapter = int(row['끝장'])
-                    
-                    # URL 필드 처리 개선
-                    audio_link = row.get('오디오', '')
-                    guide_link = row.get('가이드', '')
+                    pending_rows.append(_parse_excel_schedule_row(row, self._validate_url))
+                except Exception as e:
+                    logger.warning(f"Invalid upload_excel row {index + 2}: {str(e)}")
+                    errors.append(_build_excel_row_error(index))
 
-                    # 데이터 타입 확인 및 변환 
-                    # float 타입이 들어온 경우 처리
-                    if isinstance(audio_link, float) or isinstance(guide_link, float):
-                        logger.info(f"행 {index+2}: float 타입 URL 필드 발견, 변환 시도")
+            if errors:
+                return _excel_upload_error_response(errors)
 
-                    # 유효한 URL로 변환
-                    audio_link = self._validate_url(audio_link)
-                    guide_link = self._validate_url(guide_link)
-                    
-                    # 업데이트 모드 처리
+            success_count = 0
+            with transaction.atomic():
+                if update_mode == 'replace':
+                    DailyBibleSchedule.objects.filter(plan=plan).delete()
+
+                for row_data in pending_rows:
                     if update_mode in ['add', 'replace']:
-                        # 신규 추가
-                        DailyBibleSchedule.objects.create(
+                        DailyBibleSchedule.objects.create(plan=plan, **row_data)
+                    else:
+                        DailyBibleSchedule.objects.update_or_create(
                             plan=plan,
-                            date=date_obj,
-                            book=book,
-                            start_chapter=start_chapter,
-                            end_chapter=end_chapter,
-                            audio_link=audio_link,
-                            guide_link=guide_link
-                        )
-                    else:  # update 모드
-                        # 기존 레코드 업데이트 또는 생성
-                        obj, created = DailyBibleSchedule.objects.update_or_create(
-                            plan=plan,
-                            date=date_obj,
+                            date=row_data['date'],
+                            book=row_data['book'],
                             defaults={
-                                'book': book,
-                                'start_chapter': start_chapter,
-                                'end_chapter': end_chapter,
-                                'audio_link': audio_link,
-                                'guide_link': guide_link
+                                'start_chapter': row_data['start_chapter'],
+                                'end_chapter': row_data['end_chapter'],
+                                'audio_link': row_data['audio_link'],
+                                'guide_link': row_data['guide_link'],
                             }
                         )
-                    
                     success_count += 1
-                except Exception as e:
-                    error_count += 1
-                    logger.error(f"Error in upload_excel row {index + 2}: {str(e)}", exc_info=True)
-                    errors.append(f"행 {index + 2}: 처리 중 오류가 발생했습니다.")
-            
+
             return Response({
-                "detail": f"{success_count}개의 일정이 처리되었습니다. 오류: {error_count}개",
-                "errors": errors if errors else None
+                "detail": f"{success_count}개의 일정이 처리되었습니다. 오류: 0개",
+                "errors": None
             })
             
         except BibleReadingPlan.DoesNotExist:
@@ -712,20 +1177,51 @@ class BibleReadingPlanViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """사용자 권한에 따라 쿼리셋 필터링"""
+        # N+1 쿼리 방지: created_by를 미리 로드하고 구독자 수를 집계
+        queryset = BibleReadingPlan.objects.select_related('created_by').annotate(
+            subscriber_count=Count('plansubscription', filter=Q(plansubscription__is_active=True))
+        ).order_by('-is_default', 'name', 'id')
+        
         if self.request.user.is_staff:
             # 관리자는 모든 플랜 조회 가능
-            return BibleReadingPlan.objects.all()
+            return queryset
         else:
             # 일반 사용자는 활성화된 플랜만 조회 가능
-            return BibleReadingPlan.objects.filter(is_active=True)
+            return queryset.filter(is_active=True)
+
+    def _save_as_sole_default(self, save_callable, plan_pk=None):
+        """Persist a plan as the single default within one transaction.
+
+        Clears is_default on every other plan, then runs the provided save.
+        The unique generated column (default_plan_identity) is the concurrency
+        backstop: a lost race surfaces as IntegrityError instead of silently
+        creating duplicate defaults. select_for_update is intentionally avoided
+        (no-op on the SQLite test backend).
+        """
+        with transaction.atomic():
+            BibleReadingPlan.objects.filter(is_default=True).exclude(
+                pk=plan_pk
+            ).update(is_default=False)
+            return save_callable()
 
     def perform_create(self, serializer):
         """플랜 생성 시 생성자 정보 추가"""
+        if serializer.validated_data.get('is_default'):
+            self._save_as_sole_default(
+                lambda: serializer.save(created_by=self.request.user)
+            )
+            return
         serializer.save(created_by=self.request.user)
 
     def perform_update(self, serializer):
         """기존 생성자 정보를 유지하면서 업데이트"""
         instance = self.get_object()
+        if serializer.validated_data.get('is_default'):
+            self._save_as_sole_default(
+                lambda: serializer.save(created_by=instance.created_by),
+                plan_pk=instance.pk,
+            )
+            return
         serializer.save(created_by=instance.created_by)
 
     @action(detail=True, methods=['post'])
@@ -743,16 +1239,14 @@ class BibleReadingPlanViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def set_default(self, request, pk=None):
         """특정 플랜을 기본 플랜으로 설정"""
-        # 기존의 기본 플랜을 모두 해제
-        BibleReadingPlan.objects.filter(is_default=True).update(is_default=False)
-        
-        # 현재 플랜을 기본으로 설정
         plan = self.get_object()
-        plan.is_default = True
-        
-        # update_fields 파라미터를 사용하여 특정 필드만 업데이트
-        plan.save(update_fields=['is_default'])
-        
+
+        def _mark_default():
+            plan.is_default = True
+            plan.save(update_fields=['is_default'])
+
+        self._save_as_sole_default(_mark_default, plan_pk=plan.pk)
+
         return Response({'detail': '기본 플랜으로 설정되었습니다.'})
 
     @action(detail=True, methods=['get'])
@@ -769,6 +1263,11 @@ def plan_subscription_list(request):
     """플랜 구독 목록 조회 및 생성"""
     # 비로그인 사용자인 경우 활성화된 모든 공개 플랜 반환
     if not request.user.is_authenticated:
+        if request.method != 'GET':
+            return Response(
+                {'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         public_plans = BibleReadingPlan.objects.filter(is_active=True).order_by('-is_default', 'name')
         if not public_plans.exists():
             return Response({
@@ -794,18 +1293,20 @@ def plan_subscription_list(request):
     
     # POST 요청 처리 (구독 생성)
     elif request.method == 'POST':
-        # 이미 구독 중인 플랜인지 확인
         plan_id = request.data.get('plan')
-        if PlanSubscription.objects.filter(user=request.user, plan_id=plan_id).exists():
-            return Response(
-                {"detail": "이미 구독 중인 플랜입니다."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
         
         # 플랜 정보 가져오기
         try:
-            plan = BibleReadingPlan.objects.get(id=plan_id)
-        except BibleReadingPlan.DoesNotExist:
+            plan = _get_subscription_plan(plan_id)
+        except OperationalError as exc:
+            if not _is_database_lock_error(exc):
+                raise
+            return Response(
+                {"detail": "구독 요청이 몰려 처리하지 못했습니다. 다시 시도해주세요."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if plan is None:
             return Response(
                 {"detail": "존재하지 않는 플랜입니다."},
                 status=status.HTTP_404_NOT_FOUND
@@ -818,12 +1319,12 @@ def plan_subscription_list(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # 구독 생성
-        subscription = PlanSubscription.objects.create(
-            user=request.user, 
-            plan=plan,
-            start_date=timezone.now().date()
-        )
+        subscription, created = _get_or_create_plan_subscription(request.user, plan)
+        if not created:
+            return Response(
+                {"detail": "이미 구독 중인 플랜입니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         serializer = PlanSubscriptionSerializer(subscription)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -844,10 +1345,10 @@ def plan_subscription_detail(request, pk):
     
     # PUT 요청 처리 (수정)
     elif request.method == 'PUT':
-        serializer = PlanSubscriptionSerializer(subscription, data=request.data, partial=True)
+        serializer = PlanSubscriptionUpdateSerializer(subscription, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            updated_subscription = serializer.save()
+            return Response(PlanSubscriptionSerializer(updated_subscription).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     # DELETE 요청 처리 (삭제)
@@ -858,7 +1359,8 @@ def plan_subscription_detail(request, pk):
                 {"detail": "기본 플랜 구독은 삭제할 수 없습니다."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        subscription.delete()
+        with transaction.atomic():
+            _delete_plan_subscription_with_artifacts(subscription)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['POST'])
@@ -877,7 +1379,14 @@ def plan_subscription_toggle_active(request, pk):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    subscription.is_active = not subscription.is_active
+    next_is_active = not subscription.is_active
+    if next_is_active and not subscription.plan.is_active:
+        return Response(
+            {"detail": "현재 신규 구독이 중단된 플랜은 다시 활성화할 수 없습니다."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    subscription.is_active = next_is_active
     subscription.save()
     
     return Response({"is_active": subscription.is_active})
@@ -887,11 +1396,15 @@ def plan_subscription_toggle_active(request, pk):
 def plan_subscription_progress(request, pk):
     """특정 구독의 진도 목록 조회"""
     try:
-        subscription = PlanSubscription.objects.get(pk=pk, user=request.user)
+        subscription = PlanSubscription.objects.select_related('plan').get(
+            pk=pk,
+            user=request.user,
+            plan__is_active=True,
+        )
     except PlanSubscription.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     
-    progress = subscription.progress.all()
+    progress = subscription.progress.select_related('schedule', 'subscription__plan').all()
     serializer = UserBibleProgressSerializer(progress, many=True)
     return Response(serializer.data)
 
@@ -918,6 +1431,10 @@ def get_chapter_detail(request):
         if not book_name:
             return Response({'error': '잘못된 성경 코드입니다.'}, status=400)
 
+        chapter_number = _parse_positive_chapter(chapter)
+        if chapter_number is None:
+            return Response({'error': 'chapter는 1 이상의 정수여야 합니다.'}, status=400)
+
         # 기본 응답 데이터 (plan_id가 없을 때 반환할 기본 정보)
         response_data = {
             'book': book,
@@ -931,15 +1448,16 @@ def get_chapter_detail(request):
         if not plan_id:
             return Response(response_data)
 
-        # plan_id가 있는 경우 추가 정보 조회
-        plan = get_object_or_404(BibleReadingPlan, id=plan_id)
+        plan = _get_active_public_plan(plan_id)
+        if plan is None:
+            return Response({'error': '존재하지 않는 플랜입니다.'}, status=404)
 
         # 해당 장이 속한 일정 조회
         target_schedule = DailyBibleSchedule.objects.filter(
             plan=plan,
             book=book_name,
-            start_chapter__lte=int(chapter),
-            end_chapter__gte=int(chapter)
+            start_chapter__lte=chapter_number,
+            end_chapter__gte=chapter_number
         ).first()
 
         if not target_schedule:
@@ -1049,10 +1567,8 @@ def get_today_schedules(request):
                 'error': '플랜 ID가 필요합니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
             
-        # 플랜 존재 여부 확인
-        try:
-            plan = BibleReadingPlan.objects.get(id=plan_id)
-        except BibleReadingPlan.DoesNotExist:
+        plan = _get_active_public_plan(plan_id)
+        if plan is None:
             return Response({
                 'success': False,
                 'error': '존재하지 않는 플랜입니다.'
@@ -1063,7 +1579,7 @@ def get_today_schedules(request):
         
         # 오늘 날짜의 일정 조회
         schedules = DailyBibleSchedule.objects.filter(
-            plan_id=plan_id,
+            plan=plan,
             date=today
         ).order_by('id')
         
@@ -1210,10 +1726,8 @@ def get_next_reading_position(request):
                 'message': '플랜 ID가 필요합니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # 플랜 존재 확인
-        try:
-            plan = BibleReadingPlan.objects.get(id=plan_id)
-        except BibleReadingPlan.DoesNotExist:
+        plan = _get_active_public_plan(plan_id)
+        if plan is None:
             return Response({
                 'success': False,
                 'status': 'plan_not_found',
@@ -1227,7 +1741,7 @@ def get_next_reading_position(request):
         if not user.is_authenticated:
             # 오늘 일정 확인
             today_schedule = DailyBibleSchedule.objects.filter(
-                plan_id=plan_id,
+                plan=plan,
                 date=today
             ).first()
             
@@ -1242,7 +1756,7 @@ def get_next_reading_position(request):
             
             # 오늘 일정 없으면 가장 가까운 미래 일정
             next_schedule = DailyBibleSchedule.objects.filter(
-                plan_id=plan_id,
+                plan=plan,
                 date__gte=today
             ).order_by('date').first()
             
@@ -1257,7 +1771,7 @@ def get_next_reading_position(request):
             
             # 미래 일정도 없으면 가장 마지막 일정
             last_schedule = DailyBibleSchedule.objects.filter(
-                plan_id=plan_id
+                plan=plan
             ).order_by('-date').first()
             
             if last_schedule:
@@ -1285,7 +1799,7 @@ def get_next_reading_position(request):
         if not subscription:
             # 구독 없으면 비로그인과 동일하게 처리
             today_schedule = DailyBibleSchedule.objects.filter(
-                plan_id=plan_id,
+                plan=plan,
                 date=today
             ).first()
             
@@ -1299,7 +1813,7 @@ def get_next_reading_position(request):
                 })
             
             next_schedule = DailyBibleSchedule.objects.filter(
-                plan_id=plan_id,
+                plan=plan,
                 date__gte=today
             ).order_by('date').first()
             
@@ -1313,7 +1827,7 @@ def get_next_reading_position(request):
                 })
             
             last_schedule = DailyBibleSchedule.objects.filter(
-                plan_id=plan_id
+                plan=plan
             ).order_by('-date').first()
             
             if last_schedule:
@@ -1338,7 +1852,7 @@ def get_next_reading_position(request):
         ).values_list('schedule_id', flat=True)
         
         next_schedule = DailyBibleSchedule.objects.filter(
-            plan_id=plan_id
+            plan=plan
         ).exclude(
             id__in=completed_schedule_ids
         ).order_by('date').first()
@@ -1355,7 +1869,7 @@ def get_next_reading_position(request):
         # 모든 스케줄 완료
         # 마지막 스케줄 날짜 반환 (UI에서 스크롤 위치용)
         last_schedule = DailyBibleSchedule.objects.filter(
-            plan_id=plan_id
+            plan=plan
         ).order_by('-date').first()
         
         if last_schedule:
@@ -1392,18 +1906,19 @@ def video_intro_list(request):
     if request.method == 'GET':
         logger.info(f"[디버그] 영상 개론 목록 조회 - 인증상태: {request.user.is_authenticated}")
         plan_id = request.query_params.get('plan_id')
-        
+
         try:
             if plan_id:
-                # plan_id를 정수로 변환
-                plan_id = int(plan_id) if plan_id else None
-                if plan_id:
-                    video_intros = VideoBibleIntro.objects.filter(plan_id=plan_id)
-                else:
-                    video_intros = VideoBibleIntro.objects.all()
+                plan = _get_active_public_plan(plan_id)
+                if plan is None:
+                    return Response(
+                        {"detail": "존재하지 않는 플랜입니다."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                video_intros = VideoBibleIntro.objects.filter(plan=plan)
             else:
-                video_intros = VideoBibleIntro.objects.all()
-                
+                video_intros = VideoBibleIntro.objects.filter(plan__is_active=True)
+
             logger.info(f"[디버그] 조회된 영상 개론 개수: {video_intros.count()}, plan_id: {plan_id}")
             serializer = VideoBibleIntroSerializer(video_intros, many=True)
             return Response(serializer.data)
@@ -1415,19 +1930,9 @@ def video_intro_list(request):
             )
     
     elif request.method == 'POST':
-        # 인증 확인
-        if not request.user.is_authenticated:
-            return Response(
-                {"detail": "인증이 필요합니다."}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-            
-        # 관리자 권한 확인
-        if not request.user.is_staff:
-            return Response(
-                {"detail": "관리자 권한이 필요합니다."}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+        permission_error = _admin_permission_error(request)
+        if permission_error:
+            return permission_error
             
         serializer = VideoBibleIntroSerializer(data=request.data)
         if serializer.is_valid():
@@ -1435,40 +1940,49 @@ def video_intro_list(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+def _admin_permission_error(request):
+    if not request.user.is_authenticated:
+        return Response(
+            {"detail": "인증이 필요합니다."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    if not request.user.is_staff:
+        return Response(
+            {"detail": "관리자 권한이 필요합니다."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return None
+
+
 @api_view(['GET', 'DELETE'])
 @permission_classes([AllowAny])
 def video_intro_detail(request, pk):
     """영상 개론 상세 조회 및 삭제
-    GET: 비로그인 사용자도 접근 가능
+    GET: 비로그인 사용자도 접근 가능 (활성 플랜에 한함)
     DELETE: 관리자만 접근 가능
     """
+    if request.method == 'DELETE':
+        permission_error = _admin_permission_error(request)
+        if permission_error:
+            return permission_error
+        video_intros_queryset = VideoBibleIntro.objects.all()
+    else:
+        video_intros_queryset = VideoBibleIntro.objects.filter(plan__is_active=True)
+
     try:
-        video_intro = VideoBibleIntro.objects.get(pk=pk)
+        video_intro = video_intros_queryset.get(pk=pk)
     except VideoBibleIntro.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    # GET 요청은 모든 사용자 접근 가능 (비로그인 포함)
+
     if request.method == 'GET':
         logger.info(f"[디버그] 영상 개론 상세 조회 - ID: {pk}, 인증상태: {request.user.is_authenticated}")
         serializer = VideoBibleIntroSerializer(video_intro)
         return Response(serializer.data)
-    
-    # DELETE 요청은 관리자만 가능
+
     elif request.method == 'DELETE':
-        # 인증 확인
-        if not request.user.is_authenticated:
-            return Response(
-                {"detail": "인증이 필요합니다."}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-            
-        # 관리자 권한 확인
-        if not request.user.is_staff:
-            return Response(
-                {"detail": "관리자 권한이 필요합니다."}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-            
         video_intro.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -1689,71 +2203,32 @@ def upload_video_intros(request):
         )
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_user_video_intros(request):
-    """사용자가 구독 중인 플랜의 영상 개론 목록 조회
-    로그인 정보가 없는 경우 파라미터로 받은 플랜의 전체 일정 반환
-    """
+    """사용자가 구독 중인 플랜의 영상 개론 목록 조회."""
     try:
-        # 로그인 여부 확인
-        if request.user.is_authenticated:
-            # 로그인된 경우 - 사용자가 구독 중인 플랜 ID 목록
-            plan_ids = list(PlanSubscription.objects.filter(
-                user=request.user,
-                is_active=True
-            ).values_list('plan_id', flat=True))
-            
-            # plan_id 파라미터가 있으면 해당 플랜만 필터링 (구독 중인 플랜인지 확인)
-            requested_plan_id = request.GET.get('plan_id')
-            if requested_plan_id:
-                try:
-                    requested_plan_id = int(requested_plan_id)
-                    if requested_plan_id in plan_ids:
-                        plan_ids = [requested_plan_id]
-                    # 구독하지 않은 플랜이면 무시하고 전체 구독 플랜 표시
-                except (ValueError, TypeError):
-                    pass
-            
-            # 해당 플랜의 영상 개론 목록 조회
-            video_intros = VideoBibleIntro.objects.filter(
-                plan_id__in=plan_ids
-            ).order_by('start_date')
-            
-            # 추가: 사용자의 진행 상태 조회
-            progress_records = UserVideoIntroProgress.objects.filter(
-                user=request.user,
-                video_intro__in=video_intros
-            ).select_related('video_intro')
-        else:
-            # 비로그인 경우 - 파라미터로 받은 플랜의 전체 일정 반환
-            plan_id = request.GET.get('plan_id')
-            logger.info(f"[디버그] 비로그인 사용자 요청 - 파라미터 plan_id: {plan_id}")
-            
+        plan_ids = list(PlanSubscription.objects.filter(
+            user=request.user,
+            is_active=True
+        ).values_list('plan_id', flat=True))
+
+        requested_plan_id = request.GET.get('plan_id')
+        if requested_plan_id:
             try:
-                # plan_id를 정수로 변환, 없으면 기본 플랜 사용
-                if plan_id:
-                    plan_id = int(plan_id)
-                else:
-                    default_plan = BibleReadingPlan.objects.filter(is_default=True).first()
-                    plan_id = default_plan.id if default_plan else None
+                requested_plan_id = int(requested_plan_id)
+                if requested_plan_id in plan_ids:
+                    plan_ids = [requested_plan_id]
             except (ValueError, TypeError):
-                # 변환 오류 발생 시 기본 플랜 사용
-                logger.warning(f"[디버그] plan_id 변환 오류, 기본 플랜 조회: {plan_id}")
-                default_plan = BibleReadingPlan.objects.filter(is_default=True).first()
-                plan_id = default_plan.id if default_plan else None
-            
-            # 해당 플랜의 영상 개론 목록 조회
-            logger.info(f"[디버그] 비로그인 사용자 영상 개론 조회 - plan_id: {plan_id}")
-            video_intros = VideoBibleIntro.objects.filter(
-                plan_id=plan_id
-            ).order_by('start_date')
-            
-            # 조회된 개론 영상 개수 로깅
-            logger.info(f"[디버그] 조회된 개론 영상 개수: {video_intros.count()}")
-            
-            # 비로그인 사용자는 진행 상태가 없음
-            progress_records = []
-        
-        # video_intro_id를 키로 하는 progress 딕셔너리 생성
+                pass
+
+        video_intros = VideoBibleIntro.objects.filter(
+            plan_id__in=plan_ids
+        ).order_by('start_date')
+        progress_records = UserVideoIntroProgress.objects.filter(
+            user=request.user,
+            video_intro__in=video_intros
+        ).select_related('video_intro')
+
         progress_dict = {
             record.video_intro_id: {
                 'is_completed': record.is_completed,
@@ -1761,40 +2236,15 @@ def get_user_video_intros(request):
             } 
             for record in progress_records
         }
-        
-        # 응답 데이터 구성
         result = []
-        
-        # 로그인된 경우에만 진행 상태 딕셔너리 생성
-        if request.user.is_authenticated:
-            # video_intro_id를 키로 하는 progress 딕셔너리 생성
-            progress_dict = {
-                record.video_intro_id: {
-                    'is_completed': record.is_completed,
-                    'completed_at': record.completed_at
-                } 
-                for record in progress_records
-            }
-            
-            for intro in video_intros:
-                intro_data = VideoBibleIntroSerializer(intro).data
-                # 사용자 진행 상태 추가
-                if intro.id in progress_dict:
-                    intro_data['is_completed'] = progress_dict[intro.id]['is_completed']
-                    intro_data['completed_at'] = progress_dict[intro.id]['completed_at']
-                else:
-                    intro_data['is_completed'] = False
-                    intro_data['completed_at'] = None
-                
-                result.append(intro_data)
-        else:
-            # 비로그인 사용자는 모든 항목이 미완료 상태
-            for intro in video_intros:
-                intro_data = VideoBibleIntroSerializer(intro).data
-                intro_data['is_completed'] = False
-                intro_data['completed_at'] = None
-                result.append(intro_data)
-        
+
+        for intro in video_intros:
+            intro_data = VideoBibleIntroSerializer(intro).data
+            progress = progress_dict.get(intro.id)
+            intro_data['is_completed'] = progress['is_completed'] if progress else False
+            intro_data['completed_at'] = progress['completed_at'] if progress else None
+            result.append(intro_data)
+
         return Response(result)
         
     except Exception as e:
@@ -1810,14 +2260,20 @@ def hasena_record_list(request):
     """하세나 기록 목록 조회 및 생성"""
     if request.method == 'GET':
         # 날짜 필터링 (선택적)
-        year = request.query_params.get('year')
-        month = request.query_params.get('month')
-        
+        query_serializer = HasenaRecordListQuerySerializer(data=request.query_params)
+        if not query_serializer.is_valid():
+            return Response(
+                {'success': False, 'errors': query_serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        year = query_serializer.validated_data.get('year')
+        month = query_serializer.validated_data.get('month')
+
         records = HasenaRecord.objects.filter(user=request.user)
-        
-        if year:
+
+        if year is not None:
             records = records.filter(date__year=year)
-        if month:
+        if month is not None:
             records = records.filter(date__month=month)
             
         # 날짜 내림차순 정렬
@@ -1834,63 +2290,25 @@ def hasena_record_list(request):
         return Response(data)
     
     elif request.method == 'POST':
-        # 날짜 필수 확인
-        date_str = request.data.get('date')
-        if not date_str:
-            return Response(
-                {'detail': '날짜가 필요합니다.'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        try:
-            # 날짜 형식 변환
-            date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            
-            # 중복 확인
-            existing = HasenaRecord.objects.filter(
-                user=request.user,
-                date=date
-            ).first()
-            
-            if existing:
-                # 기존 기록 업데이트
-                existing.is_completed = request.data.get('is_completed', True)
-                existing.save()
-                
-                return Response({
-                    'id': existing.id,
-                    'date': existing.date.isoformat(),
-                    'is_completed': existing.is_completed,
-                    'created_at': existing.created_at.isoformat(),
-                    'updated_at': existing.updated_at.isoformat()
-                })
-            
-            # 새 기록 생성
-            record = HasenaRecord.objects.create(
-                user=request.user,
-                date=date,
-                is_completed=request.data.get('is_completed', True)
-            )
-            
-            return Response({
-                'id': record.id,
-                'date': record.date.isoformat(),
-                'is_completed': record.is_completed,
-                'created_at': record.created_at.isoformat(),
-                'updated_at': record.updated_at.isoformat()
-            }, status=status.HTTP_201_CREATED)
-            
-        except ValueError:
-            return Response(
-                {'detail': '날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식이어야 합니다.'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            logger.error(f"Error in hasena_record_list: {str(e)}", exc_info=True)
-            return Response(
-                {'detail': '요청 처리 중 오류가 발생했습니다.'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        serializer = HasenaRecordCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_date = serializer.validated_data['date']
+        validated_is_completed = serializer.validated_data['is_completed']
+
+        record, created = _upsert_hasena_record(
+            request.user, validated_date, validated_is_completed
+        )
+
+        response_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response({
+            'id': record.id,
+            'date': record.date.isoformat(),
+            'is_completed': record.is_completed,
+            'created_at': record.created_at.isoformat(),
+            'updated_at': record.updated_at.isoformat(),
+        }, status=response_status)
 
 @api_view(['GET', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -1920,19 +2338,33 @@ def hasena_record_detail(request, pk):
 def update_video_intro_progress(request):
     """영상 개론 진행 상황 업데이트"""
     try:
-        video_intro_id = request.data.get('video_intro_id')
+        raw_video_intro_id = request.data.get('video_intro_id')
         is_completed = request.data.get('is_completed', True)
+        if not isinstance(is_completed, bool):
+            return Response(
+                {'detail': 'is_completed는 true 또는 false 값이어야 합니다.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
-        if not video_intro_id:
+        if raw_video_intro_id in (None, ''):
             return Response(
                 {'detail': '영상 개론 ID가 필요합니다.'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        video_intro_id = _parse_positive_id(raw_video_intro_id)
+        if video_intro_id is None:
+            return Response(
+                {'detail': 'video_intro_id는 양의 정수여야 합니다.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
             
-        # 영상 개론 존재 여부 확인
-        try:
-            video_intro = VideoBibleIntro.objects.get(id=video_intro_id)
-        except VideoBibleIntro.DoesNotExist:
+        video_intro = VideoBibleIntro.objects.filter(
+            id=video_intro_id,
+            plan__plansubscription__user=request.user,
+            plan__plansubscription__is_active=True,
+        ).first()
+        if video_intro is None:
             return Response(
                 {'detail': '존재하지 않는 영상 개론입니다.'}, 
                 status=status.HTTP_404_NOT_FOUND
@@ -1984,17 +2416,7 @@ def plan_subscription_unsubscribe(request, pk):
     plan_name = subscription.plan.name
     
     with transaction.atomic():
-        # 1. 해당 구독에 연결된 모든 진행도 데이터 삭제
-        UserBibleProgress.objects.filter(subscription=subscription).delete()
-        
-        # 2. 해당 구독에 연결된 영상 개론 진행 데이터 삭제
-        UserVideoIntroProgress.objects.filter(
-            user=request.user,
-            video_intro__plan=subscription.plan
-        ).delete()
-        
-        # 3. 구독 레코드 완전 삭제 (비활성화 대신)
-        subscription.delete()
+        _delete_plan_subscription_with_artifacts(subscription)
     
     return Response({"detail": f"{plan_name} 플랜 구독이 취소되었습니다."})
 
@@ -2004,10 +2426,12 @@ def schedule_list(request):
     """스케줄 목록 조회 및 생성"""
     if request.method == 'GET':
         plan_id = request.query_params.get('plan_id')
+        schedules = _readable_schedule_queryset(request.user)
         if plan_id:
-            schedules = DailyBibleSchedule.objects.filter(plan_id=plan_id)
-        else:
-            schedules = DailyBibleSchedule.objects.all()
+            parsed_plan_id = _parse_positive_id(plan_id)
+            if not parsed_plan_id or not _can_read_plan_schedules(request.user, parsed_plan_id):
+                return Response(status=404)
+            schedules = schedules.filter(plan_id=parsed_plan_id)
         serializer = DailyBibleScheduleSerializer(schedules, many=True)
         return Response(serializer.data)
     
@@ -2026,7 +2450,7 @@ def schedule_list(request):
 def schedule_detail(request, pk):
     """스케줄 상세 조회/수정/삭제"""
     try:
-        schedule = DailyBibleSchedule.objects.get(pk=pk)
+        schedule = _readable_schedule_queryset(request.user).get(pk=pk)
     except DailyBibleSchedule.DoesNotExist:
         return Response(status=404)
         
@@ -2103,81 +2527,44 @@ def upload_schedules_excel(request):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # 기존 일정 관리
-            if update_mode == 'replace':
-                # 기존 일정 모두 삭제
-                DailyBibleSchedule.objects.filter(plan=plan).delete()
-            
-            # 데이터 변환 및 저장
-            success_count = 0
-            error_count = 0
+            pending_rows = []
             errors = []
-            
+
             for index, row in df.iterrows():
                 try:
-                    # 날짜 변환
-                    date_str = row['날짜']
-                    if isinstance(date_str, str):
-                        # YYYY-MM-DD 형식이 아닌 경우 변환
-                        if re.match(r'\d{4}\.\d{1,2}\.\d{1,2}', date_str):
-                            date_str = date_str.replace('.', '-')
-                        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-                    else:
-                        # pandas가 자동으로 datetime으로 변환한 경우
-                        date_obj = date_str.date() if hasattr(date_str, 'date') else date_str
-                    
-                    # 필드 값 추출
-                    book = row['성경']
-                    start_chapter = int(row['시작장'])
-                    end_chapter = int(row['끝장'])
-                    
-                    # URL 필드 처리 개선
-                    audio_link = row.get('오디오', '')
-                    guide_link = row.get('가이드', '')
+                    pending_rows.append(_parse_excel_schedule_row(row, _clean_function_upload_url))
+                except Exception as e:
+                    logger.warning(f"Invalid upload_schedules_excel row {index + 2}: {str(e)}")
+                    errors.append(_build_excel_row_error(index))
 
-                    # 데이터 타입 확인 및 변환 
-                    # float 타입이 들어온 경우 처리
-                    if isinstance(audio_link, float) or isinstance(guide_link, float):
-                        if pd.isna(audio_link):
-                            audio_link = ''
-                        if pd.isna(guide_link):
-                            guide_link = ''
-                    
-                    # 업데이트 모드 처리
+            if errors:
+                return _excel_upload_error_response(errors)
+
+            success_count = 0
+            with transaction.atomic():
+                if update_mode == 'replace':
+                    DailyBibleSchedule.objects.filter(plan=plan).delete()
+
+                for row_data in pending_rows:
                     if update_mode in ['add', 'replace']:
-                        # 신규 추가
-                        DailyBibleSchedule.objects.create(
+                        DailyBibleSchedule.objects.create(plan=plan, **row_data)
+                    else:
+                        DailyBibleSchedule.objects.update_or_create(
                             plan=plan,
-                            date=date_obj,
-                            book=book,
-                            start_chapter=start_chapter,
-                            end_chapter=end_chapter,
-                            audio_link=audio_link,
-                            guide_link=guide_link
-                        )
-                    else:  # update 모드
-                        # 기존 레코드 업데이트 또는 생성
-                        obj, created = DailyBibleSchedule.objects.update_or_create(
-                            plan=plan,
-                            date=date_obj,
+                            date=row_data['date'],
+                            book=row_data['book'],
                             defaults={
-                                'book': book,
-                                'start_chapter': start_chapter,
-                                'end_chapter': end_chapter,
-                                'audio_link': audio_link,
-                                'guide_link': guide_link
+                                'start_chapter': row_data['start_chapter'],
+                                'end_chapter': row_data['end_chapter'],
+                                'audio_link': row_data['audio_link'],
+                                'guide_link': row_data['guide_link'],
                             }
                         )
-                    
                     success_count += 1
-                except Exception as e:
-                    error_count += 1
-                    logger.error(f"Error in upload_schedules_excel row {index + 2}: {str(e)}", exc_info=True)
-                    errors.append(f"행 {index + 2}: 처리 중 오류가 발생했습니다.")
-            
+
             return Response({
-                "detail": f"{success_count}개의 일정이 처리되었습니다. 오류: {error_count}개",
-                "errors": errors if errors else None
+                "detail": f"{success_count}개의 일정이 처리되었습니다. 오류: 0개",
+                "errors": None
             })
             
         except BibleReadingPlan.DoesNotExist:
@@ -2206,9 +2593,16 @@ def get_total_users(request):
         plan_id = request.query_params.get('plan_id')
         
         if plan_id:
+            plan = _get_active_public_plan(plan_id)
+            if plan is None:
+                return Response({
+                    'success': False,
+                    'error': '존재하지 않는 플랜입니다.'
+                }, status=status.HTTP_404_NOT_FOUND)
+
             # 특정 플랜의 활성 구독자 수 반환
             total_users = PlanSubscription.objects.filter(
-                plan_id=plan_id,
+                plan=plan,
                 is_active=True
             ).count()
         else:
@@ -2239,7 +2633,13 @@ def get_plan_stats(request):
                 'error': '플랜 ID가 필요합니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        plan = get_object_or_404(BibleReadingPlan, id=plan_id)
+        plan = _get_active_public_plan(plan_id)
+        if plan is None:
+            return Response({
+                'success': False,
+                'error': '존재하지 않는 플랜입니다.'
+            }, status=status.HTTP_404_NOT_FOUND)
+
         today = timezone.now().date()
 
         # 해당 플랜의 활성 구독자 수
@@ -2300,7 +2700,10 @@ def get_progress_stats(request):
         
         if not plan_id:
             # 기본 플랜 ID를 사용 (추가)
-            default_plan = BibleReadingPlan.objects.filter(is_default=True).first()
+            default_plan = BibleReadingPlan.objects.filter(
+                is_default=True,
+                is_active=True
+            ).first()
             if default_plan:
                 plan_id = default_plan.id
             else:
@@ -2309,10 +2712,8 @@ def get_progress_stats(request):
                     'error': '플랜 ID가 필요합니다.'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-        # 플랜 존재 여부 확인
-        try:
-            plan = BibleReadingPlan.objects.get(id=plan_id)
-        except BibleReadingPlan.DoesNotExist:
+        plan = _get_active_public_plan(plan_id)
+        if plan is None:
             return Response({
                 'success': False,
                 'error': '존재하지 않는 플랜입니다.'
@@ -2438,47 +2839,32 @@ def get_visitor_stats(request):
 def hasena_record_update(request):
     """하세나하시조 완료/취소 처리"""
     try:
-        date_str = request.data.get('date')
-        is_completed = request.data.get('is_completed', True)
-
-        if not date_str:
+        serializer = HasenaRecordCreateSerializer(data=request.data)
+        if not serializer.is_valid():
             return Response(
-                {'detail': '날짜가 필요합니다.'}, 
+                {'success': False, 'errors': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            # 날짜 형식 변환
-            date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            
-            # 중복 확인 및 업데이트/생성
-            record, created = HasenaRecord.objects.update_or_create(
-                user=request.user,
-                date=date,
-                defaults={
-                    'is_completed': is_completed
-                }
-            )
-            if record.is_completed:
-                on_commit_notify_hasena_completed(request.user, record.date)
-            
-            return Response({
-                'success': True,
-                'data': {
-                    'id': record.id,
-                    'date': record.date.isoformat(),
-                    'is_completed': record.is_completed,
-                    'created_at': record.created_at.isoformat(),
-                    'updated_at': record.updated_at.isoformat()
-                }
-            })
-            
-        except ValueError:
-            return Response(
-                {'detail': '날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식이어야 합니다.'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
+        record, _ = _upsert_hasena_record(
+            request.user,
+            serializer.validated_data['date'],
+            serializer.validated_data['is_completed'],
+        )
+        if record.is_completed:
+            on_commit_notify_hasena_completed(request.user, record.date)
+
+        return Response({
+            'success': True,
+            'data': {
+                'id': record.id,
+                'date': record.date.isoformat(),
+                'is_completed': record.is_completed,
+                'created_at': record.created_at.isoformat(),
+                'updated_at': record.updated_at.isoformat()
+            }
+        })
+
     except Exception as e:
         logger.error(f"Error in hasena_record_update: {str(e)}", exc_info=True)
         return Response(
@@ -2585,12 +2971,9 @@ def get_hasena_calendar(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        from .services.hasena_entry_service import merge_calendar_entries, sync_hasena_entries
+        from .services.hasena_entry_service import merge_calendar_entries
 
         entries = HasenaEntry.objects.filter(date__year=year, date__month=month)
-        if entries.count() < 5:
-            sync_hasena_entries(max_entries=40)
-            entries = HasenaEntry.objects.filter(date__year=year, date__month=month)
 
         completions = []
         if request.user.is_authenticated:
@@ -2615,22 +2998,12 @@ def get_hasena_calendar(request):
 
 
 @api_view(['POST'])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def sync_hasena_entries_from_cron(request):
-    cron_secret = getattr(settings, 'CRON_SECRET', None)
-    request_secret = request.headers.get('X-Cron-Secret') or request.headers.get('Authorization', '').removeprefix('Bearer ').strip()
-
-    if cron_secret and request_secret != cron_secret:
-        return Response({
-            'success': False,
-            'error': 'Unauthorized'
-        }, status=status.HTTP_401_UNAUTHORIZED)
-
-    if not cron_secret and not (request.user.is_authenticated and request.user.is_staff):
-        return Response({
-            'success': False,
-            'error': '관리자 권한이 필요합니다.'
-        }, status=status.HTTP_403_FORBIDDEN)
+    secret_error = _cron_secret_error(request)
+    if secret_error is not None:
+        return secret_error
 
     try:
         from .services.hasena_entry_service import sync_hasena_entries
@@ -2668,17 +3041,25 @@ def get_hasena_summary(request):
             'success': False,
             'error': '요약 생성은 관리자만 가능합니다.'
         }, status=status.HTTP_403_FORBIDDEN)
+
+    parsed_date = None
+    if video_date:
+        if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', video_date):
+            return Response({
+                'success': False,
+                'error': 'date 형식은 YYYY-MM-DD 이어야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            parsed_date = datetime.strptime(video_date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({
+                'success': False,
+                'error': 'date 형식은 YYYY-MM-DD 이어야 합니다.'
+            }, status=status.HTTP_400_BAD_REQUEST)
     
     try:
         from .services.hasena_summary_service import get_hasena_summary as fetch_summary, get_existing_summary
-        
-        parsed_date = None
-        if video_date:
-            try:
-                parsed_date = datetime.strptime(video_date, '%Y-%m-%d').date()
-            except ValueError:
-                pass
-        
+
         if generate:
             result = fetch_summary(video_id, video_date=parsed_date)
         else:
@@ -2698,22 +3079,12 @@ def get_hasena_summary(request):
 
 
 @api_view(['POST'])
+@authentication_classes([])
 @permission_classes([permissions.AllowAny])
 def generate_hasena_summary_from_cron(request):
-    cron_secret = getattr(settings, 'CRON_SECRET', None)
-    request_secret = request.headers.get('X-Cron-Secret') or request.headers.get('Authorization', '').removeprefix('Bearer ').strip()
-
-    if not cron_secret:
-        return Response({
-            'success': False,
-            'error': 'CRON_SECRET이 설정되어 있지 않습니다.'
-        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-    if request_secret != cron_secret:
-        return Response({
-            'success': False,
-            'error': 'Unauthorized'
-        }, status=status.HTTP_401_UNAUTHORIZED)
+    secret_error = _cron_secret_error(request)
+    if secret_error is not None:
+        return secret_error
 
     video_id = request.data.get('video_id')
     video_date = request.data.get('video_date')
@@ -2734,17 +3105,23 @@ def generate_hasena_summary_from_cron(request):
             get_hasena_summary as fetch_summary,
             get_hasena_video_for_date,
             get_recent_hasena_videos,
+            require_cacheable_hasena_summary_result,
         )
-        from .services.hasena_monitoring import capture_hasena_summary_issue
+        from .services.hasena_monitoring import (
+            capture_hasena_summary_issue,
+            record_hasena_summary_heartbeat,
+        )
 
         if video_id:
             result = fetch_summary(video_id, video_date=parsed_date, title=title)
             if result['success']:
+                record_hasena_summary_heartbeat(result)
                 return Response(result)
             capture_hasena_summary_issue(
                 "Hasena summary cron failed for requested video",
                 extra={"video_id": video_id, "reason": result.get('error')},
             )
+            record_hasena_summary_heartbeat(result)
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
         candidates = get_recent_hasena_videos()
@@ -2753,10 +3130,12 @@ def generate_hasena_summary_from_cron(request):
                 "Hasena summary cron could not find recent videos",
                 level="warning",
             )
-            return Response({
+            result = {
                 'success': False,
                 'error': '최신 하세나 영상을 찾을 수 없습니다.'
-            }, status=status.HTTP_502_BAD_GATEWAY)
+            }
+            record_hasena_summary_heartbeat(result)
+            return Response(result, status=status.HTTP_502_BAD_GATEWAY)
 
         current_time = timezone.now()
         current_local_time = (
@@ -2772,20 +3151,24 @@ def generate_hasena_summary_from_cron(request):
                 level="warning",
                 extra={"date": target_date.isoformat()},
             )
-            return Response({
+            result = {
                 'success': False,
                 'status': 'pending',
                 'reason': 'no_video_for_date',
                 'date': target_date.isoformat(),
                 'error': '오늘 날짜의 하세나 영상을 아직 찾을 수 없습니다.'
-            }, status=status.HTTP_202_ACCEPTED)
+            }
+            record_hasena_summary_heartbeat(result)
+            return Response(result, status=status.HTTP_202_ACCEPTED)
 
         result = fetch_summary(
             candidate['video_id'],
             video_date=target_date,
             title=title or candidate.get('title'),
         )
+        result = require_cacheable_hasena_summary_result(result)
         if result['success']:
+            record_hasena_summary_heartbeat(result)
             return Response(result)
 
         capture_hasena_summary_issue(
@@ -2796,6 +3179,7 @@ def generate_hasena_summary_from_cron(request):
                 "reason": result.get('error'),
             },
         )
+        record_hasena_summary_heartbeat(result)
         return Response(result, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error in generate_hasena_summary_from_cron: {str(e)}", exc_info=True)
@@ -2806,6 +3190,14 @@ def generate_hasena_summary_from_cron(request):
                 "Hasena summary cron raised an exception",
                 exception=e,
             )
+            from .services.hasena_monitoring import record_hasena_summary_heartbeat
+
+            record_hasena_summary_heartbeat({
+                'success': False,
+                'status': 'error',
+                'error': 'AI 요약 생성 중 오류가 발생했습니다.',
+                'reason': str(e),
+            })
         except Exception:
             logger.debug("Failed to report Hasena cron exception", exc_info=True)
         return Response({
@@ -2822,13 +3214,26 @@ def list_hasena_summaries(request):
             'success': False,
             'error': '관리자 권한이 필요합니다.'
         }, status=status.HTTP_403_FORBIDDEN)
-    
+    page, page_error = parse_positive_int_param(request, 'page')
+    if page_error is not None:
+        return page_error
+    if page is None:
+        page = 1
+
+    page_size, page_size_error = parse_positive_int_param(request, 'page_size')
+    if page_size_error is not None:
+        return page_size_error
+    if page_size is None:
+        page_size = 20
+    if page_size > 100:
+        return Response({
+            'success': False,
+            'error': 'page_size는 100 이하여야 합니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         from .services.hasena_summary_service import list_summaries
-        
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 20))
-        
+
         result = list_summaries(page=page, page_size=page_size)
         return Response(result)
         
@@ -3050,6 +3455,16 @@ class BibleBookmarkViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def _existing_bookmark_response(self, bookmark):
+        return Response({
+            'id': bookmark.id,
+            'book': bookmark.book,
+            'chapter': bookmark.chapter,
+            'bookmark_type': bookmark.bookmark_type,
+            'title': bookmark.title,
+            'already_exists': True
+        }, status=status.HTTP_200_OK)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -3075,17 +3490,15 @@ class BibleBookmarkViewSet(viewsets.ModelViewSet):
 
             if existing_query.exists():
                 # 이미 존재하는 북마크 반환 (중복 생성 방지)
-                existing_bookmark = existing_query.first()
-                return Response({
-                    'id': existing_bookmark.id,
-                    'book': existing_bookmark.book,
-                    'chapter': existing_bookmark.chapter,
-                    'bookmark_type': existing_bookmark.bookmark_type,
-                    'title': existing_bookmark.title,
-                    'already_exists': True
-                }, status=status.HTTP_200_OK)
+                return self._existing_bookmark_response(existing_query.first())
 
-            self.perform_create(serializer)
+            try:
+                self.perform_create(serializer)
+            except IntegrityError:
+                existing_bookmark = existing_query.first()
+                if existing_bookmark is None:
+                    raise
+                return self._existing_bookmark_response(existing_bookmark)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -3272,30 +3685,32 @@ class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        # 중복 체크 - 이미 있으면 업데이트
-        book = request.data.get('book')
-        chapter = request.data.get('chapter')
+        """Race-safe upsert on (user, book, chapter).
 
-        if book and chapter:
-            existing = PersonalReadingRecord.objects.filter(
-                user=request.user,
-                book=book,
-                chapter=chapter
-            ).first()
-
-            if existing:
-                # 이미 읽은 기록이 있으면 날짜만 업데이트
-                from datetime import date
-                existing.read_date = request.data.get('read_date', date.today())
-                existing.save()
-                serializer = self.get_serializer(existing)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-
+        The check-then-create pattern that lived here previously raised an
+        unhandled ``IntegrityError`` (HTTP 500) whenever two concurrent
+        POSTs for the same (user, book, chapter) both saw
+        ``existing = None`` and both tried to create — a real race the
+        mobile "완독" double-tap could hit. Delegating to
+        ``_upsert_personal_reading_record`` keeps the exposed semantics
+        (201 on first insert, 200 on refresh) while closing the race the
+        same way ``_upsert_hasena_record`` closes the Hasena race.
+        """
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            self.perform_create(serializer)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        record, created = _upsert_personal_reading_record(
+            user=request.user,
+            book=data['book'],
+            chapter=data['chapter'],
+            read_date=data['read_date'],
+        )
+        response_status = (
+            status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
+        return Response(self.get_serializer(record).data, status=response_status)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -3318,25 +3733,29 @@ class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
         )
 
         # 연속 읽기 일수 (streak) 계산
-        from datetime import date, timedelta
+        from datetime import timedelta
         dates = records.values_list('read_date', flat=True).distinct().order_by('-read_date')
         dates_list = list(dates)
 
         current_streak = 0
         if dates_list:
-            today = date.today()
-            expected_date = today
+            # KST(Asia/Seoul) 기준 오늘 계산 (컨테이너 OS 타임존이 UTC여도 정확)
+            today = timezone.now().date()
+            # 클라이언트가 보낸 미래 날짜는 streak 계산에서 제외
+            past_dates = [read_date for read_date in dates_list if read_date <= today]
 
-            for read_date in dates_list:
-                if read_date == expected_date:
-                    current_streak += 1
-                    expected_date -= timedelta(days=1)
-                elif read_date == expected_date + timedelta(days=1):
-                    # 오늘 안 읽었지만 어제 읽었으면 어제부터 카운트
-                    current_streak += 1
-                    expected_date = read_date - timedelta(days=1)
-                else:
-                    break
+            if past_dates:
+                expected_date = today
+                # 오늘 안 읽었지만 어제 읽었으면 어제부터 카운트
+                if past_dates[0] == today - timedelta(days=1):
+                    expected_date = past_dates[0]
+
+                for read_date in past_dates:
+                    if read_date == expected_date:
+                        current_streak += 1
+                        expected_date -= timedelta(days=1)
+                    else:
+                        break
 
         stats = {
             'total_chapters_read': records.count(),
@@ -3395,7 +3814,14 @@ def get_bible_home_stats(request):
     북마크, 노트, 하이라이트 카운트와 최근 읽은 기록을 효율적으로 반환
     """
     user = request.user
-    limit = int(request.query_params.get('recent_limit', 5))
+    limit = _parse_bounded_limit(
+        request.query_params.get('recent_limit'), default=5, maximum=50
+    )
+    if limit is None:
+        return Response({
+            'success': False,
+            'error': 'recent_limit 값이 올바르지 않습니다.',
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     # 카운트만 조회 (데이터 전체를 가져오지 않음)
     bookmark_count = BibleBookmark.objects.filter(user=user).count()

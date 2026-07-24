@@ -115,8 +115,18 @@ export class SupabaseAuthRepository implements IAuthRepository {
   }
 
   async unlinkIdentity(identityId: string): Promise<void> {
-    // Guard: count total auth methods (identities + password)
+    // Object-level authorization: only allow unlinking an identity that
+    // actually belongs to the current user's Supabase identity list.
     const identities = await this.getUserIdentities()
+    const ownsIdentity = identities.some(
+      identity => identity.identityId === identityId || identity.id === identityId
+    )
+
+    if (!ownsIdentity) {
+      throw new AuthError('연결된 로그인 방법을 찾을 수 없습니다')
+    }
+
+    // Guard: count total auth methods (identities + password)
     const { data: { user } } = await this.supabase.auth.getUser()
     const hasPassword = !!(user?.user_metadata?.has_password)
     const totalMethods = identities.length + (hasPassword ? 1 : 0)
@@ -131,9 +141,30 @@ export class SupabaseAuthRepository implements IAuthRepository {
     if (error) throw new AuthError(error.message, error)
   }
 
-  async updatePassword(newPassword: string): Promise<void> {
+  async updatePassword(newPassword: string, currentPassword?: string): Promise<void> {
+    if (currentPassword !== undefined) {
+      await this.verifyCurrentPassword(currentPassword)
+    }
+
     const { error } = await this.supabase.auth.updateUser({ password: newPassword })
     if (error) throw new AuthError(error.message, error)
+  }
+
+  private async verifyCurrentPassword(currentPassword: string): Promise<void> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+
+    if (!user?.email) {
+      throw new AuthError('현재 비밀번호를 확인할 수 없습니다')
+    }
+
+    const { data, error } = await this.supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    })
+
+    if (error || !data?.user || data.user.id !== user.id) {
+      throw new AuthError('현재 비밀번호가 일치하지 않습니다')
+    }
   }
 
   async resetPasswordForEmail(email: string): Promise<void> {

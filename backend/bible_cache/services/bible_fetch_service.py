@@ -13,6 +13,7 @@ from django.conf import settings
 from django.db import close_old_connections
 from django.utils import timezone
 
+from bible_cache.bible_reference import validate_bible_reference
 from bible_cache.models import BibleContentCache
 from bible_cache.services.bible_fetch_service_constants import (
     BSKOREA_BASE_URL,
@@ -99,6 +100,11 @@ class BibleFetchService:
         # 버전 유효성 검사
         if version not in SUPPORTED_VERSIONS:
             raise BibleFetchError(f"지원하지 않는 번역본: {version}")
+
+        try:
+            book, chapter = validate_bible_reference(book, chapter)
+        except ValueError as e:
+            raise BibleFetchError(str(e))
 
         # 1. 캐시 확인 (force_refresh가 아닌 경우)
         if not force_refresh:

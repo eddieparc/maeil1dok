@@ -3,13 +3,17 @@ from unittest.mock import Mock, patch
 
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
+from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
+from config.observability import HASENA_SUMMARY_HEARTBEAT_CACHE_KEY
+from . import views
 
 from .models import (
     BibleReadingPlan, DailyBibleSchedule, PlanSubscription, UserBibleProgress,
-    UserReadingPosition,
+    UserReadingPosition, PersonalReadingRecord,
 )
 from .scoreboard_views import (
     calculate_progress_rate,
@@ -18,27 +22,122 @@ from .scoreboard_views import (
     get_scoreboard,
     rank_leaderboard,
 )
-from .serializers import UserReadingPositionSerializer
+from .serializers import DailyBibleScheduleSerializer, UserReadingPositionSerializer
 from .tasks import generate_hasena_summary_task
 
 User = get_user_model()
 
 
+class DailyBibleScheduleIntegrityTest(TestCase):
+    def test_duplicate_plan_date_book_rejected_at_database_level(self):
+        user = User.objects.create_user(
+            username='schedule-owner', nickname='스케줄소유자', password='pw-test-1234',
+        )
+        plan = BibleReadingPlan.objects.create(name='중복 방지 플랜', created_by=user)
+        schedule_date = date(2026, 7, 8)
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                DailyBibleSchedule.objects.bulk_create([
+                    DailyBibleSchedule(
+                        plan=plan,
+                        date=schedule_date,
+                        book='창세기',
+                        start_chapter=1,
+                        end_chapter=1,
+                    ),
+                    DailyBibleSchedule(
+                        plan=plan,
+                        date=schedule_date,
+                        book='창세기',
+                        start_chapter=2,
+                        end_chapter=2,
+                    ),
+                ])
+
+    def _create_plan(self):
+        user = User.objects.create_user(
+            username='schedule-validation-owner',
+            nickname='스케줄검증소유자',
+            password='pw-test-1234',
+        )
+        return BibleReadingPlan.objects.create(name='장 범위 검증 플랜', created_by=user)
+
+    def test_invalid_chapter_ranges_rejected_on_save(self):
+        plan = self._create_plan()
+
+        cases = [
+            ('zero_start', 0, 1),
+            ('zero_end', 1, 0),
+            ('negative_start', -1, 1),
+            ('negative_end', 1, -1),
+            ('reversed', 5, 3),
+        ]
+
+        for label, start_chapter, end_chapter in cases:
+            with self.subTest(label=label):
+                with self.assertRaises(ValidationError):
+                    DailyBibleSchedule(
+                        plan=plan,
+                        date=date(2026, 7, 9),
+                        book=f'창세기-{label}',
+                        start_chapter=start_chapter,
+                        end_chapter=end_chapter,
+                    ).save()
+
+    def test_serializer_rejects_invalid_chapter_ranges(self):
+        plan = self._create_plan()
+
+        cases = [
+            ('zero_start', {'start_chapter': 0, 'end_chapter': 1}, 'start_chapter'),
+            ('zero_end', {'start_chapter': 1, 'end_chapter': 0}, 'end_chapter'),
+            ('reversed', {'start_chapter': 5, 'end_chapter': 3}, 'end_chapter'),
+        ]
+
+        for label, chapters, error_field in cases:
+            with self.subTest(label=label):
+                serializer = DailyBibleScheduleSerializer(data={
+                    'plan': plan.id,
+                    'date': '2026-07-10',
+                    'book': f'출애굽기-{label}',
+                    **chapters,
+                })
+
+                self.assertFalse(serializer.is_valid())
+                self.assertIn(error_field, serializer.errors)
+
+
 class HasenaSummaryTaskTest(SimpleTestCase):
+    def setUp(self):
+        cache.delete(HASENA_SUMMARY_HEARTBEAT_CACHE_KEY)
+
+    def assert_heartbeat_write(self, cache_set, **expected):
+        heartbeat_calls = [
+            call for call in cache_set.call_args_list
+            if call.args and call.args[0] == HASENA_SUMMARY_HEARTBEAT_CACHE_KEY
+        ]
+        self.assertEqual(len(heartbeat_calls), 1)
+        heartbeat = heartbeat_calls[0].args[1]
+        self.assertEqual(heartbeat_calls[0].kwargs, {'timeout': None})
+        self.assertIn('recorded_at', heartbeat)
+        for key, value in expected.items():
+            self.assertEqual(heartbeat[key], value)
     def test_skips_outside_window_when_project_uses_naive_local_time(self):
         with (
             patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 17, 7, 0, 0)),
             patch('todos.tasks.cache.get', return_value=False),
+            patch('todos.tasks.cache.set') as cache_set,
         ):
             result = generate_hasena_summary_task()
 
         self.assertEqual(result, {'status': 'skipped', 'reason': 'outside_window'})
+        self.assert_heartbeat_write(cache_set, status='skipped', reason='outside_window')
 
     def test_reports_summary_generation_failure_to_monitoring(self):
         with (
             patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 17, 1, 0, 0)),
             patch('todos.tasks.cache.get', return_value=False),
-            patch('todos.tasks.cache.set'),
+            patch('todos.tasks.cache.set') as cache_set,
             patch('todos.models.HasenaSummary.objects.filter', return_value=Mock(first=Mock(return_value=None))),
             patch(
                 'todos.services.hasena_summary_service.get_recent_hasena_videos',
@@ -67,6 +166,12 @@ class HasenaSummaryTaskTest(SimpleTestCase):
             },
         )
         capture_issue.assert_called_once()
+        self.assert_heartbeat_write(
+            cache_set,
+            status='failed',
+            reason='AI 요약을 생성할 수 없습니다.',
+            video_id='video-123',
+        )
 
     def test_does_not_mark_today_generated_when_latest_video_is_previous_day_summary(self):
         existing_summary = Mock(video_date=date(2026, 6, 24))
@@ -102,7 +207,12 @@ class HasenaSummaryTaskTest(SimpleTestCase):
                 'date': '2026-06-25',
             },
         )
-        cache_set.assert_not_called()
+        self.assert_heartbeat_write(
+            cache_set,
+            status='pending',
+            reason='no_video_for_date',
+            date='2026-06-25',
+        )
         generate_summary.assert_not_called()
         capture_issue.assert_called_once()
 
@@ -130,6 +240,7 @@ class HasenaSummaryTaskTest(SimpleTestCase):
                 return_value={
                     'success': True,
                     'cacheable': True,
+                    'persisted': True,
                     'video_id': 'VkWhiXwG-Fw',
                 },
             ) as generate_summary,
@@ -142,14 +253,18 @@ class HasenaSummaryTaskTest(SimpleTestCase):
             video_date=date(2026, 6, 25),
             title='2026년 6월 25일 목요일 하세나하시조',
         )
-        cache_set.assert_called_once_with(
+        self.assertEqual(cache_set.call_count, 2)
+        cache_set.assert_any_call(
             'hasena_summary_success_2026-06-25',
             {
+                'version': 1,
                 'service_date': '2026-06-25',
                 'video_id': 'VkWhiXwG-Fw',
+                'persisted': True,
             },
             timeout=86400,
         )
+        self.assert_heartbeat_write(cache_set, status='success', video_id='VkWhiXwG-Fw')
 
     def test_matching_cache_payload_and_db_row_skips_generation(self):
         existing_summary = Mock(video_date=date(2026, 6, 25))
@@ -159,8 +274,10 @@ class HasenaSummaryTaskTest(SimpleTestCase):
             patch(
                 'todos.tasks.cache.get',
                 return_value={
+                    'version': 1,
                     'service_date': '2026-06-25',
                     'video_id': 'VkWhiXwG-Fw',
+                    'persisted': True,
                 },
             ),
             patch('todos.tasks.cache.set') as cache_set,
@@ -191,7 +308,64 @@ class HasenaSummaryTaskTest(SimpleTestCase):
             },
         )
         generate_summary.assert_not_called()
-        cache_set.assert_not_called()
+        self.assert_heartbeat_write(
+            cache_set,
+            status='skipped',
+            reason='already_generated',
+            video_id='VkWhiXwG-Fw',
+        )
+
+    def test_cache_payload_requires_persisted_proof_version(self):
+        with (
+            patch('todos.tasks.timezone.now', return_value=datetime(2026, 6, 25, 0, 10, 0)),
+            patch(
+                'todos.tasks.cache.get',
+                return_value={
+                    'service_date': '2026-06-25',
+                    'video_id': 'VkWhiXwG-Fw',
+                },
+            ),
+            patch('todos.tasks.cache.set') as cache_set,
+            patch(
+                'todos.services.hasena_summary_service.get_recent_hasena_videos',
+                return_value=[
+                    {
+                        'video_id': 'VkWhiXwG-Fw',
+                        'title': '2026년 6월 25일 목요일 하세나하시조',
+                        'published_at': '2026-06-24T15:00:02+00:00',
+                    },
+                ],
+            ),
+            patch(
+                'todos.models.HasenaSummary.objects.filter',
+                return_value=Mock(first=Mock(return_value=None)),
+            ),
+            patch(
+                'todos.services.hasena_summary_service.get_hasena_summary',
+                return_value={
+                    'success': True,
+                    'cacheable': True,
+                    'persisted': True,
+                    'video_id': 'VkWhiXwG-Fw',
+                },
+            ) as generate_summary,
+        ):
+            result = generate_hasena_summary_task()
+
+        self.assertEqual(result, {'status': 'success', 'video_id': 'VkWhiXwG-Fw'})
+        generate_summary.assert_called_once()
+        self.assertEqual(cache_set.call_count, 2)
+        cache_set.assert_any_call(
+            'hasena_summary_success_2026-06-25',
+            {
+                'version': 1,
+                'service_date': '2026-06-25',
+                'video_id': 'VkWhiXwG-Fw',
+                'persisted': True,
+            },
+            timeout=86400,
+        )
+        self.assert_heartbeat_write(cache_set, status='success', video_id='VkWhiXwG-Fw')
 
     def test_legacy_truthy_cache_value_does_not_skip_generation(self):
         with (
@@ -217,6 +391,7 @@ class HasenaSummaryTaskTest(SimpleTestCase):
                 return_value={
                     'success': True,
                     'cacheable': True,
+                    'persisted': True,
                     'video_id': 'VkWhiXwG-Fw',
                 },
             ) as generate_summary,
@@ -225,7 +400,8 @@ class HasenaSummaryTaskTest(SimpleTestCase):
 
         self.assertEqual(result, {'status': 'success', 'video_id': 'VkWhiXwG-Fw'})
         generate_summary.assert_called_once()
-        cache_set.assert_called_once()
+        self.assertEqual(cache_set.call_count, 2)
+        self.assert_heartbeat_write(cache_set, status='success', video_id='VkWhiXwG-Fw')
 
 
 class ProgressTestBase(TestCase):
@@ -343,6 +519,67 @@ class UserReadingPositionApiTest(TestCase):
         self.assertFalse(UserReadingPosition.objects.filter(user=self.user).exists())
 
 
+class PersonalReadingRecordApiValidationTest(TestCase):
+    URL = '/api/v1/todos/bible/personal-records/'
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='personal-record-reader',
+            nickname='개인기록독자',
+            password='pw-test-1234',
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_duplicate_record_update_rejects_malformed_read_date_without_writing(self):
+        record = PersonalReadingRecord.objects.create(
+            user=self.user,
+            book='gen',
+            chapter=1,
+            read_date=date(2026, 1, 1),
+        )
+
+        response = self.client.post(self.URL, {
+            'book': 'gen',
+            'chapter': 1,
+            'read_date': 'not-a-date',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        record.refresh_from_db()
+        self.assertEqual(record.read_date, date(2026, 1, 1))
+
+    def test_create_rejects_invalid_book_chapter_without_writing(self):
+        response = self.client.post(self.URL, {
+            'book': 'exo',
+            'chapter': 41,
+            'read_date': '2026-01-02',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PersonalReadingRecord.objects.filter(user=self.user).exists())
+
+    def test_create_normalizes_alias_before_idempotent_update(self):
+        create_response = self.client.post(self.URL, {
+            'book': 'jon',
+            'chapter': 4,
+            'read_date': '2026-01-02',
+        }, format='json')
+        update_response = self.client.post(self.URL, {
+            'book': 'jnh',
+            'chapter': 4,
+            'read_date': '2026-01-03',
+        }, format='json')
+
+        self.assertEqual(create_response.status_code, 201, create_response.data)
+        self.assertEqual(update_response.status_code, 200, update_response.data)
+        records = PersonalReadingRecord.objects.filter(user=self.user)
+        self.assertEqual(records.count(), 1)
+        record = records.get()
+        self.assertEqual(record.book, 'jnh')
+        self.assertEqual(record.read_date, date(2026, 1, 3))
+
+
 class UpdateBibleProgressTest(ProgressTestBase):
     URL = '/api/v1/todos/reading/update/'
 
@@ -406,14 +643,170 @@ class UpdateBibleProgressTest(ProgressTestBase):
         }, format='json')
         self.assertEqual(res.status_code, 404)
 
+    def test_foreign_schedule_matches_unknown_schedule_response_without_write(self):
+        other_user = User.objects.create_user(
+            username='foreign-plan-owner', nickname='외부플랜소유자', password='pw-test-1234',
+        )
+        other_plan = BibleReadingPlan.objects.create(name='외부 플랜', created_by=other_user)
+        foreign_schedule = DailyBibleSchedule.objects.create(
+            plan=other_plan, date=date.today(), book='출애굽기',
+            start_chapter=1, end_chapter=2,
+        )
+
+        foreign_res = self._complete([foreign_schedule.id])
+        unknown_res = self._complete([999999])
+
+        self.assertEqual(foreign_res.status_code, 404)
+        self.assertEqual(unknown_res.status_code, 404)
+        self.assertEqual(foreign_res.data, unknown_res.data)
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+
+    def test_mixed_own_and_foreign_schedule_rejected_without_partial_write(self):
+        other_user = User.objects.create_user(
+            username='mixed-plan-owner', nickname='혼합플랜소유자', password='pw-test-1234',
+        )
+        other_plan = BibleReadingPlan.objects.create(name='혼합 외부 플랜', created_by=other_user)
+        foreign_schedule = DailyBibleSchedule.objects.create(
+            plan=other_plan, date=date.today(), book='출애굽기',
+            start_chapter=1, end_chapter=2,
+        )
+
+        res = self._complete([self.schedules[0].id, foreign_schedule.id])
+
+        self.assertEqual(res.status_code, 404)
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+
+    def test_rejects_inactive_plan_subscription_without_partial_write(self):
+        self.plan.is_active = False
+        self.plan.save(update_fields=['is_active'])
+
+        res = self._complete([self.schedules[0].id])
+
+        self.assertEqual(res.status_code, 404)
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+
+    def test_history_rejects_inactive_plan_subscription(self):
+        UserBibleProgress.objects.create(
+            subscription=self.subscription,
+            schedule=self.schedules[0],
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+        self.plan.is_active = False
+        self.plan.save(update_fields=['is_active'])
+
+        res = self.client.get('/api/v1/todos/reading/history/', {'plan_id': self.plan.id})
+
+        self.assertEqual(res.status_code, 404)
+
+    def test_history_rejects_out_of_range_month(self):
+        for bad_month in ('0', '13', '99'):
+            res = self.client.get(
+                '/api/v1/todos/reading/history/',
+                {'plan_id': self.plan.id, 'month': bad_month},
+            )
+            self.assertEqual(res.status_code, 400, bad_month)
+            self.assertIn('month', res.data['error'])
+
+    def test_history_accepts_valid_month(self):
+        UserBibleProgress.objects.create(
+            subscription=self.subscription,
+            schedule=self.schedules[0],
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+        this_month = date.today().month
+
+        res = self.client.get(
+            '/api/v1/todos/reading/history/',
+            {'plan_id': self.plan.id, 'month': this_month},
+        )
+
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(len(res.data) >= 1)
+
+    def test_subscription_progress_rejects_inactive_plan_subscription(self):
+        UserBibleProgress.objects.create(
+            subscription=self.subscription,
+            schedule=self.schedules[0],
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+        self.plan.is_active = False
+        self.plan.save(update_fields=['is_active'])
+
+        res = self.client.get(f'/api/v1/todos/plan/{self.subscription.id}/progress/')
+
+        self.assertEqual(res.status_code, 404)
+
     def test_plan_schedule_mismatch_rejected(self):
         other_plan = BibleReadingPlan.objects.create(name='다른 플랜', created_by=self.user)
+        PlanSubscription.objects.create(
+            user=self.user, plan=other_plan, start_date=date.today(), is_active=True,
+        )
         other_schedule = DailyBibleSchedule.objects.create(
             plan=other_plan, date=date.today(), book='출애굽기',
             start_chapter=1, end_chapter=2,
         )
         res = self._complete([other_schedule.id])
         self.assertEqual(res.status_code, 400)
+
+    def test_rejects_mixed_valid_and_unknown_schedule_without_partial_write(self):
+        res = self._complete([self.schedules[0].id, 999999])
+
+        self.assertEqual(res.status_code, 404)
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+
+    def test_rejects_duplicate_schedule_ids_without_partial_write(self):
+        res = self._complete([self.schedules[0].id, self.schedules[0].id])
+
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+
+    def test_rejects_malformed_schedule_ids_without_partial_write(self):
+        res = self._complete([self.schedules[0].id, 'not-an-id'])
+
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+        self.assertEqual(res.data['error'], 'schedule_ids는 양의 정수 배열이어야 합니다.')
+
+    def test_rejects_oversized_schedule_ids_without_partial_write(self):
+        res = self._complete([str(10**100)])
+
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.data['error'], 'schedule_ids는 양의 정수 배열이어야 합니다.')
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+
+    def test_rejects_float_schedule_ids_without_partial_write(self):
+        res = self._complete([1.5])
+
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.data['error'], 'schedule_ids는 양의 정수 배열이어야 합니다.')
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+
+    def test_rejects_non_array_schedule_ids_without_partial_write(self):
+        res = self.client.post(self.URL, {
+            'plan_id': self.plan.id,
+            'schedule_ids': str(self.schedules[0].id),
+            'action': 'complete',
+        }, format='json')
+
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
+
+    def test_rejects_too_many_schedule_ids_before_lookup_without_partial_write(self):
+        too_many_schedule_ids = list(range(1, views.MAX_PROGRESS_SCHEDULE_IDS_PER_REQUEST + 2))
+
+        with patch('todos.views._readable_schedule_queryset') as readable_queryset:
+            res = self._complete(too_many_schedule_ids)
+
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(
+            res.data['error'],
+            f'schedule_ids는 한 번에 최대 {views.MAX_PROGRESS_SCHEDULE_IDS_PER_REQUEST}개까지 처리할 수 있습니다.',
+        )
+        readable_queryset.assert_not_called()
+        self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
 
 
 class ProgressRateBulkTest(ProgressTestBase):

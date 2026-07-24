@@ -152,6 +152,7 @@ import { useToast } from '~/composables/useToast';
 import { useScrollToElement } from '~/composables/useScrollToElement';
 import { getBookCode, getBookOrder, DAY_NAMES } from '~/constants/bible';
 import { DEFAULT_BULK_EDIT_STATE, ANIMATION_DELAYS } from '~/types/plan';
+import { getTodayString } from '~/utils/dateFormat';
 import type {
   Schedule,
   SubscriptionSummary,
@@ -512,7 +513,7 @@ async function handleScrollTo(target: ScrollTarget) {
 async function scrollToToday() {
   const today = new Date();
   const todayMonth = today.getMonth() + 1;
-  const todayString = today.toISOString().split('T')[0];
+  const todayString = getTodayString();
 
   if (selectedMonth.value !== todayMonth) {
     selectedMonth.value = todayMonth;

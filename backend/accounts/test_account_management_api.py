@@ -94,6 +94,74 @@ class AccountManagementApiTests(TestCase):
         merged_user.refresh_from_db()
         self.assertFalse(merged_user.is_active)
 
+
+    def _create_active_and_inactive_duplicate(self):
+        active_user = User.objects.create_user(
+            username="active-dup-reader",
+            nickname="활성중복독자",
+            email="dup@example.com",
+            password="active-pass-123",
+            has_usable_password_flag=True,
+            is_active=True,
+        )
+        inactive_user = User.objects.create_user(
+            username="inactive-dup-reader",
+            nickname="비활성중복독자",
+            email="dup@example.com",
+            password="inactive-pass-123",
+            has_usable_password_flag=True,
+            is_active=False,
+            scheduled_deletion_at=timezone.now() + timedelta(days=29),
+            token_version=3,
+        )
+        return active_user, inactive_user
+
+    def test_email_login_active_user_wins_when_inactive_duplicate_email_exists(self):
+        active_user, _ = self._create_active_and_inactive_duplicate()
+
+        response = self.client.post(
+            "/api/v1/auth/email-login/",
+            {"email": "dup@example.com", "password": "active-pass-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.data)
+        self.assertEqual(response.data["user"]["id"], active_user.id)
+
+    def test_email_login_inactive_duplicate_password_does_not_receive_tokens_when_active_duplicate_exists(self):
+        _, inactive_user = self._create_active_and_inactive_duplicate()
+
+        response = self.client.post(
+            "/api/v1/auth/email-login/",
+            {"email": "dup@example.com", "password": "inactive-pass-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("access", response.data)
+        self.assertNotIn("refresh", response.data)
+        inactive_user.refresh_from_db()
+        self.assertFalse(inactive_user.is_active)
+
+    def test_email_login_active_duplicate_blocks_scheduled_deletion_restore_without_mutation(self):
+        active_user, inactive_user = self._create_active_and_inactive_duplicate()
+
+        response = self.client.post(
+            "/api/v1/auth/email-login/",
+            {"email": "dup@example.com", "password": "inactive-pass-123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("access", response.data)
+        active_user.refresh_from_db()
+        inactive_user.refresh_from_db()
+        self.assertTrue(active_user.is_active)
+        self.assertFalse(inactive_user.is_active)
+        self.assertIsNotNone(inactive_user.scheduled_deletion_at)
+        self.assertEqual(inactive_user.token_version, 3)
+
     def test_get_tokens_for_user_rejects_inactive_user(self):
         user = User.objects.create_user(
             username="inactive-token-reader",
@@ -364,7 +432,7 @@ class AccountManagementApiTests(TestCase):
             ).exists()
         )
 
-    def test_merge_password_account_keep_other_returns_tokens_and_deactivates_current(self):
+    def test_merge_password_account_keep_other_requires_current_password_before_deactivating_current(self):
         current_user = User.objects.create_user(
             username="merge-current-delete",
             nickname="현재삭제병합독자",
@@ -393,6 +461,44 @@ class AccountManagementApiTests(TestCase):
             format="json",
         )
 
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("현재 계정 비밀번호", response.data["error"])
+        current_user.refresh_from_db()
+        target_user.refresh_from_db()
+        self.assertTrue(current_user.is_active)
+        self.assertIsNone(current_user.merged_into_id)
+        self.assertTrue(target_user.is_active)
+
+    def test_merge_password_account_keep_other_returns_tokens_with_current_password(self):
+        current_user = User.objects.create_user(
+            username="merge-current-proof",
+            nickname="현재증명병합독자",
+            email="current-proof@example.com",
+            password="current-pass-123",
+            has_usable_password_flag=True,
+            token_version=1,
+        )
+        target_user = User.objects.create_user(
+            username="merge-keep-proof",
+            nickname="유지증명병합독자",
+            email="keep-proof@example.com",
+            password="target-pass-123",
+            has_usable_password_flag=True,
+        )
+        self.client.force_authenticate(user=current_user)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": "merge-keep-proof",
+                "target_password": "target-pass-123",
+                "current_password": "current-pass-123",
+                "keep_account": "other",
+            },
+            format="json",
+        )
+
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["user"]["id"], target_user.id)
         self.assertIn("access", response.data)
@@ -401,6 +507,43 @@ class AccountManagementApiTests(TestCase):
         self.assertFalse(current_user.is_active)
         self.assertEqual(current_user.merged_into_id, target_user.id)
         self.assertEqual(current_user.token_version, 2)
+
+    def test_merge_password_account_keep_other_rejects_wrong_current_password_without_mutation(self):
+        current_user = User.objects.create_user(
+            username="merge-current-wrong-proof",
+            nickname="현재오증명병합독자",
+            email="current-wrong-proof@example.com",
+            password="current-pass-123",
+            has_usable_password_flag=True,
+        )
+        target_user = User.objects.create_user(
+            username="merge-keep-wrong-proof",
+            nickname="유지오증명병합독자",
+            email="keep-wrong-proof@example.com",
+            password="target-pass-123",
+            has_usable_password_flag=True,
+        )
+        self.client.force_authenticate(user=current_user)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": "merge-keep-wrong-proof",
+                "target_password": "target-pass-123",
+                "current_password": "wrong-current-pass",
+                "keep_account": "other",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("현재 계정 비밀번호", response.data["error"])
+        current_user.refresh_from_db()
+        target_user.refresh_from_db()
+        self.assertTrue(current_user.is_active)
+        self.assertIsNone(current_user.merged_into_id)
+        self.assertTrue(target_user.is_active)
 
     def test_merge_password_account_rejects_wrong_password(self):
         current_user = User.objects.create_user(

@@ -15,6 +15,7 @@ function createMockSupabase() {
     resetPasswordForEmail: vi.fn(),
     signOut: vi.fn(),
     signInWithOAuth: vi.fn(),
+    signInWithPassword: vi.fn(),
   }
 
   return { auth: mockAuth }
@@ -191,10 +192,28 @@ describe('SupabaseAuthRepository — Plan E methods', () => {
 
       await expect(repo.unlinkIdentity('identity-1')).rejects.toThrow(AuthError)
     })
+
+    it('throws AuthError and does not call unlinkIdentity for a non-owned identity id', async () => {
+      const secondIdentity = { ...mockIdentityRow, id: 'identity-2', provider: 'google' }
+      mockSupabase.auth.getUserIdentities.mockResolvedValue({
+        data: { identities: [mockIdentityRow, secondIdentity] },
+        error: null,
+      })
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user-1', user_metadata: {} } },
+      })
+      mockSupabase.auth.unlinkIdentity.mockResolvedValue({ error: null })
+
+      await expect(repo.unlinkIdentity('foreign-identity')).rejects.toThrow(
+        '연결된 로그인 방법을 찾을 수 없습니다'
+      )
+      expect(mockSupabase.auth.unlinkIdentity).not.toHaveBeenCalled()
+      expect(mockSupabase.auth.getUser).not.toHaveBeenCalled()
+    })
   })
 
   describe('updatePassword', () => {
-    it('calls supabase.auth.updateUser with new password', async () => {
+    it('calls supabase.auth.updateUser with new password when no current password proof is required', async () => {
       mockSupabase.auth.updateUser.mockResolvedValue({ error: null })
 
       await repo.updatePassword('newSecurePass123')
@@ -202,6 +221,7 @@ describe('SupabaseAuthRepository — Plan E methods', () => {
       expect(mockSupabase.auth.updateUser).toHaveBeenCalledWith({
         password: 'newSecurePass123',
       })
+      expect(mockSupabase.auth.signInWithPassword).not.toHaveBeenCalled()
     })
 
     it('throws AuthError on failure', async () => {
@@ -210,6 +230,72 @@ describe('SupabaseAuthRepository — Plan E methods', () => {
       })
 
       await expect(repo.updatePassword('123')).rejects.toThrow(AuthError)
+    })
+
+    it('verifies the current password via signInWithPassword before updateUser', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user-1', email: 'user@example.com', user_metadata: {} } },
+      })
+      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+        data: { user: { id: 'user-1' } },
+        error: null,
+      })
+      mockSupabase.auth.updateUser.mockResolvedValue({ error: null })
+
+      await repo.updatePassword('newSecurePass123', 'old-pass-123')
+
+      expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: 'user@example.com',
+        password: 'old-pass-123',
+      })
+      expect(mockSupabase.auth.updateUser).toHaveBeenCalledWith({
+        password: 'newSecurePass123',
+      })
+      expect(
+        mockSupabase.auth.signInWithPassword.mock.invocationCallOrder[0]
+      ).toBeLessThan(mockSupabase.auth.updateUser.mock.invocationCallOrder[0])
+    })
+
+    it('does not call updateUser when the current password is wrong', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user-1', email: 'user@example.com', user_metadata: {} } },
+      })
+      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'Invalid login credentials' },
+      })
+
+      await expect(repo.updatePassword('newSecurePass123', 'wrong-pass')).rejects.toThrow(
+        '현재 비밀번호가 일치하지 않습니다'
+      )
+      expect(mockSupabase.auth.updateUser).not.toHaveBeenCalled()
+    })
+
+    it('does not call updateUser when signInWithPassword returns a different user id', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user-1', email: 'user@example.com', user_metadata: {} } },
+      })
+      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+        data: { user: { id: 'other-user' } },
+        error: null,
+      })
+
+      await expect(repo.updatePassword('newSecurePass123', 'old-pass-123')).rejects.toThrow(
+        '현재 비밀번호가 일치하지 않습니다'
+      )
+      expect(mockSupabase.auth.updateUser).not.toHaveBeenCalled()
+    })
+
+    it('throws AuthError and skips updateUser when the current user has no email', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'user-1', user_metadata: {} } },
+      })
+
+      await expect(repo.updatePassword('newSecurePass123', 'old-pass-123')).rejects.toThrow(
+        '현재 비밀번호를 확인할 수 없습니다'
+      )
+      expect(mockSupabase.auth.signInWithPassword).not.toHaveBeenCalled()
+      expect(mockSupabase.auth.updateUser).not.toHaveBeenCalled()
     })
   })
 

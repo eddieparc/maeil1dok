@@ -227,7 +227,7 @@ const handleDelete = async (highlight: Highlight) => {
 
 .filter-select:focus {
   outline: none;
-  border-color: var(--primary-color, #6366f1);
+  border-color: var(--primary-color, #2A1111);
 }
 
 .color-filter {

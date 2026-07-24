@@ -480,6 +480,26 @@ def get_existing_summary(video_id: str) -> dict:
         }
 
 
+def is_cacheable_hasena_summary_result(result: dict) -> bool:
+    return bool(
+        result.get('success') is True
+        and result.get('persisted') is True
+        and result.get('cacheable') is True
+    )
+
+
+def require_cacheable_hasena_summary_result(result: dict) -> dict:
+    if is_cacheable_hasena_summary_result(result):
+        return result
+
+    normalized = result.copy()
+    normalized['success'] = False
+    normalized['persisted'] = False
+    normalized['cacheable'] = False
+    normalized.setdefault('error', 'AI 요약 저장 중 오류가 발생했습니다.')
+    return normalized
+
+
 def get_hasena_summary(video_id: str, video_date: date = None, title: str = None) -> dict:
     from ..models import HasenaSummary
     

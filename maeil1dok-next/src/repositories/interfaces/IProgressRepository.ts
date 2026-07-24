@@ -7,4 +7,5 @@ export interface IProgressRepository {
   getProgressForSubscription(subscriptionId: string): Promise<UserProgress[]>
   getProgressSummary(subscriptionId: string): Promise<ProgressSummary>
   bulkGetProgress(subscriptionId: string, scheduleIds: string[]): Promise<UserProgress[]>
+  bulkGetProgressForSubscriptions(subscriptionIds: string[], scheduleIds: string[]): Promise<UserProgress[]>
 }

@@ -370,8 +370,8 @@ const handleTouchEnd = () => {
 }
 
 .tab-button.active {
-  color: var(--primary-color, #4B9F7E);
-  border-bottom: 2px solid var(--primary-color, #4B9F7E);
+  color: var(--primary-color, #2A1111);
+  border-bottom: 2px solid var(--primary-color, #2A1111);
 }
 
 .tab-icon {
@@ -414,7 +414,7 @@ const handleTouchEnd = () => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--primary-color, #4B9F7E);
+  background: var(--primary-color, #2A1111);
   color: white;
   font-weight: 600;
   flex-shrink: 0;
@@ -534,7 +534,7 @@ const handleTouchEnd = () => {
 }
 
 :root.dark .tab-button.active {
-  color: var(--primary-color, #4B9F7E);
+  color: var(--primary-color, #2A1111);
 }
 
 :root.dark .step-card {

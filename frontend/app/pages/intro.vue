@@ -310,10 +310,10 @@ watch(videoIntroId, (newId, oldId) => {
 .sanctuary-theme {
   --font-serif: 'Noto Serif KR', 'RIDIBatang', serif;
   --font-sans: 'Pretendard', sans-serif;
-  --primary-color: #6366f1;
-  --primary-dark: #4f46e5;
-  --color-success: #10b981;
-  --color-success-dark: #059669;
+  --primary-color: var(--color-accent-primary);
+  --primary-dark: var(--color-accent-primary-hover);
+  --color-success: var(--color-accent-primary);
+  --color-success-dark: var(--color-accent-primary-dark);
 
   font-family: var(--font-sans);
   background-color: var(--color-bg-primary);
@@ -571,7 +571,7 @@ watch(videoIntroId, (newId, oldId) => {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 4px 14px rgba(42, 17, 17, 0.4);
 }
 
 .btn-icon {

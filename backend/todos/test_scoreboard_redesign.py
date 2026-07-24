@@ -1,9 +1,10 @@
 from datetime import date, datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 from django.utils import timezone
-from rest_framework.test import APIRequestFactory, force_authenticate
+from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 
 from todos import scoreboard_views
 from todos.models import (
@@ -101,6 +102,268 @@ class ScoreboardParamValidationTest(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(response.data["success"])
+
+    def test_scoreboard_handles_max_year_month_without_500(self):
+        request = self.factory.get("/api/v1/todos/scoreboard/", {
+            "period": "month",
+            "month": "9999-12",
+        })
+
+        response = scoreboard_views.get_scoreboard(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        self.assertEqual(response.data["month"], "9999-12")
+        for entry in response.data["leaderboard"]:
+            self.assertEqual(entry["completed_days"], 0)
+            self.assertEqual(entry["hasena_completed_days"], 0)
+
+    def test_my_ranking_handles_max_year_month_without_500(self):
+        request = self.factory.get("/api/v1/todos/scoreboard/my-ranking/", {
+            "period": "month",
+            "month": "9999-12",
+        })
+        force_authenticate(request, user=self.user)
+
+        response = scoreboard_views.get_my_ranking(request)
+
+        self.assertNotEqual(response.status_code, 500)
+
+
+class ScoreboardInactivePlanVisibilityTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.factory = APIRequestFactory()
+        self.user = User.objects.create_user(
+            username="inactive-plan-reader",
+            nickname="비활성플랜독자",
+            password="pw-test-1234",
+        )
+        self.user.profile.is_public = True
+        self.user.profile.save(update_fields=["is_public"])
+        self.active_plan = BibleReadingPlan.objects.create(
+            name="활성 리더보드 플랜",
+            created_by=self.user,
+            is_active=True,
+        )
+        self.inactive_plan = BibleReadingPlan.objects.create(
+            name="닫힌 리더보드 플랜",
+            created_by=self.user,
+            is_active=False,
+        )
+        self.active_subscription = PlanSubscription.objects.create(
+            user=self.user,
+            plan=self.active_plan,
+            start_date=date.today(),
+            is_active=True,
+        )
+        self.inactive_subscription = PlanSubscription.objects.create(
+            user=self.user,
+            plan=self.inactive_plan,
+            start_date=date.today(),
+            is_active=True,
+        )
+
+    def _complete_plan(self, plan, subscription, book):
+        schedule = DailyBibleSchedule.objects.create(
+            plan=plan,
+            date=date.today(),
+            book=book,
+            start_chapter=1,
+            end_chapter=1,
+        )
+        UserBibleProgress.objects.create(
+            subscription=subscription,
+            schedule=schedule,
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+
+    def test_global_scoreboard_hides_inactive_plan_id(self):
+        self._complete_plan(self.inactive_plan, self.inactive_subscription, "민수기")
+        request = self.factory.get(
+            "/api/v1/todos/scoreboard/",
+            {"plan_id": self.inactive_plan.id},
+        )
+
+        response = scoreboard_views.get_scoreboard(request)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.data["success"])
+        self.assertNotIn("leaderboard", response.data)
+
+    def test_global_scoreboard_active_plan_id_still_works(self):
+        self._complete_plan(self.active_plan, self.active_subscription, "신명기")
+        request = self.factory.get(
+            "/api/v1/todos/scoreboard/",
+            {"plan_id": self.active_plan.id},
+        )
+
+        response = scoreboard_views.get_scoreboard(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["plan_id"], self.active_plan.id)
+        self.assertEqual(response.data["leaderboard"][0]["user"]["id"], self.user.id)
+
+    def test_public_group_scoreboard_hides_inactive_group_plan_metadata(self):
+        group = ReadingGroup.objects.create(
+            name="닫힌 플랜 그룹",
+            creator=self.user,
+            is_public=True,
+        )
+        group.plans.add(self.inactive_plan)
+        GroupMembership.objects.create(group=group, user=self.user, is_active=True)
+        self._complete_plan(self.inactive_plan, self.inactive_subscription, "여호수아")
+        request = self.factory.get(
+            f"/api/v1/todos/scoreboard/group/{group.id}/",
+            {"plan_id": self.inactive_plan.id},
+        )
+
+        response = scoreboard_views.get_group_scoreboard(request, group.id)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.data["success"])
+        self.assertNotIn("plan", response.data)
+
+    def test_public_group_scoreboard_without_plan_id_hides_inactive_default_plan(self):
+        group = ReadingGroup.objects.create(
+            name="닫힌 기본 플랜 그룹",
+            creator=self.user,
+            is_public=True,
+        )
+        group.plans.add(self.inactive_plan)
+        GroupMembership.objects.create(group=group, user=self.user, is_active=True)
+        self._complete_plan(self.inactive_plan, self.inactive_subscription, "사사기")
+        request = self.factory.get(f"/api/v1/todos/scoreboard/group/{group.id}/")
+
+        response = scoreboard_views.get_group_scoreboard(request, group.id)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.data["success"])
+        self.assertNotIn("plan", response.data)
+        self.assertNotIn("leaderboard", response.data)
+
+
+@override_settings(ROOT_URLCONF="config.urls")
+class GroupScoreboardCacheIsolationTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.owner = self._user("cache-owner", "캐시그룹장")
+        self.member = self._user("cache-member", "캐시멤버")
+        self.plan = BibleReadingPlan.objects.create(
+            name="캐시 격리 플랜",
+            created_by=self.owner,
+            is_active=True,
+        )
+
+    def _user(self, username, nickname):
+        user = User.objects.create_user(
+            username=username,
+            nickname=nickname,
+            password="pw-test-1234",
+        )
+        user.profile.is_public = True
+        user.profile.save(update_fields=["is_public"])
+        return user
+
+    def _group(self, is_public):
+        group = ReadingGroup.objects.create(
+            name="공개 캐시 그룹" if is_public else "비공개 캐시 그룹",
+            creator=self.owner,
+            is_public=is_public,
+        )
+        group.plans.add(self.plan)
+        for user in [self.owner, self.member]:
+            GroupMembership.objects.create(
+                group=group,
+                user=user,
+                role="admin" if user == self.owner else "member",
+                is_active=True,
+            )
+            PlanSubscription.objects.create(
+                user=user,
+                plan=self.plan,
+                start_date=date.today(),
+                is_active=True,
+            )
+        return group
+
+    def _get_group_scoreboard(self, group, user=None):
+        self.client.force_authenticate(user=user)
+        response = self.client.get(f"/api/v1/todos/scoreboard/group/{group.id}/")
+        self.client.force_authenticate(user=None)
+        self.assertEqual(response.status_code, 200, response.data)
+        return response.data["leaderboard"]
+
+    def test_authenticated_public_group_scoreboard_cache_does_not_leak_is_me_to_anonymous_reader(self):
+        group = self._group(is_public=True)
+        authenticated_leaderboard = self._get_group_scoreboard(group, self.owner)
+
+        anonymous_leaderboard = self._get_group_scoreboard(group)
+
+        self.assertIn(True, {entry["user"]["is_me"] for entry in authenticated_leaderboard})
+        self.assertNotIn(True, {entry["user"]["is_me"] for entry in anonymous_leaderboard})
+
+    def test_public_group_scoreboard_ignores_old_viewer_specific_cache_entries(self):
+        group = self._group(is_public=True)
+        old_cache_key = f"scoreboard:v3:group:{group.id}:{self.plan.id}:all:None"
+        cache.set(
+            old_cache_key,
+            {
+                "success": True,
+                "leaderboard": [
+                    {
+                        "user": {
+                            "id": self.owner.id,
+                            "nickname": self.owner.nickname,
+                            "profile_image": self.owner.profile_image,
+                            "is_me": True,
+                        },
+                    },
+                ],
+            },
+            180,
+        )
+
+        anonymous_leaderboard = self._get_group_scoreboard(group)
+
+        self.assertNotIn(True, {entry["user"]["is_me"] for entry in anonymous_leaderboard})
+
+    def test_private_group_scoreboard_cache_does_not_leak_is_me_between_members(self):
+        group = self._group(is_public=False)
+        owner_leaderboard = self._get_group_scoreboard(group, self.owner)
+
+        member_leaderboard = self._get_group_scoreboard(group, self.member)
+
+        owner_entry = next(entry for entry in owner_leaderboard if entry["user"]["id"] == self.owner.id)
+        member_entry = next(entry for entry in member_leaderboard if entry["user"]["id"] == self.member.id)
+        stale_owner_entry = next(entry for entry in member_leaderboard if entry["user"]["id"] == self.owner.id)
+        self.assertTrue(owner_entry["user"]["is_me"])
+        self.assertTrue(member_entry["user"]["is_me"])
+        self.assertFalse(stale_owner_entry["user"]["is_me"])
+
+    def test_anonymous_public_group_scoreboard_hides_private_profile_members(self):
+        group = self._group(is_public=True)
+        self.member.profile.is_public = False
+        self.member.profile.save(update_fields=["is_public"])
+
+        anonymous_leaderboard = self._get_group_scoreboard(group)
+
+        returned_ids = {entry["user"]["id"] for entry in anonymous_leaderboard}
+        self.assertIn(self.owner.id, returned_ids)
+        self.assertNotIn(self.member.id, returned_ids)
+
+    def test_private_profile_member_still_sees_self_in_public_group_scoreboard(self):
+        group = self._group(is_public=True)
+        self.member.profile.is_public = False
+        self.member.profile.save(update_fields=["is_public"])
+
+        member_leaderboard = self._get_group_scoreboard(group, self.member)
+
+        returned_ids = {entry["user"]["id"] for entry in member_leaderboard}
+        self.assertIn(self.owner.id, returned_ids)
+        self.assertIn(self.member.id, returned_ids)
 
 
 class MonthlyScoreboardContractTest(TestCase):
@@ -393,6 +656,121 @@ class ScoreboardRankTieRedesignTest(TestCase):
         self.assertEqual(response.status_code, 200)
         returned_names = [entry["user"]["nickname"] for entry in response.data["leaderboard"]]
         self.assertIn("독자4", returned_names)
+
+
+class InactiveUserScoreboardVisibilityTest(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.active_user = self._reader("active-score-reader", "활성점수독자")
+        self.inactive_user = self._reader("inactive-score-reader", "삭제점수독자", is_active=False)
+        self.scheduled_user = self._reader(
+            "scheduled-score-reader",
+            "예약삭제점수독자",
+            scheduled_for_deletion=True,
+        )
+        Follow.objects.create(follower=self.active_user, following=self.inactive_user)
+        Follow.objects.create(follower=self.active_user, following=self.scheduled_user)
+
+    def _reader(self, username, nickname, is_active=True, scheduled_for_deletion=False):
+        user = User.objects.create_user(
+            username=username,
+            nickname=nickname,
+            password="pw-test-1234",
+        )
+        user.profile.is_public = True
+        user.profile.save(update_fields=["is_public"])
+        if not is_active or scheduled_for_deletion:
+            user.is_active = False
+            user.scheduled_deletion_at = timezone.now()
+            if scheduled_for_deletion:
+                user.is_active = True
+            user.save(update_fields=["is_active", "scheduled_deletion_at"])
+        plan = BibleReadingPlan.objects.create(name=f"{nickname} 플랜", created_by=user)
+        subscription = PlanSubscription.objects.create(
+            user=user,
+            plan=plan,
+            start_date=date.today(),
+            is_active=True,
+        )
+        schedule = DailyBibleSchedule.objects.create(
+            plan=plan,
+            date=date.today(),
+            book="창세기",
+            start_chapter=1,
+            end_chapter=1,
+        )
+        UserBibleProgress.objects.create(
+            subscription=subscription,
+            schedule=schedule,
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+        return user
+
+    def test_global_scoreboard_hides_inactive_public_users(self):
+        response = self.client.get("/api/v1/todos/scoreboard/", {"period": "all"})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        user_ids = {entry["user"]["id"] for entry in response.data["leaderboard"]}
+        self.assertIn(self.active_user.id, user_ids)
+        self.assertNotIn(self.inactive_user.id, user_ids)
+        self.assertNotIn(self.scheduled_user.id, user_ids)
+
+    def test_friends_scoreboard_hides_inactive_and_scheduled_public_users(self):
+        self.client.force_authenticate(user=self.active_user)
+
+        response = self.client.get("/api/v1/todos/scoreboard/friends/", {"type": "following"})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        user_ids = {entry["user"]["id"] for entry in response.data["leaderboard"]}
+        self.assertIn(self.active_user.id, user_ids)
+        self.assertNotIn(self.inactive_user.id, user_ids)
+        self.assertNotIn(self.scheduled_user.id, user_ids)
+
+    def test_mutual_friends_scoreboard_hides_inactive_and_scheduled_public_users(self):
+        Follow.objects.create(follower=self.inactive_user, following=self.active_user)
+        Follow.objects.create(follower=self.scheduled_user, following=self.active_user)
+        self.client.force_authenticate(user=self.active_user)
+
+        response = self.client.get("/api/v1/todos/scoreboard/friends/", {"type": "mutual"})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        user_ids = {entry["user"]["id"] for entry in response.data["leaderboard"]}
+        self.assertIn(self.active_user.id, user_ids)
+        self.assertNotIn(self.inactive_user.id, user_ids)
+        self.assertNotIn(self.scheduled_user.id, user_ids)
+
+    def test_my_ranking_excludes_inactive_and_scheduled_public_users_from_total(self):
+        self.client.force_authenticate(user=self.active_user)
+
+        response = self.client.get("/api/v1/todos/scoreboard/my-ranking/", {"period": "all"})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["ranking"]["total_users"], 1)
+
+    def test_plan_my_ranking_excludes_scheduled_public_users_from_total(self):
+        shared_plan = BibleReadingPlan.objects.create(
+            name="공유 순위 플랜",
+            created_by=self.active_user,
+            is_active=True,
+        )
+        for user in [self.active_user, self.scheduled_user]:
+            PlanSubscription.objects.create(
+                user=user,
+                plan=shared_plan,
+                start_date=date.today(),
+                is_active=True,
+            )
+        self.client.force_authenticate(user=self.active_user)
+
+        response = self.client.get(
+            "/api/v1/todos/scoreboard/my-ranking/",
+            {"period": "all", "plan_id": shared_plan.id},
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["ranking"]["total_users"], 1)
 
 
 class HasenaStreakVariantTest(TestCase):

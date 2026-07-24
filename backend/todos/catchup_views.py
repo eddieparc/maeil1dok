@@ -3,11 +3,12 @@ Catchup 기능 관련 뷰
 """
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from collections import defaultdict
 
@@ -15,14 +16,109 @@ from .models import PlanSubscription, CatchupSession, CatchupSchedule
 from .serializers import (
     CatchupStatusSerializer, CatchupPreviewRequestSerializer,
     CatchupSessionSerializer, CatchupSessionCreateSerializer,
+    CatchupSessionUpdateSerializer, CatchupSessionSchedulesQuerySerializer,
     CatchupScheduleSerializer, CatchupCompleteResponseSerializer,
     OverdueScheduleSerializer
 )
 from .services import (
     get_overdue_schedules, get_overdue_schedules_in_range,
     calculate_catchup_schedule, calculate_suggested_settings,
-    copy_completed_progress, get_celebration_data
+    copy_completed_progress, sync_original_progress, get_celebration_data
 )
+from .services.notifications import on_commit_notify_reading_completed
+
+
+def _parse_recalculate_flag(data):
+    raw_value = data.get('recalculate', False)
+    if raw_value is None or raw_value is False or raw_value == '':
+        return False
+    if raw_value is True:
+        return True
+    if isinstance(raw_value, str):
+        normalized = raw_value.strip().lower()
+        if normalized in {'true', '1', 'yes', 'on'}:
+            return True
+        if normalized in {'false', '0', 'no', 'off'}:
+            return False
+    raise ValidationError({'recalculate': 'Boolean value expected.'})
+
+
+def _active_catchup_error_response():
+    return Response(
+        {'error': '이미 진행 중인 따라잡기가 있습니다. 기존 따라잡기를 완료하거나 포기 후 다시 시도해주세요.'},
+        status=status.HTTP_400_BAD_REQUEST
+    )
+
+
+def _visible_catchup_session_queryset():
+    return CatchupSession.objects.exclude(
+        status='active',
+        subscription__is_active=False,
+    ).exclude(
+        status='active',
+        subscription__plan__is_active=False,
+    )
+
+
+def _operable_catchup_session_queryset():
+    return CatchupSession.objects.filter(
+        status='active',
+        subscription__is_active=True,
+        subscription__plan__is_active=True,
+    )
+
+
+def _catchup_overflow_message(remaining_count):
+    return f'목표일까지 {remaining_count}개 스케줄을 완료할 수 없습니다. 목표일을 늦추거나 읽기량을 늘려주세요.'
+
+
+class CatchupRedistributionOverflow(Exception):
+    def __init__(self, remaining_count):
+        self.remaining_count = remaining_count
+        super().__init__(remaining_count)
+
+
+def _is_active_catchup_identity_conflict(error):
+    return 'active_subscription_identity' in str(error).lower()
+
+
+def _redistribute_catchup_schedules(session):
+    completed_original_ids = list(
+        session.schedules
+        .filter(is_completed=True)
+        .values_list('original_schedule_id', flat=True)
+    )
+    remaining_originals = list(
+        get_overdue_schedules_in_range(
+            session.subscription,
+            session.range_start,
+            session.range_end
+        ).exclude(id__in=completed_original_ids)
+    )
+
+    distributed, remaining = calculate_catchup_schedule(
+        remaining_originals,
+        start_date=timezone.now().date(),
+        target_date=session.target_rejoin_date,
+        max_daily_readings=session.max_daily_readings,
+        max_daily_chapters=session.max_daily_chapters,
+        weekend_multiplier=float(session.weekend_multiplier)
+    )
+    if remaining:
+        raise CatchupRedistributionOverflow(len(remaining))
+
+    session.schedules.filter(is_completed=False).delete()
+    catchup_schedules = [
+        CatchupSchedule(
+            session=session,
+            original_schedule=original_schedule,
+            scheduled_date=day_data['date'],
+        )
+        for day_data in distributed
+        for original_schedule in day_data['items']
+    ]
+    if catchup_schedules:
+        CatchupSchedule.objects.bulk_create(catchup_schedules)
 
 
 @api_view(['GET'])
@@ -36,7 +132,8 @@ def catchup_status(request, subscription_id):
         PlanSubscription,
         id=subscription_id,
         user=request.user,
-        is_active=True
+        is_active=True,
+        plan__is_active=True,
     )
 
     # 밀린 스케줄 조회
@@ -89,7 +186,8 @@ def catchup_preview(request, subscription_id):
         PlanSubscription,
         id=subscription_id,
         user=request.user,
-        is_active=True
+        is_active=True,
+        plan__is_active=True,
     )
 
     serializer = CatchupPreviewRequestSerializer(data=request.data)
@@ -137,7 +235,7 @@ def catchup_preview(request, subscription_id):
     # 경고 메시지
     warnings = []
     if remaining:
-        warnings.append(f'목표일까지 {len(remaining)}개 스케줄을 완료할 수 없습니다. 목표일을 늦추거나 읽기량을 늘려주세요.')
+        warnings.append(_catchup_overflow_message(len(remaining)))
 
     # 요약 계산
     total_schedules = len(target_list)
@@ -191,15 +289,12 @@ def catchup_create(request, subscription_id):
         PlanSubscription,
         id=subscription_id,
         user=request.user,
-        is_active=True
+        is_active=True,
+        plan__is_active=True,
     )
 
-    # 이미 활성 세션이 있는지 확인
     if subscription.catchup_sessions.filter(status='active').exists():
-        return Response(
-            {'error': '이미 진행 중인 따라잡기가 있습니다. 기존 따라잡기를 완료하거나 포기 후 다시 시도해주세요.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return _active_catchup_error_response()
 
     serializer = CatchupSessionCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -230,27 +325,46 @@ def catchup_create(request, subscription_id):
         weekend_multiplier=float(data.get('weekend_multiplier', 1.0))
     )
 
-    # 세션·스케줄 생성과 진도 복사를 한 트랜잭션으로 묶어 고아 세션을 방지
-    with transaction.atomic():
-        session = CatchupSession.objects.create(
-            subscription=subscription,
-            **data
+    if remaining:
+        return Response(
+            {'error': _catchup_overflow_message(len(remaining))},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-        catchup_schedules = [
-            CatchupSchedule(
-                session=session,
-                original_schedule=original_schedule,
-                scheduled_date=day_data['date'],
+    try:
+        with transaction.atomic():
+            locked_subscription = PlanSubscription.objects.select_for_update().get(
+                id=subscription.id,
+                user=request.user,
+                is_active=True,
+                plan__is_active=True,
             )
-            for day_data in distributed
-            for original_schedule in day_data['items']
-        ]
-        if catchup_schedules:
-            CatchupSchedule.objects.bulk_create(catchup_schedules)
+            if locked_subscription.catchup_sessions.filter(status='active').exists():
+                return _active_catchup_error_response()
 
-        # 이미 완료된 진도 복사
-        copy_completed_progress(subscription, session)
+            session = CatchupSession.objects.create(
+                subscription=locked_subscription,
+                **data
+            )
+
+            catchup_schedules = [
+                CatchupSchedule(
+                    session=session,
+                    original_schedule=original_schedule,
+                    scheduled_date=day_data['date'],
+                )
+                for day_data in distributed
+                for original_schedule in day_data['items']
+            ]
+            if catchup_schedules:
+                CatchupSchedule.objects.bulk_create(catchup_schedules)
+
+            # 이미 완료된 진도 복사
+            copy_completed_progress(locked_subscription, session)
+    except IntegrityError as exc:
+        if _is_active_catchup_identity_conflict(exc):
+            return _active_catchup_error_response()
+        raise
 
     return Response(
         CatchupSessionSerializer(session).data,
@@ -266,7 +380,7 @@ def catchup_session_detail(request, session_id):
     GET /api/v1/todos/catchup-sessions/{session_id}/
     """
     session = get_object_or_404(
-        CatchupSession,
+        _visible_catchup_session_queryset(),
         id=session_id,
         subscription__user=request.user
     )
@@ -281,53 +395,29 @@ def catchup_session_update(request, session_id):
     PATCH /api/v1/todos/catchup-sessions/{session_id}/
     """
     session = get_object_or_404(
-        CatchupSession,
+        _operable_catchup_session_queryset(),
         id=session_id,
-        subscription__user=request.user,
-        status='active'
+        subscription__user=request.user
     )
 
-    # 수정 가능한 필드만 업데이트
-    allowed_fields = ['name', 'max_daily_readings', 'max_daily_chapters',
-                      'weekend_multiplier', 'target_rejoin_date']
+    serializer = CatchupSessionUpdateSerializer(
+        session,
+        data=request.data,
+        partial=True,
+    )
+    serializer.is_valid(raise_exception=True)
+    should_recalculate = _parse_recalculate_flag(request.data)
 
-    for field in allowed_fields:
-        if field in request.data:
-            setattr(session, field, request.data[field])
-
-    session.save()
-
-    # 재계산 요청 시
-    if request.data.get('recalculate'):
-        # 미완료 스케줄 삭제 후 재분배
-        session.schedules.filter(is_completed=False).delete()
-
-        # 남은 원본 스케줄 다시 분배
-        remaining_originals = get_overdue_schedules_in_range(
-            session.subscription,
-            session.range_start,
-            session.range_end
-        ).exclude(
-            id__in=session.schedules.values_list('original_schedule_id', flat=True)
+    try:
+        with transaction.atomic():
+            session = serializer.save()
+            if should_recalculate:
+                _redistribute_catchup_schedules(session)
+    except CatchupRedistributionOverflow as exc:
+        return Response(
+            {'error': _catchup_overflow_message(exc.remaining_count)},
+            status=status.HTTP_400_BAD_REQUEST,
         )
-
-        today = timezone.now().date()
-        distributed, _ = calculate_catchup_schedule(
-            list(remaining_originals),
-            start_date=today,
-            target_date=session.target_rejoin_date,
-            max_daily_readings=session.max_daily_readings,
-            max_daily_chapters=session.max_daily_chapters,
-            weekend_multiplier=float(session.weekend_multiplier)
-        )
-
-        for day_data in distributed:
-            for original_schedule in day_data['items']:
-                CatchupSchedule.objects.create(
-                    session=session,
-                    original_schedule=original_schedule,
-                    scheduled_date=day_data['date']
-                )
 
     return Response(CatchupSessionSerializer(session).data)
 
@@ -340,16 +430,17 @@ def catchup_session_schedules(request, session_id):
     GET /api/v1/todos/catchup-sessions/{session_id}/schedules/
     """
     session = get_object_or_404(
-        CatchupSession,
+        _visible_catchup_session_queryset(),
         id=session_id,
         subscription__user=request.user
     )
 
-    schedules = session.schedules.all()
+    query_serializer = CatchupSessionSchedulesQuerySerializer(data=request.query_params)
+    query_serializer.is_valid(raise_exception=True)
+    date_filter = query_serializer.validated_data.get('date')
 
-    # 날짜 필터
-    date_filter = request.query_params.get('date')
-    if date_filter:
+    schedules = session.schedules.all()
+    if date_filter is not None:
         schedules = schedules.filter(scheduled_date=date_filter)
 
     # 날짜별 그룹핑
@@ -379,18 +470,40 @@ def catchup_schedule_toggle(request, schedule_id):
     따라잡기 스케줄 완료 토글
     POST /api/v1/todos/catchup-schedules/{schedule_id}/toggle/
     """
-    schedule = get_object_or_404(
-        CatchupSchedule,
-        id=schedule_id,
-        session__subscription__user=request.user
-    )
+    with transaction.atomic():
+        schedule = get_object_or_404(
+            CatchupSchedule.objects.select_for_update().select_related(
+                'session__subscription',
+                'original_schedule',
+            ),
+            id=schedule_id,
+            session__subscription__user=request.user,
+            session__status='active',
+            session__subscription__is_active=True,
+            session__subscription__plan__is_active=True,
+        )
 
-    if schedule.is_completed:
-        schedule.mark_as_incomplete()
-    else:
-        schedule.mark_as_completed()
+        if schedule.is_completed:
+            schedule.mark_as_incomplete()
+            transitioned_to_completed = sync_original_progress(
+                schedule.session.subscription,
+                schedule.original_schedule,
+                False,
+                None,
+            )
+        else:
+            schedule.mark_as_completed()
+            transitioned_to_completed = sync_original_progress(
+                schedule.session.subscription,
+                schedule.original_schedule,
+                True,
+                schedule.completed_at,
+            )
 
-    session = schedule.session
+        if transitioned_to_completed:
+            on_commit_notify_reading_completed(request.user, [schedule.original_schedule])
+
+        session = schedule.session
 
     return Response({
         'id': schedule.id,
@@ -411,26 +524,26 @@ def catchup_session_complete(request, session_id):
     따라잡기 세션 완료
     POST /api/v1/todos/catchup-sessions/{session_id}/complete/
     """
-    session = get_object_or_404(
-        CatchupSession,
-        id=session_id,
-        subscription__user=request.user,
-        status='active'
-    )
+    with transaction.atomic():
+        session = get_object_or_404(
+            _operable_catchup_session_queryset().select_for_update(),
+            id=session_id,
+            subscription__user=request.user
+        )
 
-    # 미완료 스케줄 확인
-    remaining = session.remaining_count
-    warning = None
-    if remaining > 0:
-        warning = f'{remaining}개 미완료 스케줄이 있습니다.'
+        # 미완료 스케줄 확인
+        remaining = session.remaining_count
+        warning = None
+        if remaining > 0:
+            warning = f'{remaining}개 미완료 스케줄이 있습니다.'
 
-    # 세션 완료 처리
-    session.status = 'completed'
-    session.completed_at = timezone.now()
-    session.save()
+        # 세션 완료 처리
+        session.status = 'completed'
+        session.completed_at = timezone.now()
+        session.save(update_fields=['status', 'completed_at', 'updated_at'])
 
-    # 축하 데이터
-    celebration = get_celebration_data(session)
+        # 축하 데이터
+        celebration = get_celebration_data(session)
 
     return Response({
         'success': True,
@@ -447,15 +560,15 @@ def catchup_session_abandon(request, session_id):
     따라잡기 세션 포기
     POST /api/v1/todos/catchup-sessions/{session_id}/abandon/
     """
-    session = get_object_or_404(
-        CatchupSession,
-        id=session_id,
-        subscription__user=request.user,
-        status='active'
-    )
+    with transaction.atomic():
+        session = get_object_or_404(
+            _operable_catchup_session_queryset().select_for_update(),
+            id=session_id,
+            subscription__user=request.user
+        )
 
-    session.status = 'abandoned'
-    session.save()
+        session.status = 'abandoned'
+        session.save(update_fields=['status', 'updated_at'])
 
     return Response({'success': True, 'message': '따라잡기가 종료되었습니다.'})
 
@@ -469,6 +582,8 @@ def my_active_catchup_sessions(request):
     """
     sessions = CatchupSession.objects.filter(
         subscription__user=request.user,
-        status='active'
+        status='active',
+        subscription__is_active=True,
+        subscription__plan__is_active=True,
     )
     return Response(CatchupSessionSerializer(sessions, many=True).data)

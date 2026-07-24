@@ -196,4 +196,44 @@ describe('SupabaseProgressRepository', () => {
       expect(result[0]).toEqual(expectedProgress)
     })
   })
+
+  describe('bulkGetProgressForSubscriptions', () => {
+    it('returns empty array without table access when subscriptionIds is empty', async () => {
+      const result = await repo.bulkGetProgressForSubscriptions([], ['schedule-1'])
+      expect(result).toEqual([])
+      expect(mockSupabase.from).not.toHaveBeenCalled()
+    })
+
+    it('returns empty array without table access when scheduleIds is empty', async () => {
+      const result = await repo.bulkGetProgressForSubscriptions(['sub-1'], [])
+      expect(result).toEqual([])
+      expect(mockSupabase.from).not.toHaveBeenCalled()
+    })
+
+    it('queries user_progress with de-duplicated subscription and schedule filters', async () => {
+      const finalIn = vi.fn().mockResolvedValue({ data: [mockProgressRow], error: null })
+      const firstIn = vi.fn().mockReturnValue({ in: finalIn })
+      mockSupabase.chainableQuery.select = vi.fn().mockReturnValue({ in: firstIn })
+
+      const result = await repo.bulkGetProgressForSubscriptions(
+        ['sub-1', 'sub-1', 'sub-2'],
+        ['schedule-1', 'schedule-1'],
+      )
+
+      expect(mockSupabase.from).toHaveBeenCalledWith('user_progress')
+      expect(firstIn).toHaveBeenCalledWith('subscription_id', ['sub-1', 'sub-2'])
+      expect(finalIn).toHaveBeenCalledWith('schedule_id', ['schedule-1'])
+      expect(result).toEqual([expectedProgress])
+    })
+
+    it('throws NetworkError when Supabase returns an error', async () => {
+      const finalIn = vi.fn().mockResolvedValue({ data: null, error: { message: 'boom' } })
+      const firstIn = vi.fn().mockReturnValue({ in: finalIn })
+      mockSupabase.chainableQuery.select = vi.fn().mockReturnValue({ in: firstIn })
+
+      await expect(
+        repo.bulkGetProgressForSubscriptions(['sub-1'], ['schedule-1']),
+      ).rejects.toThrow('boom')
+    })
+  })
 })

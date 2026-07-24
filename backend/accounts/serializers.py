@@ -2,8 +2,11 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password as validate_django_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Q
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User, UserProfile, Follow, UserAchievement, UserReadingSettings
+from .email_identity import normalize_email_identity
+from .visibility import live_user_filter
 from todos.models import UserBibleProgress
 import logging
 
@@ -113,11 +116,22 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 serializer_class = PublicUserSerializer
         return serializer_class(obj.user, context=self.context).data
 
+    def _visible_related_users(self, queryset):
+        request = self.context.get('request')
+        visible_filter = Q(profile__is_public=True)
+        if request and request.user.is_authenticated:
+            visible_filter |= Q(id=request.user.id)
+        return queryset.filter(live_user_filter()).filter(visible_filter)
+
     def get_followers_count(self, obj):
-        return obj.user.followers.count()
+        return self._visible_related_users(
+            User.objects.filter(following__following=obj.user)
+        ).distinct().count()
     
     def get_following_count(self, obj):
-        return obj.user.following.count()
+        return self._visible_related_users(
+            User.objects.filter(followers__follower=obj.user)
+        ).distinct().count()
     
     def get_is_following(self, obj):
         request = self.context.get('request')
@@ -143,8 +157,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class FollowSerializer(serializers.ModelSerializer):
     """팔로우 관계 시리얼라이저"""
-    follower = UserSerializer(read_only=True)
-    following = UserSerializer(read_only=True)
+    follower = PublicUserSerializer(read_only=True)
+    following = PublicUserSerializer(read_only=True)
     
     class Meta:
         model = Follow
@@ -216,9 +230,10 @@ class EmailRegisterSerializer(serializers.Serializer):
     nickname = serializers.CharField(min_length=2, max_length=50)
     
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
+        email = normalize_email_identity(value)
+        if User.objects.filter(email__iexact=email, is_active=True).exists():
             raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
-        return value.lower()
+        return email
     
     def validate_nickname(self, value):
         if User.objects.filter(nickname=value).exists():
@@ -262,6 +277,11 @@ class SetPasswordSerializer(serializers.Serializer):
     def validate(self, data):
         if data['new_password'] != data['new_password_confirm']:
             raise serializers.ValidationError({"new_password_confirm": "비밀번호가 일치하지 않습니다."})
+        user = self.context.get('user')
+        if user and not user.has_password_set():
+            raise serializers.ValidationError({
+                "current_password": "비밀번호 재설정을 통해 먼저 본인 확인을 완료해주세요."
+            })
         return data
 
 
@@ -292,7 +312,7 @@ class AccountEmailSerializer(serializers.Serializer):
     current_password = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     def validate_email(self, value):
-        email = value.strip().lower()
+        email = normalize_email_identity(value)
         user = self.context['user']
         if User.objects.filter(email__iexact=email, is_active=True).exclude(id=user.id).exists():
             raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
@@ -300,12 +320,15 @@ class AccountEmailSerializer(serializers.Serializer):
 
     def validate(self, data):
         user = self.context['user']
-        if user.has_password_set():
-            current_password = data.get('current_password')
-            if not current_password:
-                raise serializers.ValidationError({"current_password": "현재 비밀번호를 입력해주세요."})
-            if not user.check_password(current_password):
-                raise serializers.ValidationError({"current_password": "현재 비밀번호가 올바르지 않습니다."})
+        if not user.has_password_set():
+            raise serializers.ValidationError({
+                "current_password": "비밀번호 설정 후 이메일을 변경할 수 있습니다."
+            })
+        current_password = data.get('current_password')
+        if not current_password:
+            raise serializers.ValidationError({"current_password": "현재 비밀번호를 입력해주세요."})
+        if not user.check_password(current_password):
+            raise serializers.ValidationError({"current_password": "현재 비밀번호가 올바르지 않습니다."})
         return data
 
 
@@ -319,4 +342,27 @@ class NotificationSettingsSerializer(serializers.ModelSerializer):
             'weekly_progress_summary',
             'service_notice',
             'reminder_time',
+        ]
+
+
+class ReadingSettingsSerializer(serializers.ModelSerializer):
+    font_size = serializers.IntegerField(min_value=14, max_value=24)
+    line_height = serializers.FloatField(min_value=1.4, max_value=2.4)
+
+    class Meta:
+        model = UserReadingSettings
+        fields = [
+            'theme',
+            'font_family',
+            'font_size',
+            'font_weight',
+            'line_height',
+            'text_align',
+            'verse_joining',
+            'show_verse_numbers',
+            'show_description',
+            'show_cross_ref',
+            'highlight_names',
+            'show_footnotes',
+            'tongdok_auto_complete',
         ]

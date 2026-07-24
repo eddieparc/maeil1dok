@@ -10,7 +10,8 @@ from django.utils.decorators import method_decorator
 from datetime import date, datetime, timedelta
 from accounts.models import User, Follow
 from accounts.serializers import UserSearchSerializer
-from .models import UserBibleProgress, PlanSubscription, DailyBibleSchedule, ReadingGroup, GroupMembership
+from accounts.visibility import live_user_filter
+from .models import BibleReadingPlan, UserBibleProgress, PlanSubscription, DailyBibleSchedule, ReadingGroup, GroupMembership
 from .services.hasena_activity import (
     calculate_hasena_activity_stats_bulk,
     get_hasena_count_annotation,
@@ -19,7 +20,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-SCOREBOARD_CACHE_VERSION = 'v3'
+SCOREBOARD_CACHE_VERSION = 'v4'
 VALID_SCOREBOARD_PERIODS = {'all', 'week', 'month'}
 DEFAULT_SCOREBOARD_LIMIT = 100
 MAX_SCOREBOARD_LIMIT = 500
@@ -50,6 +51,8 @@ def parse_scoreboard_params(request, default_limit=DEFAULT_SCOREBOARD_LIMIT, req
                 'success': False,
                 'error': 'plan_id는 1 이상이어야 합니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
+        if not BibleReadingPlan.objects.filter(id=plan_id, is_active=True).exists():
+            return None, scoreboard_plan_not_found_response()
 
     limit = default_limit
     if require_limit or 'limit' in request.query_params:
@@ -72,6 +75,13 @@ def parse_scoreboard_params(request, default_limit=DEFAULT_SCOREBOARD_LIMIT, req
         return None, month
 
     return {'plan_id': plan_id, 'period': period, 'limit': limit, 'month': month}, None
+
+
+def scoreboard_plan_not_found_response():
+    return Response({
+        'success': False,
+        'error': '해당 플랜을 찾을 수 없습니다.'
+    }, status=status.HTTP_404_NOT_FOUND)
 
 
 def parse_scoreboard_month(raw_month, period):
@@ -103,8 +113,17 @@ def parse_follow_type(request):
     return follow_type, None
 
 
+def visible_scoreboard_users_for_request(queryset, request):
+    queryset = queryset.filter(live_user_filter())
+    if request.user.is_authenticated:
+        return queryset.filter(Q(profile__is_public=True) | Q(id=request.user.id))
+    return queryset.filter(profile__is_public=True)
+
+
 def get_month_end(month_start):
     if month_start.month == 12:
+        if month_start.year >= date.max.year:
+            return date.max
         return date(month_start.year + 1, 1, 1)
     return date(month_start.year, month_start.month + 1, 1)
 
@@ -405,6 +424,13 @@ def rank_leaderboard(leaderboard, limit=None):
     return leaderboard
 
 
+def group_scoreboard_not_found_response():
+    return Response({
+        'success': False,
+        'error': '그룹을 찾을 수 없습니다.'
+    }, status=status.HTTP_404_NOT_FOUND)
+
+
 # ===== API Views =====
 
 
@@ -432,7 +458,9 @@ def get_scoreboard(request):
                 return Response(cached_data)
 
         # 기본 쿼리셋
-        users_query = User.objects.filter(is_active=True).select_related('profile')
+        users_query = User.objects.filter(
+            live_user_filter()
+        ).select_related('profile')
 
         # 플랜 필터링
         if plan_id:
@@ -553,7 +581,7 @@ def get_friends_scoreboard(request):
         user_ids = friend_ids + [request.user.id]
 
         # 통합 쿼리셋 (본인 포함)
-        users_query = User.objects.filter(id__in=user_ids).select_related('profile')
+        users_query = User.objects.filter(live_user_filter(), id__in=user_ids).select_related('profile')
         users_query = users_query.filter(Q(profile__is_public=True) | Q(id=request.user.id))
 
         # 완료 일수 annotate 추가
@@ -626,18 +654,12 @@ def get_group_scoreboard(request, group_id):
         try:
             group = ReadingGroup.objects.get(id=group_id)
         except ReadingGroup.DoesNotExist:
-            return Response({
-                'success': False,
-                'error': '그룹을 찾을 수 없습니다.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return group_scoreboard_not_found_response()
 
         # 비공개 그룹이고 멤버가 아닌 경우
         if not group.is_public:
             if not request.user.is_authenticated:
-                return Response({
-                    'success': False,
-                    'error': '비공개 그룹입니다.'
-                }, status=status.HTTP_403_FORBIDDEN)
+                return group_scoreboard_not_found_response()
 
             is_member = GroupMembership.objects.filter(
                 group=group,
@@ -646,10 +668,7 @@ def get_group_scoreboard(request, group_id):
             ).exists()
 
             if not is_member:
-                return Response({
-                    'success': False,
-                    'error': '그룹 멤버만 조회할 수 있습니다.'
-                }, status=status.HTTP_403_FORBIDDEN)
+                return group_scoreboard_not_found_response()
 
         params, error_response = parse_scoreboard_params(request, require_limit=False)
         if error_response:
@@ -670,24 +689,28 @@ def get_group_scoreboard(request, group_id):
                     'error': '해당 플랜을 찾을 수 없습니다.'
                 }, status=status.HTTP_404_NOT_FOUND)
         else:
-            plan = group.plans.first()
+            plan = group.plans.filter(is_active=True).first()
             if not plan:
                 return Response({
                     'success': False,
                     'error': '그룹에 플랜이 없습니다.'
                 }, status=status.HTTP_404_NOT_FOUND)
 
+        can_use_shared_cache = group.is_public and not request.user.is_authenticated
+
         # 캐시 키
         cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:group:{group_id}:{plan.id}:{period}:{month_key}'
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return Response(cached_data)
+        if can_use_shared_cache:
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                return Response(cached_data)
 
         # 그룹 멤버 쿼리 - annotate로 최적화
         members = User.objects.filter(
             group_memberships__group=group,
             group_memberships__is_active=True
         ).distinct().select_related('profile')
+        members = visible_scoreboard_users_for_request(members, request)
 
         # 완료 일수 annotate
         members = members.annotate(
@@ -781,8 +804,8 @@ def get_group_scoreboard(request, group_id):
             'month': month_key
         }
 
-        # 캐시 저장 (3분)
-        cache.set(cache_key, result, 180)
+        if can_use_shared_cache:
+            cache.set(cache_key, result, 180)
 
         return Response(result)
     except Exception as e:
@@ -831,7 +854,7 @@ def get_my_ranking(request):
                 'plan_id': plan_id
             })
 
-        users_query = User.objects.filter(is_active=True).select_related('profile')
+        users_query = User.objects.filter(live_user_filter()).select_related('profile')
 
         if plan_id:
             users_query = users_query.filter(
@@ -887,6 +910,7 @@ def get_my_ranking(request):
                 plan_id=plan_id,
                 is_active=True,
                 user__is_active=True,
+                user__scheduled_deletion_at__isnull=True,
                 user__profile__is_public=True
             ).values('user').distinct().count()
             total_users = max(plan_user_count, 1 if my_entry else 0)

@@ -327,7 +327,7 @@ watch(() => props.planId, () => {
 
 .schedule-text {
   font-size: 0.75rem;
-  color: var(--blue-700);
+  color: var(--color-accent-primary);
   line-height: 1.3;
   word-break: keep-all;
   overflow-wrap: break-word;
