@@ -5,6 +5,8 @@ import resend
 import logging
 from django.conf import settings
 
+from config.observability import capture_observability_event
+
 logger = logging.getLogger(__name__)
 
 # Resend API 키 설정
@@ -18,7 +20,13 @@ FROM_NAME = getattr(settings, 'FROM_NAME', '매일일독')
 FRONTEND_URL = getattr(settings, 'FRONTEND_URL', 'https://maeil1dok.app')
 
 
-def send_email(to_email: str, subject: str, html_content: str) -> bool:
+def send_email(
+    to_email: str,
+    subject: str,
+    html_content: str,
+    *,
+    purpose: str = 'generic',
+) -> bool:
     """
     Resend를 통해 이메일 발송
     
@@ -31,7 +39,19 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
         bool: 발송 성공 여부
     """
     if not resend.api_key:
-        logger.error("RESEND_API_KEY가 설정되지 않았습니다.")
+        logger.warning("Email delivery failed purpose=%s reason=missing_api_key", purpose)
+        capture_observability_event(
+            'account email delivery failed',
+            level='error',
+            tags={
+                'journey': 'account_email',
+                'email_purpose': purpose,
+                'outcome': 'failed',
+                'reason': 'missing_api_key',
+            },
+            extra={},
+            isolate_request_context=True,
+        )
         return False
     
     try:
@@ -43,11 +63,32 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
         }
         
         response = resend.Emails.send(params)
-        logger.info(f"이메일 발송 성공: {to_email}, ID: {response.get('id')}")
+        logger.info(
+            "Email delivery succeeded purpose=%s response_id=%s",
+            purpose,
+            response.get('id'),
+        )
         return True
         
     except Exception as e:
-        logger.error(f"이메일 발송 실패: {to_email}, 오류: {str(e)}")
+        error_class = e.__class__.__name__
+        logger.warning(
+            "Email delivery failed purpose=%s error_class=%s",
+            purpose,
+            error_class,
+        )
+        capture_observability_event(
+            'account email delivery failed',
+            level='error',
+            tags={
+                'journey': 'account_email',
+                'email_purpose': purpose,
+                'outcome': 'failed',
+                'reason': 'provider_exception',
+            },
+            extra={'error_class': error_class},
+            isolate_request_context=True,
+        )
         return False
 
 
@@ -128,7 +169,8 @@ def send_verification_email(to_email: str, token: str, nickname: str = None) -> 
     return send_email(
         to_email=to_email,
         subject="[매일일독] 이메일 인증을 완료해 주세요",
-        html_content=html_content
+        html_content=html_content,
+        purpose='email_verification',
     )
 
 
@@ -209,7 +251,8 @@ def send_password_reset_email(to_email: str, token: str, nickname: str = None) -
     return send_email(
         to_email=to_email,
         subject="[매일일독] 비밀번호 재설정 안내",
-        html_content=html_content
+        html_content=html_content,
+        purpose='password_reset',
     )
 
 
@@ -283,5 +326,6 @@ def send_welcome_email(to_email: str, nickname: str) -> bool:
     return send_email(
         to_email=to_email,
         subject="[매일일독] 가입을 환영합니다! 🎉",
-        html_content=html_content
+        html_content=html_content,
+        purpose='welcome',
     )

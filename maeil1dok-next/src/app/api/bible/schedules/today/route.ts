@@ -18,9 +18,10 @@ export async function GET() {
     // Get user's active subscriptions
     const { data: subscriptions, error: subError } = await supabase
       .from('plan_subscriptions')
-      .select('id, plan_id')
+      .select('id,plan_id,bible_reading_plans!inner(is_active)')
       .eq('user_id', user.id)
       .eq('is_active', true)
+      .eq('bible_reading_plans.is_active', true)
 
     if (subError) {
       return NextResponse.json({ error: 'Failed to load subscriptions' }, { status: 500 })
@@ -50,11 +51,15 @@ export async function GET() {
 
     let progress: { schedule_id: string; is_completed: boolean }[] = []
     if (scheduleIds.length > 0) {
-      const { data: progressData } = await supabase
+      const { data: progressData, error: progressError } = await supabase
         .from('user_progress')
         .select('schedule_id, is_completed')
         .in('subscription_id', subscriptionIds)
         .in('schedule_id', scheduleIds)
+
+      if (progressError) {
+        return NextResponse.json({ error: 'Failed to load today schedules' }, { status: 500 })
+      }
 
       progress = progressData || []
     }

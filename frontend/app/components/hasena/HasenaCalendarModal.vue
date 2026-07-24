@@ -538,7 +538,7 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .date-cell.today {
-  background: var(--color-accent-primary-light, rgba(99, 102, 241, 0.1));
+  background: var(--color-accent-primary-light, rgba(42, 17, 17, 0.1));
 }
 
 .date-cell.today .date-number {
@@ -547,7 +547,7 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .date-cell.completed {
-  background: #10b981;
+  background: #2A1111;
 }
 
 .date-cell.completed .date-number {
@@ -555,7 +555,7 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .date-cell.completed.today {
-  background: #10b981;
+  background: #2A1111;
   box-shadow: 0 0 0 2px var(--color-accent-primary);
 }
 
@@ -632,11 +632,11 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .legend-dot.completed {
-  background: #10b981;
+  background: #2A1111;
 }
 
 .legend-dot.today {
-  background: var(--color-accent-primary-light, rgba(99, 102, 241, 0.2));
+  background: var(--color-accent-primary-light, rgba(42, 17, 17, 0.2));
   border: 1px solid var(--color-accent-primary);
 }
 

@@ -297,7 +297,7 @@ onUnmounted(() => {
 [data-theme="dark"] .search-input:focus {
   background: var(--color-bg-secondary);
   border-color: var(--color-accent-primary);
-  box-shadow: 0 0 0 3px rgba(107, 201, 159, 0.15);
+  box-shadow: 0 0 0 3px rgba(42, 17, 17, 0.15);
 }
 
 [data-theme="dark"] .search-input::placeholder {

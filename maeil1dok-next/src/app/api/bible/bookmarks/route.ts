@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { parseJsonBody } from '@/lib/api/parseJsonBody'
 import type { Database } from '@/lib/supabase/database.types'
 
 type BookmarkInsert = Database['public']['Tables']['bible_bookmarks']['Insert']
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+}
 
 export async function GET(request: Request) {
   try {
@@ -62,33 +75,59 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = (await request.json()) as Partial<BookmarkInsert>
-    const { bookmark_type, book, chapter, start_verse, end_verse, title, color } = body
-
-    if (!bookmark_type || !book || chapter === undefined) {
-      return NextResponse.json(
-        { error: 'bookmark_type, book, chapter are required' },
-        { status: 400 }
-      )
+    const parseResult = await parseJsonBody<unknown>(request)
+    if (!parseResult.ok) {
+      return parseResult.response
     }
 
-    if (!['chapter', 'verse'].includes(bookmark_type)) {
+    const body = parseResult.body
+    if (!isRecord(body)) {
+      return NextResponse.json({ error: 'Request body must be an object' }, { status: 400 })
+    }
+
+    const { bookmark_type, book, chapter, start_verse, end_verse, title, color } = body
+
+    if (bookmark_type !== 'chapter' && bookmark_type !== 'verse') {
       return NextResponse.json({ error: 'bookmark_type must be "chapter" or "verse"' }, { status: 400 })
     }
 
-    if (!Number.isInteger(chapter) || chapter <= 0) {
+    if (!isNonEmptyString(book)) {
+      return NextResponse.json({ error: 'book must be a non-empty string' }, { status: 400 })
+    }
+
+    if (!isPositiveInteger(chapter)) {
       return NextResponse.json({ error: 'chapter must be a positive integer' }, { status: 400 })
+    }
+
+    let resolvedStartVerse: number | null = null
+    let resolvedEndVerse: number | null = null
+
+    if (bookmark_type === 'verse') {
+      if (!isPositiveInteger(start_verse) || !isPositiveInteger(end_verse)) {
+        return NextResponse.json(
+          { error: 'start_verse and end_verse must be positive integers for verse bookmarks' },
+          { status: 400 }
+        )
+      }
+      if (end_verse < start_verse) {
+        return NextResponse.json(
+          { error: 'end_verse must be greater than or equal to start_verse' },
+          { status: 400 }
+        )
+      }
+      resolvedStartVerse = start_verse
+      resolvedEndVerse = end_verse
     }
 
     const insertData: BookmarkInsert = {
       user_id: user.id,
       bookmark_type,
-      book,
+      book: book.trim(),
       chapter,
-      start_verse: start_verse ?? null,
-      end_verse: end_verse ?? null,
-      title: title ?? '',
-      color: color ?? '#3B82F6',
+      start_verse: resolvedStartVerse,
+      end_verse: resolvedEndVerse,
+      title: typeof title === 'string' ? title : '',
+      color: typeof color === 'string' ? color : '#3B82F6',
     }
 
     const { data, error: insertError } = await supabase

@@ -513,7 +513,7 @@ onMounted(async () => {
 }
 
 [data-theme="dark"] .retry-button:hover {
-  background: var(--color-accent-primary-hover, #3B7E63);
+  background: var(--color-accent-primary-hover, #3A1A1A);
 }
 
 /* Tablet Large: iPad Pro and larger tablets */

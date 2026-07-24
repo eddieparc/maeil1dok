@@ -64,12 +64,19 @@ export default function SecuritySection({ user, identities }: SecuritySectionPro
       return
     }
 
+    if (hasPassword && currentPassword.trim().length === 0) {
+      setPasswordError('현재 비밀번호를 입력해 주세요')
+      return
+    }
+
     setIsSavingPassword(true)
     try {
       const response = await fetch('/api/auth/update-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPassword }),
+        body: JSON.stringify(
+          hasPassword ? { newPassword, currentPassword } : { newPassword }
+        ),
       })
 
       const data = await response.json().catch(() => null)

@@ -293,7 +293,7 @@ onUnmounted(() => {
   right: 6px;
   width: 6px;
   height: 6px;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   border-radius: 50%;
 }
 
@@ -329,11 +329,11 @@ onUnmounted(() => {
 }
 
 .popover-item.active {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .popover-item.active .item-icon {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .item-icon {
@@ -372,7 +372,7 @@ onUnmounted(() => {
   min-width: 18px;
   height: 18px;
   padding: 0 0.375rem;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
   font-size: 0.6875rem;
   font-weight: 600;

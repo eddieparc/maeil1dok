@@ -30,25 +30,30 @@
   --color-border-dark: #d1d5db;
 
   /* Accent */
-  --color-accent-primary: #4B9F7E;
-  --color-accent-primary-hover: #3B7E63;
-  --color-accent-primary-light: #e9f5f0;
-  --color-accent-secondary: #3b82f6;
-  --color-accent-secondary-hover: #2563eb;
+  --color-accent-primary: #2A1111;
+  --color-accent-primary-hover: #3A1A1A;
+  --color-accent-primary-light: #F3EEEE;
+  --color-accent-primary-dark: #1F0C0C;
+  --color-accent-secondary: #2A1111;
+  --color-accent-secondary-hover: #3A1A1A;
+  --color-accent-bg: #F3EEEE;
+  --color-accent-hover: #3A1A1A;
 
   /* Status */
-  --color-success: #10b981;
-  --color-success-bg: #d1fae5;
-  --color-success-text: #065f46;
+  --color-success: #2A1111;
+  --color-success-dark: #1F0C0C;
+  --color-success-light: #F3EEEE;
+  --color-success-bg: #F3EEEE;
+  --color-success-text: #2A1111;
   --color-error: #ef4444;
   --color-error-bg: #fee2e2;
   --color-error-text: #991b1b;
   --color-warning: #f59e0b;
   --color-warning-bg: #fef3c7;
   --color-warning-text: #92400e;
-  --color-info: #3b82f6;
-  --color-info-bg: #dbeafe;
-  --color-info-text: #1e40af;
+  --color-info: #2A1111;
+  --color-info-bg: #F3EEEE;
+  --color-info-text: #2A1111;
 
   /* Interactive Elements */
   --color-button-default: #f3f4f6;
@@ -56,9 +61,9 @@
   --color-button-active: #d1d5db;
   --color-input-bg: #ffffff;
   --color-input-border: #d1d5db;
-  --color-input-focus: #4B9F7E;
-  --color-link: #3b82f6;
-  --color-link-hover: #2563eb;
+  --color-input-focus: #2A1111;
+  --color-link: #2A1111;
+  --color-link-hover: #3A1A1A;
 
   /* Overlay */
   --color-modal-bg: #ffffff;
@@ -111,9 +116,9 @@
   --bible-bg: #faf8f6;
   --bible-text: #2a1111;
   --verse-number-color: #999999;
-  --section-title-color: #4B9F7E;
+  --section-title-color: #2A1111;
   --cross-ref-color: #666666;
-  --footnote-color: #3b82f6;
+  --footnote-color: #2A1111;
   --description-color: #6b7280;
 
   /* Highlight colors for names/places - 부드러운 색상 */
@@ -124,10 +129,10 @@
   /* For BibleScheduleContent and ScheduleItem components */
   
   /* Completed (읽음) - Green tones */
-  --color-schedule-completed-bg: #f0fdf4;
-  --color-schedule-completed-border: #c3e0cd;
-  --color-schedule-completed-text: #166534;
-  --color-schedule-completed-hover: #e6f7ec;
+  --color-schedule-completed-bg: #F3EEEE;
+  --color-schedule-completed-border: #D8CACA;
+  --color-schedule-completed-text: #2A1111;
+  --color-schedule-completed-hover: #EADDDD;
   
   /* Missed/Not completed (미완료) - Red tones */
   --color-schedule-missed-bg: #fef2f2;
@@ -136,10 +141,10 @@
   --color-schedule-missed-hover: #fee8e8;
   
   /* Current (오늘) - Blue tones */
-  --color-schedule-current-bg: #eff6ff;
-  --color-schedule-current-border: #bfdbfe;
-  --color-schedule-current-text: #546395;
-  --color-schedule-current-hover: #dbeafe;
+  --color-schedule-current-bg: #F3EEEE;
+  --color-schedule-current-border: #D8CACA;
+  --color-schedule-current-text: #2A1111;
+  --color-schedule-current-hover: #EADDDD;
   
   /* Upcoming - Slate tones */
   --color-schedule-upcoming-hover: #f1f5f9;
@@ -153,12 +158,12 @@
   --color-schedule-location-hover: #fef9c3;
   
   /* Today badge */
-  --color-schedule-today-bg: #405e9f;
+  --color-schedule-today-bg: #2A1111;
   
   /* Info indicator */
-  --color-schedule-info-bg: #eff6ff;
-  --color-schedule-info-border: #bfdbfe;
-  --color-schedule-info-text: #1e40af;
+  --color-schedule-info-bg: #F3EEEE;
+  --color-schedule-info-border: #D8CACA;
+  --color-schedule-info-text: #2A1111;
 
   /* ===== Slate Color Palette ===== */
   /* For calendar and modal components */
@@ -194,7 +199,7 @@
   --color-text-secondary: #d1d5db;
   --color-text-tertiary: #9ca3af;
   --color-text-muted: #6b7280;
-  --color-text-inverse: #1f2937;
+  --color-text-inverse: #ffffff;
 
   /* Border */
   --color-border-default: #3d3d3d;
@@ -202,25 +207,30 @@
   --color-border-dark: #4a4a4a;
 
   /* Accent */
-  --color-accent-primary: #6bc99f;
-  --color-accent-primary-hover: #5ab88e;
-  --color-accent-primary-light: #1a2f25;
-  --color-accent-secondary: #60a5fa;
-  --color-accent-secondary-hover: #3b82f6;
+  --color-accent-primary: #2A1111;
+  --color-accent-primary-hover: #3A1A1A;
+  --color-accent-primary-light: #3A2424;
+  --color-accent-primary-dark: #1F0C0C;
+  --color-accent-secondary: #2A1111;
+  --color-accent-secondary-hover: #3A1A1A;
+  --color-accent-bg: #3A2424;
+  --color-accent-hover: #3A1A1A;
 
   /* Status */
-  --color-success: #34d399;
-  --color-success-bg: #064e3b;
-  --color-success-text: #a7f3d0;
+  --color-success: #2A1111;
+  --color-success-dark: #1F0C0C;
+  --color-success-light: #3A2424;
+  --color-success-bg: #3A2424;
+  --color-success-text: #ffffff;
   --color-error: #f87171;
   --color-error-bg: #7f1d1d;
   --color-error-text: #fecaca;
   --color-warning: #fbbf24;
   --color-warning-bg: #78350f;
   --color-warning-text: #fef3c7;
-  --color-info: #60a5fa;
-  --color-info-bg: #1e3a5f;
-  --color-info-text: #bfdbfe;
+  --color-info: #2A1111;
+  --color-info-bg: #3A2424;
+  --color-info-text: #ffffff;
 
   /* Interactive Elements */
   --color-button-default: #3a3a3a;
@@ -228,9 +238,9 @@
   --color-button-active: #5a5a5a;
   --color-input-bg: #333333;
   --color-input-border: #4a4a4a;
-  --color-input-focus: #6bc99f;
-  --color-link: #60a5fa;
-  --color-link-hover: #93c5fd;
+  --color-input-focus: #2A1111;
+  --color-link: #ffffff;
+  --color-link-hover: #F3EEEE;
 
   /* Overlay */
   --color-modal-bg: #2a2a2a;
@@ -277,10 +287,10 @@
 
   /* ===== Schedule Status Colors (Dark) ===== */
   /* Completed (읽음) - Refined Green tones */
-  --color-schedule-completed-bg: #132e24;
-  --color-schedule-completed-border: #1f4e35;
-  --color-schedule-completed-text: #6ee7b7;
-  --color-schedule-completed-hover: #1a3b2e;
+  --color-schedule-completed-bg: #3A2424;
+  --color-schedule-completed-border: #5A3A3A;
+  --color-schedule-completed-text: #ffffff;
+  --color-schedule-completed-hover: #4A2D2D;
   
   /* Missed/Not completed (미완료) - Refined Red tones */
   --color-schedule-missed-bg: #2e1a1a;
@@ -289,10 +299,10 @@
   --color-schedule-missed-hover: #3b2020;
   
   /* Current (오늘) - Refined Blue tones */
-  --color-schedule-current-bg: #1a2639;
-  --color-schedule-current-border: #273e63;
-  --color-schedule-current-text: #93c5fd;
-  --color-schedule-current-hover: #20304a;
+  --color-schedule-current-bg: #3A2424;
+  --color-schedule-current-border: #5A3A3A;
+  --color-schedule-current-text: #ffffff;
+  --color-schedule-current-hover: #4A2D2D;
   
   /* Upcoming - Subtle hover state */
   --color-schedule-upcoming-hover: #2d3748;
@@ -306,20 +316,20 @@
   --color-schedule-location-hover: #3a3316;
   
   /* Today badge */
-  --color-schedule-today-bg: #3b5998;
+  --color-schedule-today-bg: #2A1111;
   
   /* Info indicator */
-  --color-schedule-info-bg: #1a2639;
-  --color-schedule-info-border: #273e63;
-  --color-schedule-info-text: #93c5fd;
+  --color-schedule-info-bg: #3A2424;
+  --color-schedule-info-border: #5A3A3A;
+  --color-schedule-info-text: #ffffff;
 
   /* ===== Bible Content Specific ===== */
   --bible-bg: #1a1a1a;
   --bible-text: #e0e0e0;
   --verse-number-color: #666666;
-  --section-title-color: #6bc99f;
+  --section-title-color: #ffffff;
   --cross-ref-color: #a0a0a0;
-  --footnote-color: #60a5fa;
+  --footnote-color: #ffffff;
   --description-color: #9ca3af;
 
   /* Highlight colors for names/places - 다크모드용 부드러운 색상 */

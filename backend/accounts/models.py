@@ -1,6 +1,8 @@
 # noqa: SIZE_OK  — legacy account data model module; this change only adds a scoped integrity constraint
 from django.contrib.auth.models import AbstractUser
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Case, Value, When
+from django.db.models.functions import Lower, NullIf, Trim
 from django.conf import settings
 from django.utils import timezone
 import secrets
@@ -15,6 +17,22 @@ class User(AbstractUser):
     profile_image = models.URLField(max_length=500, null=True, blank=True)
     
     email = models.EmailField(null=True, blank=True)
+    active_email_identity = models.GeneratedField(
+        expression=Case(
+            When(
+                is_active=True,
+                email__isnull=False,
+                then=NullIf(Lower(Trim('email')), Value('')),
+            ),
+            default=Value(None),
+            output_field=models.CharField(max_length=254, null=True),
+        ),
+        output_field=models.CharField(max_length=254, null=True),
+        db_persist=True,
+        unique=True,
+        null=True,
+        editable=False,
+    )
     has_usable_password_flag = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
     
@@ -343,6 +361,16 @@ class UserReadingSettings(models.Model):
     class Meta:
         verbose_name = '읽기 설정'
         verbose_name_plural = '읽기 설정'
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(font_size__gte=14) & models.Q(font_size__lte=24),
+                name='reading_settings_font_size_range',
+            ),
+            models.CheckConstraint(
+                check=models.Q(line_height__gte=1.4) & models.Q(line_height__lte=2.4),
+                name='reading_settings_line_height_range',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user.nickname}의 읽기 설정"
@@ -397,18 +425,21 @@ class EmailVerificationToken(models.Model):
     
     def verify(self):
         """토큰 사용 및 이메일 인증 완료 처리"""
-        if not self.is_valid():
-            return False
-        
-        self.is_used = True
-        self.save(update_fields=['is_used'])
-        
-        # 사용자 이메일 인증 완료
-        self.user.email_verified = True
-        self.user.email = self.email
-        self.user.save(update_fields=['email_verified', 'email'])
-        
+        with transaction.atomic():
+            if not self.use_token():
+                return False
+
+            self.user.email_verified = True
+            self.user.email = self.email
+            self.user.save(update_fields=['email_verified', 'email'])
         return True
+
+    def use_token(self):
+        return EmailVerificationToken.objects.filter(
+            pk=self.pk,
+            is_used=False,
+            expires_at__gt=timezone.now(),
+        ).update(is_used=True) == 1
 
 
 class PasswordResetToken(models.Model):
@@ -458,9 +489,8 @@ class PasswordResetToken(models.Model):
     
     def use_token(self):
         """토큰 사용 처리"""
-        if not self.is_valid():
-            return False
-        
-        self.is_used = True
-        self.save(update_fields=['is_used'])
-        return True
+        return PasswordResetToken.objects.filter(
+            pk=self.pk,
+            is_used=False,
+            expires_at__gt=timezone.now(),
+        ).update(is_used=True) == 1

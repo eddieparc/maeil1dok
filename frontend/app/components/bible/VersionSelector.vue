@@ -157,7 +157,7 @@ const selectVersion = (version: string) => {
 }
 
 .version-select-button.original.active {
-  border-left-color: var(--primary-color, #6366f1);
+  border-left-color: var(--primary-color, #2A1111);
 }
 
 .version-select-button .button-content {
@@ -169,12 +169,12 @@ const selectVersion = (version: string) => {
 }
 
 .version-select-button.active .button-content {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-weight: 500;
 }
 
 .version-select-button.active svg {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .version-label {
@@ -214,7 +214,7 @@ const selectVersion = (version: string) => {
 }
 
 .lang-badge.greek {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #2A1111 0%, #1d4ed8 100%);
   color: white;
   font-family: 'SBL Greek', 'Times New Roman', serif;
 }
@@ -238,7 +238,7 @@ const selectVersion = (version: string) => {
 }
 
 :root.dark .version-select-button.active {
-  background: rgba(99, 102, 241, 0.15);
+  background: rgba(42, 17, 17, 0.15);
 }
 
 :root.dark .category-title {

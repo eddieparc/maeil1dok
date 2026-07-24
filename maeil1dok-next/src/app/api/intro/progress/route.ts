@@ -1,5 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
+import { parseJsonBody } from '@/lib/api/parseJsonBody'
 import { NextResponse } from 'next/server'
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isUuidString(value: unknown): value is string {
+  return typeof value === 'string' && UUID_PATTERN.test(value)
+}
 
 export async function POST(request: Request) {
   try {
@@ -10,24 +21,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { videoIntroId, completed } = body as { videoIntroId: string; completed: boolean }
-
-    if (!videoIntroId || typeof completed !== 'boolean') {
-      return NextResponse.json(
-        { error: 'videoIntroId (string) and completed (boolean) are required' },
-        { status: 400 }
-      )
+    const parsed = await parseJsonBody<unknown>(request)
+    if (!parsed.ok) {
+      return parsed.response
     }
 
-    // Verify the video intro exists
-    const { data: videoIntro, error: introError } = await supabase
-      .from('video_bible_intros')
-      .select('id')
-      .eq('id', videoIntroId)
-      .single()
+    const body = parsed.body
+    if (!isRecord(body)) {
+      return NextResponse.json({ error: 'Request body must be an object' }, { status: 400 })
+    }
 
-    if (introError || !videoIntro) {
+    const { videoIntroId, completed } = body
+    if (!isUuidString(videoIntroId)) {
+      return NextResponse.json({ error: 'videoIntroId must be a UUID string' }, { status: 400 })
+    }
+    if (typeof completed !== 'boolean') {
+      return NextResponse.json({ error: 'completed must be boolean' }, { status: 400 })
+    }
+
+    // Authorize: the intro must belong to an active plan the user actively
+    // subscribes to. Deny-by-default with the same 404 shape for every failure.
+    const authorized = await isIntroAuthorized(supabase, user.id, videoIntroId)
+    if (!authorized) {
       return NextResponse.json({ error: 'Video intro not found' }, { status: 404 })
     }
 
@@ -64,4 +79,38 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+}
+
+// Returns true only when the intro exists, its plan is active, and the user has
+// an active subscription to that plan. Any query error is treated as unauthorized.
+async function isIntroAuthorized(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  videoIntroId: string,
+): Promise<boolean> {
+  const { data: intro, error: introError } = await supabase
+    .from('video_bible_intros')
+    .select('id, plan_id')
+    .eq('id', videoIntroId)
+    .maybeSingle()
+  if (introError || !intro) return false
+
+  const { data: plan, error: planError } = await supabase
+    .from('bible_reading_plans')
+    .select('id')
+    .eq('id', intro.plan_id)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (planError || !plan) return false
+
+  const { data: subscription, error: subscriptionError } = await supabase
+    .from('plan_subscriptions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('plan_id', intro.plan_id)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (subscriptionError || !subscription) return false
+
+  return true
 }

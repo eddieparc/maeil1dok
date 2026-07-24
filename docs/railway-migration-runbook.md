@@ -213,16 +213,19 @@ source count artifact before accepting the restore.
 Use Railway-generated domains before custom DNS:
 
 ```sh
-curl -i "https://<backend Railway domain>/admin/login/"
+curl -i "https://<backend Railway domain>/health/"
 curl -i "https://<backend Railway domain>/api/v1/todos/plans/"
+curl -i "https://<frontend Railway domain>/api/health"
 curl -i "https://<frontend Railway domain>/"
 ```
+`/health/` and `/api/health` are the deploy healthcheck contracts. The frontend `/` check is a functional product-route smoke only.
 
 Validated staging endpoints:
 
 ```text
-https://maeil1dok-backend-production.up.railway.app/admin/login/
+https://maeil1dok-backend-production.up.railway.app/health/
 https://maeil1dok-backend-production.up.railway.app/api/v1/todos/plans/
+https://maeil1dok-frontend-production.up.railway.app/api/health
 https://maeil1dok-frontend-production.up.railway.app/
 ```
 

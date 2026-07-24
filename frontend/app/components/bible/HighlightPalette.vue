@@ -109,8 +109,8 @@ const handleCustomColor = (e: Event) => {
 }
 
 .color-btn.active {
-  border-color: var(--primary-color, #6366f1);
-  box-shadow: 0 0 0 2px var(--color-bg-primary, #f9fafb), 0 0 0 4px var(--primary-color, #6366f1);
+  border-color: var(--primary-color, #2A1111);
+  box-shadow: 0 0 0 2px var(--color-bg-primary, #f9fafb), 0 0 0 4px var(--primary-color, #2A1111);
 }
 
 .color-btn.add {

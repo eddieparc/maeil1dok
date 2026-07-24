@@ -65,11 +65,11 @@ const handleClick = async () => {
 }
 
 .bookmark-btn.active {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .bookmark-btn.active:hover:not(:disabled) {
-  color: var(--primary-dark, #4f46e5);
+  color: var(--primary-dark, #3A1A1A);
 }
 
 .bookmark-btn:disabled {

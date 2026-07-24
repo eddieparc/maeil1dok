@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from .models import Notification, NotificationPushSubscription
 from .notification_serializers import (
     NotificationPushSubscriptionSerializer,
+    PushEndpointOwnershipConflict,
     NotificationSerializer,
     NotificationSettingsSerializer,
 )
@@ -116,10 +117,19 @@ def register_push_subscription(request):
             'errors': serializer.errors,
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    subscription = serializer.create_or_update(
-        user=request.user,
-        user_agent=request.META.get('HTTP_USER_AGENT', ''),
-    )
+    try:
+        subscription = serializer.create_or_update(
+            user=request.user,
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+        )
+    except PushEndpointOwnershipConflict:
+        return Response({
+            'success': False,
+            'errors': {
+                'endpoint': ['이미 다른 계정에 등록된 푸시 엔드포인트입니다.'],
+            },
+        }, status=status.HTTP_409_CONFLICT)
+
     return Response({
         'success': True,
         'endpoint': subscription.endpoint,

@@ -105,9 +105,9 @@
           <div class="text-xs text-gray-500 mt-1">최대 5MB 크기의 .xlsx 또는 .xls 파일</div>
         </div>
 
-        <div class="mt-4 p-3 bg-blue-50 rounded-md border border-blue-100">
-          <p class="text-sm font-medium text-blue-800 mb-2">엑셀 파일 작성 방법:</p>
-          <ul class="text-xs text-blue-700 space-y-1 pl-4 list-disc">
+        <div class="mt-4 p-3 bg-[var(--color-accent-primary-light)] rounded-md border border-[var(--color-accent-primary-light)]">
+          <p class="text-sm font-medium text-[var(--color-accent-primary)] mb-2">엑셀 파일 작성 방법:</p>
+          <ul class="text-xs text-[var(--color-accent-primary)] space-y-1 pl-4 list-disc">
             <li>필수 컬럼: <strong>시작일, 종료일, 성경, URL</strong> (정확히 이 이름으로 작성)</li>
             <li>날짜 형식: 다음 형식 모두 지원
               <ul class="pl-4 mt-1 list-disc">
@@ -120,7 +120,7 @@
             <li>성경 이름은 정확히 작성 (예: 창세기, 요한복음 등)</li>
           </ul>
           <div class="mt-3">
-            <a href="/sample-video-intro.xlsx" class="text-xs text-blue-600 flex items-center hover:underline"
+            <a href="/sample-video-intro.xlsx" class="text-xs text-[var(--color-accent-primary)] flex items-center hover:underline"
               target="_blank" rel="noopener noreferrer">
               <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>

@@ -134,8 +134,8 @@ const handleToggle = (schedule: CatchupSchedule) => {
 }
 
 .checkbox.checked {
-  background: var(--color-primary, #3b82f6);
-  border-color: var(--color-primary, #3b82f6);
+  background: var(--color-primary, #2A1111);
+  border-color: var(--color-primary, #2A1111);
   color: white;
 }
 

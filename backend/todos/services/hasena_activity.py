@@ -7,6 +7,8 @@ from django.utils import timezone
 
 def _get_month_end(month_start):
     if month_start.month == 12:
+        if month_start.year >= date.max.year:
+            return date.max
         return date(month_start.year + 1, 1, 1)
     return date(month_start.year, month_start.month + 1, 1)
 

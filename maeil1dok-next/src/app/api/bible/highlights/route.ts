@@ -1,12 +1,31 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServerRepositories } from '@/repositories/factory'
-import type { CreateHighlightInput, HighlightColor } from '@/types'
+import { parseJsonBody } from '@/lib/api/parseJsonBody'
+import type { HighlightColor } from '@/types'
 
 const HIGHLIGHT_COLORS: HighlightColor[] = ['yellow', 'green', 'blue', 'pink', 'purple']
 
-function isHighlightColor(value: string): value is HighlightColor {
-  return HIGHLIGHT_COLORS.includes(value as HighlightColor)
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+}
+
+function isUuidString(value: unknown): value is string {
+  return typeof value === 'string' && UUID_PATTERN.test(value)
+}
+
+function isHighlightColor(value: unknown): value is HighlightColor {
+  return typeof value === 'string' && HIGHLIGHT_COLORS.includes(value as HighlightColor)
 }
 
 function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number) {
@@ -76,12 +95,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = (await request.json()) as Partial<CreateHighlightInput>
+    const parseResult = await parseJsonBody<unknown>(request)
+    if (!parseResult.ok) {
+      return parseResult.response
+    }
+
+    const body = parseResult.body
+    if (!isRecord(body)) {
+      return NextResponse.json({ error: 'Request body must be an object' }, { status: 400 })
+    }
+
     const { book, chapter, verseStart, verseEnd, color, version } = body
 
-    if (!book || !version || !color || chapter === undefined || verseStart === undefined || verseEnd === undefined) {
+    if (!isNonEmptyString(book) || !isNonEmptyString(version)) {
       return NextResponse.json(
-        { error: 'book, chapter, verseStart, verseEnd, color, version are required' },
+        { error: 'book and version must be non-empty strings' },
         { status: 400 }
       )
     }
@@ -90,16 +118,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid highlight color' }, { status: 400 })
     }
 
-    if (!Number.isInteger(chapter) || chapter <= 0) {
+    if (!isPositiveInteger(chapter)) {
       return NextResponse.json({ error: 'chapter must be a positive integer' }, { status: 400 })
     }
 
-    if (!Number.isInteger(verseStart) || !Number.isInteger(verseEnd) || verseStart <= 0 || verseEnd < verseStart) {
+    if (!isPositiveInteger(verseStart) || !isPositiveInteger(verseEnd) || verseEnd < verseStart) {
       return NextResponse.json({ error: 'Invalid verse range' }, { status: 400 })
     }
 
+    const trimmedBook = book.trim()
+    const trimmedVersion = version.trim()
+
     const repositories = createServerRepositories(supabase)
-    const existing = await repositories.highlight.getHighlights(book, chapter, version)
+    const existing = await repositories.highlight.getHighlights(trimmedBook, chapter, trimmedVersion)
     const overlapping = existing.find((highlight) =>
       overlaps(highlight.verseStart, highlight.verseEnd, verseStart, verseEnd)
     )
@@ -114,12 +145,12 @@ export async function POST(request: Request) {
     }
 
     const created = await repositories.highlight.createHighlight({
-      book,
+      book: trimmedBook,
       chapter,
       verseStart,
       verseEnd,
       color,
-      version,
+      version: trimmedVersion,
     })
 
     return NextResponse.json(created, { status: 201 })
@@ -140,11 +171,20 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = (await request.json()) as { id?: string; color?: string }
+    const parseResult = await parseJsonBody<unknown>(request)
+    if (!parseResult.ok) {
+      return parseResult.response
+    }
+
+    const body = parseResult.body
+    if (!isRecord(body)) {
+      return NextResponse.json({ error: 'Request body must be an object' }, { status: 400 })
+    }
+
     const { id, color } = body
 
-    if (!id || !color) {
-      return NextResponse.json({ error: 'id and color are required' }, { status: 400 })
+    if (!isUuidString(id)) {
+      return NextResponse.json({ error: 'id must be a UUID' }, { status: 400 })
     }
 
     if (!isHighlightColor(color)) {

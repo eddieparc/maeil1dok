@@ -32,6 +32,8 @@ class HasenaSummaryCommandTest(SimpleTestCase):
                 "todos.management.commands.generate_hasena_summary_once.generate_summary",
                 return_value={
                     "success": True,
+                    "cacheable": True,
+                    "persisted": True,
                     "video_id": "video-123",
                     "created": True,
                 },
@@ -68,6 +70,8 @@ class HasenaSummaryCommandTest(SimpleTestCase):
                 "todos.management.commands.generate_hasena_summary_once.generate_summary",
                 return_value={
                     "success": True,
+                    "cacheable": True,
+                    "persisted": True,
                     "video_id": "VkWhiXwG-Fw",
                     "created": True,
                 },
@@ -171,3 +175,41 @@ class HasenaSummaryCommandTest(SimpleTestCase):
 
         self.assertIn("failed PERMISSION_DENIED: key blocked", out.getvalue())
         self.assertIn("exiting 0 due to --fail-soft", out.getvalue())
+
+    def test_generate_hasena_summary_once_rejects_non_cacheable_automatic_success(self) -> None:
+        out = StringIO()
+
+        with (
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.timezone.now",
+                return_value=datetime(2026, 6, 25, 1, 0, 0),
+            ),
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.get_recent_hasena_videos",
+                return_value=[
+                    {
+                        "video_id": "VkWhiXwG-Fw",
+                        "title": "2026년 6월 25일 목요일 하세나하시조",
+                        "published_at": "2026-06-24T15:00:02+00:00",
+                    }
+                ],
+            ),
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.generate_summary",
+                return_value={
+                    "success": True,
+                    "cacheable": False,
+                    "persisted": False,
+                    "video_id": "VkWhiXwG-Fw",
+                    "error": "summary was not persisted",
+                },
+            ),
+            patch(
+                "todos.management.commands.generate_hasena_summary_once.capture_hasena_summary_issue"
+            ) as capture_issue,
+        ):
+            with self.assertRaises(CommandError):
+                call_command("generate_hasena_summary_once", stdout=out)
+
+        self.assertIn("failed summary was not persisted", out.getvalue())
+        capture_issue.assert_called_once()

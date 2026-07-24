@@ -9,6 +9,7 @@ from django.utils import timezone
 from todos.services.hasena_summary_service import (
     get_hasena_summary as generate_summary,
     get_hasena_video_for_date,
+    require_cacheable_hasena_summary_result,
 )
 from todos.services.hasena_summary_service import get_recent_hasena_videos
 from todos.services.hasena_monitoring import capture_hasena_summary_issue
@@ -85,6 +86,7 @@ class Command(BaseCommand):
             video_date=target_date,
             title=title or candidate.get("title"),
         )
+        result = require_cacheable_hasena_summary_result(result)
         if result.get("success"):
             self.stdout.write(self.style.SUCCESS(f"generated {result.get('video_id')}"))
             return

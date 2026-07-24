@@ -14,7 +14,8 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { WebView, WebViewNavigation } from 'react-native-webview';
+import { WebView } from 'react-native-webview';
+import type { WebViewNavigation } from 'react-native-webview';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
@@ -27,6 +28,9 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
 import CookieManager from '@react-native-cookies/cookies';
+import { resolveWebViewConfig } from './webviewConfig';
+import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
+import { redactSensitiveUrl } from './urlRedaction';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,31 +44,23 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const WEB_APP_URL = Constants.expoConfig?.extra?.webAppUrl || 'https://maeil1dok.app';
+const WEBVIEW_CONFIG = resolveWebViewConfig(Constants.expoConfig?.extra ?? {});
+const WEB_APP_URL = WEBVIEW_CONFIG.webAppUrl;
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://api.maeil1dok.app';
 const APP_SCHEME = 'maeil1dok';
-const SENSITIVE_QUERY_KEYS = new Set(['access', 'code', 'refresh', 'signup_token', 'token']);
 
-const redactSensitiveUrl = (rawUrl?: string | null): string => {
-  if (!rawUrl) return 'unknown';
+type WebViewUrlEvent = {
+  readonly nativeEvent: {
+    readonly url?: string;
+  };
+};
 
-  try {
-    const parsedUrl = new URL(rawUrl);
-    SENSITIVE_QUERY_KEYS.forEach((key) => {
-      if (parsedUrl.searchParams.has(key)) {
-        parsedUrl.searchParams.set(key, '[redacted]');
-      }
-    });
-    return parsedUrl.toString();
-  } catch (error) {
-    if (error instanceof TypeError) {
-      return rawUrl.replace(
-        /([?&](?:access|code|refresh|signup_token|token)=)[^&#]*/gi,
-        '$1[redacted]',
-      );
-    }
-    throw error;
-  }
+type WebViewErrorLikeEvent = {
+  readonly nativeEvent: {
+    readonly description?: string;
+    readonly statusCode?: number;
+    readonly url?: string;
+  };
 };
 
 const GOOGLE_CLIENT_ID = Constants.expoConfig?.extra?.googleClientId || '';
@@ -76,6 +72,13 @@ const OAUTH_DOMAINS = [
   'oauth.google.com',
   'appleid.apple.com',
 ];
+
+const isErrorWithCode = (error: unknown, code: string): boolean => (
+  typeof error === 'object'
+  && error !== null
+  && 'code' in error
+  && error.code === code
+);
 
 function AppContent() {
   const insets = useSafeAreaInsets();
@@ -292,9 +295,9 @@ function AppContent() {
         }
         setIsSubmitting(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       setIsSubmitting(false);
-      if (error.code !== 'E_CANCELLED_OPERATION') {
+      if (!isErrorWithCode(error, 'E_CANCELLED_OPERATION')) {
         console.error('Kakao login error:', error);
         Alert.alert('오류', '카카오 로그인 중 오류가 발생했습니다.');
       }
@@ -336,8 +339,8 @@ function AppContent() {
       if (credential.identityToken) {
         await handleAppleLoginWithToken(credential.identityToken, credential.fullName);
       }
-    } catch (error: any) {
-      if (error.code !== 'ERR_REQUEST_CANCELED') {
+    } catch (error) {
+      if (!isErrorWithCode(error, 'ERR_REQUEST_CANCELED')) {
         Alert.alert('오류', 'Apple 로그인 중 오류가 발생했습니다.');
       }
     }
@@ -439,13 +442,9 @@ function AppContent() {
   };
 
   const handleDeepLink = useCallback((event: { url: string }) => {
-    const { url } = event;
-    if (url.startsWith(`${APP_SCHEME}://`)) {
-      const path = url.replace(`${APP_SCHEME}://`, '');
-      if (path.startsWith('auth/')) return;
-      const webUrl = `${WEB_APP_URL}/${path}`;
-      webViewRef.current?.injectJavaScript(`window.location.href = '${webUrl}'; true;`);
-    }
+    const target = buildDeepLinkNavigationUrl(event.url, WEB_APP_URL, APP_SCHEME);
+    if (!target) return;
+    webViewRef.current?.injectJavaScript(buildLocationAssignmentScript(target));
   }, []);
 
   useEffect(() => {
@@ -522,7 +521,7 @@ function AppContent() {
 
     // YouTube 앱 딥링크 (youtube:// 스킴) → 네이티브로 열기
     if (url.startsWith('youtube://') || url.startsWith('vnd.youtube://') || url.startsWith('intent://')) {
-      console.log('[WebView] Opening YouTube app:', url);
+      console.log('[WebView] Opening YouTube app:', redactSensitiveUrl(url));
       Linking.openURL(url).catch(() => {
         // 앱이 없으면 웹으로 폴백
         const videoIdMatch = url.match(/[?&]v=([^&#]+)/);
@@ -565,7 +564,7 @@ function AppContent() {
     }
   };
 
-  const handleLoadEnd = (syntheticEvent: any) => {
+  const handleLoadEnd = (syntheticEvent: WebViewUrlEvent) => {
     const { nativeEvent } = syntheticEvent;
     console.log('[WebView] LoadEnd:', redactSensitiveUrl(nativeEvent?.url));
     setIsLoading(false);
@@ -575,7 +574,7 @@ function AppContent() {
     navigateToPendingUrl();
   };
 
-  const handleError = (syntheticEvent: any) => {
+  const handleError = (syntheticEvent: WebViewErrorLikeEvent) => {
     const { nativeEvent } = syntheticEvent;
     console.log('[WebView] Error:', nativeEvent?.description || 'unknown', 'url:', redactSensitiveUrl(nativeEvent?.url));
     setIsLoading(false);
@@ -583,7 +582,7 @@ function AppContent() {
     SplashScreen.hideAsync();
   };
 
-  const handleHttpError = (syntheticEvent: any) => {
+  const handleHttpError = (syntheticEvent: WebViewErrorLikeEvent) => {
     const { nativeEvent } = syntheticEvent;
     console.log('[WebView] HttpError:', nativeEvent?.statusCode, nativeEvent?.description, 'url:', redactSensitiveUrl(nativeEvent?.url));
   };

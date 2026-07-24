@@ -291,7 +291,7 @@ const formatShortDate = (dateStr: string) => {
 }
 
 .stat-text strong {
-  color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #2A1111);
 }
 
 .warnings {
@@ -456,13 +456,13 @@ const formatShortDate = (dateStr: string) => {
 }
 
 .button-primary {
-  background: var(--color-primary, #3b82f6);
+  background: var(--color-primary, #2A1111);
   border: none;
   color: white;
 }
 
 .button-primary:hover:not(:disabled) {
-  background: var(--color-primary-dark, #2563eb);
+  background: var(--color-primary-dark, #3A1A1A);
 }
 
 .button-primary:disabled {

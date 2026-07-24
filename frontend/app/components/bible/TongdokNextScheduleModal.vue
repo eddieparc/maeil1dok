@@ -104,7 +104,7 @@ const handleGoNextSchedule = () => {
   display: flex;
   justify-content: center;
   margin-bottom: 1rem;
-  color: var(--color-success, #10b981);
+  color: var(--color-success, #2A1111);
 }
 
 .modal-title {
@@ -147,13 +147,13 @@ const handleGoNextSchedule = () => {
 }
 
 .action-btn.primary {
-  background: var(--color-success, #10b981);
+  background: var(--color-success, #2A1111);
   color: white;
   border: none;
 }
 
 .action-btn.primary:hover:not(:disabled) {
-  background: var(--color-success-dark, #059669);
+  background: var(--color-success-dark, #1F0C0C);
 }
 
 .action-btn.primary:disabled {
@@ -186,7 +186,7 @@ const handleGoNextSchedule = () => {
 .remember-option input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: var(--primary-color, #6366f1);
+  accent-color: var(--primary-color, #2A1111);
   cursor: pointer;
 }
 

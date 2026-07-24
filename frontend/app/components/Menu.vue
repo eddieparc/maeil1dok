@@ -455,11 +455,11 @@ const close = () => {
 
 [data-theme="dark"] .menu-item:hover {
   background: var(--color-bg-hover, rgba(255, 255, 255, 0.1));
-  color: var(--primary-color, #818cf8);
+  color: var(--primary-color, #3A1A1A);
 }
 
 [data-theme="dark"] .menu-item:hover svg {
-  stroke: var(--primary-color, #818cf8);
+  stroke: var(--primary-color, #3A1A1A);
 }
 
 [data-theme="dark"] .menu-divider {

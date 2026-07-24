@@ -101,7 +101,7 @@ const profileLink = computed(() => (
 
 .floating-side-nav-item:hover {
   color: var(--color-accent-primary);
-  background: rgba(75, 159, 126, 0.08);
+  background: rgba(42, 17, 17, 0.08);
 }
 
 .floating-side-nav-item:active {
@@ -127,7 +127,7 @@ const profileLink = computed(() => (
 }
 
 [data-theme="dark"] .floating-side-nav-item:hover {
-  color: var(--color-accent-primary, #4B9F7E);
-  background: rgba(75, 159, 126, 0.08);
+  color: var(--color-accent-primary, #2A1111);
+  background: rgba(42, 17, 17, 0.08);
 }
 </style>

@@ -6,15 +6,16 @@ import { AuthError } from '@/repositories/types/errors'
 export async function POST() {
   try {
     const supabase = await createClient()
-    const repositories = createServerRepositories(supabase)
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser()
 
-    if (!user) {
+    if (error || !user) {
       return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
     }
 
+    const repositories = createServerRepositories(supabase)
     await repositories.auth.deleteAccount()
     return NextResponse.json({ success: true })
   } catch (error) {

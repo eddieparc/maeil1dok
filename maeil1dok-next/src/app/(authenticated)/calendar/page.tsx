@@ -32,26 +32,49 @@ export default async function CalendarPage({
     const lastDay = new Date(year, month, 0).getDate()
     const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
-    const plans: PlanCalendarData[] = await Promise.all(
-      activeSubscriptions.map(async (sub, index) => {
-        const plan = availablePlans.find((p) => p.id === sub.planId)
-        const planName = plan?.name ?? `플랜 ${index + 1}`
+    const subscriptionIds = activeSubscriptions.map((sub) => sub.id)
+    const planIds = [...new Set(activeSubscriptions.map((sub) => sub.planId))]
 
-        let color = PLAN_COLORS[index % PLAN_COLORS.length]
-        try {
-          const settings = await repositories.plan.getDisplaySettings(sub.id)
-          if (settings?.color) color = settings.color
-        } catch {
-          color = PLAN_COLORS[index % PLAN_COLORS.length]
-        }
+    const [displaySettingsList, allSchedules] = await Promise.all([
+      subscriptionIds.length > 0
+        ? repositories.plan.getDisplaySettingsForSubscriptions(subscriptionIds)
+        : Promise.resolve([]),
+      planIds.length > 0
+        ? repositories.schedule.getSchedulesForPlans(planIds, startDate, endDate)
+        : Promise.resolve([]),
+    ])
 
-        const schedules = await repositories.schedule.getSchedulesForPlan(sub.planId, startDate, endDate)
-        const scheduleIds = schedules.map((s) => s.id)
-        const progress = scheduleIds.length > 0 ? await repositories.progress.bulkGetProgress(sub.id, scheduleIds) : []
+    const allScheduleIds = allSchedules.map((s) => s.id)
+    const allProgress =
+      subscriptionIds.length > 0 && allScheduleIds.length > 0
+        ? await repositories.progress.bulkGetProgressForSubscriptions(subscriptionIds, allScheduleIds)
+        : []
 
-        return { subscriptionId: sub.id, planId: sub.planId, planName, color, schedules, progress }
-      }),
-    )
+    const colorBySubscriptionId = new Map(displaySettingsList.map((ds) => [ds.subscriptionId, ds.color]))
+
+    const schedulesByPlanId = new Map<number, typeof allSchedules>()
+    for (const schedule of allSchedules) {
+      const existing = schedulesByPlanId.get(schedule.planId) ?? []
+      existing.push(schedule)
+      schedulesByPlanId.set(schedule.planId, existing)
+    }
+
+    const progressBySubscriptionId = new Map<string, typeof allProgress>()
+    for (const entry of allProgress) {
+      const existing = progressBySubscriptionId.get(entry.subscriptionId) ?? []
+      existing.push(entry)
+      progressBySubscriptionId.set(entry.subscriptionId, existing)
+    }
+
+    const plans: PlanCalendarData[] = activeSubscriptions.map((sub, index) => {
+      const plan = availablePlans.find((p) => p.id === sub.planId)
+      const planName = plan?.name ?? `플랜 ${index + 1}`
+      const color = colorBySubscriptionId.get(sub.id) ?? PLAN_COLORS[index % PLAN_COLORS.length]
+      const schedules = schedulesByPlanId.get(sub.planId) ?? []
+      const progress = progressBySubscriptionId.get(sub.id) ?? []
+
+      return { subscriptionId: sub.id, planId: sub.planId, planName, color, schedules, progress }
+    })
 
     return (
       <Container fullHeight>

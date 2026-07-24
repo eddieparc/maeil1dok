@@ -2,21 +2,34 @@ import logging
 from celery import shared_task
 from django.core.cache import cache
 from django.utils import timezone
+from config.observability import (
+    REMINDER_HEARTBEAT_CACHE_KEY,
+    capture_observability_event,
+)
 
 logger = logging.getLogger(__name__)
 
 SUMMARY_SUCCESS_KEY = 'hasena_summary_success_{date}'
+SUMMARY_SUCCESS_CACHE_VERSION = 1
 
 
 def _build_summary_success_cache(service_date, video_id):
     return {
+        'version': SUMMARY_SUCCESS_CACHE_VERSION,
         'service_date': service_date.isoformat(),
         'video_id': video_id,
+        'persisted': True,
     }
 
 
 def _get_valid_cached_summary_video_id(cache_value, service_date, selected_video_id, summary_model):
     if not isinstance(cache_value, dict):
+        return None
+
+    if cache_value.get('version') != SUMMARY_SUCCESS_CACHE_VERSION:
+        return None
+
+    if cache_value.get('persisted') is not True:
         return None
 
     if cache_value.get('service_date') != service_date.isoformat():
@@ -42,16 +55,21 @@ def generate_hasena_summary_task(self):
     target_date = now.date()
     target_date_str = target_date.isoformat()
     cache_key = SUMMARY_SUCCESS_KEY.format(date=target_date_str)
+    from .services.hasena_monitoring import (
+        capture_hasena_summary_issue,
+        record_hasena_summary_heartbeat,
+    )
+
     
     if now.hour >= 6:
         logger.info(f"Outside summary generation window (hour={now.hour})")
-        return {'status': 'skipped', 'reason': 'outside_window'}
+        return record_hasena_summary_heartbeat({'status': 'skipped', 'reason': 'outside_window'})
     
     from .services.hasena_summary_service import (
         get_hasena_video_for_date,
         get_hasena_summary,
+        is_cacheable_hasena_summary_result,
     )
-    from .services.hasena_monitoring import capture_hasena_summary_issue
     from .models import HasenaSummary
     
     try:
@@ -63,7 +81,8 @@ def generate_hasena_summary_task(self):
                 level="warning",
                 extra={"date": target_date_str},
             )
-            return {'status': 'pending', 'reason': 'no_video_for_date', 'date': target_date_str}
+            return record_hasena_summary_heartbeat({'status': 'pending', 'reason': 'no_video_for_date', 'date': target_date_str})
+
         
         video_id = video_info['video_id']
         logger.info(f"Hasena video for {target_date_str}: {video_id}")
@@ -76,11 +95,11 @@ def generate_hasena_summary_task(self):
         )
         if cached_video_id:
             logger.info(f"Summary already generated for {target_date_str}, skipping")
-            return {
+            return record_hasena_summary_heartbeat({
                 'status': 'skipped',
                 'reason': 'already_generated',
                 'video_id': cached_video_id,
-            }
+            })
         
         existing = HasenaSummary.objects.filter(video_id=video_id).first()
         if existing:
@@ -102,7 +121,7 @@ def generate_hasena_summary_task(self):
                 else:
                     existing.save(update_fields=['video_date'])
             cache.set(cache_key, _build_summary_success_cache(target_date, video_id), timeout=86400)
-            return {'status': 'skipped', 'reason': 'summary_exists', 'video_id': video_id}
+            return record_hasena_summary_heartbeat({'status': 'skipped', 'reason': 'summary_exists', 'video_id': video_id})
         
         result = get_hasena_summary(
             video_id,
@@ -110,10 +129,10 @@ def generate_hasena_summary_task(self):
             title=video_info.get('title'),
         )
         
-        if result.get('success') and result.get('cacheable'):
+        if is_cacheable_hasena_summary_result(result):
             logger.info(f"Successfully generated summary for video {video_id}")
             cache.set(cache_key, _build_summary_success_cache(target_date, video_id), timeout=86400)
-            return {'status': 'success', 'video_id': video_id}
+            return record_hasena_summary_heartbeat({'status': 'success', 'video_id': video_id})
         else:
             logger.warning(f"Failed to generate summary: {result.get('error')}")
             capture_hasena_summary_issue(
@@ -124,7 +143,7 @@ def generate_hasena_summary_task(self):
                     "reason": result.get('error'),
                 },
             )
-            return {'status': 'failed', 'reason': result.get('error'), 'video_id': video_id}
+            return record_hasena_summary_heartbeat({'status': 'failed', 'reason': result.get('error'), 'video_id': video_id})
             
     except Exception as e:
         logger.error(f"Error in generate_hasena_summary_task: {str(e)}", exc_info=True)
@@ -133,8 +152,21 @@ def generate_hasena_summary_task(self):
             extra={"date": target_date_str},
             exception=e,
         )
-        return {'status': 'error', 'reason': str(e)}
+        return record_hasena_summary_heartbeat({'status': 'error', 'reason': str(e)})
 
+
+def _record_reminder_task_outcome(result):
+    status = result.get('status')
+    heartbeat = {
+        'recorded_at': timezone.now(),
+        'status': status if isinstance(status, str) else 'unknown',
+    }
+    cache.set(REMINDER_HEARTBEAT_CACHE_KEY, heartbeat, timeout=None)
+    capture_observability_event(
+        'send_due_notification_reminders completed',
+        tags={'journey': 'notifications', 'task': 'send_due_notification_reminders'},
+        extra=result,
+    )
 
 @shared_task(bind=True, max_retries=0)
 def send_due_notification_reminders_task(self):
@@ -142,8 +174,19 @@ def send_due_notification_reminders_task(self):
 
     try:
         created_count = send_due_reminder_notifications()
+        result = {'status': 'success', 'created_count': created_count}
+        _record_reminder_task_outcome(result)
         logger.info('Created %s due notification reminders', created_count)
-        return {'status': 'success', 'created_count': created_count}
+        return result
     except Exception as e:
+        result = {'status': 'error', 'reason': str(e)}
+        _record_reminder_task_outcome(result)
+        capture_observability_event(
+            'send_due_notification_reminders failed',
+            level='error',
+            tags={'journey': 'notifications', 'task': 'send_due_notification_reminders'},
+            extra=result,
+            exception=e,
+        )
         logger.error(f"Error in send_due_notification_reminders_task: {str(e)}", exc_info=True)
-        return {'status': 'error', 'reason': str(e)}
+        return result

@@ -49,9 +49,13 @@ export interface IAuthRepository {
   unlinkIdentity(identityId: string): Promise<void>
 
   /**
-   * Set or change password
+   * Set or change password.
+   *
+   * When `currentPassword` is provided, the implementation MUST verify it
+   * against the current user (fresh credential proof) before mutating the
+   * password. It is omitted only for first-password / social setup flows.
    */
-  updatePassword(newPassword: string): Promise<void>
+  updatePassword(newPassword: string, currentPassword?: string): Promise<void>
 
   /**
    * Send password reset email

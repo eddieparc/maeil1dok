@@ -240,7 +240,7 @@ onMounted(() => {
 
 .summary-card.total .card-icon {
   background: var(--primary-light, #eef2ff);
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .summary-card.streak .card-icon {
@@ -250,7 +250,7 @@ onMounted(() => {
 
 .summary-card.books .card-icon {
   background: #d1fae5;
-  color: #10b981;
+  color: #2A1111;
 }
 
 .card-value {
@@ -281,7 +281,7 @@ onMounted(() => {
 
 .progress-fill {
   height: 100%;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   transition: width 0.3s ease;
 }
 
@@ -330,9 +330,9 @@ onMounted(() => {
 }
 
 .filter-tabs button.active {
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
-  border-color: var(--primary-color, #6366f1);
+  border-color: var(--primary-color, #2A1111);
 }
 
 /* 책 그리드 */
@@ -357,7 +357,7 @@ onMounted(() => {
 }
 
 .book-card.completed {
-  border-color: var(--color-success, #10b981);
+  border-color: var(--color-success, #2A1111);
   background: var(--color-success-light, #d1fae5);
 }
 
@@ -375,7 +375,7 @@ onMounted(() => {
 }
 
 .book-card .progress-fill {
-  background: var(--color-success, #10b981);
+  background: var(--color-success, #2A1111);
 }
 
 /* 다크모드 */
@@ -388,7 +388,7 @@ onMounted(() => {
 }
 
 :root.dark .summary-card.books .card-icon {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(42, 17, 17, 0.2);
 }
 
 :root.dark .book-card {
@@ -397,7 +397,7 @@ onMounted(() => {
 }
 
 :root.dark .book-card.completed {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(42, 17, 17, 0.15);
 }
 
 :root.dark .filter-tabs button:hover {

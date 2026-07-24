@@ -13,6 +13,7 @@ from todos.services.hasena_summary_service import (
     get_hasena_video_date,
     get_hasena_video_for_date,
     get_recent_hasena_videos,
+    is_cacheable_hasena_summary_result,
 )
 
 
@@ -71,6 +72,19 @@ class HasenaSummaryServiceDateTest(SimpleTestCase):
         )
 
         self.assertEqual(result["video_id"], "VkWhiXwG-Fw")
+
+
+class HasenaSummaryCacheableResultTest(SimpleTestCase):
+    def test_rejects_truthy_non_boolean_persistence_proof(self) -> None:
+        result = is_cacheable_hasena_summary_result(
+            {
+                "success": True,
+                "persisted": "yes",
+                "cacheable": 1,
+            }
+        )
+
+        self.assertFalse(result)
 
 
 class HasenaSummaryServiceTest(TestCase):

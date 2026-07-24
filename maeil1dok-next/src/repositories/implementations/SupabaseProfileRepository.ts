@@ -7,6 +7,18 @@ import { NotFoundError, NetworkError, AuthError, ValidationError } from '@/repos
 type DBProfile = Database['public']['Tables']['profiles']['Row']
 type DBReadingSettings = Database['public']['Tables']['user_reading_settings']['Row']
 type DBReadingPosition = Database['public']['Tables']['user_reading_positions']['Row']
+type DBFollowRow = {
+  id: string
+  follower_id: string
+  following_id: string
+  created_at: string
+}
+
+type SocialGraphAccess = {
+  viewerId: string
+  isOwner: boolean
+}
+
 
 function mapProfile(row: DBProfile): UserProfile {
   return {
@@ -57,6 +69,15 @@ function mapReadingPosition(row: DBReadingPosition): UserReadingPosition {
     updatedAt: row.updated_at,
   }
 }
+function mapFollow(row: DBFollowRow): UserFollow {
+  return {
+    id: row.id,
+    followerId: row.follower_id,
+    followingId: row.following_id,
+    createdAt: row.created_at,
+  }
+}
+
 
 export class SupabaseProfileRepository implements IProfileRepository {
   constructor(private readonly supabase: SupabaseClient<Database>) {}
@@ -66,6 +87,65 @@ export class SupabaseProfileRepository implements IProfileRepository {
     if (!user) throw new AuthError('Not authenticated')
     return user.id
   }
+  private async assertSocialGraphVisible(userId: string): Promise<SocialGraphAccess> {
+    const viewerId = await this.getCurrentUserId()
+    if (viewerId === userId) return { viewerId, isOwner: true }
+
+    const { data, error } = await (this.supabase
+      .from('profiles') as any)
+      .select('user_id, is_public')
+      .eq('user_id', userId)
+      .single()
+
+    if (error?.code === 'PGRST116') throw new NotFoundError('Profile not found', 'profiles')
+    if (error) throw new NetworkError(error.message, error)
+    if (!data?.is_public) throw new NotFoundError('Profile not found', 'profiles')
+
+    return { viewerId, isOwner: false }
+  }
+
+  private async assertFollowTargetPublic(targetUserId: string): Promise<void> {
+    const { data, error } = await (this.supabase
+      .from('profiles') as any)
+      .select('user_id, is_public')
+      .eq('user_id', targetUserId)
+      .single()
+
+    if (error?.code === 'PGRST116') throw new NotFoundError('Profile not found', 'profiles')
+    if (error) throw new NetworkError(error.message, error)
+    if (!data || data.is_public !== true) throw new NotFoundError('Profile not found', 'profiles')
+  }
+
+  private async getVisibleRelatedUserIds(userIds: string[], viewerId: string): Promise<Set<string>> {
+    const uniqueIds = [...new Set(userIds)]
+    const visibleIds = new Set<string>([viewerId])
+    if (uniqueIds.length === 0) return visibleIds
+
+    const { data, error } = await (this.supabase
+      .from('profiles') as any)
+      .select('user_id, is_public')
+      .in('user_id', uniqueIds)
+
+    if (error) throw new NetworkError(error.message, error)
+
+    for (const row of data ?? []) {
+      if (row.is_public) visibleIds.add(row.user_id)
+    }
+
+    return visibleIds
+  }
+
+  private async filterVisibleFollows(
+    follows: DBFollowRow[],
+    relatedUserId: (follow: DBFollowRow) => string,
+    access: SocialGraphAccess
+  ): Promise<DBFollowRow[]> {
+    if (access.isOwner || follows.length === 0) return follows
+
+    const visibleRelatedIds = await this.getVisibleRelatedUserIds(follows.map(relatedUserId), access.viewerId)
+    return follows.filter((follow) => visibleRelatedIds.has(relatedUserId(follow)))
+  }
+
 
   async getProfile(userId?: string): Promise<UserProfile> {
     const targetUserId = userId ?? await this.getCurrentUserId()
@@ -224,6 +304,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
     const { data: { user }, error: authError } = await this.supabase.auth.getUser()
     if (authError || !user) throw new AuthError('Not authenticated')
     if (user.id === targetUserId) throw new ValidationError('Cannot follow yourself')
+    await this.assertFollowTargetPublic(targetUserId)
 
     const { error } = await (this.supabase.from('user_follows') as any)
       .insert({ follower_id: user.id, following_id: targetUserId })
@@ -248,6 +329,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
   }
 
   async getFollowers(userId: string, limit = 20, offset = 0): Promise<UserFollow[]> {
+    const access = await this.assertSocialGraphVisible(userId)
     const { data, error } = await (this.supabase.from('user_follows') as any)
       .select('id, follower_id, following_id, created_at')
       .eq('following_id', userId)
@@ -255,15 +337,18 @@ export class SupabaseProfileRepository implements IProfileRepository {
       .range(offset, offset + limit - 1)
 
     if (error) throw new NetworkError(error.message, error)
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      followerId: row.follower_id,
-      followingId: row.following_id,
-      createdAt: row.created_at,
-    }))
+
+    const follows = await this.filterVisibleFollows(
+      data ?? [],
+      (follow) => follow.follower_id,
+      access
+    )
+    return follows.map(mapFollow)
   }
 
+
   async getFollowing(userId: string, limit = 20, offset = 0): Promise<UserFollow[]> {
+    const access = await this.assertSocialGraphVisible(userId)
     const { data, error } = await (this.supabase.from('user_follows') as any)
       .select('id, follower_id, following_id, created_at')
       .eq('follower_id', userId)
@@ -271,12 +356,13 @@ export class SupabaseProfileRepository implements IProfileRepository {
       .range(offset, offset + limit - 1)
 
     if (error) throw new NetworkError(error.message, error)
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      followerId: row.follower_id,
-      followingId: row.following_id,
-      createdAt: row.created_at,
-    }))
+
+    const follows = await this.filterVisibleFollows(
+      data ?? [],
+      (follow) => follow.following_id,
+      access
+    )
+    return follows.map(mapFollow)
   }
 
   async getFollowCounts(userId: string): Promise<FollowCounts> {

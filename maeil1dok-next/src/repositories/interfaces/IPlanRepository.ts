@@ -8,5 +8,6 @@ export interface IPlanRepository {
   getUserSubscriptions(): Promise<PlanSubscription[]>
   getSubscriptionById(id: string): Promise<PlanSubscription | null>
   getDisplaySettings(subscriptionId: string): Promise<PlanDisplaySettings | null>
+  getDisplaySettingsForSubscriptions(subscriptionIds: string[]): Promise<PlanDisplaySettings[]>
   updateDisplaySettings(subscriptionId: string, data: Partial<Pick<PlanDisplaySettings, 'color' | 'displayOrder' | 'isVisible'>>): Promise<PlanDisplaySettings>
 }

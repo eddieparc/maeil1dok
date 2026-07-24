@@ -4,7 +4,6 @@
     <header class="bible-header">
       <div class="header-left-actions">
         <button
-          v-if="!isTongdokMode"
           class="bookmark-toggle-button"
           :class="{ 'is-bookmarked': isBookmarked }"
           @click="$emit('bookmark-toggle')"
@@ -16,66 +15,43 @@
         </button>
       </div>
 
-      <!-- 통독 모드: [dot] [창세기 1장] [x] -->
-      <div v-if="isTongdokMode" class="book-selector-group tongdok-mode">
-        <button class="book-selector-trigger tongdok-trigger" @click="$emit('open-book-selector')">
-          <span class="tongdok-status-dot"></span>
-          <span class="book-chapter-text tongdok-text book-name-full">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
-          <span class="book-chapter-text tongdok-text book-name-short">{{ shortBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
-        </button>
-        <button
-          class="tongdok-exit-btn"
-          @click="$emit('exit-tongdok')"
-          title="통독모드 종료"
-          aria-label="통독모드 종료"
-        >
-          <XMarkIcon :size="14" />
-        </button>
-      </div>
-
-      <!-- 일반 모드: 가운데 현재 위치 -->
-      <div v-else class="book-selector-group">
+      <!-- 가운데 현재 위치 -->
+      <div class="book-selector-group">
         <button class="book-selector-trigger" @click="$emit('open-book-selector')">
           <span class="book-chapter-text book-name-full">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
           <span class="book-chapter-text book-name-short">{{ shortBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
         </button>
       </div>
 
-      <!-- 통독모드 액션 버튼들 -->
-      <div v-if="isTongdokMode" class="tongdok-actions-inline">
-        <!-- 듣기 -->
-        <a
-          v-if="tongdokAudioLink"
-          href="#"
-          class="tongdok-action-btn"
-          @click.prevent="$emit('audio-link-click', tongdokAudioLink)"
+      <div class="header-actions">
+        <BibleSearchButton />
+        <button
+          v-if="isTongdokMode && tongdokAudioLink"
+          class="header-icon-action"
+          type="button"
+          @click="$emit('audio-link-click', tongdokAudioLink)"
           title="오디오 플레이어"
+          aria-label="오디오 플레이어"
         >
-          <HeadphonesIcon :size="16" />
-          <span>듣기</span>
-        </a>
-        <!-- 가이드 -->
+          <HeadphonesIcon :size="18" />
+        </button>
         <a
-          v-if="tongdokGuideLink"
+          v-if="isTongdokMode && tongdokGuideLink"
           :href="tongdokGuideLink"
           target="_blank"
           rel="noopener noreferrer"
-          class="tongdok-action-btn"
+          class="header-icon-action"
           title="가이드"
+          aria-label="가이드"
         >
-          <BookOpenIcon :size="16" />
-          <span>가이드</span>
+          <BookOpenIcon :size="18" />
         </a>
-      </div>
-
-      <div class="header-actions">
-        <BibleSearchButton />
         <BibleToolPopover
           :note-count="noteCount"
-          :show-bookmark-toggle="isTongdokMode"
+          :show-bookmark-toggle="false"
           :is-bookmarked="isBookmarked"
-          :audio-link="isTongdokMode ? tongdokAudioLink : null"
-          :guide-link="isTongdokMode ? tongdokGuideLink : null"
+          :audio-link="null"
+          :guide-link="null"
           @note-click="$emit('note-click')"
           @open-settings="$emit('open-settings')"
           @reading-plan-click="$emit('reading-plan-click')"
@@ -186,6 +162,26 @@
           <div class="progress-text-indicator">
             {{ tongdokProgress.current }}/{{ tongdokProgress.total }}
           </div>
+          <button
+            class="tongdok-complete-status"
+            type="button"
+            :disabled="isCompleting"
+            @click="$emit('tongdok-complete-click')"
+            title="통독 완료"
+            aria-label="통독 완료"
+          >
+            <CheckIcon :size="15" :stroke-width="2.25" />
+            <span class="tongdok-complete-label">통독 완료</span>
+          </button>
+          <button
+            class="tongdok-exit-bottom-btn"
+            type="button"
+            @click="$emit('exit-tongdok')"
+            title="통독모드 종료"
+            aria-label="통독모드 종료"
+          >
+            <XMarkIcon :size="14" />
+          </button>
         </div>
 
       </template>
@@ -220,9 +216,6 @@
           <template v-if="isTongdokMode && shortScheduleDate">
             <span class="schedule-short-date">{{ shortScheduleDate }}</span>
             <div class="tongdok-completion-group">
-              <div class="tongdok-checkbox-wrapper" @click.stop="$emit('tongdok-complete-click')" title="통독 완료하기">
-                <div class="tongdok-custom-checkbox"></div>
-              </div>
               <span class="schedule-range">{{ tongdokScheduleRange }}</span>
             </div>
           </template>
@@ -255,6 +248,7 @@ import SelectionFloatingControls from '~/components/bible/SelectionFloatingContr
 import type { SelectionCopyFormat } from '~/components/bible/SelectionFloatingControls.vue';
 import TongdokAudioPlayer from '~/components/bible/TongdokAudioPlayer.vue';
 import FloatingBottomBar from '~/components/common/FloatingBottomBar.vue';
+import CheckIcon from '~/components/icons/CheckIcon.vue';
 import ChevronLeftIcon from '~/components/icons/ChevronLeftIcon.vue';
 import ChevronRightIcon from '~/components/icons/ChevronRightIcon.vue';
 import ChevronDownIcon from '~/components/icons/ChevronDownIcon.vue';
@@ -556,11 +550,11 @@ defineExpose({
 }
 
 .bookmark-toggle-button.is-bookmarked {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .bookmark-toggle-button.is-bookmarked:hover {
-  color: var(--primary-dark, #4f46e5);
+  color: var(--primary-dark, #3A1A1A);
 }
 
 /* 책/장 선택 트리거 - 깔끔한 텍스트 스타일 */
@@ -616,7 +610,7 @@ defineExpose({
   min-width: 0;
 }
 
-.book-selector-group:not(.tongdok-mode) {
+.book-selector-group {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
@@ -626,57 +620,9 @@ defineExpose({
   max-width: calc(100% - 9rem);
 }
 
-.book-selector-group:not(.tongdok-mode) .book-selector-trigger {
+.book-selector-group .book-selector-trigger {
   justify-content: center;
   max-width: 100%;
-}
-
-/* 통독 모드 book-selector-group */
-.book-selector-group.tongdok-mode {
-  gap: 0.25rem;
-}
-
-/* 통독 모드 트리거 */
-.book-selector-trigger.tongdok-trigger {
-  gap: 0.375rem;
-}
-
-/* 통독 모드 상태 dot (초록색) */
-.tongdok-status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--color-success, #10b981);
-  flex-shrink: 0;
-  animation: pulse-dot 2s infinite ease-in-out;
-}
-
-/* 통독 모드 텍스트 (초록색) */
-.book-chapter-text.tongdok-text {
-  color: var(--color-success, #10b981);
-}
-
-/* 통독 모드 종료 버튼 */
-.tongdok-exit-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: var(--text-tertiary, #9ca3af);
-  border-radius: 4px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.tongdok-exit-btn:hover {
-  color: var(--text-secondary, #6b7280);
-  background: var(--color-bg-hover, #f3f4f6);
-}
-
-.tongdok-exit-btn:active {
-  transform: scale(0.9);
 }
 
 /* 통독중 배지 - 플랫한 텍스트 스타일 (레거시) */
@@ -744,65 +690,6 @@ defineExpose({
   100% { opacity: 0.4; transform: scale(0.9); }
 }
 
-/* 통독모드 액션 영역 */
-.tongdok-actions-inline {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.125rem;
-  flex: 1;
-}
-
-/* 통독 액션 버튼 (듣기, 가이드) - 심플한 링크 스타일로 변경 */
-.tongdok-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  color: var(--text-secondary, #6b7280);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.2s;
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.tongdok-action-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--text-primary, #1f2937);
-}
-
-.tongdok-action-btn:active {
-  transform: scale(0.95);
-}
-
-/* 완료 버튼만 강조 (기존 버튼 스타일 유지) */
-.tongdok-action-btn.complete {
-  color: var(--primary-color);
-  background: var(--primary-light);
-  border: 1px solid var(--primary-color);
-  font-weight: 600;
-  margin-left: 0.25rem;
-}
-
-.tongdok-action-btn.complete:hover {
-  background: var(--primary-color);
-  color: white;
-}
-
-.tongdok-action-btn.complete:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.tongdok-action-btn svg {
-  flex-shrink: 0;
-}
-
 .header-left-actions,
 .header-actions {
   display: flex;
@@ -818,6 +705,28 @@ defineExpose({
 
 .header-actions {
   margin-left: auto;
+}
+
+.header-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--text-secondary, #6b7280);
+  background: transparent;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.header-icon-action:hover {
+  background: var(--color-bg-hover, #f3f4f6);
+  color: var(--text-primary, #1f2937);
+}
+
+.header-icon-action:active {
+  transform: scale(0.94);
 }
 
 .tongdok-mode-btn {
@@ -868,15 +777,6 @@ defineExpose({
 
 /* 반응형 - 좁은 화면 */
 @media (max-width: 480px) {
-  /* 듣기/가이드 텍스트 숨김, 아이콘만 표시 */
-  .tongdok-action-btn span {
-    display: none;
-  }
-  
-  .tongdok-action-btn {
-    padding: 0.25rem;
-  }
-  
   .tongdok-badge-inline {
     font-size: 0.8125rem;
   }
@@ -919,7 +819,7 @@ defineExpose({
 
 .tongdok-badge {
   padding: 0.25rem 0.5rem;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -941,8 +841,8 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   padding: 0.125rem 0.375rem;
-  background: rgba(99, 102, 241, 0.1);
-  color: var(--primary-color, #6366f1);
+  background: rgba(42, 17, 17, 0.1);
+  color: var(--primary-color, #2A1111);
   border-radius: 6px;
   font-size: 0.7rem;
   font-weight: 600;
@@ -994,7 +894,7 @@ defineExpose({
 
 .tongdok-btn-label.audio:hover {
   background: white;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .tongdok-btn-label.guide {
@@ -1005,17 +905,17 @@ defineExpose({
 
 .tongdok-btn-label.guide:hover {
   background: white;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .tongdok-btn-label.complete {
-  color: var(--color-success, #10b981);
+  color: var(--color-success, #2A1111);
   background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(42, 17, 17, 0.2);
 }
 
 .tongdok-btn-label.complete:hover {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(42, 17, 17, 0.1);
 }
 
 .tongdok-btn-label.close {
@@ -1052,7 +952,7 @@ defineExpose({
   width: 100%;
   max-width: 180px;
   padding: 0.6875rem 1.125rem;
-  background: linear-gradient(135deg, var(--primary-color, #6366f1) 0%, #818cf8 100%);
+  background: linear-gradient(135deg, var(--primary-color, #2A1111) 0%, #3A1A1A 100%);
   color: white;
   border-radius: 12px;
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -1061,37 +961,37 @@ defineExpose({
   letter-spacing: -0.01em;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 
-    0 4px 14px rgba(99, 102, 241, 0.35),
-    0 2px 6px rgba(99, 102, 241, 0.2);
+    0 4px 14px rgba(42, 17, 17, 0.35),
+    0 2px 6px rgba(42, 17, 17, 0.2);
 }
 
 .mark-read-btn-inline:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--primary-dark, #4f46e5) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--primary-dark, #3A1A1A) 0%, #2A1111 100%);
   transform: translateY(-2px);
   box-shadow: 
-    0 8px 20px rgba(99, 102, 241, 0.4),
-    0 4px 10px rgba(99, 102, 241, 0.25);
+    0 8px 20px rgba(42, 17, 17, 0.4),
+    0 4px 10px rgba(42, 17, 17, 0.25);
 }
 
 .mark-read-btn-inline:active:not(:disabled) {
   transform: translateY(0) scale(0.98);
   box-shadow: 
-    0 2px 8px rgba(99, 102, 241, 0.3),
-    0 1px 4px rgba(99, 102, 241, 0.2);
+    0 2px 8px rgba(42, 17, 17, 0.3),
+    0 1px 4px rgba(42, 17, 17, 0.2);
 }
 
 .mark-read-btn-inline.is-read {
-  background: linear-gradient(135deg, var(--color-success, #10b981) 0%, #34d399 100%);
+  background: linear-gradient(135deg, var(--color-success, #2A1111) 0%, #3A1A1A 100%);
   box-shadow: 
-    0 4px 14px rgba(16, 185, 129, 0.35),
-    0 2px 6px rgba(16, 185, 129, 0.2);
+    0 4px 14px rgba(42, 17, 17, 0.35),
+    0 2px 6px rgba(42, 17, 17, 0.2);
 }
 
 .mark-read-btn-inline.is-read:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-success-dark, #059669) 0%, #10b981 100%);
+  background: linear-gradient(135deg, var(--color-success-dark, #1F0C0C) 0%, #2A1111 100%);
   box-shadow: 
-    0 8px 20px rgba(16, 185, 129, 0.4),
-    0 4px 10px rgba(16, 185, 129, 0.25);
+    0 8px 20px rgba(42, 17, 17, 0.4),
+    0 4px 10px rgba(42, 17, 17, 0.25);
 }
 
 .mark-read-btn-inline:disabled {
@@ -1133,7 +1033,7 @@ defineExpose({
 }
 
 .progress-info-inline .progress-percentage {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-weight: 600;
 }
 
@@ -1148,7 +1048,7 @@ defineExpose({
 
 .progress-info-inline .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary-color, #6366f1) 0%, #818cf8 100%);
+  background: linear-gradient(90deg, var(--primary-color, #2A1111) 0%, #3A1A1A 100%);
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 4px;
 }
@@ -1171,7 +1071,7 @@ defineExpose({
 
 .nav-button:hover:not(:disabled) {
   transform: scale(1.15);
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   background: transparent;
 }
 
@@ -1191,7 +1091,7 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  font-size: clamp(0.6875rem, 2.5vw, 0.8125rem);
+  font-size: clamp(0.8125rem, 2.8vw, 0.875rem);
   color: var(--text-primary, #1f2937);
   padding: 0.375rem 0.5rem;
   border-radius: 10px;
@@ -1222,7 +1122,7 @@ defineExpose({
 }
 
 .chapter-info .schedule-short-date {
-  font-size: clamp(0.5625rem, 2vw, 0.6875rem);
+  font-size: clamp(0.6875rem, 2.4vw, 0.75rem);
   color: var(--text-secondary, #6b7280);
   font-weight: 500;
   margin-right: 0.125rem;
@@ -1230,7 +1130,7 @@ defineExpose({
 }
 
 .chapter-info .schedule-range {
-  font-size: clamp(0.6875rem, 2.5vw, 0.8125rem);
+  font-size: clamp(0.8125rem, 2.8vw, 0.875rem);
   color: var(--text-primary, #1f2937);
   font-weight: 600;
   white-space: nowrap;
@@ -1240,16 +1140,27 @@ defineExpose({
 
 /* 통독 모드일 때 챕터 정보 버튼 스타일 */
 .chapter-info.is-tongdok {
-  padding: 0.25rem 0.5rem;
-  gap: 0.25rem;
+  padding: 0.25rem 0.375rem 0.25rem 0.5rem;
+  gap: 0.375rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: nowrap; /* 줄바꿈 방지 */
-  min-width: 0; /* 축소 허용 */
-  max-width: 100%; /* 너비 제한 완화 */
-  width: auto; /* 자동 너비 */
-  flex-shrink: 1; /* 필요시 축소 */
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: min(260px, 66vw);
+  width: auto;
+  flex-shrink: 1;
+  background: rgba(42, 17, 17, 0.08);
+  border-color: rgba(42, 17, 17, 0.18);
+}
+
+.chapter-info.is-tongdok:hover {
+  background: rgba(42, 17, 17, 0.12);
+  border-color: rgba(42, 17, 17, 0.28);
+}
+
+.chapter-info.is-tongdok:active {
+  background: rgba(42, 17, 17, 0.16);
 }
 
 .tongdok-status-badge {
@@ -1295,13 +1206,14 @@ defineExpose({
 .tongdok-completion-group {
   display: flex;
   align-items: center;
-  gap: 0.125rem;
+  gap: 0.25rem;
   cursor: pointer;
-  padding: 0.125rem 0;
-  border-radius: 6px;
+  padding: 0;
+  border-radius: 999px;
   transition: background 0.2s;
   white-space: nowrap;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 /* 다크모드 대응 */
@@ -1315,16 +1227,6 @@ defineExpose({
 
 [data-theme="dark"] .tongdok-completion-group:hover {
   background: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .tongdok-custom-checkbox {
-  background-color: transparent;
-  border-color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .tongdok-completion-group:hover .tongdok-custom-checkbox {
-  border-color: var(--primary-color);
-  background-color: rgba(75, 159, 126, 0.1);
 }
 
 /* ==========================================
@@ -1345,23 +1247,6 @@ defineExpose({
   color: var(--color-text-primary);
 }
 
-[data-theme="dark"] .book-chapter-text.tongdok-text {
-  color: var(--color-success, #34d399);
-}
-
-[data-theme="dark"] .tongdok-status-dot {
-  background-color: var(--color-success, #34d399);
-}
-
-[data-theme="dark"] .tongdok-exit-btn {
-  color: var(--color-text-tertiary);
-}
-
-[data-theme="dark"] .tongdok-exit-btn:hover {
-  color: var(--color-text-secondary);
-  background: var(--color-bg-hover);
-}
-
 [data-theme="dark"] .selector-icon {
   color: var(--color-text-tertiary);
 }
@@ -1375,35 +1260,6 @@ defineExpose({
   color: var(--primary-color);
   background: transparent;
   opacity: 0.8;
-}
-
-/* 통독 액션 버튼 다크모드 */
-[data-theme="dark"] .tongdok-action-btn {
-  color: var(--color-text-secondary, #9ca3af);
-  background: transparent;
-}
-
-[data-theme="dark"] .tongdok-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--color-text-primary, #e5e5e5);
-}
-
-[data-theme="dark"] .tongdok-action-btn.complete {
-  color: var(--primary-color);
-  background: var(--primary-light);
-  border-color: var(--primary-color);
-}
-
-[data-theme="dark"] .tongdok-action-btn.complete:hover {
-  color: var(--color-text-inverse);
-}
-
-[data-theme="dark"] .tongdok-action-btn.complete {
-  color: var(--color-success, #34d399);
-}
-
-[data-theme="dark"] .tongdok-action-btn.complete:hover {
-  background: rgba(52, 211, 153, 0.15);
 }
 
 /* 북마크 버튼 다크모드 */
@@ -1420,9 +1276,18 @@ defineExpose({
   color: var(--color-accent-primary);
 }
 
+[data-theme="dark"] .header-icon-action {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .header-icon-action:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
 /* 통독모드 버튼 다크모드 */
 [data-theme="dark"] .tongdok-mode-btn {
-  background: rgba(107, 201, 159, 0.15);
+  background: rgba(42, 17, 17, 0.15);
   color: var(--color-accent-primary);
 }
 
@@ -1474,19 +1339,9 @@ defineExpose({
   background: rgba(255, 255, 255, 0.1);
 }
 
-[data-theme="dark"] .tongdok-custom-checkbox {
-  background-color: transparent;
-  border-color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .tongdok-completion-group:hover .tongdok-custom-checkbox {
-  border-color: var(--primary-color);
-  background-color: rgba(75, 159, 126, 0.1);
-}
-
 /* 통독 인디케이터 다크모드 */
 [data-theme="dark"] .tongdok-indicator {
-  background: rgba(107, 201, 159, 0.1);
+  background: rgba(42, 17, 17, 0.1);
   border-color: var(--color-border-default);
 }
 
@@ -1495,7 +1350,7 @@ defineExpose({
 }
 
 [data-theme="dark"] .tongdok-remaining-badge {
-  background: rgba(107, 201, 159, 0.15);
+  background: rgba(42, 17, 17, 0.15);
   color: var(--color-accent-primary);
 }
 
@@ -1572,17 +1427,17 @@ defineExpose({
   justify-content: center;
   width: 32px;
   height: 32px;
-  color: var(--color-success, #10b981);
+  color: var(--color-success, #2A1111);
   border-radius: 6px;
   transition: all 0.2s;
 }
 
 .tongdok-complete-mini-btn:hover:not(:disabled) {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(42, 17, 17, 0.15);
 }
 
 .tongdok-complete-mini-btn:active:not(:disabled) {
-  background: rgba(16, 185, 129, 0.25);
+  background: rgba(42, 17, 17, 0.25);
   transform: scale(0.95);
 }
 
@@ -1600,7 +1455,7 @@ defineExpose({
   width: 100%;
   max-width: 180px;
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, var(--color-success, #10b981) 0%, #34d399 100%);
+  background: linear-gradient(135deg, var(--color-success, #2A1111) 0%, #3A1A1A 100%);
   color: white;
   border-radius: 12px;
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -1609,23 +1464,23 @@ defineExpose({
   letter-spacing: -0.01em;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 
-    0 4px 14px rgba(16, 185, 129, 0.35),
-    0 2px 6px rgba(16, 185, 129, 0.2);
+    0 4px 14px rgba(42, 17, 17, 0.35),
+    0 2px 6px rgba(42, 17, 17, 0.2);
 }
 
 .tongdok-complete-btn-inline:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-success-dark, #059669) 0%, #10b981 100%);
+  background: linear-gradient(135deg, var(--color-success-dark, #1F0C0C) 0%, #2A1111 100%);
   transform: translateY(-2px);
   box-shadow: 
-    0 8px 20px rgba(16, 185, 129, 0.4),
-    0 4px 10px rgba(16, 185, 129, 0.25);
+    0 8px 20px rgba(42, 17, 17, 0.4),
+    0 4px 10px rgba(42, 17, 17, 0.25);
 }
 
 .tongdok-complete-btn-inline:active:not(:disabled) {
   transform: translateY(0) scale(0.98);
   box-shadow: 
-    0 2px 8px rgba(16, 185, 129, 0.3),
-    0 1px 4px rgba(16, 185, 129, 0.2);
+    0 2px 8px rgba(42, 17, 17, 0.3),
+    0 1px 4px rgba(42, 17, 17, 0.2);
 }
 
 .tongdok-complete-btn-inline:disabled {
@@ -1635,49 +1490,99 @@ defineExpose({
   box-shadow: none;
 }
 
-/* 통독 진행률 바 (인스타그램 스토리 스타일) */
+/* 통독 하단 진행 정보 */
 .tongdok-progress-area {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem 0.5rem;
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px solid rgba(42, 17, 17, 0.12);
+}
+
+.tongdok-complete-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  justify-content: center;
+  width: auto;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  color: var(--color-accent-primary, #2A1111);
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(42, 17, 17, 0.14);
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.tongdok-complete-status:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-accent-primary, #2A1111);
+}
+
+.tongdok-complete-status:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.tongdok-complete-status:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tongdok-complete-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 [data-theme="dark"] .tongdok-progress-area {
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: rgba(31, 41, 55, 0.82);
+  border-bottom-color: rgba(42, 17, 17, 0.16);
+}
+
+[data-theme="dark"] .tongdok-complete-status {
+  color: var(--color-accent-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .tongdok-complete-status:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--color-accent-primary);
 }
 
 .story-progress-bar {
   display: flex;
   flex: 1;
-  gap: 4px;
+  gap: 5px;
+  min-width: 0;
 }
 
 .progress-segment {
   flex: 1;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 2px;
-  transition: all 0.3s ease;
+  height: 5px;
+  background: rgba(42, 17, 17, 0.16);
+  border-radius: 999px;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 [data-theme="dark"] .progress-segment {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .progress-segment.filled {
-  background: var(--primary-color, #6366f1);
+  background: rgba(42, 17, 17, 0.56);
 }
 
 .progress-segment.current {
-  background: var(--color-success, #10b981);
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
-  animation: pulse-segment 2s infinite;
+  background: var(--color-accent-primary, #2A1111);
+  box-shadow: 0 0 0 3px rgba(42, 17, 17, 0.12);
 }
 
 .progress-text-indicator {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-secondary, #6b7280);
   white-space: nowrap;
@@ -1692,18 +1597,46 @@ defineExpose({
 }
 
 [data-theme="dark"] .progress-segment.filled {
-  background: var(--color-accent-primary);
+  background: rgba(42, 17, 17, 0.56);
 }
 
 [data-theme="dark"] .progress-segment.current {
-  background: var(--color-success);
-  box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+  background: var(--color-accent-primary);
+  box-shadow: 0 0 0 3px rgba(42, 17, 17, 0.14);
 }
 
-@keyframes pulse-segment {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+.tongdok-exit-bottom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  color: var(--text-secondary, #6b7280);
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(42, 17, 17, 0.14);
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.tongdok-exit-bottom-btn:hover {
+  color: var(--text-primary, #1f2937);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.tongdok-exit-bottom-btn:active {
+  transform: scale(0.94);
+}
+
+[data-theme="dark"] .tongdok-exit-bottom-btn {
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .tongdok-exit-bottom-btn:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 @media (max-width: 768px) {
@@ -1712,24 +1645,6 @@ defineExpose({
     padding-left: 10px;
     padding-right: 10px;
   }
-}
-
-.tongdok-checkbox-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  cursor: pointer;
-  border-radius: 4px;
-  margin-right: -4px; /* Adjust spacing since we added padding */
-}
-
-.tongdok-checkbox-wrapper:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-[data-theme="dark"] .tongdok-checkbox-wrapper:hover {
-  background-color: rgba(255, 255, 255, 0.1);
 }
 
 </style>

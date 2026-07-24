@@ -2,7 +2,7 @@
 
 ## 1. Atmosphere & Identity
 
-Maeil1Dok feels like a quiet daily reading desk: calm, legible, and trustworthy. The signature is warm-paper restraint with sage actions, where account and reading workflows feel steady rather than flashy.
+Maeil1Dok feels like a quiet daily reading desk: calm, legible, and trustworthy. The signature is warm-paper restraint with deep oxblood actions, where account and reading workflows feel steady rather than flashy.
 
 ## 2. Color
 
@@ -19,15 +19,16 @@ Maeil1Dok feels like a quiet daily reading desk: calm, legible, and trustworthy.
 | Text/tertiary | `--color-text-tertiary` | `#6b7280` | `#9ca3af` | Metadata and low-emphasis text |
 | Border/default | `--color-border-default` | `#e5e7eb` | `#3d3d3d` | Card and control borders |
 | Border/light | `--color-border-light` | `#f0f0f0` | `#333333` | Row dividers |
-| Accent/primary | `--color-accent-primary`, `--primary-color` | `#4B9F7E` | `#6bc99f` | Primary actions and focus |
-| Accent/hover | `--color-accent-primary-hover`, `--primary-dark` | `#3B7E63` | `#5ab88e` | Primary hover |
-| Status/success | `--color-success` | `#10b981` | `#34d399` | Confirmed states |
+| Accent/primary | `--color-accent-primary`, `--primary-color` | `#2A1111` | `#2A1111` | Primary actions and focus |
+| Accent/hover | `--color-accent-primary-hover`, `--primary-dark` | `#3A1A1A` | `#3A1A1A` | Primary hover |
+| Status/success | `--color-success` | `#2A1111` | `#2A1111` | Confirmed states |
 | Status/warning | `--color-warning` | `#f59e0b` | `#fbbf24` | Caution states |
 | Status/error | `--color-error` | `#ef4444` | `#f87171` | Destructive actions |
 
 ### Rules
 
-- Sage is reserved for true actions, links, focus, and completion states.
+- Deep oxblood (`#2A1111`) is reserved for true actions, links, focus, and completion states.
+- Text on a `#2A1111` action/background surface must be white.
 - Destructive actions use `--color-error` and `--color-error-bg`, with explicit confirmation.
 - Provider brand colors may appear only inside provider icons or small provider badges.
 

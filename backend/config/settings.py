@@ -10,46 +10,55 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import os
-import json
-from pathlib import Path
 from datetime import timedelta
+import os
+from pathlib import Path
+
+from config import security_settings
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _required_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise ValueError(f"환경변수 {name}가 설정되지 않았습니다.")
+    return value
+
+
+def _required_env_values(names: tuple[str, ...]) -> dict[str, str]:
+    values: dict[str, str] = {}
+    missing: list[str] = []
+    for name in names:
+        value = os.environ.get(name)
+        if value:
+            values[name] = value
+        else:
+            missing.append(name)
+
+    if missing:
+        missing_names = ', '.join(missing)
+        raise ValueError(f"환경변수 {missing_names}가 설정되지 않았습니다.")
+    return values
+
+
+_USING_TEST_SETTINGS = os.environ.get('DJANGO_SETTINGS_MODULE') == 'config.test_settings'
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
-if not SECRET_KEY:
-    raise ValueError("No SECRET_KEY set in environment")
+SECRET_KEY = _required_env('SECRET_KEY')
 
 CRON_SECRET = os.environ.get('CRON_SECRET') or os.environ.get('HASENA_CRON_SECRET')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() in ['true', '1', 'yes']
 
-_sentry_dsn = os.environ.get('SENTRY_DSN')
-if _sentry_dsn:
-    import sentry_sdk
+from config.observability import init_sentry_from_env
 
-    try:
-        _sentry_traces_sample_rate = float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0'))
-    except ValueError:
-        _sentry_traces_sample_rate = 0.0
-
-    if _sentry_traces_sample_rate < 0 or _sentry_traces_sample_rate > 1:
-        _sentry_traces_sample_rate = 0.0
-
-    sentry_sdk.init(
-        dsn=_sentry_dsn,
-        environment=os.environ.get('SENTRY_ENVIRONMENT'),
-        release=os.environ.get('SENTRY_RELEASE') or os.environ.get('RAILWAY_GIT_COMMIT_SHA'),
-        traces_sample_rate=_sentry_traces_sample_rate,
-        send_default_pii=os.environ.get('SENTRY_SEND_DEFAULT_PII', 'false').lower() in ['true', '1', 'yes'],
-    )
+init_sentry_from_env()
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 if not ALLOWED_HOSTS:
@@ -118,13 +127,19 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+_DATABASE_ENV = (
+    {}
+    if _USING_TEST_SETTINGS
+    else _required_env_values(('DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST'))
+)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST', 'db'),
+        'NAME': _DATABASE_ENV.get('DB_NAME'),
+        'USER': _DATABASE_ENV.get('DB_USER'),
+        'PASSWORD': _DATABASE_ENV.get('DB_PASSWORD'),
+        'HOST': _DATABASE_ENV.get('DB_HOST'),
         'PORT': os.environ.get('DB_PORT', '3306'),
     }
 }
@@ -172,116 +187,29 @@ STATIC_ROOT = os.environ.get('STATIC_ROOT', os.path.join(BASE_DIR, 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-_extra_cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '[]')
-try:
-    _extra_cors_origins = json.loads(_extra_cors_origins)
-except json.JSONDecodeError:
-    _extra_cors_origins = []
+CORS_ALLOWED_ORIGINS = security_settings.CORS_ALLOWED_ORIGINS
+CORS_ALLOW_METHODS = security_settings.CORS_ALLOW_METHODS
+CORS_ALLOW_HEADERS = security_settings.CORS_ALLOW_HEADERS
+CORS_ALLOW_CREDENTIALS = security_settings.CORS_ALLOW_CREDENTIALS
+CORS_EXPOSE_HEADERS = security_settings.CORS_EXPOSE_HEADERS
+CSRF_COOKIE_HTTPONLY = security_settings.CSRF_COOKIE_HTTPONLY
+CSRF_COOKIE_SECURE = security_settings.CSRF_COOKIE_SECURE
+CSRF_COOKIE_NAME = security_settings.CSRF_COOKIE_NAME
+CSRF_HEADER_NAME = security_settings.CSRF_HEADER_NAME
+CSRF_TRUSTED_ORIGINS = security_settings.CSRF_TRUSTED_ORIGINS
+COOKIE_SAMESITE = security_settings.COOKIE_SAMESITE
+CSRF_COOKIE_SAMESITE = security_settings.CSRF_COOKIE_SAMESITE
+SECURE_SSL_REDIRECT = security_settings.SECURE_SSL_REDIRECT
+SECURE_PROXY_SSL_HEADER = security_settings.SECURE_PROXY_SSL_HEADER
+SESSION_COOKIE_SECURE = security_settings.SESSION_COOKIE_SECURE
+SECURE_HSTS_SECONDS = security_settings.SECURE_HSTS_SECONDS
+SECURE_HSTS_INCLUDE_SUBDOMAINS = security_settings.SECURE_HSTS_INCLUDE_SUBDOMAINS
+SECURE_HSTS_PRELOAD = security_settings.SECURE_HSTS_PRELOAD
+SECURE_CONTENT_TYPE_NOSNIFF = security_settings.SECURE_CONTENT_TYPE_NOSNIFF
 
-CORS_ALLOWED_ORIGINS = [
-    'https://maeil1dok.app',
-    'https://www.maeil1dok.app',
-    'https://api.maeil1dok.app',
-]
-
-if _extra_cors_origins:
-    CORS_ALLOWED_ORIGINS += _extra_cors_origins
-
-if DEBUG:
-    CORS_ALLOWED_ORIGINS += [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://localhost:3019',
-        'http://127.0.0.1:3019',
-        'http://192.168.0.41:3000',
-    ]
-
-CORS_ALLOWED_ORIGINS = list(set(CORS_ALLOWED_ORIGINS))
-
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
-
-CORS_ALLOW_CREDENTIALS = True
-
-CORS_EXPOSE_HEADERS = [
-    'x-csrftoken',
-]
-
-CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_NAME = 'csrftoken'
-CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
-
-# 프로덕션 보안 헤더 (DEBUG=False일 때만 적용; 로컬 HTTP 개발 방해 방지)
-if not DEBUG:
-    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() in ['true', '1', 'yes']
-    # 리버스 프록시(예: nginx, Vercel) 뒤에서 HTTPS 판별
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SESSION_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-
-_cookie_domain = os.environ.get('COOKIE_DOMAIN') or ('.maeil1dok.app' if not DEBUG else None)
-_cookie_samesite = os.environ.get('COOKIE_SAMESITE') or 'Lax'
-
-COOKIE_SAMESITE = _cookie_samesite
-CSRF_COOKIE_SAMESITE = _cookie_samesite
-
-if _cookie_domain:
-    CSRF_COOKIE_DOMAIN = _cookie_domain
-    COOKIE_DOMAIN = _cookie_domain
-
-# CSRF 신뢰 Origins 설정
-# 환경변수에서 추가 origins를 JSON 배열로 받음
-_extra_csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '[]')
-try:
-    _extra_csrf_origins = json.loads(_extra_csrf_origins)
-except json.JSONDecodeError:
-    _extra_csrf_origins = []
-
-# 기본 프로덕션 origins (항상 포함)
-CSRF_TRUSTED_ORIGINS = [
-    'https://maeil1dok.app',
-    'https://www.maeil1dok.app',
-    'https://api.maeil1dok.app',
-]
-
-# 환경변수에서 지정한 추가 origins 추가
-if _extra_csrf_origins:
-    CSRF_TRUSTED_ORIGINS += _extra_csrf_origins
-
-# 개발 환경에서는 localhost origins 추가
-if DEBUG:
-    CSRF_TRUSTED_ORIGINS += [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://localhost:3019',
-        'http://127.0.0.1:3019',
-        'http://192.168.0.41:3000',
-    ]
-
-# 중복 제거
-CSRF_TRUSTED_ORIGINS = list(set(CSRF_TRUSTED_ORIGINS))
+if security_settings.COOKIE_DOMAIN:
+    COOKIE_DOMAIN = security_settings.COOKIE_DOMAIN
+    CSRF_COOKIE_DOMAIN = security_settings.COOKIE_DOMAIN
 
 # JWT 설정 추가
 REST_FRAMEWORK = {
@@ -373,8 +301,7 @@ required_env_vars = [
 ]
 
 for var in required_env_vars:
-    if not os.environ.get(var):
-        raise ValueError(f"환경변수 {var}가 설정되지 않았습니다.")
+    _required_env(var)
 
 # Logging configuration: output all logs to console for Docker
 LOGGING = {

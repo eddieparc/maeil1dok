@@ -18,3 +18,4 @@ redis>=5.0.0
 gunicorn>=22.0.0
 whitenoise>=6.6.0
 pywebpush>=2.0.3
+tblib>=3.0

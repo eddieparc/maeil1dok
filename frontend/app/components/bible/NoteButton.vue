@@ -67,11 +67,11 @@ const handleClick = async () => {
 }
 
 .note-btn.has-notes {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
 }
 
 .note-btn.has-notes:hover:not(:disabled) {
-  color: var(--primary-dark, #4f46e5);
+  color: var(--primary-dark, #3A1A1A);
 }
 
 .note-btn:disabled {
@@ -86,7 +86,7 @@ const handleClick = async () => {
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
   font-size: 10px;
   font-weight: 600;

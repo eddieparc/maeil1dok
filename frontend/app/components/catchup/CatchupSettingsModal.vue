@@ -212,6 +212,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import { useCatchup, type CatchupStatus, type CatchupSettings } from '~/composables/useCatchup'
+import { getTodayString } from '~/utils/dateFormat'
 
 const props = defineProps<{
   isOpen: boolean
@@ -254,7 +255,7 @@ watch(() => props.isOpen, async (isOpen) => {
 })
 
 // Computed
-const today = computed(() => new Date().toISOString().split('T')[0])
+const today = computed(() => getTodayString())
 
 const isValid = computed(() => {
   return settings.name.trim() &&
@@ -422,7 +423,7 @@ const formatDate = (dateStr: string) => {
 .date-input:focus,
 .number-input:focus {
   outline: none;
-  border-color: var(--color-primary, #3b82f6);
+  border-color: var(--color-primary, #2A1111);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -456,7 +457,7 @@ const formatDate = (dateStr: string) => {
 }
 
 .radio-item input:checked + .radio-mark {
-  border-color: var(--color-primary, #3b82f6);
+  border-color: var(--color-primary, #2A1111);
 }
 
 .radio-item input:checked + .radio-mark::after {
@@ -467,7 +468,7 @@ const formatDate = (dateStr: string) => {
   transform: translate(-50%, -50%);
   width: 10px;
   height: 10px;
-  background: var(--color-primary, #3b82f6);
+  background: var(--color-primary, #2A1111);
   border-radius: 50%;
 }
 
@@ -509,9 +510,9 @@ const formatDate = (dateStr: string) => {
 }
 
 .strategy-button.active {
-  border-color: var(--color-primary, #3b82f6);
+  border-color: var(--color-primary, #2A1111);
   background: var(--color-primary-light, #eff6ff);
-  color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #2A1111);
 }
 
 .strategy-icon {
@@ -590,7 +591,7 @@ const formatDate = (dateStr: string) => {
 }
 
 .checkbox-toggle input:checked + .toggle-slider {
-  background: var(--color-primary, #3b82f6);
+  background: var(--color-primary, #2A1111);
 }
 
 .checkbox-toggle input:checked + .toggle-slider::after {
@@ -621,14 +622,14 @@ const formatDate = (dateStr: string) => {
 }
 
 .multiplier-button.active {
-  border-color: var(--color-primary, #3b82f6);
+  border-color: var(--color-primary, #2A1111);
   background: var(--color-primary-light, #eff6ff);
-  color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #2A1111);
 }
 
 .suggested-date {
   font-size: 0.875rem;
-  color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #2A1111);
   margin-bottom: 0.5rem;
 }
 
@@ -669,13 +670,13 @@ const formatDate = (dateStr: string) => {
 }
 
 .button-primary {
-  background: var(--color-primary, #3b82f6);
+  background: var(--color-primary, #2A1111);
   border: none;
   color: white;
 }
 
 .button-primary:hover:not(:disabled) {
-  background: var(--color-primary-dark, #2563eb);
+  background: var(--color-primary-dark, #3A1A1A);
 }
 
 .button-primary:disabled,

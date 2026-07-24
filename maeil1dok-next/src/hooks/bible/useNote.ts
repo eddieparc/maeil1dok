@@ -77,6 +77,7 @@ export function useNote(book: string, chapter: number): UseNoteReturn {
           book,
           chapter,
           start_verse: verse ?? null,
+          end_verse: verse ?? null,
           content,
           is_private: true,
         }),

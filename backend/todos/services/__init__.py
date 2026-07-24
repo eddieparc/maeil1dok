@@ -5,6 +5,8 @@ from .catchup import (
     calculate_catchup_schedule,
     calculate_suggested_settings,
     copy_completed_progress,
+    sync_original_progress,
+    sync_catchup_schedules,
     get_celebration_data,
 )
 
@@ -14,5 +16,7 @@ __all__ = [
     'calculate_catchup_schedule',
     'calculate_suggested_settings',
     'copy_completed_progress',
+    'sync_original_progress',
+    'sync_catchup_schedules',
     'get_celebration_data',
 ]

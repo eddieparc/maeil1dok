@@ -26,9 +26,9 @@
               <input id="username" v-model="formData.username" type="text" required @blur="checkUsername"
                 autocomplete="username"
                 class="flex-1 mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                :class="{ 'border-red-500': usernameError, 'border-green-500': isUsernameChecked }">
+                :class="{ 'border-red-500': usernameError, 'border-[var(--color-accent-primary)]': isUsernameChecked }">
               <span v-if="usernameError" class="text-red-500 text-xs mt-1">{{ usernameError }}</span>
-              <span v-if="isUsernameChecked && !usernameError" class="text-green-500 text-xs mt-1">사용 가능한 아이디입니다.</span>
+              <span v-if="isUsernameChecked && !usernameError" class="text-[var(--color-accent-primary)] text-xs mt-1">사용 가능한 아이디입니다.</span>
             </div>
           </div>
 
@@ -46,9 +46,9 @@
             <input id="nickname" v-model="formData.nickname" type="text" required @blur="checkNickname"
               autocomplete="nickname"
               class="flex-1 mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-              :class="{ 'border-red-500': nicknameError, 'border-green-500': isNicknameChecked }">
+              :class="{ 'border-red-500': nicknameError, 'border-[var(--color-accent-primary)]': isNicknameChecked }">
             <span v-if="nicknameError" class="text-red-500 text-xs mt-1">{{ nicknameError }}</span>
-            <span v-if="isNicknameChecked && !nicknameError" class="text-green-500 text-xs mt-1">사용 가능한 닉네임입니다.</span>
+            <span v-if="isNicknameChecked && !nicknameError" class="text-[var(--color-accent-primary)] text-xs mt-1">사용 가능한 닉네임입니다.</span>
           </div>
         </div>
 

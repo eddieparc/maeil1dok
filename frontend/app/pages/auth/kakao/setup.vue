@@ -39,7 +39,7 @@
               class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
               :class="{
                 'border-red-500 focus:ring-red-500 focus:border-red-500': nicknameError,
-                'border-green-500 focus:ring-green-500 focus:border-green-500': isNicknameChecked && !nicknameError
+                'border-[var(--color-accent-primary)] focus:ring-[var(--color-accent-primary)] focus:border-[var(--color-accent-primary)]': isNicknameChecked && !nicknameError
               }"
               placeholder="2자 이상의 닉네임을 입력해주세요"
             >
@@ -51,10 +51,10 @@
                 <span class="text-red-500 text-sm">{{ nicknameError }}</span>
               </template>
               <template v-if="isNicknameChecked && !nicknameError">
-                <svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-4 h-4 text-[var(--color-accent-primary)] mr-1" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                 </svg>
-                <span class="text-green-500 text-sm">사용 가능한 닉네임입니다</span>
+                <span class="text-[var(--color-accent-primary)] text-sm">사용 가능한 닉네임입니다</span>
               </template>
             </div>
           </div>

@@ -7,6 +7,7 @@ from .models import (
     PlanSubscription, VideoBibleIntro, UserPlanDisplaySettings,
     CatchupSession, CatchupSchedule,
     UserReadingPosition, BibleBookmark, ReflectionNote, BibleHighlight, PersonalReadingRecord,
+    HasenaRecord,
 )
 from django.contrib.auth import get_user_model
 from django.core.validators import URLValidator
@@ -21,6 +22,31 @@ class DailyBibleScheduleSerializer(serializers.ModelSerializer):
             'id', 'plan', 'plan_name', 'date', 'book',
             'start_chapter', 'end_chapter', 'audio_link', 'guide_link',
         ]
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        start_chapter = attrs.get('start_chapter', getattr(self.instance, 'start_chapter', None))
+        end_chapter = attrs.get('end_chapter', getattr(self.instance, 'end_chapter', None))
+        errors = {}
+
+        if start_chapter is not None and start_chapter < 1:
+            errors['start_chapter'] = '시작장은 1 이상이어야 합니다.'
+
+        if end_chapter is not None and end_chapter < 1:
+            errors['end_chapter'] = '끝장은 1 이상이어야 합니다.'
+
+        if (
+            start_chapter is not None
+            and end_chapter is not None
+            and start_chapter >= 1
+            and end_chapter >= 1
+            and end_chapter < start_chapter
+        ):
+            errors['end_chapter'] = '끝장은 시작장보다 작을 수 없습니다.'
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
         
     def validate_audio_link(self, value):
         # None 값 처리
@@ -155,9 +181,9 @@ class BibleReadingPlanSerializer(serializers.ModelSerializer):
         return obj.plansubscription_set.filter(is_active=True).count()
 
 class PlanSubscriptionSerializer(serializers.ModelSerializer):
-    plan_id = serializers.IntegerField(source='plan.id')
-    plan_name = serializers.CharField(source='plan.name')
-    is_default = serializers.BooleanField(source='plan.is_default')
+    plan_id = serializers.IntegerField(source='plan.id', read_only=True)
+    plan_name = serializers.CharField(source='plan.name', read_only=True)
+    is_default = serializers.BooleanField(source='plan.is_default', read_only=True)
     
     class Meta:
         model = PlanSubscription
@@ -165,6 +191,20 @@ class PlanSubscriptionSerializer(serializers.ModelSerializer):
             'id', 'plan_id', 'plan_name', 
             'is_active', 'is_default', 'start_date'
         ]
+        read_only_fields = ['id', 'plan_id', 'plan_name', 'is_default', 'start_date']
+
+
+class PlanSubscriptionUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlanSubscription
+        fields = ['is_active']
+
+    def validate_is_active(self, value):
+        if self.instance and self.instance.plan.is_default and value is False:
+            raise serializers.ValidationError("기본 플랜 구독은 비활성화할 수 없습니다.")
+        if self.instance and value is True and not self.instance.plan.is_active:
+            raise serializers.ValidationError("현재 신규 구독이 중단된 플랜은 다시 활성화할 수 없습니다.")
+        return value
 
 class VideoBibleIntroSerializer(serializers.ModelSerializer):
     plan_name = serializers.CharField(source='plan.name', read_only=True)
@@ -189,6 +229,49 @@ class UserPlanDisplaySettingsSerializer(serializers.ModelSerializer):
             'color', 'display_order', 'is_visible', 'is_active'
         ]
         read_only_fields = ['id', 'subscription_id', 'plan_id', 'plan_name', 'is_active']
+
+
+class CalendarSettingUpdateSerializer(serializers.ModelSerializer):
+    """캘린더 표시 설정 변경 Serializer"""
+
+    color = serializers.RegexField(
+        regex=r'^#[0-9A-Fa-f]{6}$',
+        required=False,
+        error_messages={'invalid': '색상은 #RRGGBB 형식이어야 합니다.'},
+    )
+    is_visible = serializers.BooleanField(required=False)
+
+    class Meta:
+        model = UserPlanDisplaySettings
+        fields = ['color', 'is_visible']
+
+
+class CalendarSettingReorderItemSerializer(serializers.Serializer):
+    """캘린더 표시 순서 변경 항목 Serializer"""
+
+    id = serializers.IntegerField(min_value=1)
+    display_order = serializers.IntegerField(min_value=0, max_value=1000)
+
+
+class CalendarMonthQuerySerializer(serializers.Serializer):
+    """월별 캘린더 조회 쿼리 Serializer"""
+
+    year = serializers.IntegerField(min_value=1, max_value=9999, required=False)
+    month = serializers.IntegerField(min_value=1, max_value=12, required=False)
+
+    def validate(self, attrs):
+        has_year = 'year' in attrs
+        has_month = 'month' in attrs
+        if has_year != has_month:
+            raise serializers.ValidationError("year와 month는 함께 입력해야 합니다.")
+        return attrs
+
+
+class HasenaRecordListQuerySerializer(serializers.Serializer):
+    """하세나 기록 목록 조회 쿼리 Serializer"""
+
+    year = serializers.IntegerField(min_value=1, max_value=9999, required=False)
+    month = serializers.IntegerField(min_value=1, max_value=12, required=False)
 
 
 class CalendarDayScheduleSerializer(serializers.Serializer):
@@ -277,8 +360,27 @@ class CatchupPreviewRequestSerializer(serializers.Serializer):
     target_rejoin_date = serializers.DateField(required=False, allow_null=True)
 
 
-class CatchupSessionCreateSerializer(serializers.ModelSerializer):
+class CatchupSessionPlanningSerializer(serializers.ModelSerializer):
+    max_daily_readings = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    max_daily_chapters = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    weekend_multiplier = serializers.DecimalField(
+        max_digits=3, decimal_places=1, required=False,
+        min_value=Decimal('0.5'), max_value=Decimal('3.0')
+    )
+
+    def validate(self, data):
+        range_start = data.get('range_start') or getattr(self.instance, 'range_start', None)
+        range_end = data.get('range_end') or getattr(self.instance, 'range_end', None)
+        if range_end and range_start and range_end < range_start:
+            raise serializers.ValidationError({
+                'range_end': '종료일은 시작일 이후여야 합니다.'
+            })
+        return data
+
+
+class CatchupSessionCreateSerializer(CatchupSessionPlanningSerializer):
     """따라잡기 세션 생성 Serializer"""
+
     class Meta:
         model = CatchupSession
         fields = [
@@ -287,13 +389,26 @@ class CatchupSessionCreateSerializer(serializers.ModelSerializer):
             'max_daily_readings', 'max_daily_chapters', 'weekend_multiplier'
         ]
 
-    def validate(self, data):
-        if data.get('range_end') and data.get('range_start'):
-            if data['range_end'] < data['range_start']:
-                raise serializers.ValidationError({
-                    'range_end': '종료일은 시작일 이후여야 합니다.'
-                })
-        return data
+
+class CatchupSessionUpdateSerializer(CatchupSessionPlanningSerializer):
+    """따라잡기 세션 수정 Serializer"""
+
+    class Meta:
+        model = CatchupSession
+        fields = [
+            'name', 'target_rejoin_date',
+            'max_daily_readings', 'max_daily_chapters', 'weekend_multiplier'
+        ]
+
+
+class CatchupSessionSchedulesQuerySerializer(serializers.Serializer):
+    """따라잡기 스케줄 목록 쿼리 Serializer"""
+    date = serializers.DateField(required=False)
+
+    def validate(self, attrs):
+        if self.initial_data.get('date') == '':
+            raise serializers.ValidationError({'date': 'Date has wrong format.'})
+        return attrs
 
 
 class CatchupScheduleSerializer(serializers.ModelSerializer):
@@ -373,13 +488,7 @@ def normalize_bible_book_code(value):
     return 'jnh' if normalized == 'jon' else normalized
 
 
-class UserReadingPositionSerializer(serializers.ModelSerializer):
-    """마지막 읽기 위치 Serializer"""
-    class Meta:
-        model = UserReadingPosition
-        fields = ['book', 'chapter', 'verse', 'scroll_position', 'version', 'updated_at']
-        read_only_fields = ['updated_at']
-
+class BibleLocationValidationMixin:
     def validate_book(self, value):
         if not isinstance(value, str) or not value.strip():
             raise serializers.ValidationError('성경책 코드가 올바르지 않습니다.')
@@ -394,21 +503,6 @@ class UserReadingPositionSerializer(serializers.ModelSerializer):
         if value < 1:
             raise serializers.ValidationError('장 번호는 1 이상이어야 합니다.')
         return value
-
-    def validate_scroll_position(self, value):
-        if value < 0 or value > 1:
-            raise serializers.ValidationError('스크롤 위치는 0과 1 사이여야 합니다.')
-        return value
-
-    def validate_version(self, value):
-        if not isinstance(value, str) or not value.strip():
-            raise serializers.ValidationError('역본 코드가 올바르지 않습니다.')
-
-        normalized = value.strip().upper()
-        if normalized not in SUPPORTED_READING_VERSIONS:
-            raise serializers.ValidationError('지원하지 않는 역본 코드입니다.')
-
-        return normalized
 
     def validate(self, attrs):
         book = attrs.get('book') or getattr(self.instance, 'book', None)
@@ -427,7 +521,71 @@ class UserReadingPositionSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class BibleBookmarkSerializer(serializers.ModelSerializer):
+class VerseWindowValidationMixin:
+    def _verse_window_value(self, attrs, field):
+        if field in attrs:
+            return attrs[field]
+        return getattr(self.instance, field, None)
+
+    def _validate_positive_verse(self, attrs, field):
+        value = self._verse_window_value(attrs, field)
+        if value is not None and value < 1:
+            raise serializers.ValidationError({field: '절 번호는 1 이상이어야 합니다.'})
+
+    def _validate_verse_window(self, attrs, *, require_window=False):
+        start_verse = self._verse_window_value(attrs, 'start_verse')
+        end_verse = self._verse_window_value(attrs, 'end_verse')
+
+        if require_window and (start_verse is None or end_verse is None):
+            raise serializers.ValidationError({
+                'start_verse': '시작 절과 끝 절이 모두 필요합니다.',
+                'end_verse': '시작 절과 끝 절이 모두 필요합니다.',
+            })
+
+        if start_verse is None and end_verse is None:
+            return
+
+        if start_verse is None or end_verse is None:
+            raise serializers.ValidationError({
+                'start_verse': '시작 절과 끝 절을 함께 입력해야 합니다.',
+                'end_verse': '시작 절과 끝 절을 함께 입력해야 합니다.',
+            })
+
+        self._validate_positive_verse(attrs, 'start_verse')
+        self._validate_positive_verse(attrs, 'end_verse')
+        if end_verse < start_verse:
+            raise serializers.ValidationError({'end_verse': '끝 절은 시작 절보다 작을 수 없습니다.'})
+
+
+class UserReadingPositionSerializer(BibleLocationValidationMixin, serializers.ModelSerializer):
+    """마지막 읽기 위치 Serializer"""
+    class Meta:
+        model = UserReadingPosition
+        fields = ['book', 'chapter', 'verse', 'scroll_position', 'version', 'updated_at']
+        read_only_fields = ['updated_at']
+
+    def validate_scroll_position(self, value):
+        if value < 0 or value > 1:
+            raise serializers.ValidationError('스크롤 위치는 0과 1 사이여야 합니다.')
+        return value
+
+    def validate_version(self, value):
+        if not isinstance(value, str) or not value.strip():
+            raise serializers.ValidationError('역본 코드가 올바르지 않습니다.')
+
+        normalized = value.strip().upper()
+        if normalized not in SUPPORTED_READING_VERSIONS:
+            raise serializers.ValidationError('지원하지 않는 역본 코드입니다.')
+
+        return normalized
+
+    def validate_verse(self, value):
+        if value is not None and value < 1:
+            raise serializers.ValidationError('절 번호는 1 이상이어야 합니다.')
+        return value
+
+
+class BibleBookmarkSerializer(VerseWindowValidationMixin, BibleLocationValidationMixin, serializers.ModelSerializer):
     """북마크 Serializer"""
     book_name = serializers.SerializerMethodField()
 
@@ -443,8 +601,14 @@ class BibleBookmarkSerializer(serializers.ModelSerializer):
     def get_book_name(self, obj):
         return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        bookmark_type = attrs.get('bookmark_type') or getattr(self.instance, 'bookmark_type', None)
+        self._validate_verse_window(attrs, require_window=bookmark_type == 'verse')
+        return attrs
 
-class ReflectionNoteSerializer(serializers.ModelSerializer):
+
+class ReflectionNoteSerializer(VerseWindowValidationMixin, BibleLocationValidationMixin, serializers.ModelSerializer):
     """묵상노트 Serializer"""
     book_name = serializers.SerializerMethodField()
 
@@ -460,8 +624,13 @@ class ReflectionNoteSerializer(serializers.ModelSerializer):
     def get_book_name(self, obj):
         return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        self._validate_verse_window(attrs)
+        return attrs
 
-class BibleHighlightSerializer(serializers.ModelSerializer):
+
+class BibleHighlightSerializer(VerseWindowValidationMixin, BibleLocationValidationMixin, serializers.ModelSerializer):
     """하이라이트 Serializer"""
     book_name = serializers.SerializerMethodField()
 
@@ -477,8 +646,13 @@ class BibleHighlightSerializer(serializers.ModelSerializer):
     def get_book_name(self, obj):
         return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        self._validate_verse_window(attrs, require_window=True)
+        return attrs
 
-class PersonalReadingRecordSerializer(serializers.ModelSerializer):
+
+class PersonalReadingRecordSerializer(BibleLocationValidationMixin, serializers.ModelSerializer):
     """개인 읽기 기록 Serializer"""
     book_name = serializers.SerializerMethodField()
     read_date = serializers.DateField(default=date.today)
@@ -490,3 +664,35 @@ class PersonalReadingRecordSerializer(serializers.ModelSerializer):
 
     def get_book_name(self, obj):
         return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
+
+
+HASENA_RECORD_MIN_DATE = date(1900, 1, 1)
+HASENA_RECORD_MAX_DATE = date(2100, 1, 1)
+
+
+class HasenaRecordCreateSerializer(serializers.Serializer):
+    """하세나 기록 생성/업데이트 Serializer.
+
+    Bounds `date` to the [1900-01-01, 2100-01-01] window and rejects any
+    non-boolean `is_completed` (DRF's default `BooleanField` accepts strings
+    like "yes"/"no" — this endpoint requires a real bool).
+    """
+
+    date = serializers.DateField()
+    is_completed = serializers.BooleanField(default=True)
+
+    def validate_date(self, value):
+        if value < HASENA_RECORD_MIN_DATE or value > HASENA_RECORD_MAX_DATE:
+            raise serializers.ValidationError(
+                f'날짜는 {HASENA_RECORD_MIN_DATE.isoformat()}부터 '
+                f'{HASENA_RECORD_MAX_DATE.isoformat()} 사이여야 합니다.'
+            )
+        return value
+
+    def to_internal_value(self, data):
+        raw = data.get('is_completed', serializers.empty)
+        if raw is not serializers.empty and not isinstance(raw, bool):
+            raise serializers.ValidationError({
+                'is_completed': ['is_completed는 true 또는 false 값이어야 합니다.']
+            })
+        return super().to_internal_value(data)

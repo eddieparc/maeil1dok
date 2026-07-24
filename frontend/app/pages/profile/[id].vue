@@ -416,7 +416,7 @@ onUnmounted(() => {
 }
 
 [data-theme="dark"] .profile-avatar-placeholder {
-  background: linear-gradient(135deg, var(--color-accent-primary, #6bc99f) 0%, #4A9D6E 100%);
+  background: linear-gradient(135deg, var(--color-accent-primary, #2A1111) 0%, #4A9D6E 100%);
 }
 
 .profile-info {
@@ -481,7 +481,7 @@ onUnmounted(() => {
 }
 
 [data-theme="dark"] .btn-primary {
-  background: var(--color-accent-primary, #6bc99f);
+  background: var(--color-accent-primary, #2A1111);
   color: var(--color-text-inverse);
 }
 

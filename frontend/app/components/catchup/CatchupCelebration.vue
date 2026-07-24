@@ -247,7 +247,7 @@ const close = () => {
 .stat-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-primary, #3b82f6);
+  color: var(--color-primary, #2A1111);
 }
 
 .stat-label {
@@ -295,14 +295,14 @@ const close = () => {
   font-weight: 600;
   border: none;
   border-radius: 12px;
-  background: var(--color-primary, #3b82f6);
+  background: var(--color-primary, #2A1111);
   color: white;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .confirm-button:hover {
-  background: var(--color-primary-dark, #2563eb);
+  background: var(--color-primary-dark, #3A1A1A);
 }
 
 /* Transition animations */

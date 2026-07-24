@@ -1,16 +1,44 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { parseJsonBody } from '@/lib/api/parseJsonBody'
 import { createServerRepositories } from '@/repositories/factory'
 import { generateCatchupSchedule } from '@/lib/catchup/scheduling'
 import type { DailySchedule } from '@/types'
 
-interface CreateCatchupRequestBody {
-  planId?: number
-  strategy?: 'parallel' | 'sequential'
-  targetDate?: string
-  maxDailyReadings?: number
-  maxDailyChapters?: number
-  weekendMultiplier?: number
+const POSTGRES_INTEGER_MAX = 2_147_483_647
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value > 0
+}
+
+function isPositivePostgresInteger(value: unknown): value is number {
+  return isPositiveInteger(value) && value <= POSTGRES_INTEGER_MAX
+}
+
+function isPositiveFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+function isCatchupStrategy(value: unknown): value is 'parallel' | 'sequential' {
+  return value === 'parallel' || value === 'sequential'
+}
+
+function isDateOnlyString(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return false
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
 function todayString(): string {
@@ -66,33 +94,6 @@ async function getMissedSchedules(
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as CreateCatchupRequestBody
-    const {
-      planId,
-      strategy = 'parallel',
-      targetDate,
-      maxDailyReadings = 3,
-      maxDailyChapters = 5,
-      weekendMultiplier = 1.5,
-    } = body
-
-    if (!planId || !targetDate) {
-      return NextResponse.json({ error: 'planId and targetDate are required' }, { status: 400 })
-    }
-
-    if (!['parallel', 'sequential'].includes(strategy)) {
-      return NextResponse.json({ error: 'Invalid strategy' }, { status: 400 })
-    }
-
-    if (maxDailyReadings <= 0 || maxDailyChapters <= 0 || weekendMultiplier <= 0) {
-      return NextResponse.json({ error: 'Invalid numeric settings' }, { status: 400 })
-    }
-
-    const target = new Date(`${targetDate}T00:00:00`)
-    if (Number.isNaN(target.getTime())) {
-      return NextResponse.json({ error: 'Invalid targetDate' }, { status: 400 })
-    }
-
     const supabase = await createClient()
     const {
       data: { user },
@@ -103,6 +104,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const parseResult = await parseJsonBody<unknown>(request)
+    if (!parseResult.ok) return parseResult.response
+
+    const body = parseResult.body
+    if (!isRecord(body)) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    const planId = body.planId
+    const targetDate = body.targetDate
+    const strategy = body.strategy === undefined ? 'parallel' : body.strategy
+    const maxDailyReadings = body.maxDailyReadings === undefined ? 3 : body.maxDailyReadings
+    const maxDailyChapters = body.maxDailyChapters === undefined ? 5 : body.maxDailyChapters
+    const weekendMultiplier = body.weekendMultiplier === undefined ? 1.5 : body.weekendMultiplier
+
+    if (!isPositiveInteger(planId)) {
+      return NextResponse.json({ error: 'planId must be a positive integer' }, { status: 400 })
+    }
+
+    if (!isDateOnlyString(targetDate)) {
+      return NextResponse.json({ error: 'targetDate must be YYYY-MM-DD' }, { status: 400 })
+    }
+
+    if (!isCatchupStrategy(strategy)) {
+      return NextResponse.json({ error: 'Invalid strategy' }, { status: 400 })
+    }
+
+    if (!isPositivePostgresInteger(maxDailyReadings) || !isPositivePostgresInteger(maxDailyChapters) || !isPositiveFiniteNumber(weekendMultiplier)) {
+      return NextResponse.json({ error: 'Invalid numeric settings' }, { status: 400 })
+    }
+
+    const target = new Date(`${targetDate}T00:00:00`)
     const repositories = createServerRepositories(supabase)
     const subscriptions = await repositories.plan.getUserSubscriptions()
     const selectedSubscription = subscriptions.find((subscription) => subscription.planId === planId)
@@ -159,6 +192,10 @@ export async function POST(request: Request) {
       })
       .select('*')
       .single()
+
+    if (createSessionError?.code === '23505') {
+      return NextResponse.json({ error: 'Active catchup session already exists' }, { status: 409 })
+    }
 
     if (createSessionError || !createdSession) {
       return NextResponse.json({ error: 'Failed to create catchup session' }, { status: 500 })

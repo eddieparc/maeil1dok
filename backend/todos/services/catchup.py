@@ -89,7 +89,10 @@ def calculate_catchup_schedule(
         # 오늘의 읽기량 제한
         daily_limit = max_daily_readings
         if is_weekend and daily_limit and weekend_multiplier:
-            daily_limit = int(daily_limit * weekend_multiplier)
+            # 주말 배수가 적용돼도 하루 한도는 최소 1로 유지한다.
+            # (floor가 0이 되면 '한도 없음'으로 오인돼 주말 하루에 밀린 분량이
+            #  전부 쏟아지는 버그가 있었다)
+            daily_limit = max(1, int(daily_limit * weekend_multiplier))
 
         today_items = []
         today_chapters = 0
@@ -106,8 +109,11 @@ def calculate_catchup_schedule(
             if max_daily_chapters:
                 chapter_limit = max_daily_chapters
                 if is_weekend and weekend_multiplier:
-                    chapter_limit = int(chapter_limit * weekend_multiplier)
-                if today_chapters + chapters > chapter_limit:
+                    chapter_limit = max(1, int(chapter_limit * weekend_multiplier))
+                # 하루에 최소 한 개는 배치해 진도가 반드시 전진하도록 한다.
+                # (단일 스케줄의 장 수가 하루 장 수 한도보다 크면 영원히 배치되지
+                #  못하고 remaining으로 조용히 사라지던 버그를 방지)
+                if today_items and today_chapters + chapters > chapter_limit:
                     break
 
             today_items.append(schedule)
@@ -163,6 +169,77 @@ def copy_completed_progress(subscription: PlanSubscription, session: CatchupSess
         session=session,
         original_schedule_id__in=completed_schedule_ids
     ).update(is_completed=True, completed_at=timezone.now())
+
+
+def sync_original_progress(subscription, original_schedule, is_completed, completed_at):
+    """
+    Keep the canonical UserBibleProgress row aligned with a catchup toggle.
+
+    Returns True only when the canonical progress row transitions from incomplete
+    to completed, so callers can avoid duplicate completion notifications.
+    """
+    progress, created = UserBibleProgress.objects.get_or_create(
+        subscription=subscription,
+        schedule=original_schedule,
+        defaults={
+            'is_completed': is_completed,
+            'completed_at': completed_at if is_completed else None,
+        }
+    )
+
+    if created:
+        return is_completed
+
+    transitioned_to_completed = is_completed and not progress.is_completed
+    update_fields = []
+
+    if progress.is_completed != is_completed:
+        progress.is_completed = is_completed
+        update_fields.append('is_completed')
+
+    if is_completed:
+        if progress.completed_at is None:
+            progress.completed_at = completed_at
+            update_fields.append('completed_at')
+    elif progress.completed_at is not None:
+        progress.completed_at = None
+        update_fields.append('completed_at')
+
+    if update_fields:
+        progress.save(update_fields=update_fields + ['updated_at'])
+
+    return transitioned_to_completed
+
+
+def sync_catchup_schedules(subscription, schedules, is_completed, completed_at):
+    """
+    Propagate a main-flow reading toggle to the CatchupSchedule rows of the
+    subscription's *active* catchup sessions (original -> catchup direction).
+
+    Keeps the denormalized CatchupSchedule.is_completed/completed_at in sync with
+    the canonical UserBibleProgress so catchup detail/status endpoints cannot
+    diverge from the main reading flow. Only rows in active sessions are touched;
+    completed/abandoned sessions and other users' sessions stay frozen. Never
+    mutates CatchupSession.status (session completion stays user-explicit).
+    """
+    base = CatchupSchedule.objects.filter(
+        session__subscription=subscription,
+        session__status='active',
+        original_schedule__in=schedules,
+    )
+
+    if is_completed:
+        # Preserve the first-completion timestamp on already-completed rows,
+        # mirroring the main-flow semantics in update_bible_progress.
+        base.filter(is_completed=False).update(
+            is_completed=True,
+            completed_at=completed_at,
+        )
+    else:
+        base.filter(is_completed=True).update(
+            is_completed=False,
+            completed_at=None,
+        )
 
 
 def get_celebration_data(session: CatchupSession) -> dict:

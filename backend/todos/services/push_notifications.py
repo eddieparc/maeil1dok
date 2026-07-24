@@ -6,6 +6,7 @@ from typing import Protocol
 from django.conf import settings as django_settings
 from django.db import models
 from django.utils import timezone
+from config.observability import capture_observability_event
 
 from todos.models import Notification, NotificationPushSubscription, NotificationSettings
 
@@ -60,9 +61,12 @@ def deliver_push_notification(notification_id):
                 last_success_at=timezone.now(),
             )
             sent += 1
+            _record_push_outcome('accepted', subscription, notification)
         except PushDeliveryError as exc:
             failed += 1
+            outcome = _classify_push_failure(exc)
             _handle_push_failure(subscription, exc)
+            _record_push_outcome(outcome, subscription, notification)
     return {'sent': sent, 'failed': failed}
 
 
@@ -115,6 +119,33 @@ def _notification_type_enabled(settings, notification_type):
     if notification_type == 'friend_activity':
         return settings.friend_activity_enabled
     return True
+
+
+def _record_push_outcome(outcome, subscription, notification):
+    capture_observability_event(
+        'Web Push delivery outcome',
+        tags={
+            'journey': 'notifications',
+            'push_outcome': outcome,
+            'notification_type': notification.type,
+        },
+        extra={
+            'subscription_id': subscription.id,
+            'notification_id': notification.id,
+            'recipient_id': notification.recipient_id,
+        },
+    )
+
+
+def _classify_push_failure(exc):
+    status_code = _push_failure_status_code(exc)
+    if status_code in {404, 410}:
+        return 'expired_subscription'
+    if status_code and 400 <= status_code < 500:
+        return 'client_error'
+    if status_code and status_code >= 500:
+        return 'server_error'
+    return 'unknown_error'
 
 
 def _handle_push_failure(subscription, exc):

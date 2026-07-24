@@ -104,9 +104,9 @@ const locationText = computed(() => {
 });
 
 const colors = [
-  '#3B82F6', // blue (기본)
+  '#2A1111', // oxblood (기본)
   '#EF4444', // red
-  '#10B981', // green
+  '#3A1A1A', // oxblood dark
   '#F59E0B', // amber
   '#8B5CF6', // purple
 ];
@@ -186,7 +186,7 @@ const save = async () => {
   background: var(--color-bg-primary, #f9fafb);
   border-radius: 8px;
   margin-bottom: 1.25rem;
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-size: 0.9375rem;
   font-weight: 500;
 }
@@ -218,8 +218,8 @@ const save = async () => {
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--primary-color, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--primary-color, #2A1111);
+  box-shadow: 0 0 0 3px rgba(42, 17, 17, 0.1);
 }
 
 .form-group textarea {
@@ -278,7 +278,7 @@ const save = async () => {
 }
 
 .btn-confirm {
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   color: white;
   border: none;
   display: flex;
@@ -288,7 +288,7 @@ const save = async () => {
 }
 
 .btn-confirm:hover:not(:disabled) {
-  background: var(--primary-dark, #4f46e5);
+  background: var(--primary-dark, #3A1A1A);
 }
 
 .btn-confirm:disabled {

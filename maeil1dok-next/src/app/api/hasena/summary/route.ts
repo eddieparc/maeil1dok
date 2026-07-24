@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const videoId = request.nextUrl.searchParams.get('videoId')
+  const videoId = request.nextUrl.searchParams.get('videoId')?.trim()
   if (!videoId) {
     return NextResponse.json({ error: 'videoId required' }, { status: 400 })
   }
@@ -18,9 +18,13 @@ export async function GET(request: NextRequest) {
     .from('hasena_summaries')
     .select('id, video_id, video_date, title, summary, transcript, model_used, is_edited, created_at, updated_at')
     .eq('video_id', videoId)
-    .single()
+    .maybeSingle()
 
-  if (queryError || !cached) {
+  if (queryError) {
+    return NextResponse.json({ error: 'Failed to load Hasena summary' }, { status: 500 })
+  }
+
+  if (!cached) {
     return NextResponse.json({ error: 'Summary not available yet' }, { status: 404 })
   }
 

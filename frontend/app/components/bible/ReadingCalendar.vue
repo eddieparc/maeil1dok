@@ -52,6 +52,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { toLocalDateString } from '~/utils/dateFormat';
 
 const props = defineProps<{
   readingDates: string[];
@@ -144,9 +145,7 @@ const calendarDays = computed(() => {
   return days;
 });
 
-const formatDate = (date: Date): string => {
-  return date.toISOString().split('T')[0];
-};
+const formatDate = (date: Date): string => toLocalDateString(date);
 </script>
 
 <style scoped>
@@ -236,7 +235,7 @@ const formatDate = (date: Date): string => {
 }
 
 .calendar-day.today .day-number {
-  color: var(--primary-color, #6366f1);
+  color: var(--primary-color, #2A1111);
   font-weight: 600;
 }
 
@@ -259,7 +258,7 @@ const formatDate = (date: Date): string => {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--color-success, #10b981);
+  background: var(--color-success, #2A1111);
 }
 
 .calendar-legend {
@@ -282,7 +281,7 @@ const formatDate = (date: Date): string => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-success, #10b981);
+  background: var(--color-success, #2A1111);
 }
 
 /* 다크모드 */
@@ -304,7 +303,7 @@ const formatDate = (date: Date): string => {
 }
 
 :root.dark .calendar-day.has-reading {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(42, 17, 17, 0.2);
 }
 
 :root.dark .calendar-legend {

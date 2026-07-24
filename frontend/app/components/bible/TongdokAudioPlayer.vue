@@ -439,8 +439,8 @@ onBeforeUnmount(() => {
   min-height: 24px;
   padding: 0 0.5rem;
   border-radius: 999px;
-  background: rgba(75, 159, 126, 0.1);
-  color: var(--color-accent-primary, #4b9f7e);
+  background: rgba(42, 17, 17, 0.1);
+  color: var(--color-accent-primary, #2A1111);
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
@@ -474,8 +474,8 @@ onBeforeUnmount(() => {
 
 .player-speed-option:hover,
 .player-speed-option.selected {
-  background: rgba(75, 159, 126, 0.12);
-  color: var(--color-accent-primary, #4b9f7e);
+  background: rgba(42, 17, 17, 0.12);
+  color: var(--color-accent-primary, #2A1111);
 }
 
 .youtube-player-host,
@@ -520,8 +520,8 @@ onBeforeUnmount(() => {
   inset: 0 auto 0 0;
   width: 0;
   border-radius: inherit;
-  background: var(--color-success, #10b981);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35);
+  background: var(--color-success, #2A1111);
+  box-shadow: 0 0 8px rgba(42, 17, 17, 0.35);
   transition: width 0.25s linear;
 }
 
@@ -541,8 +541,8 @@ onBeforeUnmount(() => {
   place-items: center;
   flex-shrink: 0;
   border-radius: 999px;
-  background: rgba(75, 159, 126, 0.1);
-  color: var(--color-accent-primary, #4b9f7e);
+  background: rgba(42, 17, 17, 0.1);
+  color: var(--color-accent-primary, #2A1111);
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
@@ -570,8 +570,8 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   padding: 0.28rem 0.45rem;
   border-radius: 7px;
-  background: rgba(75, 159, 126, 0.1);
-  color: var(--color-accent-primary, #4b9f7e);
+  background: rgba(42, 17, 17, 0.1);
+  color: var(--color-accent-primary, #2A1111);
   font-size: 0.7rem;
   font-weight: 800;
   line-height: 1;
@@ -588,7 +588,7 @@ onBeforeUnmount(() => {
 }
 
 [data-theme="dark"] .player-control {
-  background: rgba(75, 159, 126, 0.18);
+  background: rgba(42, 17, 17, 0.18);
 }
 
 [data-theme="dark"] .player-speed-trigger,

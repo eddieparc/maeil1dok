@@ -75,17 +75,28 @@ class HasenaEntryApiTest(TestCase):
         }])
 
     @patch("todos.services.hasena_entry_service.sync_hasena_entries")
-    def test_hasena_calendar_syncs_when_month_cache_is_sparse(self, sync_entries):
+    def test_hasena_calendar_returns_sparse_cache_without_sync(self, sync_entries):
         sync_entries.return_value = {"success": True, "synced": ["2026-06-25"], "skipped": []}
 
         response = self.client.get("/api/v1/todos/hasena/calendar/?year=2026&month=6")
 
         self.assertEqual(response.status_code, 200)
-        sync_entries.assert_called_once_with(max_entries=40)
+        sync_entries.assert_not_called()
+        self.assertEqual(len(response.data["entries"]), 1)
+
+    @patch("todos.services.hasena_entry_service.sync_hasena_entries")
+    def test_public_hasena_calendar_does_not_sync_sparse_cache(self, sync_entries):
+        response = self.client.get("/api/v1/todos/hasena/calendar/?year=2026&month=6")
+
+        self.assertEqual(response.status_code, 200)
+        sync_entries.assert_not_called()
+        self.assertEqual(len(response.data["entries"]), 1)
 
     @patch("todos.services.hasena_entry_service.requests.get")
     @patch("todos.services.hasena_entry_service.get_recent_hasena_videos")
-    def test_hasena_day_syncs_missing_cached_entry(self, recent_videos, fetch):
+    def test_hasena_entry_service_syncs_missing_cached_entry(self, recent_videos, fetch):
+        from todos.services.hasena_entry_service import ensure_hasena_entry
+
         recent_videos.return_value = [{
             "video_id": "CkJhOAlhlgA",
             "title": "2026년 6월 26일 금요일 하세나하시조",
@@ -102,8 +113,18 @@ class HasenaEntryApiTest(TestCase):
             raise_for_status=Mock(),
         )
 
+        entry = ensure_hasena_entry(date(2026, 6, 26))
+
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.video_id, "CkJhOAlhlgA")
+        self.assertTrue(HasenaEntry.objects.filter(date=date(2026, 6, 26)).exists())
+
+    @patch("todos.services.hasena_entry_service.ensure_hasena_entry")
+    def test_public_hasena_day_returns_latest_cached_entry_for_missing_date(self, ensure_entry):
+        ensure_entry.return_value = self.entry
+
         response = self.client.get("/api/v1/todos/hasena/day/?date=2026-06-26")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["entry"]["video_id"], "CkJhOAlhlgA")
-        self.assertTrue(HasenaEntry.objects.filter(date=date(2026, 6, 26)).exists())
+        ensure_entry.assert_called_once_with(date(2026, 6, 26))
+        self.assertEqual(response.data["entry"]["date"], "2026-06-25")

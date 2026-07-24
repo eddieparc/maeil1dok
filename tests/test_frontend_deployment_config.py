@@ -17,6 +17,25 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
             self.assertIn("internalApiBase", source)
             self.assertNotIn("http://localhost:8019", source)
 
+    def test_health_route_validates_public_api_base(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        source = (
+            repo_root / "frontend" / "server" / "api" / "health.get.ts"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("useRuntimeConfig", source)
+        self.assertIn("public", source)
+        self.assertIn("apiBase", source)
+        self.assertIn("internalApiBase", source)
+        self.assertIn("localhost", source)
+        self.assertIn("127.", source)
+        self.assertIn("0.0.0.0", source)
+        self.assertIn("::1", source)
+        self.assertIn("setResponseStatus", source)
+        self.assertIn("api_base", source)
+        self.assertIn("internal_api_base", source)
+        self.assertIn("public_origin", source)
+
     def test_frontend_uses_railway_safe_runtime_config(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(

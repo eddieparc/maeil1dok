@@ -16,6 +16,18 @@ export const saveCsrfToken = (token: string): void => {
   }
 }
 
+// 204/205(No Content) 응답은 본문이 비어 있어 response.json() 호출 시
+// "Unexpected end of JSON input" SyntaxError가 발생한다. 삭제(DELETE)류
+// 엔드포인트는 대부분 204를 반환하므로, 성공했는데도 예외로 처리되어
+// 에러 토스트가 뜨고 로컬 상태 정리가 중단되는 버그를 막기 위해
+// 본문 없는 응답은 null로 안전하게 파싱한다.
+export const readJsonBody = async (response: { status: number; json: () => Promise<any> }): Promise<any> => {
+  if (response.status === 204 || response.status === 205) {
+    return null
+  }
+  return response.json()
+}
+
 export const useApi = () => {
   const config = useRuntimeConfig()
 
@@ -93,7 +105,21 @@ export const useApi = () => {
           const isMutatingMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(
             (options.method || 'GET').toUpperCase()
           )
-          options.headers = getHeaders(isMutatingMethod)
+          // 재시도 시 원래 요청 헤더를 보존한다.
+          // getHeaders()로 통째로 교체하면 FormData 업로드처럼
+          // Content-Type을 일부러 비워둔 요청이 application/json으로 덮여
+          // multipart 경계(boundary)가 사라지고 백엔드 파싱이 깨진다.
+          // 따라서 갱신이 필요한 CSRF 토큰만 변형 메서드에 한해 다시 반영한다.
+          if (isMutatingMethod) {
+            const retryHeaders: Record<string, string> = {
+              ...(options.headers as Record<string, string> | undefined),
+            }
+            const refreshedCsrfToken = getCsrfToken()
+            if (refreshedCsrfToken) {
+              retryHeaders['X-CSRFToken'] = refreshedCsrfToken
+            }
+            options.headers = retryHeaders
+          }
           response = await fetch(url, options)
           
           const retryTokenFromHeader = response.headers.get('X-CSRFToken')
@@ -167,7 +193,7 @@ export const useApi = () => {
         credentials: 'include'
       }, requiresAuth && !isAuthCheckEndpoint)
 
-      const data = await response.json()
+      const data = await readJsonBody(response)
       return { data }
     } catch (error) {
       throw error
@@ -212,7 +238,7 @@ export const useApi = () => {
         credentials: 'include'
       }, requiresAuth)
 
-      return response.json()
+      return readJsonBody(response)
     } catch (error) {
       throw error
     }
@@ -229,7 +255,7 @@ export const useApi = () => {
         credentials: 'include'
       })
 
-      return await response.json();
+      return await readJsonBody(response);
     } catch (error) {
       throw error;
     }
@@ -246,7 +272,7 @@ export const useApi = () => {
         credentials: 'include'
       })
 
-      return await response.json();
+      return await readJsonBody(response);
     } catch (error) {
       throw error;
     }
@@ -264,7 +290,7 @@ export const useApi = () => {
           headers: getHeaders(true),
           credentials: 'include'
         })
-        return response.json()
+        return readJsonBody(response)
       } catch (error) {
         throw error
       }
@@ -283,7 +309,7 @@ export const useApi = () => {
           body: formData,
           credentials: 'include'
         })
-        return response.json()
+        return readJsonBody(response)
       } catch (error) {
         throw error
       }

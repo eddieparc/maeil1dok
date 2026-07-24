@@ -162,7 +162,7 @@ function cleanup() {
 
 .tip-progress-bar {
   height: 100%;
-  background: var(--primary-color, #6366f1);
+  background: var(--primary-color, #2A1111);
   transition: width 0.05s linear;
 }
 

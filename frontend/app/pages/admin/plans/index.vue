@@ -331,8 +331,8 @@
           
           <!-- 엑셀 파일 안내 -->
           <div class="info-box">
-            <p class="text-sm font-medium text-blue-800 mb-2">엑셀 파일 작성 방법:</p>
-            <ul class="text-xs text-blue-700 space-y-1 pl-4 list-disc">
+            <p class="text-sm font-medium text-[var(--color-accent-primary)] mb-2">엑셀 파일 작성 방법:</p>
+            <ul class="text-xs text-[var(--color-accent-primary)] space-y-1 pl-4 list-disc">
               <li>필수 컬럼: <strong>날짜, 성경, 시작장, 끝장</strong> (정확히 이 이름으로 작성)</li>
               <li>선택 컬럼: <strong>오디오, 가이드</strong> (URL 링크)</li>
               <li>날짜 형식: 다음 형식 모두 지원
@@ -345,7 +345,7 @@
               <li>URL은 반드시 <strong>http://</strong> 또는 <strong>https://</strong>로 시작해야 함</li>
             </ul>
             <div class="mt-3">
-              <a href="/sample-schedule.xlsx" class="text-xs text-blue-600 flex items-center hover:underline" target="_blank" rel="noopener noreferrer">
+              <a href="/sample-schedule.xlsx" class="text-xs text-[var(--color-accent-primary)] flex items-center hover:underline" target="_blank" rel="noopener noreferrer">
                 <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z"

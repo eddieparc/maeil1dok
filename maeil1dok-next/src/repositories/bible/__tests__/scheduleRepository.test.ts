@@ -124,6 +124,13 @@ describe('scheduleRepository', () => {
 
     expect(next.data).toEqual({ book: 'gen', chapter: 2, schedule_id: 's2' })
     expect(completed.data).toEqual({ success: true })
-    expect(progressQuery.upsert).toHaveBeenCalled()
+    expect(progressQuery.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscription_id: 'sub1',
+        schedule_id: 's1',
+        is_completed: true,
+      }),
+      { onConflict: 'subscription_id,schedule_id' }
+    )
   })
 })

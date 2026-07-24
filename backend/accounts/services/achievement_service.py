@@ -56,13 +56,13 @@ class AchievementService:
                                                       details={'books': book_completed}):
                 granted.append('book_complete')
 
-        testament_completed = AchievementService._check_testament_completion(user)
+        testament_completed = AchievementService._check_testament_completion(user, book_completed)
         if testament_completed:
             if AchievementService._grant_achievement(user, 'testament_complete', len(testament_completed),
                                                       details={'testaments': testament_completed}):
                 granted.append('testament_complete')
 
-        if AchievementService._check_bible_completion(user):
+        if AchievementService._check_bible_completion(user, book_completed):
             if AchievementService._grant_achievement(user, 'bible_complete', 66):
                 granted.append('bible_complete')
 
@@ -112,12 +112,15 @@ class AchievementService:
         max_days = 366
         checked = 0
 
-        while checked < max_days:
-            completed = UserBibleProgress.objects.filter(
+        completed_dates = set(
+            UserBibleProgress.objects.filter(
                 subscription__user=user,
                 is_completed=True,
-                schedule__date=current_date
-            ).exists()
+            ).values_list('schedule__date', flat=True)
+        )
+
+        while checked < max_days:
+            completed = current_date in completed_dates
 
             if not completed:
                 # 오늘이면 어제부터 확인
@@ -173,36 +176,45 @@ class AchievementService:
             is_active=True
         ).values_list('plan_id', flat=True)
 
-        # 각 책에 대해 모든 장을 읽었는지 확인하기 어려우므로,
-        # 플랜의 해당 책 스케줄을 모두 완료했는지 확인
+        if not completed_books_set:
+            return []
+
+        totals_by_book = dict(
+            DailyBibleSchedule.objects.filter(
+                plan_id__in=active_plan_ids,
+                book__in=completed_books_set
+            ).values('book').annotate(total=Count('id')).values_list('book', 'total')
+        )
+
+        completed_by_book = dict(
+            UserBibleProgress.objects.filter(
+                subscription__user=user,
+                subscription__is_active=True,
+                is_completed=True,
+                schedule__book__in=completed_books_set
+            ).values('schedule__book').annotate(done=Count('id')).values_list(
+                'schedule__book',
+                'done',
+            )
+        )
+
         completed_full_books = []
-
         for book in ALL_BIBLE_BOOKS:
-            if book in completed_books_set:
-                # 해당 책의 스케줄 중 완료한 것의 비율 확인
-                total_schedules = DailyBibleSchedule.objects.filter(
-                    book=book,
-                    plan_id__in=active_plan_ids
-                ).distinct().count()
-
-                if total_schedules > 0:
-                    completed_schedules = UserBibleProgress.objects.filter(
-                        subscription__user=user,
-                        subscription__is_active=True,
-                        is_completed=True,
-                        schedule__book=book
-                    ).distinct().count()
-
-                    # 해당 책의 모든 스케줄을 완료했으면 완독으로 인정
-                    if completed_schedules >= total_schedules:
-                        completed_full_books.append(book)
+            total_schedules = totals_by_book.get(book, 0)
+            if (
+                book in completed_books_set
+                and total_schedules > 0
+                and completed_by_book.get(book, 0) >= total_schedules
+            ):
+                completed_full_books.append(book)
 
         return completed_full_books
 
     @staticmethod
-    def _check_testament_completion(user):
+    def _check_testament_completion(user, completed_books=None):
         """구약/신약 완독 확인"""
-        completed_books = AchievementService._check_book_completion(user)
+        if completed_books is None:
+            completed_books = AchievementService._check_book_completion(user)
         completed_books_set = set(completed_books)
 
         result = []
@@ -220,9 +232,10 @@ class AchievementService:
         return result
 
     @staticmethod
-    def _check_bible_completion(user):
+    def _check_bible_completion(user, completed_books=None):
         """성경 전체 완독 확인"""
-        completed_books = AchievementService._check_book_completion(user)
+        if completed_books is None:
+            completed_books = AchievementService._check_book_completion(user)
         all_books_set = set(ALL_BIBLE_BOOKS)
         completed_books_set = set(completed_books)
 

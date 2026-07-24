@@ -151,4 +151,23 @@ export class SupabaseProgressRepository implements IProgressRepository {
 
     return (data ?? []).map(mapProgress)
   }
+
+  async bulkGetProgressForSubscriptions(
+    subscriptionIds: string[],
+    scheduleIds: string[],
+  ): Promise<UserProgress[]> {
+    const uniqueSubscriptionIds = [...new Set(subscriptionIds)]
+    const uniqueScheduleIds = [...new Set(scheduleIds)]
+    if (uniqueSubscriptionIds.length === 0 || uniqueScheduleIds.length === 0) return []
+
+    const { data, error } = await this.supabase
+      .from('user_progress')
+      .select('*')
+      .in('subscription_id', uniqueSubscriptionIds)
+      .in('schedule_id', uniqueScheduleIds)
+
+    if (error) throw new NetworkError(error.message, error)
+
+    return (data ?? []).map(mapProgress)
+  }
 }

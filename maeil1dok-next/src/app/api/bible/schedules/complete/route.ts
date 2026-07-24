@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { parseJsonBody } from '@/lib/api/parseJsonBody'
 
 export async function POST(request: Request) {
   try {
@@ -13,11 +14,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = (await request.json()) as {
+    const parseResult = await parseJsonBody<{
       schedule_id?: string
       subscription_id?: string
+    }>(request)
+
+    if (!parseResult.ok) {
+      return parseResult.response
     }
-    const { schedule_id, subscription_id } = body
+
+    const { schedule_id, subscription_id } = parseResult.body
 
     if (!schedule_id || !subscription_id) {
       return NextResponse.json(
@@ -26,16 +32,29 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verify subscription belongs to user
+    // Verify active subscription and active plan belong to user
     const { data: subscription, error: subError } = await supabase
       .from('plan_subscriptions')
-      .select('id')
+      .select('id,plan_id,bible_reading_plans!inner(is_active)')
       .eq('id', subscription_id)
       .eq('user_id', user.id)
+      .eq('is_active', true)
+      .eq('bible_reading_plans.is_active', true)
       .single()
 
     if (subError || !subscription) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
+    }
+
+    const { data: schedule, error: scheduleError } = await supabase
+      .from('daily_schedules')
+      .select('id')
+      .eq('id', schedule_id)
+      .eq('plan_id', subscription.plan_id)
+      .single()
+
+    if (scheduleError || !schedule) {
+      return NextResponse.json({ error: 'Schedule not found' }, { status: 404 })
     }
 
     // Upsert progress: mark as completed

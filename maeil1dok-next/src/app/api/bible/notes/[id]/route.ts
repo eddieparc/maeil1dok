@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { parseJsonBody } from '@/lib/api/parseJsonBody'
 import type { Database } from '@/lib/supabase/database.types'
 
 type NoteUpdate = Database['public']['Tables']['reflection_notes']['Update']
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+}
 
 export async function GET(
   request: Request,
@@ -54,14 +67,53 @@ export async function PATCH(
     }
 
     const { id } = await params
-    const body = (await request.json()) as Partial<NoteUpdate>
+
+    const parseResult = await parseJsonBody<unknown>(request)
+    if (!parseResult.ok) {
+      return parseResult.response
+    }
+
+    const body = parseResult.body
+    if (!isRecord(body)) {
+      return NextResponse.json({ error: 'Request body must be an object' }, { status: 400 })
+    }
+
     const { content, is_private, start_verse, end_verse } = body
 
     const updateData: NoteUpdate = {}
-    if (content !== undefined) updateData.content = content
-    if (is_private !== undefined) updateData.is_private = is_private
-    if (start_verse !== undefined) updateData.start_verse = start_verse
-    if (end_verse !== undefined) updateData.end_verse = end_verse
+
+    if (content !== undefined) {
+      if (!isNonEmptyString(content)) {
+        return NextResponse.json({ error: 'content must be a non-empty string' }, { status: 400 })
+      }
+      updateData.content = content
+    }
+
+    if (is_private !== undefined) {
+      if (typeof is_private !== 'boolean') {
+        return NextResponse.json({ error: 'is_private must be a boolean' }, { status: 400 })
+      }
+      updateData.is_private = is_private
+    }
+
+    if (start_verse !== undefined || end_verse !== undefined) {
+      const bothNull = start_verse === null && end_verse === null
+      const bothPositive =
+        isPositiveInteger(start_verse) &&
+        isPositiveInteger(end_verse) &&
+        end_verse >= start_verse
+
+      if (!bothNull && !bothPositive) {
+        return NextResponse.json(
+          { error: 'start_verse and end_verse must both be null or positive ordered integers' },
+          { status: 400 }
+        )
+      }
+
+      updateData.start_verse = start_verse as number | null
+      updateData.end_verse = end_verse as number | null
+    }
+
     updateData.updated_at = new Date().toISOString()
 
     const { data, error: updateError } = await supabase

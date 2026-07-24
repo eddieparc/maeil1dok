@@ -1,15 +1,31 @@
-from django.db import models
+import time as time_module
+
+from django.db import IntegrityError, OperationalError, models, transaction
 from django.utils import timezone
 from django.conf import settings
 
 from django.core.exceptions import ValidationError
 from datetime import time
 
+VISITOR_COUNT_INCREMENT_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
+
 class BibleReadingPlan(models.Model):
     """성경 읽기 플랜"""
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     is_default = models.BooleanField(default=False)
+    default_plan_identity = models.GeneratedField(
+        expression=models.Case(
+            models.When(is_default=True, then=models.Value(1)),
+            default=models.Value(None),
+            output_field=models.IntegerField(null=True),
+        ),
+        output_field=models.IntegerField(null=True),
+        db_persist=True,
+        unique=True,
+        null=True,
+        editable=False,
+    )
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -24,7 +40,10 @@ class BibleReadingPlan(models.Model):
                 return
         
         # 일반적인 저장 로직
-        self.full_clean()
+        # default_plan_identity는 DB에서 계산되는 GeneratedField이므로
+        # 미저장 인스턴스에서는 읽을 수 없다. unique 보장은 DB 인덱스가 담당하므로
+        # Python 측 검증에서는 제외한다.
+        self.full_clean(exclude=['default_plan_identity'])
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -61,6 +80,12 @@ class DailyBibleSchedule(models.Model):
     
     class Meta:
         ordering = ['date']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['plan', 'date', 'book'],
+                name='unique_schedule_per_plan_date_book',
+            ),
+        ]
         indexes = [
             models.Index(fields=['plan', 'date'], name='schedule_plan_date_idx'),
         ]
@@ -69,15 +94,35 @@ class DailyBibleSchedule(models.Model):
         return f"{self.plan.name} - {self.date}: {self.book} {self.start_chapter}-{self.end_chapter}장"
 
     def clean(self):
+        errors = {}
+
+        if self.start_chapter is not None and self.start_chapter < 1:
+            errors['start_chapter'] = '시작장은 1 이상이어야 합니다.'
+
+        if self.end_chapter is not None and self.end_chapter < 1:
+            errors['end_chapter'] = '끝장은 1 이상이어야 합니다.'
+
+        if (
+            self.start_chapter is not None
+            and self.end_chapter is not None
+            and self.start_chapter >= 1
+            and self.end_chapter >= 1
+            and self.end_chapter < self.start_chapter
+        ):
+            errors['end_chapter'] = '끝장은 시작장보다 작을 수 없습니다.'
+
         # 동일한 플랜, 날짜, 책 조합이 이미 존재하는지 확인
         exists = DailyBibleSchedule.objects.filter(
             plan=self.plan,
             date=self.date,
             book=self.book
         ).exclude(pk=self.pk).exists()
-        
+
         if exists:
-            raise ValidationError('동일한 플랜, 날짜, 책 조합의 스케줄이 이미 존재합니다.')
+            errors['__all__'] = '동일한 플랜, 날짜, 책 조합의 스케줄이 이미 존재합니다.'
+
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -388,16 +433,34 @@ class VisitorCount(models.Model):
     def increment_daily_count(cls):
         """오늘의 방문자 수 증가"""
         today = timezone.now().date()
-        visitor_count, created = cls.objects.get_or_create(
-            date=today,
-            defaults={'daily_count': 1}
-        )
-        if not created:
-            # F() 표현식 대신 실제 값을 가져와서 증가
-            cls.objects.filter(id=visitor_count.id).update(daily_count=models.F('daily_count') + 1)
-            # 업데이트된 객체 다시 조회
+        for delay in VISITOR_COUNT_INCREMENT_RETRY_DELAYS:
+            if delay:
+                time_module.sleep(delay)
+            try:
+                with transaction.atomic():
+                    visitor_count, _ = cls.objects.get_or_create(
+                        date=today,
+                        defaults={'daily_count': 0}
+                    )
+                    cls.objects.filter(id=visitor_count.id).update(
+                        daily_count=models.F('daily_count') + 1
+                    )
+                    visitor_count.refresh_from_db()
+                    return visitor_count
+            except IntegrityError:
+                continue
+            except OperationalError as exc:
+                if 'locked' not in str(exc).lower():
+                    raise
+
+        visitor_count = cls.objects.filter(date=today).first()
+        if visitor_count:
+            cls.objects.filter(id=visitor_count.id).update(
+                daily_count=models.F('daily_count') + 1
+            )
             visitor_count.refresh_from_db()
-        return visitor_count
+            return visitor_count
+        raise OperationalError("Could not increment visitor count because the database stayed locked.")
 
     @classmethod
     def get_total_visitors(cls):
@@ -420,7 +483,10 @@ class ReadingGroup(models.Model):
         help_text="그룹이 따르는 읽기 플랜들 (복수 선택 가능)"
     )
     is_public = models.BooleanField(default=False, help_text="공개 그룹 여부")
-    max_members = models.IntegerField(default=50, help_text="최대 멤버 수")
+    max_members = models.IntegerField(
+        default=50,
+        help_text="최대 멤버 수 (1-10000)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -429,6 +495,12 @@ class ReadingGroup(models.Model):
         indexes = [
             models.Index(fields=['is_public']),
             models.Index(fields=['creator', '-created_at']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(max_members__gte=1, max_members__lte=10000),
+                name='readinggroup_max_members_range',
+            ),
         ]
 
     def __str__(self):
@@ -744,6 +816,18 @@ class CatchupSession(models.Model):
         on_delete=models.CASCADE,
         related_name='catchup_sessions',
         help_text="따라잡기 대상 구독"
+    )
+    active_subscription_identity = models.GeneratedField(
+        expression=models.Case(
+            models.When(status='active', then='subscription_id'),
+            default=models.Value(None),
+            output_field=models.IntegerField(null=True),
+        ),
+        output_field=models.IntegerField(null=True),
+        db_persist=True,
+        unique=True,
+        null=True,
+        editable=False,
     )
     name = models.CharField(
         max_length=100,

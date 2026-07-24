@@ -8,11 +8,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from bible_cache.bible_reference import validate_bible_reference
 from bible_cache.services import BibleFetchService
 from bible_cache.services.bible_fetch_service import BibleFetchError, SUPPORTED_VERSIONS
 from bible_cache.services.cache_search_service import BibleCacheSearchService
 
 logger = logging.getLogger(__name__)
+
+BIBLE_FETCH_UNAVAILABLE_MESSAGE = '성경 본문을 일시적으로 가져올 수 없습니다. 잠시 후 다시 시도해주세요.'
 
 
 @api_view(['GET'])
@@ -62,17 +65,27 @@ def get_bible_content(request, version: str, book: str, chapter: int):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    if chapter < 1:
+    try:
+        book, chapter = validate_bible_reference(book, chapter)
+    except ValueError as e:
         return Response(
             {
                 'success': False,
-                'error': '장 번호는 1 이상이어야 합니다.'
+                'error': str(e)
             },
             status=status.HTTP_400_BAD_REQUEST
         )
 
     # 강제 새로고침 옵션
     force_refresh = request.query_params.get('force_refresh', 'false').lower() == 'true'
+    if force_refresh and not (request.user.is_authenticated and request.user.is_staff):
+        return Response(
+            {
+                'success': False,
+                'error': '캐시 강제 새로고침 권한이 없습니다.'
+            },
+            status=status.HTTP_403_FORBIDDEN
+        )
 
     try:
         content, content_type, from_cache = BibleFetchService.get_bible_content(
@@ -99,7 +112,7 @@ def get_bible_content(request, version: str, book: str, chapter: int):
         return Response(
             {
                 'success': False,
-                'error': str(e),
+                'error': BIBLE_FETCH_UNAVAILABLE_MESSAGE,
                 'fallback_url': _get_fallback_url(version, book, chapter)
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE
@@ -125,6 +138,17 @@ def get_cache_status(request, version: str, book: str, chapter: int):
 
     version = version.upper()
     book = book.lower()
+
+    try:
+        book, chapter = validate_bible_reference(book, chapter)
+    except ValueError as e:
+        return Response(
+            {
+                'success': False,
+                'error': str(e)
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     cached = BibleContentCache.get_cached_content(version, book, chapter)
 

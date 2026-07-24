@@ -1,9 +1,16 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from .models import Notification, NotificationPushSubscription, NotificationSettings
 from .push_endpoints import InvalidPushEndpoint, validate_push_endpoint_url
+
+PUSH_KEY_MAX_LENGTH = 255
+
+
+class PushEndpointOwnershipConflict(Exception):
+    pass
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -58,7 +65,7 @@ class NotificationSettingsSerializer(serializers.ModelSerializer):
     def validate_timezone(self, value):
         try:
             ZoneInfo(value)
-        except ZoneInfoNotFoundError:
+        except (ZoneInfoNotFoundError, ValueError, TypeError):
             raise serializers.ValidationError('지원하지 않는 시간대입니다.')
         return value
 
@@ -69,6 +76,9 @@ class NotificationPushSubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationPushSubscription
         fields = ['endpoint', 'keys']
+        extra_kwargs = {
+            'endpoint': {'validators': []},
+        }
 
     def validate_endpoint(self, value):
         try:
@@ -76,27 +86,74 @@ class NotificationPushSubscriptionSerializer(serializers.ModelSerializer):
         except InvalidPushEndpoint as exc:
             raise serializers.ValidationError(str(exc)) from exc
 
+    def _validate_key_field(self, value, field_label):
+        if not isinstance(value, str) or not value.strip():
+            raise serializers.ValidationError(f'{field_label} 키가 필요합니다.')
+        if len(value) > PUSH_KEY_MAX_LENGTH:
+            raise serializers.ValidationError(
+                f'{field_label} 키가 너무 깁니다. (최대 {PUSH_KEY_MAX_LENGTH}자)'
+            )
+
     def validate_keys(self, value):
-        p256dh = value.get('p256dh')
-        auth = value.get('auth')
-        if not isinstance(p256dh, str) or not p256dh.strip():
-            raise serializers.ValidationError('p256dh 키가 필요합니다.')
-        if not isinstance(auth, str) or not auth.strip():
-            raise serializers.ValidationError('auth 키가 필요합니다.')
+        self._validate_key_field(value.get('p256dh'), 'p256dh')
+        self._validate_key_field(value.get('auth'), 'auth')
         return value
 
     def create_or_update(self, user, user_agent=''):
         keys = self.validated_data['keys']
-        subscription, _ = NotificationPushSubscription.objects.update_or_create(
-            endpoint=self.validated_data['endpoint'],
-            defaults={
-                'user': user,
-                'p256dh': keys['p256dh'],
-                'auth': keys['auth'],
-                'user_agent': user_agent[:255],
-                'enabled': True,
-                'failure_count': 0,
-                'last_failure_at': None,
-            },
-        )
+        endpoint = self.validated_data['endpoint']
+        try:
+            return self._create_or_update_locked(user, endpoint, keys, user_agent)
+        except IntegrityError:
+            return self._resolve_endpoint_integrity_race(user, endpoint, keys, user_agent)
+
+    def _create_or_update_locked(self, user, endpoint, keys, user_agent):
+        with transaction.atomic():
+            subscription = (
+                NotificationPushSubscription.objects
+                .select_for_update()
+                .filter(endpoint=endpoint)
+                .first()
+            )
+            if subscription is None:
+                return NotificationPushSubscription.objects.create(
+                    user=user,
+                    endpoint=endpoint,
+                    p256dh=keys['p256dh'],
+                    auth=keys['auth'],
+                    user_agent=user_agent[:255],
+                )
+            if subscription.user_id != user.id:
+                raise PushEndpointOwnershipConflict
+
+            return self._update_subscription(subscription, keys, user_agent)
+
+    def _resolve_endpoint_integrity_race(self, user, endpoint, keys, user_agent):
+        with transaction.atomic():
+            subscription = (
+                NotificationPushSubscription.objects
+                .select_for_update()
+                .get(endpoint=endpoint)
+            )
+            if subscription.user_id != user.id:
+                raise PushEndpointOwnershipConflict
+
+            return self._update_subscription(subscription, keys, user_agent)
+
+    def _update_subscription(self, subscription, keys, user_agent):
+        subscription.p256dh = keys['p256dh']
+        subscription.auth = keys['auth']
+        subscription.user_agent = user_agent[:255]
+        subscription.enabled = True
+        subscription.failure_count = 0
+        subscription.last_failure_at = None
+        subscription.save(update_fields=[
+            'p256dh',
+            'auth',
+            'user_agent',
+            'enabled',
+            'failure_count',
+            'last_failure_at',
+            'updated_at',
+        ])
         return subscription
