@@ -4,6 +4,7 @@
 
 import json
 from datetime import timedelta
+from threading import Thread as RealThread  # patch('...threading.Thread') 이전 바인딩 (실제 스레드용)
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase
@@ -204,7 +205,16 @@ class BibleFetchServiceTest(TestCase):
             'bible_cache.services.bible_fetch_service.BibleFetchService._refresh_cache_from_source',
             side_effect=Exception('slow source'),
         ):
-            BibleFetchService._refresh_cache_safely('GAE', 'gen', 1, cache_key)
+            # _refresh_cache_safely 는 워커 스레드 전용(내부 close_old_connections 가
+            # 테스트 트랜잭션 커넥션을 닫아 MySQL 에서 클래스 전체를 오염시킴).
+            # 실제 스레드에서 실행하고 join 으로 결정적으로 대기한다.
+            worker = RealThread(
+                target=BibleFetchService._refresh_cache_safely,
+                args=('GAE', 'gen', 1, cache_key),
+            )
+            worker.start()
+            worker.join(timeout=10)
+            self.assertFalse(worker.is_alive())
 
         self.assertTrue(CacheRefreshCoordinator.has_recent_failure(cache_key))
 

@@ -84,6 +84,8 @@ class SettingsEnvironmentValidationTest(unittest.TestCase):
             "DB_USER": None,
             "DB_PASSWORD": None,
             "DB_HOST": None,
+            # CI 는 TEST_DB_ENGINE=mysql 로 돌지만 이 테스트는 'DB env 없는' 임포트를 검증하므로 제거
+            "TEST_DB_ENGINE": None,
         }
         return self._import_settings(settings_module, env)
 

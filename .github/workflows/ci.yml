@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  # 수동 배포 트리거 (품질 잡은 push/PR 에서만; dispatch 는 곧장 deploy-oci)
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -107,6 +109,19 @@ jobs:
       run:
         working-directory: backend
 
+    # 프로덕션과 동일한 MySQL 8 로 테스트 (레이스컨디션/제약 테스트는 실엔진 필요)
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: maeil1dok_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -uroot -proot --silent"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+
     env:
       SECRET_KEY: ci-secret-key
       DJANGO_SETTINGS_MODULE: config.test_settings
@@ -116,6 +131,12 @@ jobs:
       GOOGLE_CLIENT_SECRET: ci-google-secret
       GOOGLE_REDIRECT_URI: http://localhost/auth/google/callback
       APPLE_CLIENT_ID: ci.apple.client
+      TEST_DB_ENGINE: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: maeil1dok_ci
 
     steps:
       - uses: actions/checkout@v4
@@ -212,3 +233,57 @@ jobs:
 
       - name: Production build
         run: npm run build
+  # ── 자동 배포 (urban-blanks 패턴) ─────────────────────────────────────
+  # main push 에서 관련 품질 잡이 모두 성공하면 OCI VM 에 rsync → compose build/up → 라이브 스모크.
+  # 시크릿: OCI_HOST / OCI_SSH_USER / OCI_SSH_KEY. .env.oci·.env.frontend.oci·cloudflared 설정은 VM 에 상주.
+  deploy-oci:
+    needs: [changes, backend-ci, frontend-ci, deployment-config-ci, maeil1dok-next-ci, mobile-ci]
+    if: >-
+      !cancelled() && !failure() &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+        (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true')) ||
+       github.event_name == 'workflow_dispatch')
+    concurrency:
+      group: deploy-oci
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.OCI_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync code to VM
+        run: |
+          RSYNC_RSH="ssh -i ~/.ssh/deploy_key" rsync -az --delete \
+            --exclude='.venv' --exclude='node_modules' --exclude='.nuxt' --exclude='.output' \
+            --exclude='__pycache__' --exclude='*.pyc' --exclude='.env*' \
+            backend frontend scripts docker-compose.oci.yml \
+            "${{ secrets.OCI_SSH_USER }}@${{ secrets.OCI_HOST }}:/opt/maeil1dok/"
+
+      - name: Build and roll out
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.OCI_SSH_USER }}@${{ secrets.OCI_HOST }}" '
+            set -e
+            cd /opt/maeil1dok
+            docker compose -f docker-compose.oci.yml --env-file .env.oci build web frontend
+            docker compose -f docker-compose.oci.yml --env-file .env.oci up -d web celery-worker celery-beat frontend cloudflared
+            docker image prune -f >/dev/null
+          '
+
+      - name: Smoke test (via Cloudflare Tunnel)
+        run: |
+          sleep 15
+          for i in $(seq 1 10); do
+            api=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://api.maeil1dok.app/health/ || true)
+            fe=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://maeil1dok.app/ || true)
+            echo "attempt $i: api=/health/ $api, frontend $fe"
+            if [ "$api" = "200" ] && [ "$fe" = "200" ]; then echo "SMOKE OK"; exit 0; fi
+            sleep 10
+          done
+          echo "SMOKE FAILED"; exit 1
