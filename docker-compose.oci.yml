@@ -94,6 +94,27 @@ services:
     logging: *default-logging
     restart: unless-stopped
 
+  # 프론트엔드 (Nuxt 4 SSR) — Cloudflare Tunnel 이 maeil1dok.app/www → frontend:3000 으로 라우팅.
+  #   호스트 포트 미노출(터널만 도달). 런타임 env 는 .env.frontend.oci (secret, git 미포함, scp 배치).
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.oci
+    env_file: .env.frontend.oci
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=3000
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    mem_limit: 700m
+    cpus: 1.0
+    logging: *default-logging
+    restart: unless-stopped
   celery-worker:
     build:
       context: ./backend

@@ -157,3 +157,4 @@ maeil1dok-next/playwright-report/.auth-state.json
 
 # OCI production secrets (never commit; .example is tracked)
 .env.oci
+.env.frontend.oci
