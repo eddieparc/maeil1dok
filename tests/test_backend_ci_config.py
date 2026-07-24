@@ -54,6 +54,21 @@ class BackendCiConfigTest(unittest.TestCase):
     def test_deployment_lane_runs_backend_contract_test(self) -> None:
         self.assertIn("tests.test_backend_ci_config", self.workflow)
 
+    def test_deploy_rebuilds_and_recreates_celery_services(self) -> None:
+        compose = "docker compose -f docker-compose.oci.yml --env-file .env.oci"
+        self.assertIn(
+            f"{compose} build web celery-worker celery-beat frontend",
+            self.workflow,
+        )
+        self.assertIn(
+            f"{compose} up -d web celery-worker celery-beat frontend cloudflared",
+            self.workflow,
+        )
+
+    def test_deploy_smoke_checks_backend_readiness(self) -> None:
+        self.assertIn("https://api.maeil1dok.app/ready/", self.workflow)
+        self.assertIn('[ "$ready" = "200" ]', self.workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

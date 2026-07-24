@@ -39,8 +39,8 @@ maeil1dok 은 `maeil1dok_default` 네트워크만 사용하고, 외부 노출은
 1. 품질 게이트 — `backend-ci`(**MySQL 8 서비스 컨테이너**로 풀스위트), `frontend-ci`,
    `maeil1dok-next-ci`, `mobile-ci`, `deployment-config-ci` (변경된 경로만)
 2. `deploy-oci` — backend/frontend 변경 + 게이트 전부 그린일 때:
-   rsync(`.env*` 제외) → `compose build web frontend` → `up -d` → **터널 경유 라이브 스모크**
-   (`/health/` + 프론트 200 확인, 실패 시 잡 실패)
+   rsync(`.env*` 제외) → `compose build web celery-worker celery-beat frontend` → `up -d` → **터널 경유 라이브 스모크**
+   (`/health/` + `/ready/` + 프론트 200 확인, 실패 시 잡 실패)
 3. 수동 배포: Actions 탭 → CI → **Run workflow** (`workflow_dispatch` → 곧장 deploy-oci)
 
 리포지토리 시크릿: `OCI_HOST` / `OCI_SSH_USER` / `OCI_SSH_KEY` (배포 전용 SSH 키)
@@ -50,9 +50,10 @@ maeil1dok 은 `maeil1dok_default` 네트워크만 사용하고, 외부 노출은
 ```bash
 ssh -i ~/.ssh/oci_a1_deploy ubuntu@168.107.48.78
 cd /opt/maeil1dok
-docker compose -f docker-compose.oci.yml --env-file .env.oci build web frontend
+docker compose -f docker-compose.oci.yml --env-file .env.oci build web celery-worker celery-beat frontend
 docker compose -f docker-compose.oci.yml --env-file .env.oci up -d
-curl -s https://api.maeil1dok.app/health/   # 스모크
+curl -fsS https://api.maeil1dok.app/health/
+curl -fsS https://api.maeil1dok.app/ready/
 ```
 
 ### 롤백

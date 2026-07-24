@@ -283,7 +283,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${{ secrets.OCI_SSH_USER }}@${{ secrets.OCI_HOST }}" '
             set -e
             cd /opt/maeil1dok
-            docker compose -f docker-compose.oci.yml --env-file .env.oci build web frontend
+            docker compose -f docker-compose.oci.yml --env-file .env.oci build web celery-worker celery-beat frontend
             docker compose -f docker-compose.oci.yml --env-file .env.oci up -d web celery-worker celery-beat frontend cloudflared
             docker image prune -f >/dev/null
           '
@@ -291,11 +291,12 @@ jobs:
       - name: Smoke test (via Cloudflare Tunnel)
         run: |
           sleep 15
-          for i in $(seq 1 10); do
+          for i in $(seq 1 30); do
             api=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://api.maeil1dok.app/health/ || true)
+            ready=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://api.maeil1dok.app/ready/ || true)
             fe=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://maeil1dok.app/ || true)
-            echo "attempt $i: api=/health/ $api, frontend $fe"
-            if [ "$api" = "200" ] && [ "$fe" = "200" ]; then echo "SMOKE OK"; exit 0; fi
+            echo "attempt $i: api=/health/ $api, api=/ready/ $ready, frontend $fe"
+            if [ "$api" = "200" ] && [ "$ready" = "200" ] && [ "$fe" = "200" ]; then echo "SMOKE OK"; exit 0; fi
             sleep 10
           done
           echo "SMOKE FAILED"; exit 1
