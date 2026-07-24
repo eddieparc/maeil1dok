@@ -7,8 +7,11 @@ on:
       - 'maeil1dok-next/**'
       - 'backend/**'
       - 'frontend/**'
+      - 'mobile/**'
       - 'docs/railway-migration-runbook.md'
       - 'tests/test_frontend_deployment_config.py'
+      - 'tests/test_backend_ci_config.py'
+      - 'tests/test_mobile_ci_config.py'
       - '.github/workflows/ci.yml'
   pull_request:
     # draft PR은 앱 CI를 skip하고 ready_for_review 전환 시 실행 (중간 푸시 비용 제거).
@@ -18,8 +21,11 @@ on:
       - 'maeil1dok-next/**'
       - 'backend/**'
       - 'frontend/**'
+      - 'mobile/**'
       - 'docs/railway-migration-runbook.md'
       - 'tests/test_frontend_deployment_config.py'
+      - 'tests/test_backend_ci_config.py'
+      - 'tests/test_mobile_ci_config.py'
       - '.github/workflows/ci.yml'
 
 jobs:
@@ -30,6 +36,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       deployment: ${{ steps.filter.outputs.deployment }}
+      mobile: ${{ steps.filter.outputs.mobile }}
 
     steps:
       - uses: actions/checkout@v4
@@ -46,9 +53,14 @@ jobs:
             frontend:
               - 'frontend/**'
               - '.github/workflows/ci.yml'
+            mobile:
+              - 'mobile/**'
+              - '.github/workflows/ci.yml'
             deployment:
               - 'docs/railway-migration-runbook.md'
               - 'tests/test_frontend_deployment_config.py'
+              - 'tests/test_backend_ci_config.py'
+              - 'tests/test_mobile_ci_config.py'
               - '.github/workflows/ci.yml'
 
   maeil1dok-next-ci:
@@ -131,11 +143,8 @@ jobs:
       - name: Django system checks
         run: python manage.py check --fail-level WARNING
 
-      - name: Backend tests
-        run: python manage.py test accounts todos.test_notifications todos.tests.UpdateBibleProgressTest
-
-      - name: Todos certification tests
-        run: python manage.py test todos.test_certification_api
+      - name: Backend tests (full suite)
+        run: python manage.py test accounts todos tests bible_cache
 
   deployment-config-ci:
     needs: changes
@@ -150,7 +159,33 @@ jobs:
           python-version: '3.12'
 
       - name: Deployment config tests
-        run: python -m unittest tests.test_frontend_deployment_config
+        run: python -m unittest tests.test_frontend_deployment_config tests.test_backend_ci_config tests.test_mobile_ci_config
+
+  mobile-ci:
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
 
   frontend-ci:
     needs: changes
