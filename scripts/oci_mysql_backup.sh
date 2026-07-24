@@ -5,38 +5,52 @@
 #   20 3 * * * /opt/maeil1dok/scripts/oci_mysql_backup.sh >> /var/log/maeil1dok_mysql_backup.log 2>&1
 #
 # 필요 env (.env.oci 에서 로드하거나 cron 환경에 지정):
-#   DB_NAME, DB_USER, DB_PASSWORD (또는 DB_ROOT_PASSWORD)
+#   DB_NAME, DB_ROOT_PASSWORD(권장) 또는 DB_USER+DB_PASSWORD
 #   COMPOSE_FILE(기본 docker-compose.oci.yml), BACKUP_DIR, RETENTION_DAYS(기본 14)
-#   OCI_BUCKET / OCI_NAMESPACE (설정 시 oci CLI 로 오프호스트 업로드)
+#   OCI_BUCKET / OCI_NAMESPACE (설정 시 oci CLI 로 오프호스트 업로드; oci 없으면 실패로 처리)
 set -euo pipefail
+umask 077   # 민감한 전체 DB 덤프가 world-readable 로 생성되지 않도록
 
 cd "$(dirname "$0")/.."
 
-# .env.oci 에서 필요한 키만 안전하게 추출(특수문자 값 실행 방지)
+# .env.oci 에서 필요한 키만 dotenv-호환 방식으로 추출(값 실행 방지; = 이후 전체를 값으로, 따옴표 제거).
 if [ -f .env.oci ]; then
-  while IFS='=' read -r k v; do
-    case "$k" in
-      OCI_DATA_ROOT|DB_NAME|DB_USER|DB_PASSWORD|DB_ROOT_PASSWORD|OCI_BUCKET|OCI_NAMESPACE|RETENTION_DAYS)
-        export "$k=$v" ;;
+  while IFS= read -r line; do
+    case "$line" in \#*|'') continue ;; esac
+    key="${line%%=*}"
+    val="${line#*=}"
+    case "$key" in
+      OCI_DATA_ROOT|DB_NAME|DB_USER|DB_PASSWORD|DB_ROOT_PASSWORD|OCI_BUCKET|OCI_NAMESPACE|RETENTION_DAYS|BACKUP_DIR|COMPOSE_FILE)
+        val="${val%$'\r'}"                       # CR 제거
+        val="${val#[\"\']}"; val="${val%[\"\']}" # 양끝 따옴표 1쌍 제거
+        export "$key=$val" ;;
     esac
-  done < <(grep -E '^[A-Z_]+=' .env.oci | sed 's/#.*//')
+  done < .env.oci
 fi
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.oci.yml}"
 DB_NAME="${DB_NAME:-maeil1dok}"
-DB_USER="${DB_USER:-root}"
-DB_PW="${DB_ROOT_PASSWORD:-${DB_PASSWORD:-}}"
+# 크리덴셜은 반드시 짝으로: root+DB_ROOT_PASSWORD (권장) 또는 DB_USER+DB_PASSWORD.
+if [ -n "${DB_ROOT_PASSWORD:-}" ]; then
+  DUMP_USER="root"; DUMP_PW="$DB_ROOT_PASSWORD"
+elif [ -n "${DB_USER:-}" ] && [ -n "${DB_PASSWORD:-}" ]; then
+  DUMP_USER="$DB_USER"; DUMP_PW="$DB_PASSWORD"
+else
+  echo "[$(date -Is)] ERROR: DB_ROOT_PASSWORD 또는 DB_USER+DB_PASSWORD 가 필요합니다." >&2
+  exit 1
+fi
 BACKUP_DIR="${BACKUP_DIR:-${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 OUT="${BACKUP_DIR}/${DB_NAME}_${STAMP}.sql.gz"
 
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR" || true
 
 echo "[$(date -Is)] mysqldump 시작 → ${OUT}"
 # --single-transaction: InnoDB 일관 스냅샷(락 최소). 트리거/루틴/이벤트 포함, utf8mb4.
 docker compose -f "$COMPOSE_FILE" exec -T mysql \
-  mysqldump -u"${DB_USER}" -p"${DB_PW}" \
+  mysqldump -u"${DUMP_USER}" -p"${DUMP_PW}" \
     --single-transaction --routines --triggers --events \
     --default-character-set=utf8mb4 --no-tablespaces \
     "$DB_NAME" | gzip -9 > "$OUT"
@@ -48,8 +62,12 @@ echo "[$(date -Is)] 백업 완료 (${SIZE})"
 gzip -t "$OUT"
 echo "[$(date -Is)] gzip 무결성 OK"
 
-# 오프호스트 업로드 (oci CLI 구성 + OCI_BUCKET 설정 시)
-if [ -n "${OCI_BUCKET:-}" ] && command -v oci >/dev/null 2>&1; then
+# 오프호스트 업로드 (OCI_BUCKET 설정 시 반드시 수행; oci CLI 없으면 실패로 처리)
+if [ -n "${OCI_BUCKET:-}" ]; then
+  if ! command -v oci >/dev/null 2>&1; then
+    echo "[$(date -Is)] ERROR: OCI_BUCKET 설정됐으나 oci CLI 없음 — 오프호스트 업로드 실패." >&2
+    exit 1
+  fi
   echo "[$(date -Is)] OCI Object Storage 업로드 → ${OCI_BUCKET}"
   oci os object put --bucket-name "$OCI_BUCKET" ${OCI_NAMESPACE:+--namespace "$OCI_NAMESPACE"} \
     --file "$OUT" --name "maeil1dok/$(basename "$OUT")" --force >/dev/null

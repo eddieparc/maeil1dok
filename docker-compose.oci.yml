@@ -3,15 +3,24 @@
 # Railway 대체: web(gunicorn) + celery-worker + celery-beat(단일) + mysql8 + redis.
 # - TLS/라우팅은 공유 nginx(urban-blanks-nginx-1)가 종단: api.maeil1dok.app server block 이
 #   http://maeil1dok-web:8000 으로 프록시(resolver 변수 upstream). 이 스택은 nginx 미포함.
-# - web 는 자체 network(maeil1dok_default) + 외부 공유 network(urban-blanks_default, alias
-#   maeil1dok-web)에 동시 연결되어 공유 nginx 가 이름으로 도달. urban nginx 는 재생성되지 않음.
+# - 격리: 전용 외부 network `edge` 에 공유 nginx 와 maeil1dok web 만 연결(urban 의 db/redis 등에
+#   측면 접근 차단). web 은 내부 network(maeil1dok_default)로 mysql/redis/celery 와 통신.
+#   → 사전 준비(1회): `docker network create edge` + `docker network connect edge urban-blanks-nginx-1`
+#     (urban nginx 재생성 없이 런타임 attach). urban compose 에 edge 를 tracked 로 선언해 CI 일관성 유지.
 # - 데이터(mysql/redis)는 ${OCI_DATA_ROOT:-/mnt/data/maeil1dok} 하위에 바인드 마운트.
-# - 정적파일은 whitenoise 가 서빙(별도 static 볼륨 불필요). 사용자 업로드 미디어 없음(R2 불필요).
+# - 정적파일은 whitenoise 가 서빙. 사용자 업로드 미디어 없음(R2 불필요).
 #
 # 실행:
 #   sudo mkdir -p ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/{mysql,redis,backups}
+#   docker network create edge 2>/dev/null || true
 #   docker compose -f docker-compose.oci.yml --env-file .env.oci up -d --build
 name: maeil1dok
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   mysql:
@@ -33,6 +42,8 @@ services:
       timeout: 5s
       retries: 10
     mem_limit: 1500m
+    cpus: 1.0
+    logging: *default-logging
     restart: unless-stopped
 
   redis:
@@ -46,6 +57,8 @@ services:
       timeout: 5s
       retries: 5
     mem_limit: 300m
+    cpus: 0.5
+    logging: *default-logging
     restart: unless-stopped
 
   web:
@@ -67,18 +80,21 @@ services:
       redis:
         condition: service_healthy
     # entrypoint.sh: DB 대기 → migrate → collectstatic → gunicorn (DEBUG=False)
+    #   web 가 healthy(포트 open) = migrate/collectstatic 완료 → worker/beat 는 이걸 게이트로 대기.
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1',8000),timeout=3)\""]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 90s
     networks:
       default: {}
-      shared:
+      edge:
         aliases:
           - maeil1dok-web
     mem_limit: 900m
+    cpus: 1.0
+    logging: *default-logging
     restart: unless-stopped
 
   celery-worker:
@@ -95,13 +111,14 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
+      # web 가 마이그레이션을 끝내고 healthy 해진 뒤에만 태스크 소비(구스키마 실행 방지)
+      web:
         condition: service_healthy
     entrypoint: []
     command: sh -c "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}"
     mem_limit: 600m
+    cpus: 0.75
+    logging: *default-logging
     restart: unless-stopped
 
   celery-beat:
@@ -118,9 +135,7 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
+      web:
         condition: service_healthy
     entrypoint: []
     # 반드시 단일 인스턴스 (예약 발행/알림 중복 방지)
@@ -128,11 +143,15 @@ services:
     deploy:
       replicas: 1
     mem_limit: 300m
+    cpus: 0.5
+    logging: *default-logging
     restart: unless-stopped
 
 networks:
   default:
     name: maeil1dok_default
-  shared:
+  # 공유 nginx(urban-blanks-nginx-1)와 maeil1dok web 만 연결하는 전용 프록시 네트워크.
+  # 사전에 `docker network create edge` + urban nginx 를 이 네트워크에 attach 해야 함.
+  edge:
     external: true
-    name: urban-blanks_default
+    name: edge
