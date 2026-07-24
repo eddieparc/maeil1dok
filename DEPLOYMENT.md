@@ -1,5 +1,15 @@
 # 매일일독 배포 가이드
 
+> **현재 운영 아키텍처 (2026-07 이후): OCI + Cloudflare Tunnel.**
+> Railway 는 **완전히 퇴역**했다(프로젝트 삭제됨). 프론트(Nuxt SSR)·백엔드(Django/Gunicorn)·MySQL·Redis·Celery(worker/beat)가
+> 단일 OCI Ampere A1 VM(`/opt/maeil1dok`)에서 `docker-compose.oci.yml` 로 함께 뜬다.
+> - `maeil1dok.app` · `www` · `api.maeil1dok.app` 은 **Cloudflare Tunnel**(cloudflared, 아웃바운드)로 라우팅 — 인바운드 포트 없음, 공유 nginx 불필요.
+> - 배포: `.env.oci`(백엔드)·`.env.frontend.oci`(프론트) 채운 뒤
+>   `docker compose -f docker-compose.oci.yml --env-file .env.oci up -d --build`.
+>   터널 설정은 `${OCI_DATA_ROOT}/cloudflared/{config.yml,<tunnel-id>.json}`.
+> - 일일 백업: `scripts/oci_mysql_backup.sh`(cron). 아래 Railway/Docker-Compose 섹션은 **역사적 기록**이다.
+>   ⚠️ `.env.oci` 값에 `$` 가 있으면 compose env_file 보간이 잘라먹으므로 `$` → `$$` 로 이스케이프할 것(예: SECRET_KEY).
+
 ## 프로덕션 환경 설정
 
 ### 1. 환경 변수 설정

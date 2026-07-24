@@ -7,9 +7,7 @@ on:
       - 'maeil1dok-next/**'
       - 'backend/**'
       - 'frontend/**'
-      - 'railway/**'
       - 'docs/railway-migration-runbook.md'
-      - 'tests/test_railway_deployment_config.py'
       - 'tests/test_frontend_deployment_config.py'
       - '.github/workflows/ci.yml'
   pull_request:
@@ -20,9 +18,7 @@ on:
       - 'maeil1dok-next/**'
       - 'backend/**'
       - 'frontend/**'
-      - 'railway/**'
       - 'docs/railway-migration-runbook.md'
-      - 'tests/test_railway_deployment_config.py'
       - 'tests/test_frontend_deployment_config.py'
       - '.github/workflows/ci.yml'
 
@@ -51,9 +47,7 @@ jobs:
               - 'frontend/**'
               - '.github/workflows/ci.yml'
             deployment:
-              - 'railway/**'
               - 'docs/railway-migration-runbook.md'
-              - 'tests/test_railway_deployment_config.py'
               - 'tests/test_frontend_deployment_config.py'
               - '.github/workflows/ci.yml'
 
@@ -155,8 +149,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Railway deployment contract tests
-        run: python -m unittest tests.test_railway_deployment_config tests.test_frontend_deployment_config
+      - name: Deployment config tests
+        run: python -m unittest tests.test_frontend_deployment_config
 
   frontend-ci:
     needs: changes
