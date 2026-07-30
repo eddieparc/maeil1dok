@@ -198,6 +198,7 @@ import {
   TrophyIcon,
 } from '@lucide/vue'
 import { formatHasenaSummary } from '~/utils/hasenaFormatters'
+import { buildHasenaEmbedUrl, withJsApiEnabled } from '~/utils/hasenaVideoUrl'
 
 const api = useApi()
 const auth = useAuthService()
@@ -231,11 +232,7 @@ const onCalendarUpdated = async () => {
 }
 
 // 비디오 관련 상수
-const PLAYLIST_ID = 'PLMT1AJszhYtXkV936HNuExxjAmtFhp2tL'
-const videoUrl = computed(() => latestVideoId.value
-  ? `https://www.youtube.com/embed/${latestVideoId.value}`
-  : `https://www.youtube.com/embed/videoseries?list=${PLAYLIST_ID}`
-)
+const videoUrl = computed(() => buildHasenaEmbedUrl(latestVideoId.value))
 const latestVideoId = ref('') // 빈 값으로 초기화
 const isMobile = ref(false)
 const isIOS = ref(false)
@@ -458,8 +455,7 @@ const setupYouTubeListener = () => {
         iframe.id = 'hasena-youtube-player'
         
         // iframe src를 API 버전으로 변경
-        const currentSrc = iframe.src
-        iframe.src = currentSrc + '&enablejsapi=1'
+        iframe.src = withJsApiEnabled(iframe.src)
         
         // YouTube Player 인스턴스 생성
                 new window.YT.Player('hasena-youtube-player', {
