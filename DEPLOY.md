@@ -18,7 +18,7 @@ maeil1dok.app · www · api.maeil1dok.app
     ▼
 Cloudflare Tunnel 60dbaac7 (아웃바운드 전용 — VM 인바운드 포트 없음)
     ▼
-OCI Ampere A1 VM (168.107.48.78, urban-blanks 와 공존) /opt/maeil1dok
+OCI Ampere A1 VM (168.107.46.120, urban-blanks 와 공존) /opt/maeil1dok
     ├─ cloudflared      터널 커넥터 (ingress: api→web:8000, apex/www→frontend:3000)
     ├─ web              Django+Gunicorn :8000 (entrypoint: migrate→collectstatic→gunicorn)
     ├─ frontend         Nuxt 4 SSR :3000 (frontend/Dockerfile.oci)
@@ -48,7 +48,7 @@ maeil1dok 은 `maeil1dok_default` 네트워크만 사용하고, 외부 노출은
 ### 수동 배포 (VM 직접)
 
 ```bash
-ssh -i ~/.ssh/oci_a1_deploy ubuntu@168.107.48.78
+ssh -i ~/.ssh/oci_a1_deploy ubuntu@168.107.46.120
 cd /opt/maeil1dok
 docker compose -f docker-compose.oci.yml --env-file .env.oci build web celery-worker celery-beat frontend
 docker compose -f docker-compose.oci.yml --env-file .env.oci up -d
