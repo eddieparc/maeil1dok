@@ -232,7 +232,11 @@ const onCalendarUpdated = async () => {
 }
 
 // 비디오 관련 상수
-const videoUrl = computed(() => buildHasenaEmbedUrl(latestVideoId.value))
+// 처음부터 iframe API가 켜진 URL로 렌더한다.
+// 마운트 후 iframe.src를 갈아끼우면 진행 중인 플레이어 로드가 취소되고
+// 임베드가 광고 서브프레임 네비게이션을 다시 일으켜, iOS WebView에서
+// 첫 진입 시 전체화면 에러로 이어졌다(LAB-59).
+const videoUrl = computed(() => withJsApiEnabled(buildHasenaEmbedUrl(latestVideoId.value)))
 const latestVideoId = ref('') // 빈 값으로 초기화
 const isMobile = ref(false)
 const isIOS = ref(false)
@@ -453,10 +457,8 @@ const setupYouTubeListener = () => {
       if (iframe) {
         // iframe의 ID 설정
         iframe.id = 'hasena-youtube-player'
-        
-        // iframe src를 API 버전으로 변경
-        iframe.src = withJsApiEnabled(iframe.src)
-        
+
+        // src는 이미 enablejsapi=1로 렌더되어 있으므로 다시 쓰지 않는다.
         // YouTube Player 인스턴스 생성
                 new window.YT.Player('hasena-youtube-player', {
           events: {

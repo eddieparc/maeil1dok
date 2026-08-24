@@ -31,6 +31,7 @@ import CookieManager from '@react-native-cookies/cookies';
 import { resolveWebViewConfig } from './webviewConfig';
 import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
 import { redactSensitiveUrl } from './urlRedaction';
+import { isFatalWebViewError, shouldAllowWebViewNavigation } from './webviewNavigation';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -59,19 +60,14 @@ type WebViewErrorLikeEvent = {
   readonly nativeEvent: {
     readonly description?: string;
     readonly statusCode?: number;
+    readonly code?: number;
     readonly url?: string;
   };
 };
 
-const GOOGLE_CLIENT_ID = Constants.expoConfig?.extra?.googleClientId || '';
+const WEBVIEW_POLICY = { webAppUrl: WEB_APP_URL, apiUrl: API_URL };
 
-const OAUTH_DOMAINS = [
-  'kauth.kakao.com',
-  'accounts.kakao.com',
-  'accounts.google.com',
-  'oauth.google.com',
-  'appleid.apple.com',
-];
+const GOOGLE_CLIENT_ID = Constants.expoConfig?.extra?.googleClientId || '';
 
 const isErrorWithCode = (error: unknown, code: string): boolean => (
   typeof error === 'object'
@@ -510,9 +506,15 @@ function AppContent() {
     }
   };
 
-  const handleShouldStartLoadWithRequest = (request: { url: string }) => {
+  const handleShouldStartLoadWithRequest = (request: { url: string; isTopFrame?: boolean }) => {
     const { url } = request;
-    console.log('[WebView] ShouldStartLoad:', redactSensitiveUrl(url));
+    const allowed = shouldAllowWebViewNavigation(request, WEBVIEW_POLICY);
+    console.log('[WebView] ShouldStartLoad:', redactSensitiveUrl(url), 'topFrame:', request.isTopFrame !== false, 'allowed:', allowed);
+
+    if (allowed) {
+      return true;
+    }
+
     if (url.includes('/login') && url.startsWith(WEB_APP_URL)) {
       console.log('[WebView] Blocked: login page, showing native login');
       showNativeLogin();
@@ -532,24 +534,8 @@ function AppContent() {
       return false;
     }
 
-    const isOAuthDomain = OAUTH_DOMAINS.some((domain) => url.includes(domain));
-    if (isOAuthDomain) {
-      console.log('[WebView] Allowed: OAuth domain');
-      return true;
-    }
-
-    // YouTube 도메인 허용 (iframe embed, IFrame API 등)
-    if (url.includes('youtube.com') || url.includes('ytimg.com') || url.includes('googlevideo.com')) {
-      console.log('[WebView] Allowed: YouTube domain');
-      return true;
-    }
-
-    if (!url.startsWith(WEB_APP_URL) && !url.startsWith(API_URL) && !url.startsWith('about:')) {
-      console.log('[WebView] Blocked: external URL');
-      return false;
-    }
-    console.log('[WebView] Allowed');
-    return true;
+    console.log('[WebView] Blocked: external URL');
+    return false;
   };
 
   const injectPushToken = () => {
@@ -576,7 +562,15 @@ function AppContent() {
 
   const handleError = (syntheticEvent: WebViewErrorLikeEvent) => {
     const { nativeEvent } = syntheticEvent;
-    console.log('[WebView] Error:', nativeEvent?.description || 'unknown', 'url:', redactSensitiveUrl(nativeEvent?.url));
+    console.log('[WebView] Error:', nativeEvent?.description || 'unknown', 'code:', nativeEvent?.code, 'url:', redactSensitiveUrl(nativeEvent?.url));
+
+    // 임베드 내부의 서드파티 프레임 실패나 취소는 앱 전체 실패가 아니다.
+    // (하세나 YouTube 임베드의 광고 프레임 때문에 첫 진입에서 에러 화면이 뜨던 원인)
+    if (!isFatalWebViewError(nativeEvent, WEBVIEW_POLICY)) {
+      console.log('[WebView] Non-fatal error ignored');
+      return;
+    }
+
     setIsLoading(false);
     setIsError(true);
     SplashScreen.hideAsync();
