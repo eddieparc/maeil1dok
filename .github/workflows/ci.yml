@@ -268,7 +268,21 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.OCI_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          # ssh-keyscan 기본 타임아웃은 5초라, VM 이 잠깐 느리면 키를 못 받고 exit 1 →
+          # `bash -e` 로 배포 전체가 죽는다(2026-07-30 main 배포 실패 원인).
+          # 호스트 키 검증은 유지한 채 타임아웃을 늘리고 재시도만 추가한다.
+          for attempt in 1 2 3; do
+            if ssh-keyscan -T 20 -H "${{ secrets.OCI_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null; then
+              if [ -s ~/.ssh/known_hosts ]; then
+                echo "ssh-keyscan ok (attempt $attempt)"
+                exit 0
+              fi
+            fi
+            echo "ssh-keyscan failed (attempt $attempt), retrying..."
+            sleep 5
+          done
+          echo "ssh-keyscan failed after 3 attempts" >&2
+          exit 1
 
       - name: Sync code to VM
         run: |
