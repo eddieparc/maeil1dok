@@ -63,3 +63,24 @@ test('hasena page derives both embed sources from the shared URL builder', async
   assert.match(hasenaSource, /buildHasenaEmbedUrl\(/);
   assert.match(hasenaSource, /withJsApiEnabled\(/);
 });
+
+test('hasena page ships an iframe-API-ready embed URL instead of rewriting iframe.src later', async () => {
+  const hasenaSource = await readFile(
+    new URL('../app/pages/hasena.vue', import.meta.url),
+    'utf8',
+  );
+
+  // iframe.src 를 사후에 갈아끼우면 진행 중이던 YouTube 플레이어 로드가 취소되고
+  // 임베드가 광고 서브프레임 네비게이션을 한 번 더 일으킨다. iOS WebView 에서는
+  // 그 차단된 네비게이션이 전체화면 에러로 승격됐다(LAB-59).
+  assert.doesNotMatch(
+    hasenaSource,
+    /iframe\.src\s*=/,
+    'hasena page must not reassign iframe.src after mount',
+  );
+  assert.match(
+    hasenaSource,
+    /withJsApiEnabled\(buildHasenaEmbedUrl\(/,
+    'the initial embed URL must already have enablejsapi enabled',
+  );
+});
