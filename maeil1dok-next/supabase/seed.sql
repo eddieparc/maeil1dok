@@ -1,2 +1,0 @@
--- Seed file for Supabase local development
--- Add your seed data here
