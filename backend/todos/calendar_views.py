@@ -24,8 +24,22 @@ from .serializers import (
     CalendarSettingUpdateSerializer,
     UserPlanDisplaySettingsSerializer,
 )
+from authz import can, subject_from_request
+from authz.policies.calendar_settings import (
+    CalendarSettingResource,
+    CalendarSettingsCollection,
+    CalendarSettingsReorder,
+    ReadingCalendarCurrent,
+)
 from .views import book_to_code
 from . import openapi_serializers as openapi
+
+
+def _authz_denial_response(decision):
+    denial = decision.denial
+    if denial.body is None:
+        return Response(status=denial.status_code)
+    return Response(denial.body, status=denial.status_code)
 
 
 def _calendar_settings_for_user(user):
@@ -33,15 +47,6 @@ def _calendar_settings_for_user(user):
         user=user,
         subscription__is_active=True,
     ).select_related('subscription', 'subscription__plan')
-
-
-def _settings_by_id(user, setting_ids):
-    settings = UserPlanDisplaySettings.objects.filter(
-        user=user,
-        id__in=setting_ids,
-        subscription__is_active=True,
-    )
-    return {setting.id: setting for setting in settings}
 
 
 def _duplicate_values(values):
@@ -62,7 +67,14 @@ def get_calendar_settings(request):
     사용자의 모든 플랜 표시 설정 조회
     GET /api/v1/todos/calendar/settings/
     """
-    settings = _calendar_settings_for_user(request.user).order_by('display_order')
+    decision = can(
+        subject_from_request(request),
+        'view_calendar_settings',
+        CalendarSettingsCollection(),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    settings = decision.value.order_by('display_order')
 
     serializer = UserPlanDisplaySettingsSerializer(settings, many=True)
 
@@ -80,17 +92,14 @@ def update_calendar_setting(request, pk):
     개별 플랜 표시 설정 업데이트
     PATCH /api/v1/todos/calendar/settings/<id>/
     """
-    try:
-        setting = UserPlanDisplaySettings.objects.get(
-            pk=pk,
-            user=request.user,
-            subscription__is_active=True,
-        )
-    except UserPlanDisplaySettings.DoesNotExist:
-        return Response({
-            'success': False,
-            'error': '설정을 찾을 수 없습니다.'
-        }, status=status.HTTP_404_NOT_FOUND)
+    decision = can(
+        subject_from_request(request),
+        'update_calendar_setting',
+        CalendarSettingResource(setting_id=pk),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    setting = decision.value
 
     serializer = CalendarSettingUpdateSerializer(
         setting,
@@ -144,12 +153,14 @@ def reorder_calendar_settings(request):
             'error': '중복된 설정 ID가 포함되어 있습니다.'
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    settings_map = _settings_by_id(request.user, setting_ids)
-    if len(settings_map) != len(setting_ids):
-        return Response({
-            'success': False,
-            'error': '설정을 찾을 수 없습니다.'
-        }, status=status.HTTP_404_NOT_FOUND)
+    decision = can(
+        subject_from_request(request),
+        'reorder_calendar_settings',
+        CalendarSettingsReorder(setting_ids=tuple(setting_ids)),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    settings_map = decision.value
 
     with transaction.atomic():
         settings = []
@@ -265,9 +276,15 @@ def get_calendar_month_data(request):
     start_date = date(year, month, 1)
     end_date = date(year, month, last_day)
 
-    # 사용자의 활성 구독 및 표시 설정 조회
+    decision = can(
+        subject_from_request(request),
+        'view_calendar_month',
+        ReadingCalendarCurrent(),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
     display_settings = list(
-        _calendar_settings_for_user(request.user).order_by(
+        decision.value.order_by(
             'display_order',
             'created_at',
         )

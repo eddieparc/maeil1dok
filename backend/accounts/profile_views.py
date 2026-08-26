@@ -15,7 +15,15 @@ from .serializers import (
     UserSearchSerializer, UserSerializer,
     PublicUserSerializer, ReadingSettingsSerializer
 )
-from .visibility import is_live_user, live_user_filter
+from authz import can, subject_from_request
+from authz.policies.user_profile import (
+    FollowEdge,
+    FollowTarget,
+    FriendsCollection,
+    ProfileSearch,
+    ProfileUpdate,
+    UserProfileResource,
+)
 from . import openapi_serializers as openapi
 from .achievement_config import ACHIEVEMENT_METADATA
 from todos.models import UserBibleProgress, PlanSubscription, DailyBibleSchedule, UserPlanDisplaySettings
@@ -27,53 +35,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _is_request_user(request, user):
-    return request.user.is_authenticated and request.user.id == user.id
+def _authz_denial_response(decision):
+    denial = decision.denial
+    if denial.body is None:
+        return Response(status=denial.status_code)
+    return Response(denial.body, status=denial.status_code)
 
 
-def _profile_not_found_response():
-    return StandardResponse.error(
-        error='사용자를 찾을 수 없습니다.',
-        status_code=status.HTTP_404_NOT_FOUND
-    )
-
-
-def _user_profile_for_public_read(user_id, request):
-    user = User.objects.filter(id=user_id).first()
-    if user is None or not is_live_user(user):
-        return None, None, _profile_not_found_response()
-
-    if _is_request_user(request, user):
-        profile, _ = UserProfile.objects.get_or_create(user=user)
-        return user, profile, None
-
-    profile = UserProfile.objects.filter(user=user).first()
-    if profile is None or not profile.is_public:
-        return None, None, _profile_not_found_response()
-
-    return user, profile, None
-
-
-def _visible_users_for_request(queryset, request):
-    public_or_self = Q(profile__is_public=True)
-    if request.user.is_authenticated:
-        public_or_self |= Q(id=request.user.id)
-    return queryset.filter(live_user_filter()).filter(public_or_self)
-
-
-def _can_follow_target(user):
-    return UserProfile.objects.filter(
-        live_user_filter('user__'),
-        user=user,
-        is_public=True,
-    ).exists()
-
-
-def _user_for_social_graph_mutation(user_id):
-    user = User.objects.filter(id=user_id).first()
-    if user is None:
-        return None, _profile_not_found_response()
-    return user, None
+def _profile_from_read_decision(decision):
+    context = decision.value
+    if context.is_own_profile:
+        profile, _ = UserProfile.objects.get_or_create(user=context.user)
+        return context.user, profile, True
+    return context.user, context.profile, False
 
 
 _MAX_FOLLOW_USER_ID = 9223372036854775807
@@ -148,11 +122,16 @@ def _validated_calendar_month(request):
 @handle_api_exception
 def get_user_profile(request, user_id):
     """사용자 프로필 조회"""
-    user, profile, error_response = _user_profile_for_public_read(user_id, request)
-    if error_response is not None:
-        return error_response
+    decision = can(
+        subject_from_request(request),
+        'view_profile',
+        UserProfileResource(user_id=user_id),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    user, profile, is_own_profile = _profile_from_read_decision(decision)
 
-    if _is_request_user(request, user):
+    if is_own_profile:
         serializer = UserProfileSerializer(profile, context={'request': request})
     else:
         serializer = UserProfileSerializer(
@@ -174,6 +153,13 @@ def get_user_profile(request, user_id):
 @handle_api_exception
 def update_user_profile(request):
     """프로필 수정"""
+    decision = can(
+        subject_from_request(request),
+        'update_profile',
+        ProfileUpdate(),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
     profile, created = UserProfile.objects.get_or_create(user=request.user)
     serializer = UserProfileSerializer(
         profile,
@@ -217,9 +203,14 @@ def update_user_profile(request):
 @handle_api_exception
 def get_user_calendar(request, user_id):
     """사용자 달력 데이터 조회"""
-    user, _, error_response = _user_profile_for_public_read(user_id, request)
-    if error_response is not None:
-        return error_response
+    decision = can(
+        subject_from_request(request),
+        'view_profile_calendar',
+        UserProfileResource(user_id=user_id),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    user, _, _ = _profile_from_read_decision(decision)
 
     calendar_month, error_response = _validated_calendar_month(request)
     if error_response is not None:
@@ -345,19 +336,14 @@ def follow_user(request):
     if invalid_response is not None:
         return invalid_response
     
-    following_user, not_found_response = _user_for_social_graph_mutation(following_id)
-    if not_found_response is not None:
-        return not_found_response
-    
-    # 자기 자신은 팔로우 불가
-    if following_user == request.user:
-        return StandardResponse.error(
-            error='자기 자신은 팔로우할 수 없습니다.',
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
-
-    if not _can_follow_target(following_user):
-        return _profile_not_found_response()
+    decision = can(
+        subject_from_request(request),
+        'follow',
+        FollowTarget(following_id=following_id),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    following_user = decision.value
 
     # 이미 팔로우 중인지 확인
     follow, created = Follow.objects.get_or_create(
@@ -385,21 +371,14 @@ def follow_user(request):
 @handle_api_exception
 def unfollow_user(request, user_id):
     """사용자 언팔로우"""
-    following_user, not_found_response = _user_for_social_graph_mutation(user_id)
-    if not_found_response is not None:
-        return not_found_response
-
-    follow = Follow.objects.filter(
-        follower=request.user,
-        following=following_user
-    ).first()
-
-    if not follow:
-        return StandardResponse.error(
-            error='팔로우 관계가 존재하지 않습니다.',
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-
+    decision = can(
+        subject_from_request(request),
+        'unfollow',
+        FollowEdge(following_id=user_id),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    follow = decision.value
     follow.delete()
 
     return StandardResponse.success(
@@ -414,13 +393,14 @@ def unfollow_user(request, user_id):
 @handle_api_exception
 def get_followers(request, user_id):
     """팔로워 목록 조회"""
-    user, _, error_response = _user_profile_for_public_read(user_id, request)
-    if error_response is not None:
-        return error_response
-
-    followers = _visible_users_for_request(User.objects.filter(
-        following__following=user
-    ), request).select_related('profile').distinct()
+    decision = can(
+        subject_from_request(request),
+        'view_followers',
+        UserProfileResource(user_id=user_id),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    followers = decision.value
 
     # N+1 방지: 현재 사용자의 팔로잉 목록 미리 조회
     following_ids = set()
@@ -446,13 +426,14 @@ def get_followers(request, user_id):
 @handle_api_exception
 def get_following(request, user_id):
     """팔로잉 목록 조회"""
-    user, _, error_response = _user_profile_for_public_read(user_id, request)
-    if error_response is not None:
-        return error_response
-
-    following = _visible_users_for_request(User.objects.filter(
-        followers__follower=user
-    ), request).select_related('profile').distinct()
+    decision = can(
+        subject_from_request(request),
+        'view_following',
+        UserProfileResource(user_id=user_id),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    following = decision.value
 
     # N+1 방지: 현재 사용자의 팔로잉 목록 미리 조회
     following_ids = set()
@@ -478,12 +459,14 @@ def get_following(request, user_id):
 @handle_api_exception
 def get_friends(request):
     """상호 팔로우(친구) 목록 조회"""
-    # 내가 팔로우하고 있는 사용자들 중 나를 팔로우하는 사용자
-    friends = User.objects.filter(
-        followers__follower=request.user,
-        following__following=request.user
-    ).select_related('profile').distinct()
-    friends = _visible_users_for_request(friends, request)
+    decision = can(
+        subject_from_request(request),
+        'view_friends',
+        FriendsCollection(),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    friends = decision.value
 
     # N+1 방지: 현재 사용자의 팔로잉 목록 미리 조회
     following_ids = set(
@@ -524,9 +507,16 @@ def search_users(request):
             status_code=status.HTTP_400_BAD_REQUEST
         )
 
-    users = _visible_users_for_request(User.objects.filter(
+    decision = can(
+        subject_from_request(request),
+        'search_profiles',
+        ProfileSearch(),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    users = decision.value.filter(
         Q(nickname__icontains=query) | Q(username__icontains=query)
-    ), request).select_related('profile').exclude(
+    ).exclude(
         id=request.user.id if request.user.is_authenticated else None
     )[:20]
 
@@ -554,9 +544,14 @@ def search_users(request):
 @handle_api_exception
 def get_user_achievements(request, user_id):
     """사용자 업적 조회 - 모든 업적 포함 (획득/미획득)"""
-    user, _, error_response = _user_profile_for_public_read(user_id, request)
-    if error_response is not None:
-        return error_response
+    decision = can(
+        subject_from_request(request),
+        'view_achievements',
+        UserProfileResource(user_id=user_id),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    user, _, _ = _profile_from_read_decision(decision)
 
     # 획득한 업적 조회
     earned_achievements = {
