@@ -343,17 +343,53 @@ class AccountEmailSerializer(serializers.Serializer):
         return data
 
 
-class NotificationSettingsSerializer(serializers.ModelSerializer):
+class NotificationSettingsSerializer(serializers.Serializer):
+    # Legacy notification-preference contract, backed by todos.NotificationSettings.
+    # The four field names below are the shipped wire contract of
+    # /api/v1/{auth,accounts}/notification-settings/ and are pinned by the
+    # characterization golden and by schema.yml. They keep their original names,
+    # help_text and required-ness; only the model underneath changed, because
+    # todos.NotificationSettings is the model every sender actually reads.
+    # See todos/migrations/0033. Kept as comments rather than a docstring because
+    # drf-spectacular publishes docstrings as schema descriptions.
+
+    FIELD_MAP = {
+        'daily_reading_reminder': 'reading_reminders_enabled',
+        'weekly_progress_summary': 'weekly_summary_enabled',
+        'service_notice': 'service_notice_enabled',
+        'reminder_time': 'reading_reminder_time',
+    }
+
+    daily_reading_reminder = serializers.BooleanField(
+        required=False, help_text='매일 읽기 알림'
+    )
+    weekly_progress_summary = serializers.BooleanField(
+        required=False, help_text='주간 진행 요약 알림'
+    )
+    service_notice = serializers.BooleanField(
+        required=False, help_text='서비스 공지 알림'
+    )
     reminder_time = serializers.TimeField(format='%H:%M', input_formats=['%H:%M'])
 
-    class Meta:
-        model = UserReadingSettings
-        fields = [
-            'daily_reading_reminder',
-            'weekly_progress_summary',
-            'service_notice',
-            'reminder_time',
+    def to_representation(self, instance):
+        return {
+            legacy_name: self.fields[legacy_name].to_representation(
+                getattr(instance, canonical_name)
+            )
+            for legacy_name, canonical_name in self.FIELD_MAP.items()
+        }
+
+    def update(self, instance, validated_data):
+        changed = [
+            self.FIELD_MAP[legacy_name]
+            for legacy_name in validated_data
+            if legacy_name in self.FIELD_MAP
         ]
+        for legacy_name, value in validated_data.items():
+            setattr(instance, self.FIELD_MAP[legacy_name], value)
+        if changed:
+            instance.save(update_fields=[*changed, 'updated_at'])
+        return instance
 
 
 class ReadingSettingsSerializer(serializers.ModelSerializer):

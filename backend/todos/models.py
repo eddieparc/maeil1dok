@@ -313,6 +313,10 @@ class NotificationSettings(models.Model):
     reading_reminders_enabled = models.BooleanField(default=True)
     hasena_reminders_enabled = models.BooleanField(default=True)
     friend_activity_enabled = models.BooleanField(default=True)
+    # Absorbed from accounts.UserReadingSettings (migration 0033). Nothing sends
+    # on these yet; they exist so notification preferences have one owner.
+    weekly_summary_enabled = models.BooleanField(default=False)
+    service_notice_enabled = models.BooleanField(default=True)
     reading_reminder_time = models.TimeField(default=time(20, 0))
     hasena_reminder_time = models.TimeField(default=time(7, 0))
     timezone = models.CharField(max_length=64, default='Asia/Seoul')

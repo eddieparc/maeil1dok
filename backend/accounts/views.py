@@ -32,6 +32,9 @@ from django.core import signing
 from django.utils import timezone
 from datetime import timedelta
 from todos.models import BibleReadingPlan, PlanSubscription
+from authz import can, subject_from_request
+from authz.policies.notification import NotificationSettingsCurrent
+from todos.services.notifications import get_notification_settings
 import logging
 import uuid
 
@@ -1106,7 +1109,26 @@ def account_email(request):
 @api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def notification_settings(request):
-    settings_obj, _ = UserReadingSettings.objects.get_or_create(user=request.user)
+    # Legacy alias, now a facade over the model that actually drives delivery.
+    # This used to read and write UserReadingSettings, which no sender consulted:
+    # switching "daily reading reminder" off here left reminders being delivered.
+    # Both routes now resolve to todos.NotificationSettings; the response shape is
+    # unchanged, so existing clients keep working. Kept as a comment rather than a
+    # docstring because drf-spectacular publishes docstrings as schema descriptions.
+    decision = can(
+        subject_from_request(request),
+        'view_notification_settings'
+        if request.method == 'GET'
+        else 'update_notification_settings',
+        NotificationSettingsCurrent(),
+    )
+    if not decision:
+        return Response(
+            {'error': decision.reason or '권한이 없습니다.'},
+            status=404 if decision.hide else 403,
+        )
+
+    settings_obj = get_notification_settings(request.user)
     if request.method == 'GET':
         return Response(NotificationSettingsSerializer(settings_obj).data)
 

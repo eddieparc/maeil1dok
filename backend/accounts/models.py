@@ -337,6 +337,10 @@ class UserReadingSettings(models.Model):
         help_text='통독모드 자동 완료'
     )
 
+    # Superseded by todos.NotificationSettings (migration todos/0033), which is the
+    # model every sender reads. Kept as columns so the absorbing migration stays
+    # reversible and stored values remain inspectable; nothing reads them now.
+    # Dropping them is a separate deployment boundary.
     daily_reading_reminder = models.BooleanField(
         default=True,
         help_text='매일 읽기 알림'

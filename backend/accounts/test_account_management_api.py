@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from accounts.authentication import InactiveUserTokenError, get_tokens_for_user
 from accounts.models import SocialAccount, UserReadingSettings
 from accounts.views import generate_social_merge_token, generate_oauth_link_state
+from todos.models import NotificationSettings
 
 User = get_user_model()
 
@@ -688,7 +689,11 @@ class AccountManagementApiTests(TestCase):
         get_response = self.client.get("/api/v1/auth/notification-settings/")
         self.assertEqual(get_response.status_code, 200)
         self.assertTrue(get_response.data["daily_reading_reminder"])
-        self.assertEqual(get_response.data["reminder_time"], "07:00")
+        # This route now reports the row that actually drives delivery
+        # (todos.NotificationSettings), so the default is the real reminder hour.
+        # It used to report UserReadingSettings.reminder_time, whose 07:00 default
+        # no sender ever consulted. See todos/migrations/0033.
+        self.assertEqual(get_response.data["reminder_time"], "20:00")
 
         patch_response = self.client.patch(
             "/api/v1/auth/notification-settings/",
@@ -702,8 +707,8 @@ class AccountManagementApiTests(TestCase):
         )
 
         self.assertEqual(patch_response.status_code, 200)
-        settings = UserReadingSettings.objects.get(user=user)
-        self.assertFalse(settings.daily_reading_reminder)
-        self.assertTrue(settings.weekly_progress_summary)
-        self.assertFalse(settings.service_notice)
-        self.assertEqual(settings.reminder_time.strftime("%H:%M"), "21:30")
+        settings = NotificationSettings.objects.get(user=user)
+        self.assertFalse(settings.reading_reminders_enabled)
+        self.assertTrue(settings.weekly_summary_enabled)
+        self.assertFalse(settings.service_notice_enabled)
+        self.assertEqual(settings.reading_reminder_time.strftime("%H:%M"), "21:30")
