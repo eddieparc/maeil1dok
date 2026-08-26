@@ -48,6 +48,10 @@ CORS_ALLOW_HEADERS = [
     'dnt',
     'origin',
     'user-agent',
+    # Migration telemetry: lets the web app and the shell declare which client
+    # they are. Allowed before either side starts sending it, because a browser
+    # rejects the whole request when a header is not in the preflight allow-list.
+    'x-client',
     'x-csrftoken',
     'x-requested-with',
 ]

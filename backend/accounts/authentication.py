@@ -6,6 +6,9 @@ from django.middleware.csrf import CsrfViewMiddleware
 from django.conf import settings
 import logging
 
+from authmetrics.middleware import AUTH_METHOD_ATTR
+from authmetrics.models import AuthMethod
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,6 +93,24 @@ class CookieJWTAuthentication(JWTAuthentication):
         require_csrf = used_cookie
         if require_csrf:
             self.enforce_csrf(request)
+
+        # Publish how this request authenticated so the metrics middleware, which
+        # is the only place that also sees the response status, can label the
+        # event. Set after CSRF passes: a request rejected there did not
+        # authenticate, and tagging it would inflate the success cohort.
+        #
+        # Written to the underlying HttpRequest, not the DRF wrapper. Middleware
+        # only ever sees the wrapped request, so tagging the wrapper leaves the
+        # event recorded with method=none -- a silently empty dimension that still
+        # looks like a passing pipeline.
+        #
+        # The enum distinguishes cookie from header even though both carry an
+        # access JWT today. Calling the cookie path `session` would claim a
+        # capability Part A has not built.
+        method = (
+            AuthMethod.COOKIE_ACCESS_JWT if used_cookie else AuthMethod.HEADER_ACCESS_JWT
+        )
+        setattr(getattr(request, '_request', request), AUTH_METHOD_ATTR, method)
 
         return user, validated_token
 

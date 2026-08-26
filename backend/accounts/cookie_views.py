@@ -13,6 +13,10 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.middleware.csrf import get_token
+
+from authmetrics import refresh as refresh_metrics
+from authmetrics.models import AuthMethod, EventKind, Outcome
+from authmetrics.recording import record_auth_event
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
@@ -80,6 +84,25 @@ class CookieTokenObtainPairView(TokenObtainPairView):
         return response
 
 
+def _record_refresh_rejection(request, cause, *, status_code=401, payload=None):
+    """Record one refresh rejection with its cause and the token's age.
+
+    Cause is recorded per rejection reason, not as one aggregate failure: the
+    north-star metric needs `blacklisted` inside the token lifetime separated
+    from an ordinary `expired`, and a single counter cannot express that.
+    """
+    record_auth_event(
+        event=EventKind.REFRESH_401,
+        method=AuthMethod.REFRESH_REDEMPTION,
+        outcome=Outcome.FAIL,
+        status=status_code,
+        route=request.path,
+        cause=cause,
+        age_seconds=refresh_metrics.refresh_age_seconds(payload),
+        client=request.headers.get('X-Client', ''),
+    )
+
+
 class CookieTokenRefreshView(TokenRefreshView):
     """
     토큰 갱신 시 새 토큰을 HttpOnly 쿠키로 설정
@@ -96,6 +119,9 @@ class CookieTokenRefreshView(TokenRefreshView):
         if used_cookie:
             csrf_rejection = CSRFCheck(lambda req: None).process_view(request, None, (), {})
             if csrf_rejection:
+                _record_refresh_rejection(
+                    request, refresh_metrics.CAUSE_CSRF, status_code=403
+                )
                 return Response(
                     {'error': 'CSRF validation failed'},
                     status=status.HTTP_403_FORBIDDEN,
@@ -106,6 +132,9 @@ class CookieTokenRefreshView(TokenRefreshView):
             refresh_token = request.data.get('refresh')
 
         if not refresh_token:
+            _record_refresh_rejection(
+                request, refresh_metrics.CAUSE_MISSING_TOKEN, status_code=400
+            )
             return Response(
                 {'error': 'Refresh token not provided'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -117,6 +146,11 @@ class CookieTokenRefreshView(TokenRefreshView):
             user_id = refresh.payload.get('user_id')
             if not user_id:
                 logger.warning("Token refresh failed: missing user_id claim")
+                _record_refresh_rejection(
+                    request,
+                    refresh_metrics.CAUSE_MISSING_USER_CLAIM,
+                    payload=refresh.payload,
+                )
                 return Response(
                     {'error': 'Invalid refresh token'},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -126,6 +160,11 @@ class CookieTokenRefreshView(TokenRefreshView):
                 user = User.objects.get(id=user_id)
             except User.DoesNotExist:
                 logger.warning(f"Token refresh failed: user {user_id} not found")
+                _record_refresh_rejection(
+                    request,
+                    refresh_metrics.CAUSE_USER_NOT_FOUND,
+                    payload=refresh.payload,
+                )
                 return Response(
                     {'error': 'User not found'},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -133,6 +172,11 @@ class CookieTokenRefreshView(TokenRefreshView):
 
             if not getattr(user, 'is_active', True):
                 logger.warning(f"Token refresh failed: inactive user {user_id}")
+                _record_refresh_rejection(
+                    request,
+                    refresh_metrics.CAUSE_USER_INACTIVE,
+                    payload=refresh.payload,
+                )
                 return Response(
                     {'error': 'User account is inactive'},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -140,6 +184,11 @@ class CookieTokenRefreshView(TokenRefreshView):
 
             if not token_version_is_current(refresh, user):
                 logger.warning(f"Token refresh failed: stale token for user {user_id}")
+                _record_refresh_rejection(
+                    request,
+                    refresh_metrics.CAUSE_STALE_GENERATION,
+                    payload=refresh.payload,
+                )
                 return Response(
                     {'error': 'Refresh token has been revoked'},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -174,6 +223,15 @@ class CookieTokenRefreshView(TokenRefreshView):
 
         except TokenError as e:
             logger.warning(f"Token refresh failed: {e}")
+            # The north-star producer. `RefreshToken(...)` raises before a payload
+            # exists, so age is read from the raw token without validating it --
+            # an unverified `iat` is fine for bucketing and is the only way to tell
+            # "rotated while still young" from "simply expired".
+            _record_refresh_rejection(
+                request,
+                refresh_metrics.classify_token_error(e),
+                payload=refresh_metrics.unverified_payload(refresh_token),
+            )
             return Response(
                 {'error': 'Invalid or expired refresh token'},
                 status=status.HTTP_401_UNAUTHORIZED

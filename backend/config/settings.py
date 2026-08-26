@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     # Local apps
     'accounts.apps.AccountsConfig',
     'bible_cache.apps.BibleCacheConfig',
+    'authmetrics.apps.AuthMetricsConfig',
 ]
 
 MIDDLEWARE = [
@@ -102,6 +103,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Last so it observes the final response status of auth-surface requests.
+    # Records only; never alters the response.
+    'authmetrics.middleware.AuthEventLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

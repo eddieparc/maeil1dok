@@ -17,4 +17,15 @@ app.conf.beat_schedule = {
         'task': 'todos.tasks.send_due_notification_reminders_task',
         'schedule': crontab(minute='*/5'),
     },
+    # Auth-migration metrics: the request path only writes to a durable outbox, so
+    # something has to fold it into counters. Frequent and cheap, because a
+    # rollback decision reads these counters within hours of a deploy.
+    'aggregate-auth-metrics': {
+        'task': 'authmetrics.aggregate_auth_events',
+        'schedule': crontab(minute='*/2'),
+    },
+    'purge-auth-metrics': {
+        'task': 'authmetrics.purge_expired_auth_metrics',
+        'schedule': crontab(minute=17, hour=4),
+    },
 }
