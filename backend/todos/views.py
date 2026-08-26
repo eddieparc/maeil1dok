@@ -1201,7 +1201,7 @@ class BibleReadingPlanViewSet(viewsets.ModelViewSet):
         serializer.save(created_by=instance.created_by)
 
     @action(detail=True, methods=['post'])
-    def toggle_active(self, request, pk=None):
+    def toggle_active(self, request, pk=None, format=None):
         """플랜 활성화/비활성화 토글"""
         plan = self.get_object()
         # 활성화 상태만 토글
@@ -1213,7 +1213,7 @@ class BibleReadingPlanViewSet(viewsets.ModelViewSet):
         return Response({'detail': f'플랜이 {"활성화" if plan.is_active else "비활성화"}되었습니다.'})
 
     @action(detail=True, methods=['post'])
-    def set_default(self, request, pk=None):
+    def set_default(self, request, pk=None, format=None):
         """특정 플랜을 기본 플랜으로 설정"""
         plan = self.get_object()
 
@@ -1226,7 +1226,7 @@ class BibleReadingPlanViewSet(viewsets.ModelViewSet):
         return Response({'detail': '기본 플랜으로 설정되었습니다.'})
 
     @action(detail=True, methods=['get'])
-    def schedules(self, request, pk=None):
+    def schedules(self, request, pk=None, format=None):
         """특정 플랜의 스케줄 목록 조회"""
         plan = self.get_object()
         schedules = plan.schedules.all()
@@ -3587,7 +3587,7 @@ class BibleBookmarkViewSet(viewsets.ModelViewSet):
         responses={200: todo_serializers.BibleBookmarkByChapterResponseSerializer},
     )
     @action(detail=False, methods=['get'], url_path='by-chapter')
-    def by_chapter(self, request):
+    def by_chapter(self, request, format=None):
         """특정 장의 북마크 조회"""
         book = request.query_params.get('book')
         chapter = request.query_params.get('chapter')
@@ -3617,7 +3617,7 @@ class BibleBookmarkViewSet(viewsets.ModelViewSet):
 
     @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     @action(detail=False, methods=['delete'], url_path='delete-all')
-    def delete_all(self, request):
+    def delete_all(self, request, format=None):
         """모든 북마크 삭제"""
         decision = can(
             subject_from_request(request),
@@ -3713,7 +3713,7 @@ class ReflectionNoteViewSet(viewsets.ModelViewSet):
         responses={200: todo_serializers.ReflectionNoteByChapterResponseSerializer},
     )
     @action(detail=False, methods=['get'], url_path='by-chapter')
-    def by_chapter(self, request):
+    def by_chapter(self, request, format=None):
         """특정 장의 묵상노트 조회"""
         book = request.query_params.get('book')
         chapter = request.query_params.get('chapter')
@@ -3743,7 +3743,7 @@ class ReflectionNoteViewSet(viewsets.ModelViewSet):
 
     @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     @action(detail=False, methods=['delete'], url_path='delete-all')
-    def delete_all(self, request):
+    def delete_all(self, request, format=None):
         """모든 묵상노트 삭제"""
         decision = can(
             subject_from_request(request),
@@ -3839,7 +3839,7 @@ class BibleHighlightViewSet(viewsets.ModelViewSet):
         responses={200: todo_serializers.BibleHighlightByChapterResponseSerializer},
     )
     @action(detail=False, methods=['get'], url_path='by-chapter')
-    def by_chapter(self, request):
+    def by_chapter(self, request, format=None):
         """특정 장의 하이라이트 조회"""
         book = request.query_params.get('book')
         chapter = request.query_params.get('chapter')
@@ -3869,7 +3869,7 @@ class BibleHighlightViewSet(viewsets.ModelViewSet):
 
     @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     @action(detail=False, methods=['delete'], url_path='delete-all')
-    def delete_all(self, request):
+    def delete_all(self, request, format=None):
         """모든 하이라이트 삭제"""
         decision = can(
             subject_from_request(request),
@@ -3969,7 +3969,7 @@ class PersonalReadingRecordViewSet(
         responses={200: todo_serializers.PersonalRecordStatsResponseSerializer},
     )
     @action(detail=False, methods=['get'])
-    def stats(self, request):
+    def stats(self, request, format=None):
         """읽기 통계 조회"""
         decision = can(
             subject_from_request(request),
@@ -4037,7 +4037,7 @@ class PersonalReadingRecordViewSet(
         responses={200: todo_serializers.PersonalRecordsByBookResponseSerializer},
     )
     @action(detail=False, methods=['get'], url_path='by-book')
-    def by_book(self, request):
+    def by_book(self, request, format=None):
         """특정 책의 읽기 기록 조회"""
         book = request.query_params.get('book')
         if not book:
@@ -4072,7 +4072,7 @@ class PersonalReadingRecordViewSet(
         responses={200: todo_serializers.PersonalRecordDatesResponseSerializer},
     )
     @action(detail=False, methods=['get'])
-    def dates(self, request):
+    def dates(self, request, format=None):
         """읽기 날짜 목록 조회 (캘린더용)"""
         decision = can(
             subject_from_request(request),

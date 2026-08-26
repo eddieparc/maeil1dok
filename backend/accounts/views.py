@@ -18,6 +18,7 @@ from .authentication import clear_auth_cookies, get_tokens_for_user, set_auth_co
 from .email_identity import normalize_email_identity
 from .models import SocialAccount, EmailVerificationToken, PasswordResetToken, UserReadingSettings
 from .visibility import is_live_user
+from . import handoff
 from .email_utils import send_verification_email, send_password_reset_email, send_welcome_email
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
@@ -72,11 +73,27 @@ def _consume_session_bridge_user_id(cache, code):
         return None
 
     cache_key = f'session_bridge:{code}'
-    user_id = cache.get(cache_key)
-    if user_id is None:
+    stored = cache.get(cache_key)
+    if stored is None:
         return None
 
     cache.delete(cache_key)
+
+    user_id, issued_at = handoff.read_code_payload(stored)
+    if user_id is None:
+        return None
+
+    # A code that predates the user's logout must not revive that session. See
+    # accounts/handoff.py for why this is a timestamp comparison rather than an
+    # enumeration of outstanding codes.
+    if handoff.code_is_invalidated_by_logout(cache, user_id, issued_at):
+        logger.info(
+            "세션 브리지 코드가 로그아웃으로 무효화됨: user_id=%s, code=%s...",
+            user_id,
+            str(code)[:8],
+        )
+        return None
+
     return user_id
 
 
@@ -1350,6 +1367,13 @@ def logout_all_devices(request):
     user = request.user
     user.token_version += 1
     user.save(update_fields=['token_version'])
+
+    # Bumping token_version revokes refresh tokens, but a handoff code already in
+    # flight is stored in the cache and carries no token version, so it would
+    # still redeem. Mark the logout instant so those codes are rejected too.
+    from django.core.cache import cache
+
+    handoff.mark_logged_out(cache, user.id)
     
     logger.info(f"모든 기기에서 로그아웃: user_id={user.id}")
     response = Response({'success': True, 'message': '모든 기기에서 로그아웃되었습니다.'})
@@ -1962,7 +1986,11 @@ def session_bridge_issue(request):
     code = str(uuid.uuid4())
     cache_key = f'session_bridge:{code}'
     
-    cache.set(cache_key, user.id, timeout=SESSION_BRIDGE_TTL_SECONDS)
+    cache.set(
+        cache_key,
+        handoff.build_code_payload(user.id),
+        timeout=SESSION_BRIDGE_TTL_SECONDS,
+    )
     
     logger.info(f"세션 브리지 코드 발급: user_id={user.id}, code={code[:8]}...")
     

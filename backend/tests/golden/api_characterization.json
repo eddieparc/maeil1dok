@@ -3557,10 +3557,56 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "bookmarks": {
+              "element_shapes": [
+                {
+                  "book": "<string>",
+                  "book_name": "<string>",
+                  "bookmark_type": "<string>",
+                  "chapter": "<integer>",
+                  "color": "<string>",
+                  "created_at": "<datetime>",
+                  "end_verse": "<integer>",
+                  "id": "<id>",
+                  "memo": "<string>",
+                  "start_verse": "<integer>",
+                  "title": "<string>",
+                  "updated_at": "<datetime>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "bookmarks": {
+              "element_shapes": [
+                {
+                  "book": "<string>",
+                  "book_name": "<string>",
+                  "bookmark_type": "<string>",
+                  "chapter": "<integer>",
+                  "color": "<string>",
+                  "created_at": "<datetime>",
+                  "end_verse": "<integer>",
+                  "id": "<id>",
+                  "memo": "<string>",
+                  "start_verse": "<integer>",
+                  "title": "<string>",
+                  "updated_at": "<datetime>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         }
       }
     },
@@ -3595,10 +3641,18 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "message": "<string>",
+            "success": "<boolean>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "message": "<string>",
+            "success": "<boolean>"
+          },
+          "status": 200
         }
       }
     },
@@ -3847,10 +3901,52 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "highlights": {
+              "element_shapes": [
+                {
+                  "book": "<string>",
+                  "book_name": "<string>",
+                  "chapter": "<integer>",
+                  "color": "<string>",
+                  "created_at": "<datetime>",
+                  "end_verse": "<integer>",
+                  "id": "<id>",
+                  "memo": "<string>",
+                  "start_verse": "<integer>",
+                  "updated_at": "<datetime>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "highlights": {
+              "element_shapes": [
+                {
+                  "book": "<string>",
+                  "book_name": "<string>",
+                  "chapter": "<integer>",
+                  "color": "<string>",
+                  "created_at": "<datetime>",
+                  "end_verse": "<integer>",
+                  "id": "<id>",
+                  "memo": "<string>",
+                  "start_verse": "<integer>",
+                  "updated_at": "<datetime>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         }
       }
     },
@@ -3885,10 +3981,18 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "message": "<string>",
+            "success": "<boolean>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "message": "<string>",
+            "success": "<boolean>"
+          },
+          "status": 200
         }
       }
     },
@@ -4133,10 +4237,52 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "notes": {
+              "element_shapes": [
+                {
+                  "book": "<string>",
+                  "book_name": "<string>",
+                  "chapter": "<integer>",
+                  "content": "<string>",
+                  "created_at": "<datetime>",
+                  "end_verse": "<integer>",
+                  "id": "<id>",
+                  "is_private": "<boolean>",
+                  "start_verse": "<integer>",
+                  "updated_at": "<datetime>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "notes": {
+              "element_shapes": [
+                {
+                  "book": "<string>",
+                  "book_name": "<string>",
+                  "chapter": "<integer>",
+                  "content": "<string>",
+                  "created_at": "<datetime>",
+                  "end_verse": "<integer>",
+                  "id": "<id>",
+                  "is_private": "<boolean>",
+                  "start_verse": "<integer>",
+                  "updated_at": "<datetime>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         }
       }
     },
@@ -4171,10 +4317,18 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "message": "<string>",
+            "success": "<boolean>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "message": "<string>",
+            "success": "<boolean>"
+          },
+          "status": 200
         }
       }
     },
@@ -4367,10 +4521,62 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "is_completed": "<boolean>",
+            "read_chapters": {
+              "element_shapes": [
+                "<integer>"
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "records": {
+              "element_shapes": [
+                {
+                  "book": "<string>",
+                  "book_name": "<string>",
+                  "chapter": "<integer>",
+                  "created_at": "<datetime>",
+                  "id": "<id>",
+                  "read_date": "<date>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>",
+            "total_chapters": "<integer>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "is_completed": "<boolean>",
+            "read_chapters": {
+              "element_shapes": [
+                "<integer>"
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "records": {
+              "element_shapes": [
+                {
+                  "book": "<string>",
+                  "book_name": "<string>",
+                  "chapter": "<integer>",
+                  "created_at": "<datetime>",
+                  "id": "<id>",
+                  "read_date": "<date>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>",
+            "total_chapters": "<integer>"
+          },
+          "status": 200
         }
       }
     },
@@ -4417,10 +4623,30 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "dates": {
+              "element_shapes": [
+                "<date>"
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "dates": {
+              "element_shapes": [
+                "<date>"
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         }
       }
     },
@@ -4477,10 +4703,40 @@
           "status": 401
         },
         "non_owner": {
-          "status": 500
+          "shape": {
+            "stats": {
+              "books_completed": "<integer>",
+              "books_progress": {
+                "gen": {
+                  "read": "<integer>",
+                  "total": "<integer>"
+                }
+              },
+              "books_read": "<integer>",
+              "current_streak": "<integer>",
+              "total_chapters_read": "<integer>"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         },
         "owner": {
-          "status": 500
+          "shape": {
+            "stats": {
+              "books_completed": "<integer>",
+              "books_progress": {
+                "gen": {
+                  "read": "<integer>",
+                  "total": "<integer>"
+                }
+              },
+              "books_read": "<integer>",
+              "current_streak": "<integer>",
+              "total_chapters_read": "<integer>"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
         }
       }
     },

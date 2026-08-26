@@ -17,6 +17,7 @@ from django.middleware.csrf import get_token
 from authmetrics import refresh as refresh_metrics
 from authmetrics.models import AuthMethod, EventKind, Outcome
 from authmetrics.recording import record_auth_event
+from . import handoff
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
@@ -267,6 +268,25 @@ def cookie_logout(request):
                 "Refresh token blacklist failed during logout: %s",
                 e.__class__.__name__,
             )
+
+    # Invalidate handoff codes already issued to this user. Without this, a code
+    # that arrives moments later would mint fresh cookies and revive the session
+    # the user just ended -- the app would look signed in again right after
+    # signing out. See accounts/handoff.py.
+    #
+    # Identifying the user is best-effort: this endpoint is AllowAny so that an
+    # expired access token can still log out, and the refresh token may be
+    # unparseable. When the user cannot be identified there is nothing to mark,
+    # and the shell-side cleanup is what covers that case.
+    logout_user_id = getattr(request.user, 'id', None) if request.user.is_authenticated else None
+    if logout_user_id is None and refresh_token:
+        payload = refresh_metrics.unverified_payload(refresh_token)
+        if payload:
+            logout_user_id = payload.get('user_id')
+    if logout_user_id is not None:
+        from django.core.cache import cache
+
+        handoff.mark_logged_out(cache, logout_user_id)
 
     response = Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
 
