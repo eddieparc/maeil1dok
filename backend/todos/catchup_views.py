@@ -13,6 +13,14 @@ from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from collections import defaultdict
 
+from authz import can, subject_from_request
+from authz.policies.catchup import (
+    CatchupScheduleResource,
+    CatchupSessionCollection,
+    CatchupSessionResource,
+    CatchupSessionSchedulesQuery,
+    CatchupSubscriptionResource,
+)
 from .models import PlanSubscription, CatchupSession, CatchupSchedule
 from .serializers import (
     CatchupStatusSerializer, CatchupPreviewRequestSerializer,
@@ -28,6 +36,13 @@ from .services import (
 )
 from .services.notifications import on_commit_notify_reading_completed
 from . import openapi_serializers as openapi
+
+
+def _authz_denial_response(decision):
+    denial = decision.denial
+    if denial.body is None:
+        return Response(status=denial.status_code)
+    return Response(denial.body, status=denial.status_code)
 
 
 def _parse_recalculate_flag(data):
@@ -131,13 +146,14 @@ def catchup_status(request, subscription_id):
     구독의 밀린 현황 조회
     GET /api/v1/todos/subscriptions/{subscription_id}/catchup-status/
     """
-    subscription = get_object_or_404(
-        PlanSubscription,
-        id=subscription_id,
-        user=request.user,
-        is_active=True,
-        plan__is_active=True,
+    decision = can(
+        subject_from_request(request),
+        'view_catchup_status',
+        CatchupSubscriptionResource(subscription_id=subscription_id),
     )
+    if not decision:
+        return _authz_denial_response(decision)
+    subscription = decision.value
 
     # 밀린 스케줄 조회
     overdue_schedules = get_overdue_schedules(subscription)
@@ -186,13 +202,14 @@ def catchup_preview(request, subscription_id):
     따라잡기 미리보기
     POST /api/v1/todos/subscriptions/{subscription_id}/catchup/preview/
     """
-    subscription = get_object_or_404(
-        PlanSubscription,
-        id=subscription_id,
-        user=request.user,
-        is_active=True,
-        plan__is_active=True,
+    decision = can(
+        subject_from_request(request),
+        'preview_catchup',
+        CatchupSubscriptionResource(subscription_id=subscription_id),
     )
+    if not decision:
+        return _authz_denial_response(decision)
+    subscription = decision.value
 
     serializer = CatchupPreviewRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -290,13 +307,14 @@ def catchup_create(request, subscription_id):
     따라잡기 세션 생성
     POST /api/v1/todos/subscriptions/{subscription_id}/catchup/
     """
-    subscription = get_object_or_404(
-        PlanSubscription,
-        id=subscription_id,
-        user=request.user,
-        is_active=True,
-        plan__is_active=True,
+    decision = can(
+        subject_from_request(request),
+        'create_catchup',
+        CatchupSubscriptionResource(subscription_id=subscription_id),
     )
+    if not decision:
+        return _authz_denial_response(decision)
+    subscription = decision.value
 
     if subscription.catchup_sessions.filter(status='active').exists():
         return _active_catchup_error_response()
@@ -340,7 +358,6 @@ def catchup_create(request, subscription_id):
         with transaction.atomic():
             locked_subscription = PlanSubscription.objects.select_for_update().get(
                 id=subscription.id,
-                user=request.user,
                 is_active=True,
                 plan__is_active=True,
             )
@@ -385,12 +402,14 @@ def catchup_session_detail(request, session_id):
     따라잡기 세션 상세 조회
     GET /api/v1/todos/catchup-sessions/{session_id}/
     """
-    session = get_object_or_404(
-        _visible_catchup_session_queryset(),
-        id=session_id,
-        subscription__user=request.user
+    decision = can(
+        subject_from_request(request),
+        'view_catchup',
+        CatchupSessionResource(session_id=session_id),
     )
-    return Response(CatchupSessionSerializer(session).data)
+    if not decision:
+        return _authz_denial_response(decision)
+    return Response(CatchupSessionSerializer(decision.value).data)
 
 
 @extend_schema(responses={200: openapi.CatchupSessionResponseSerializer})
@@ -401,11 +420,14 @@ def catchup_session_update(request, session_id):
     따라잡기 세션 수정
     PATCH /api/v1/todos/catchup-sessions/{session_id}/
     """
-    session = get_object_or_404(
-        _operable_catchup_session_queryset(),
-        id=session_id,
-        subscription__user=request.user
+    decision = can(
+        subject_from_request(request),
+        'update_catchup',
+        CatchupSessionResource(session_id=session_id),
     )
+    if not decision:
+        return _authz_denial_response(decision)
+    session = decision.value
 
     serializer = CatchupSessionUpdateSerializer(
         session,
@@ -447,11 +469,14 @@ def catchup_session_schedules(request, session_id):
     따라잡기 세션의 스케줄 목록 조회
     GET /api/v1/todos/catchup-sessions/{session_id}/schedules/
     """
-    session = get_object_or_404(
-        _visible_catchup_session_queryset(),
-        id=session_id,
-        subscription__user=request.user
+    decision = can(
+        subject_from_request(request),
+        'view_catchup_schedules',
+        CatchupSessionSchedulesQuery(session_id=session_id),
     )
+    if not decision:
+        return _authz_denial_response(decision)
+    session = decision.value
 
     query_serializer = CatchupSessionSchedulesQuerySerializer(data=request.query_params)
     query_serializer.is_valid(raise_exception=True)
@@ -490,16 +515,17 @@ def catchup_schedule_toggle(request, schedule_id):
     POST /api/v1/todos/catchup-schedules/{schedule_id}/toggle/
     """
     with transaction.atomic():
-        schedule = get_object_or_404(
-            CatchupSchedule.objects.select_for_update().select_related(
-                'session__subscription',
-                'original_schedule',
-            ),
-            id=schedule_id,
-            session__subscription__user=request.user,
-            session__status='active',
-            session__subscription__is_active=True,
-            session__subscription__plan__is_active=True,
+        decision = can(
+            subject_from_request(request),
+            'toggle_catchup_schedule',
+            CatchupScheduleResource(schedule_id=schedule_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        schedule = (
+            CatchupSchedule.objects.select_for_update()
+            .select_related('session__subscription', 'original_schedule')
+            .get(pk=decision.value.id)
         )
 
         if schedule.is_completed:
@@ -545,10 +571,16 @@ def catchup_session_complete(request, session_id):
     POST /api/v1/todos/catchup-sessions/{session_id}/complete/
     """
     with transaction.atomic():
+        decision = can(
+            subject_from_request(request),
+            'complete_catchup',
+            CatchupSessionResource(session_id=session_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
         session = get_object_or_404(
             _operable_catchup_session_queryset().select_for_update(),
-            id=session_id,
-            subscription__user=request.user
+            pk=decision.value.id,
         )
 
         # 미완료 스케줄 확인
@@ -582,10 +614,16 @@ def catchup_session_abandon(request, session_id):
     POST /api/v1/todos/catchup-sessions/{session_id}/abandon/
     """
     with transaction.atomic():
+        decision = can(
+            subject_from_request(request),
+            'abandon_catchup',
+            CatchupSessionResource(session_id=session_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
         session = get_object_or_404(
             _operable_catchup_session_queryset().select_for_update(),
-            id=session_id,
-            subscription__user=request.user
+            pk=decision.value.id,
         )
 
         session.status = 'abandoned'
@@ -602,10 +640,11 @@ def my_active_catchup_sessions(request):
     내 활성 따라잡기 세션 목록
     GET /api/v1/todos/catchup-sessions/active/
     """
-    sessions = CatchupSession.objects.filter(
-        subscription__user=request.user,
-        status='active',
-        subscription__is_active=True,
-        subscription__plan__is_active=True,
+    decision = can(
+        subject_from_request(request),
+        'view_active_catchups',
+        CatchupSessionCollection(),
     )
-    return Response(CatchupSessionSerializer(sessions, many=True).data)
+    if not decision:
+        return _authz_denial_response(decision)
+    return Response(CatchupSessionSerializer(decision.value, many=True).data)

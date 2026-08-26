@@ -3,6 +3,8 @@ from .bible_highlight import POLICIES as BIBLE_HIGHLIGHT_POLICIES
 from .bible_note import POLICIES as BIBLE_NOTE_POLICIES
 from .bible_personal_record import POLICIES as BIBLE_PERSONAL_RECORD_POLICIES
 from .bible_reading_position import POLICIES as BIBLE_READING_POSITION_POLICIES
+from .catchup import POLICIES as CATCHUP_POLICIES
+from .notification import POLICIES as NOTIFICATION_POLICIES
 from .plan_subscription import POLICIES as PLAN_SUBSCRIPTION_POLICIES
 from .reading_group import POLICIES as READING_GROUP_POLICIES
 from .reading_progress import POLICIES as READING_PROGRESS_POLICIES
@@ -17,6 +19,8 @@ _POLICIES = {
     **BIBLE_READING_POSITION_POLICIES,
     **BIBLE_PERSONAL_RECORD_POLICIES,
     **READING_GROUP_POLICIES,
+    **CATCHUP_POLICIES,
+    **NOTIFICATION_POLICIES,
 }
 
 

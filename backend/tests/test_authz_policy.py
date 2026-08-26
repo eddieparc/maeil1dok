@@ -6,6 +6,21 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase
 
 from authz import SubjectKind, can, subject_from_request
+from authz.policies.catchup import (
+    CatchupScheduleResource,
+    CatchupSessionCollection,
+    CatchupSessionResource,
+    CatchupSessionSchedulesQuery,
+    CatchupSubscriptionResource,
+)
+from authz.policies.notification import (
+    NotificationInbox,
+    NotificationResource,
+    NotificationSettingsCurrent,
+    PushConfiguration,
+    PushSubscriptionCurrent,
+    PushSubscriptionRemoval,
+)
 from authz.policies.plan_subscription import (
     PlanSubscriptionCollection,
     PlanSubscriptionCreation,
@@ -50,9 +65,13 @@ from todos.models import (
     BibleBookmark,
     BibleHighlight,
     BibleReadingPlan,
+    CatchupSchedule,
+    CatchupSession,
     DailyBibleSchedule,
     GroupInvitation,
     GroupMembership,
+    Notification,
+    NotificationPushSubscription,
     PersonalReadingRecord,
     PlanSubscription,
     ReadingGroup,
@@ -1013,4 +1032,343 @@ class ReadingGroupAuthzPolicyTest(TestCase):
         self.assertFalse(other_profile.value.is_own_profile)
         self.assertFalse(missing)
         self.assertEqual(missing.denial.status_code, 404)
+
+
+class CatchupAuthzPolicyTest(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="catchup-policy-owner",
+            nickname="캐치업정책소유자",
+            password="pw-test-1234",
+        )
+        self.non_owner = User.objects.create_user(
+            username="catchup-policy-other",
+            nickname="캐치업정책타인",
+            password="pw-test-1234",
+        )
+        self.staff = User.objects.create_user(
+            username="catchup-policy-staff",
+            nickname="캐치업정책스태프",
+            password="pw-test-1234",
+            is_staff=True,
+        )
+        self.owner_plan = BibleReadingPlan.objects.create(
+            name="캐치업 소유자 플랜", created_by=self.owner
+        )
+        self.other_plan = BibleReadingPlan.objects.create(
+            name="캐치업 타인 플랜", created_by=self.non_owner
+        )
+        self.staff_plan = BibleReadingPlan.objects.create(
+            name="캐치업 스태프 플랜", created_by=self.staff
+        )
+        self.owner_subscription = PlanSubscription.objects.create(
+            user=self.owner,
+            plan=self.owner_plan,
+            start_date=date(2026, 1, 1),
+            is_active=True,
+        )
+        self.other_subscription = PlanSubscription.objects.create(
+            user=self.non_owner,
+            plan=self.other_plan,
+            start_date=date(2026, 1, 1),
+            is_active=True,
+        )
+        self.staff_subscription = PlanSubscription.objects.create(
+            user=self.staff,
+            plan=self.staff_plan,
+            start_date=date(2026, 1, 1),
+            is_active=True,
+        )
+        self.owner_session = CatchupSession.objects.create(
+            subscription=self.owner_subscription,
+            name="소유자 따라잡기",
+            range_start=date(2026, 1, 1),
+            range_end=date(2026, 1, 10),
+        )
+        self.staff_session = CatchupSession.objects.create(
+            subscription=self.staff_subscription,
+            name="스태프 따라잡기",
+            range_start=date(2026, 1, 1),
+            range_end=date(2026, 1, 10),
+        )
+        owner_original = DailyBibleSchedule.objects.create(
+            plan=self.owner_plan,
+            date=date(2026, 1, 2),
+            book="창세기",
+            start_chapter=1,
+            end_chapter=1,
+        )
+        self.owner_schedule = CatchupSchedule.objects.create(
+            session=self.owner_session,
+            original_schedule=owner_original,
+            scheduled_date=date(2026, 1, 20),
+        )
+        self.anonymous_subject = subject_from_request(
+            SimpleNamespace(user=AnonymousUser())
+        )
+        self.owner_subject = subject_from_request(SimpleNamespace(user=self.owner))
+        self.non_owner_subject = subject_from_request(
+            SimpleNamespace(user=self.non_owner)
+        )
+        self.staff_subject = subject_from_request(SimpleNamespace(user=self.staff))
+
+    def test_subscription_scoped_actions_allow_owner_and_hide_others(self):
+        for action in ("view_catchup_status", "preview_catchup", "create_catchup"):
+            owner = can(
+                self.owner_subject,
+                action,
+                CatchupSubscriptionResource(self.owner_subscription.id),
+            )
+            self.assertTrue(owner, action)
+            self.assertEqual(owner.value, self.owner_subscription)
+
+            for subject in (
+                self.non_owner_subject,
+                self.anonymous_subject,
+                self.staff_subject,
+            ):
+                with self.subTest(action=action, user_id=subject.user_id):
+                    decision = can(
+                        subject,
+                        action,
+                        CatchupSubscriptionResource(self.owner_subscription.id),
+                    )
+                    self.assertFalse(decision)
+                    self.assertEqual(decision.denial.status_code, 404)
+
+    def test_inactive_subscription_is_hidden_even_from_owner(self):
+        self.owner_subscription.is_active = False
+        self.owner_subscription.save(update_fields=["is_active"])
+
+        decision = can(
+            self.owner_subject,
+            "view_catchup_status",
+            CatchupSubscriptionResource(self.owner_subscription.id),
+        )
+        self.assertFalse(decision)
+        self.assertEqual(decision.denial.status_code, 404)
+
+    def test_session_owner_via_subscription_and_staff_has_no_bypass(self):
+        owner = can(
+            self.owner_subject,
+            "view_catchup",
+            CatchupSessionResource(self.owner_session.id),
+        )
+        self.assertTrue(owner)
+        self.assertEqual(owner.value, self.owner_session)
+
+        for action in ("update_catchup", "complete_catchup", "abandon_catchup"):
+            self.assertTrue(
+                can(
+                    self.owner_subject,
+                    action,
+                    CatchupSessionResource(self.owner_session.id),
+                )
+            )
+
+        for subject in (
+            self.non_owner_subject,
+            self.anonymous_subject,
+            self.staff_subject,
+        ):
+            decision = can(
+                subject,
+                "complete_catchup",
+                CatchupSessionResource(self.owner_session.id),
+            )
+            self.assertFalse(decision)
+            self.assertEqual(decision.denial.status_code, 404)
+
+        staff_own = can(
+            self.staff_subject,
+            "view_catchup",
+            CatchupSessionResource(self.staff_session.id),
+        )
+        self.assertTrue(staff_own)
+
+    def test_active_collection_is_scoped_to_subject(self):
+        owner = can(
+            self.owner_subject,
+            "view_active_catchups",
+            CatchupSessionCollection(),
+        )
+        other = can(
+            self.non_owner_subject,
+            "view_active_catchups",
+            CatchupSessionCollection(),
+        )
+        anonymous = can(
+            self.anonymous_subject,
+            "view_active_catchups",
+            CatchupSessionCollection(),
+        )
+
+        self.assertEqual(list(owner.value), [self.owner_session])
+        self.assertEqual(list(other.value), [])
+        self.assertFalse(anonymous)
+        self.assertEqual(anonymous.denial.status_code, 401)
+
+    def test_schedule_toggle_requires_subscription_owner(self):
+        owner = can(
+            self.owner_subject,
+            "toggle_catchup_schedule",
+            CatchupScheduleResource(self.owner_schedule.id),
+        )
+        other = can(
+            self.non_owner_subject,
+            "toggle_catchup_schedule",
+            CatchupScheduleResource(self.owner_schedule.id),
+        )
+        schedules = can(
+            self.owner_subject,
+            "view_catchup_schedules",
+            CatchupSessionSchedulesQuery(self.owner_session.id),
+        )
+
+        self.assertTrue(owner)
+        self.assertEqual(owner.value, self.owner_schedule)
+        self.assertFalse(other)
+        self.assertEqual(other.denial.status_code, 404)
+        self.assertTrue(schedules)
+
+
+class NotificationAuthzPolicyTest(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="notif-policy-owner",
+            nickname="알림정책소유자",
+            password="pw-test-1234",
+        )
+        self.non_owner = User.objects.create_user(
+            username="notif-policy-other",
+            nickname="알림정책타인",
+            password="pw-test-1234",
+        )
+        self.staff = User.objects.create_user(
+            username="notif-policy-staff",
+            nickname="알림정책스태프",
+            password="pw-test-1234",
+            is_staff=True,
+        )
+        self.owner_notification = Notification.objects.create(
+            recipient=self.owner,
+            type="system",
+            title="소유자 알림",
+            body="본인",
+        )
+        self.other_notification = Notification.objects.create(
+            recipient=self.non_owner,
+            type="system",
+            title="타인 알림",
+            body="타인",
+        )
+        self.staff_notification = Notification.objects.create(
+            recipient=self.staff,
+            type="system",
+            title="스태프 알림",
+            body="스태프",
+        )
+        self.anonymous_subject = subject_from_request(
+            SimpleNamespace(user=AnonymousUser())
+        )
+        self.owner_subject = subject_from_request(SimpleNamespace(user=self.owner))
+        self.non_owner_subject = subject_from_request(
+            SimpleNamespace(user=self.non_owner)
+        )
+        self.staff_subject = subject_from_request(SimpleNamespace(user=self.staff))
+
+    def test_inbox_is_recipient_scoped(self):
+        owner = can(self.owner_subject, "view_notifications", NotificationInbox())
+        other = can(
+            self.non_owner_subject, "view_notifications", NotificationInbox()
+        )
+        anonymous = can(
+            self.anonymous_subject, "view_notifications", NotificationInbox()
+        )
+
+        self.assertEqual(list(owner.value), [self.owner_notification])
+        self.assertEqual(list(other.value), [self.other_notification])
+        self.assertFalse(anonymous)
+        self.assertEqual(anonymous.denial.status_code, 401)
+
+    def test_mark_read_allows_recipient_and_hides_others(self):
+        owner = can(
+            self.owner_subject,
+            "mark_notification_read",
+            NotificationResource(self.owner_notification.id),
+        )
+        self.assertTrue(owner)
+        self.assertEqual(owner.value, self.owner_notification)
+
+        for subject in (
+            self.non_owner_subject,
+            self.anonymous_subject,
+            self.staff_subject,
+        ):
+            decision = can(
+                subject,
+                "mark_notification_read",
+                NotificationResource(self.owner_notification.id),
+            )
+            self.assertFalse(decision)
+            self.assertEqual(decision.denial.status_code, 404)
+            self.assertEqual(
+                decision.denial.body,
+                {"success": False, "error": "알림을 찾을 수 없습니다."},
+            )
+
+        staff_own = can(
+            self.staff_subject,
+            "mark_notification_read",
+            NotificationResource(self.staff_notification.id),
+        )
+        self.assertTrue(staff_own)
+
+    def test_self_scoped_actions_require_authentication(self):
+        self.assertTrue(
+            can(
+                self.owner_subject,
+                "update_notification_settings",
+                NotificationSettingsCurrent(),
+            )
+        )
+        self.assertTrue(
+            can(self.owner_subject, "view_push_config", PushConfiguration())
+        )
+        self.assertTrue(
+            can(
+                self.owner_subject,
+                "register_push_subscription",
+                PushSubscriptionCurrent(),
+            )
+        )
+        anonymous = can(
+            self.anonymous_subject,
+            "mark_all_notifications_read",
+            NotificationInbox(),
+        )
+        self.assertFalse(anonymous)
+        self.assertEqual(anonymous.denial.status_code, 401)
+
+    def test_push_removal_is_scoped_to_subject_endpoint(self):
+        endpoint = "https://updates.push.services.mozilla.com/wpush/v2/owner"
+        NotificationPushSubscription.objects.create(
+            user=self.owner,
+            endpoint=endpoint,
+            p256dh="p",
+            auth="a",
+        )
+        owner = can(
+            self.owner_subject,
+            "remove_push_subscription",
+            PushSubscriptionRemoval(endpoint=endpoint),
+        )
+        other = can(
+            self.non_owner_subject,
+            "remove_push_subscription",
+            PushSubscriptionRemoval(endpoint=endpoint),
+        )
+
+        self.assertEqual(owner.value.count(), 1)
+        self.assertEqual(other.value.count(), 0)
 

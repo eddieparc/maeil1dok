@@ -26,7 +26,7 @@
 - **현재 동작을 고정할 뿐 바꾸지 않는다.** 상태 코드와 본문은 지금 코드가 내는 값 그대로다.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -37,9 +37,14 @@ from todos.models import (
     BibleBookmark,
     BibleHighlight,
     BibleReadingPlan,
+    CatchupSchedule,
+    CatchupSession,
     DailyBibleSchedule,
     GroupInvitation,
     GroupMembership,
+    Notification,
+    NotificationPushSubscription,
+    NotificationSettings,
     PersonalReadingRecord,
     PlanSubscription,
     ReadingGroup,
@@ -711,3 +716,311 @@ class RespondInvitationWriteAuthorizationTests(_GroupWriteUsers, TestCase):
             ).exists()
         )
 
+
+
+class CatchupWriteAuthorizationTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="catchup-write-owner",
+            nickname="캐치업쓰기소유자",
+            password="pw-test-1234",
+        )
+        self.other = User.objects.create_user(
+            username="catchup-write-other",
+            nickname="캐치업쓰기타인",
+            password="pw-test-1234",
+        )
+        self.plan = BibleReadingPlan.objects.create(
+            name="캐치업 쓰기 플랜", created_by=self.owner
+        )
+        overdue_date = date.today() - timedelta(days=2)
+        self.subscription = PlanSubscription.objects.create(
+            user=self.owner,
+            plan=self.plan,
+            start_date=overdue_date,
+            is_active=True,
+        )
+        self.original = DailyBibleSchedule.objects.create(
+            plan=self.plan,
+            date=overdue_date,
+            book="창세기",
+            start_chapter=1,
+            end_chapter=1,
+        )
+        self.session = CatchupSession.objects.create(
+            subscription=self.subscription,
+            name="쓰기 따라잡기",
+            range_start=overdue_date,
+            range_end=overdue_date,
+            max_daily_readings=1,
+        )
+        self.catchup_schedule = CatchupSchedule.objects.create(
+            session=self.session,
+            original_schedule=self.original,
+            scheduled_date=date.today(),
+        )
+        create_plan = BibleReadingPlan.objects.create(
+            name="캐치업 생성 플랜", created_by=self.owner
+        )
+        self.create_subscription = PlanSubscription.objects.create(
+            user=self.owner,
+            plan=create_plan,
+            start_date=overdue_date,
+            is_active=True,
+        )
+        DailyBibleSchedule.objects.create(
+            plan=create_plan,
+            date=overdue_date,
+            book="출애굽기",
+            start_chapter=1,
+            end_chapter=1,
+        )
+        self.create_payload = {
+            "name": "새 따라잡기",
+            "range_start": overdue_date.isoformat(),
+            "range_end": overdue_date.isoformat(),
+            "max_daily_readings": 1,
+            "max_daily_chapters": 1,
+        }
+
+    def test_owner_can_preview_and_create_catchup(self):
+        preview = _bearer(self.owner).post(
+            f"/api/v1/todos/subscriptions/{self.create_subscription.id}/catchup/preview/",
+            self.create_payload,
+            format="json",
+        )
+        self.assertEqual(preview.status_code, 200, preview.data)
+        self.assertTrue(preview.data["valid"])
+
+        created = _bearer(self.owner).post(
+            f"/api/v1/todos/subscriptions/{self.create_subscription.id}/catchup/",
+            self.create_payload,
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        self.assertTrue(
+            CatchupSession.objects.filter(
+                subscription=self.create_subscription, name="새 따라잡기"
+            ).exists()
+        )
+
+    def test_non_owner_cannot_preview_or_create_another_users_catchup(self):
+        preview = _bearer(self.other).post(
+            f"/api/v1/todos/subscriptions/{self.create_subscription.id}/catchup/preview/",
+            self.create_payload,
+            format="json",
+        )
+        created = _bearer(self.other).post(
+            f"/api/v1/todos/subscriptions/{self.create_subscription.id}/catchup/",
+            self.create_payload,
+            format="json",
+        )
+
+        self.assertEqual(preview.status_code, 404)
+        self.assertEqual(created.status_code, 404)
+        self.assertFalse(
+            CatchupSession.objects.filter(
+                subscription=self.create_subscription
+            ).exists()
+        )
+
+    def test_owner_can_update_toggle_and_complete_own_session(self):
+        updated = _bearer(self.owner).patch(
+            f"/api/v1/todos/catchup-sessions/{self.session.id}/update/",
+            {"name": "수정된 따라잡기"},
+            format="json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.name, "수정된 따라잡기")
+
+        toggled = _bearer(self.owner).post(
+            f"/api/v1/todos/catchup-schedules/{self.catchup_schedule.id}/toggle/"
+        )
+        self.assertEqual(toggled.status_code, 200, toggled.data)
+        self.catchup_schedule.refresh_from_db()
+        self.assertTrue(self.catchup_schedule.is_completed)
+
+        completed = _bearer(self.owner).post(
+            f"/api/v1/todos/catchup-sessions/{self.session.id}/complete/"
+        )
+        self.assertEqual(completed.status_code, 200, completed.data)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, "completed")
+
+    def test_non_owner_writes_do_not_change_catchup_state(self):
+        patched = _bearer(self.other).patch(
+            f"/api/v1/todos/catchup-sessions/{self.session.id}/update/",
+            {"name": "탈취"},
+            format="json",
+        )
+        toggled = _bearer(self.other).post(
+            f"/api/v1/todos/catchup-schedules/{self.catchup_schedule.id}/toggle/"
+        )
+        completed = _bearer(self.other).post(
+            f"/api/v1/todos/catchup-sessions/{self.session.id}/complete/"
+        )
+        abandoned = _bearer(self.other).post(
+            f"/api/v1/todos/catchup-sessions/{self.session.id}/abandon/"
+        )
+
+        self.assertEqual(patched.status_code, 404)
+        self.assertEqual(toggled.status_code, 404)
+        self.assertEqual(completed.status_code, 404)
+        self.assertEqual(abandoned.status_code, 404)
+        self.session.refresh_from_db()
+        self.catchup_schedule.refresh_from_db()
+        self.assertEqual(self.session.name, "쓰기 따라잡기")
+        self.assertEqual(self.session.status, "active")
+        self.assertFalse(self.catchup_schedule.is_completed)
+
+    def test_owner_can_abandon_own_session(self):
+        response = _bearer(self.owner).post(
+            f"/api/v1/todos/catchup-sessions/{self.session.id}/abandon/"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, "abandoned")
+
+    def test_anonymous_cannot_write_catchup(self):
+        response = APIClient().post(
+            f"/api/v1/todos/subscriptions/{self.create_subscription.id}/catchup/",
+            self.create_payload,
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(
+            CatchupSession.objects.filter(
+                subscription=self.create_subscription
+            ).exists()
+        )
+
+
+class NotificationWriteAuthorizationTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="notif-write-owner",
+            nickname="알림쓰기소유자",
+            password="pw-test-1234",
+        )
+        self.other = User.objects.create_user(
+            username="notif-write-other",
+            nickname="알림쓰기타인",
+            password="pw-test-1234",
+        )
+        self.owner_notification = Notification.objects.create(
+            recipient=self.owner,
+            type="system",
+            title="소유자 알림",
+            body="읽지 않음",
+        )
+        self.other_notification = Notification.objects.create(
+            recipient=self.other,
+            type="system",
+            title="타인 알림",
+            body="읽지 않음",
+        )
+        self.owner_settings = NotificationSettings.objects.create(user=self.owner)
+        self.other_settings = NotificationSettings.objects.create(user=self.other)
+        self.push_payload = {
+            "endpoint": (
+                "https://updates.push.services.mozilla.com/wpush/v2/write-authz"
+            ),
+            "keys": {"p256dh": "public-key", "auth": "auth-secret"},
+        }
+
+    def test_owner_can_mark_own_notification_read(self):
+        response = _bearer(self.owner).patch(
+            f"/api/v1/todos/notifications/{self.owner_notification.id}/read/"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.owner_notification.refresh_from_db()
+        self.assertIsNotNone(self.owner_notification.read_at)
+
+    def test_non_owner_cannot_mark_another_users_notification_read(self):
+        response = _bearer(self.other).patch(
+            f"/api/v1/todos/notifications/{self.owner_notification.id}/read/"
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data["error"], "알림을 찾을 수 없습니다.")
+        self.owner_notification.refresh_from_db()
+        self.assertIsNone(self.owner_notification.read_at)
+
+    def test_mark_all_read_does_not_touch_another_users_inbox(self):
+        response = _bearer(self.other).post(
+            "/api/v1/todos/notifications/mark-all-read/"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["updated_count"], 1)
+        self.owner_notification.refresh_from_db()
+        self.other_notification.refresh_from_db()
+        self.assertIsNone(self.owner_notification.read_at)
+        self.assertIsNotNone(self.other_notification.read_at)
+
+    def test_settings_update_is_self_scoped(self):
+        owner = _bearer(self.owner).patch(
+            "/api/v1/todos/notifications/settings/",
+            {"notifications_enabled": False},
+            format="json",
+        )
+        other = _bearer(self.other).patch(
+            "/api/v1/todos/notifications/settings/",
+            {"friend_activity_enabled": False},
+            format="json",
+        )
+        self.assertEqual(owner.status_code, 200, owner.data)
+        self.assertEqual(other.status_code, 200, other.data)
+        self.owner_settings.refresh_from_db()
+        self.other_settings.refresh_from_db()
+        self.assertFalse(self.owner_settings.notifications_enabled)
+        self.assertTrue(self.other_settings.notifications_enabled)
+        self.assertFalse(self.other_settings.friend_activity_enabled)
+        self.assertTrue(self.owner_settings.friend_activity_enabled)
+
+    def test_push_register_and_remove_preserve_device_ownership(self):
+        created = _bearer(self.owner).post(
+            "/api/v1/todos/notifications/push/subscriptions/",
+            self.push_payload,
+            format="json",
+        )
+        self.assertEqual(created.status_code, 200, created.data)
+
+        conflict = _bearer(self.other).post(
+            "/api/v1/todos/notifications/push/subscriptions/",
+            self.push_payload,
+            format="json",
+        )
+        self.assertEqual(conflict.status_code, 409)
+        subscription = NotificationPushSubscription.objects.get(
+            endpoint=self.push_payload["endpoint"]
+        )
+        self.assertEqual(subscription.user_id, self.owner.id)
+        self.assertTrue(subscription.enabled)
+
+        other_remove = _bearer(self.other).post(
+            "/api/v1/todos/notifications/push/subscriptions/remove/",
+            {"endpoint": self.push_payload["endpoint"]},
+            format="json",
+        )
+        self.assertEqual(other_remove.status_code, 200, other_remove.data)
+        self.assertEqual(other_remove.data["updated_count"], 0)
+        subscription.refresh_from_db()
+        self.assertTrue(subscription.enabled)
+
+        owner_remove = _bearer(self.owner).post(
+            "/api/v1/todos/notifications/push/subscriptions/remove/",
+            {"endpoint": self.push_payload["endpoint"]},
+            format="json",
+        )
+        self.assertEqual(owner_remove.status_code, 200, owner_remove.data)
+        self.assertEqual(owner_remove.data["updated_count"], 1)
+        subscription.refresh_from_db()
+        self.assertFalse(subscription.enabled)
+
+    def test_anonymous_cannot_mark_notification_read(self):
+        response = APIClient().patch(
+            f"/api/v1/todos/notifications/{self.owner_notification.id}/read/"
+        )
+        self.assertEqual(response.status_code, 401)
+        self.owner_notification.refresh_from_db()
+        self.assertIsNone(self.owner_notification.read_at)
