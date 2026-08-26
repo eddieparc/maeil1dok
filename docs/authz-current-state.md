@@ -331,8 +331,8 @@ machine-consumed 원천에서 검사되게 한다. 이 문서 §3의 불일치 2
 
 ### 6.1 도메인별 진척
 
-`authz.can` 으로 옮긴 도메인과 남은 것. 한 번에 전부 옮기지 않는다 — 프로덕션에
-실사용자가 있고 스테이징이 없으므로 **도메인 단위로 작게, 매번 변이로 증명**한다.
+`authz.can` 으로 옮긴 도메인. **12개 전부 완료**했다. 한 번에 옮기지 않고 도메인 단위로
+작게 나눠 매번 변이로 증명했다 — 프로덕션에 실사용자가 있고 스테이징이 없기 때문이다.
 
 | 도메인 | 정책 파일 | 상태 |
 |---|---|---|
@@ -344,10 +344,10 @@ machine-consumed 원천에서 검사되게 한다. 이 문서 §3의 불일치 2
 | 읽기 위치 | `bible_reading_position.py` | 완료 |
 | 개인 읽기 기록 | `bible_personal_record.py` | 완료 |
 | 그룹 | `reading_group.py` + `reading_group_types.py` | 완료 |
-| 캐치업 | — | 진행 |
-| 알림 | — | 진행 |
-| 프로필·소셜 | — | 진행 |
-| 캘린더 | — | 진행 |
+| 캐치업 | `catchup.py` | 완료 |
+| 알림 | `notification.py` | 완료 |
+| 프로필·소셜 | `user_profile.py + user_profile_types.py` | 완료 |
+| 캘린더 | `calendar_settings.py` | 완료 |
 
 ### 6.2 이관 절차 (검증된 순서)
 
