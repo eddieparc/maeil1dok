@@ -229,15 +229,25 @@ def get_csrf_token(request):
     return Response({'csrfToken': csrf_token})
 
 
-@extend_schema(responses={200: openapi.AuthenticatedUserResponseSerializer})
+@extend_schema(
+    responses={200: openapi.AuthenticatedUserResponseSerializer},
+    description=(
+        'Auth probe. `/api/v1/auth/user/` is the canonical current-user contract; '
+        'this route returns the same user payload wrapped in `{authenticated, user}` '
+        'and exists for callers that depend on that envelope.'
+    ),
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def verify_auth(request):
-    """
-    현재 인증 상태 확인
-
-    쿠키 기반 인증이 정상 작동하는지 테스트용
-    """
+    # Not marked `deprecated` in the schema on purpose: that flag already carries a
+    # different meaning here -- it distinguishes the /accounts/ compatibility alias
+    # from the canonical /auth/ route, and tests.test_openapi_schema asserts exactly
+    # one of each pair carries it. Overloading it would destroy that signal.
+    #
+    # The payload is built from the same serializer /api/v1/auth/user/ uses, so the
+    # two cannot drift; only the envelope differs. Reaching this view means DRF has
+    # already authenticated the request, so `authenticated` is always True.
     return Response({
         'authenticated': True,
         'user': UserSerializer(request.user).data

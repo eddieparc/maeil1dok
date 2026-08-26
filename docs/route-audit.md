@@ -149,3 +149,35 @@ invariant를 계속 검사한다.
 covered route count **204 → 195**, excluded route count **23 → 23**으로 갱신했다.
 응답 shape는 변경하지 않았고 위에서 제거한 URL leaf 9개(개인 detail의 format alias 포함)의
 관찰 항목만 사라졌다. 이는 route 제거를 반영하는 정당한 golden 갱신이다.
+
+---
+
+## 4. 발전 항목 후속 처리 (실행 기록)
+
+§3 이 "발전"으로 판정한 7건을 실제로 조사해 처리 여부를 갈랐다. 판정만 남기고
+끝내면 다음 사람이 같은 조사를 반복한다.
+
+### 4.1 처리한 것
+
+| 항목 | 한 일 | 근거 |
+|---|---|---|
+| `notification-settings` | **파사드로 수렴.** 두 라우트가 같은 행(`todos.NotificationSettings`)을 읽고 쓴다. 데이터 이관은 `todos/0033`. | 발송 코드가 `UserReadingSettings` 를 **한 번도 읽지 않았다** — `daily_reading_reminder` 를 꺼도 알림이 계속 갔고, `weekly_progress_summary`·`service_notice` 는 발송 코드 자체가 없었다. 단순 중복이 아니라 **사용자 피해가 있는 버그**였다. |
+| `verify/` | **드리프트 방지로 고정.** canonical 은 `/auth/user/` 임을 스키마 description 에 명시하고, 두 라우트의 user payload 가 필드 단위로 동일함을 테스트로 못박았다(`tests/test_auth_probe_contract.py`). | 라우트를 지우려 했으나 웹 인증 가드(`useApi.ts:204-205`)가 **두 경로를 모두** 예외 처리한다. 지금 지우면 웹 배포 없이 깨진다. 제거는 별도 배포 경계. |
+
+`verify/` 에 OpenAPI `deprecated` 플래그를 붙이려다 물렸다. **이 스키마에서 그 플래그는
+이미 다른 뜻을 갖는다** — `/accounts/` 호환 별칭과 canonical `/auth/` 를 구분하는 표시이고,
+`test_duplicate_account_prefixes_have_one_deprecated_alias` 가 쌍마다 정확히 하나만
+그 플래그를 갖도록 강제한다. 붙이자 양쪽이 모두 deprecated 가 되어 그 신호가 무너졌고
+테스트가 잡았다. **의미를 과적재하지 말 것.**
+
+### 4.2 미루는 것과 그 이유
+
+| 항목 | 판정 | 이유 |
+|---|---|---|
+| `account-email` | **미룸.** | GET/PATCH 실호출 0건이고 UI 가 없다. 기능·보안 검증은 갖췄으므로 죽은 게 아니라 **미완성**이다. 재인증 UX 를 설계해 붙이는 제품 작업이며, 라우트 정리와 성격이 다르다. |
+| `csrf/` | **미룸 (제거 후보).** | 실호출 0건이고, 프론트는 CSRF 토큰을 **쿠키(`csrftoken`)와 로그인·갱신 응답의 `X-CSRFToken` 헤더**에서 얻는다(`useApi.ts:78,123`). 즉 부트스트랩 경로가 이미 둘 있어 이 라우트가 필요한 조건이 없다. 다만 외부 구버전 클라이언트가 쓰는지 확인할 수단이 없어 관측 없이 지우지 않는다. |
+| `complete-kakao-signup` | **유지.** | `useApi.ts` public allowlist 에 등재돼 있다(문자열만 있고 호출은 아니지만, 등재 자체가 legacy 클라이언트 경로를 전제한다). 하위 호환 인증군이고 별도 payload 계약이다. |
+
+`csrf/` 와 `account-email` 은 성격이 정반대다. 전자는 **필요 조건이 사라진 라우트**여서
+관측 후 제거 대상이고, 후자는 **쓸 곳이 아직 안 만들어진 라우트**여서 제품 작업 대상이다.
+둘을 "미사용"으로 묶으면 잘못된 결론에 이른다.

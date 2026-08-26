@@ -1041,9 +1041,7 @@ paths:
       description: |-
         Deprecated compatibility alias. Use `/api/v1/auth/verify/`.
 
-        현재 인증 상태 확인
-
-        쿠키 기반 인증이 정상 작동하는지 테스트용
+        Auth probe. `/api/v1/auth/user/` is the canonical current-user contract; this route returns the same user payload wrapped in `{authenticated, user}` and exists for callers that depend on that envelope.
       tags:
       - accounts
       security:
@@ -1964,10 +1962,9 @@ paths:
   /api/v1/auth/verify/:
     get:
       operationId: auth_verify_retrieve
-      description: |-
-        현재 인증 상태 확인
-
-        쿠키 기반 인증이 정상 작동하는지 테스트용
+      description: Auth probe. `/api/v1/auth/user/` is the canonical current-user
+        contract; this route returns the same user payload wrapped in `{authenticated,
+        user}` and exists for callers that depend on that envelope.
       tags:
       - auth
       security:

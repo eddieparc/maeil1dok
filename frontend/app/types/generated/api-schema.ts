@@ -212,6 +212,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/follow/`.
+         */
         post: operations["accounts_follow_create"];
         delete?: never;
         options?: never;
@@ -226,6 +230,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/followers/{user_id}/`.
+         */
         get: operations["accounts_followers_retrieve"];
         put?: never;
         post?: never;
@@ -242,6 +250,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/following/{user_id}/`.
+         */
         get: operations["accounts_following_retrieve"];
         put?: never;
         post?: never;
@@ -258,6 +270,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/friends/`.
+         */
         get: operations["accounts_friends_retrieve"];
         put?: never;
         post?: never;
@@ -465,6 +481,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/profile/`.
+         */
         put: operations["accounts_profile_update"];
         post?: never;
         delete?: never;
@@ -480,6 +500,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/profile/{user_id}/`.
+         */
         get: operations["accounts_profile_retrieve"];
         put?: never;
         post?: never;
@@ -496,6 +520,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/profile/{user_id}/achievements/`.
+         */
         get: operations["accounts_profile_achievements_retrieve"];
         put?: never;
         post?: never;
@@ -512,6 +540,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/profile/{user_id}/calendar/`.
+         */
         get: operations["accounts_profile_calendar_retrieve"];
         put?: never;
         post?: never;
@@ -528,6 +560,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/reading-settings/`.
+         */
         get: operations["accounts_reading_settings_retrieve"];
         put?: never;
         post?: never;
@@ -550,6 +586,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/reading-settings/update/`.
+         */
         patch: operations["accounts_reading_settings_update_partial_update"];
         trace?: never;
     };
@@ -668,6 +708,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/search/`.
+         */
         get: operations["accounts_search_retrieve"];
         put?: never;
         post?: never;
@@ -878,6 +922,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
+        /**
+         * @deprecated
+         * @description Deprecated compatibility alias. Use `/api/v1/auth/unfollow/{user_id}/`.
+         */
         delete: operations["accounts_unfollow_destroy"];
         options?: never;
         head?: never;
@@ -981,9 +1029,7 @@ export interface paths {
          * @deprecated
          * @description Deprecated compatibility alias. Use `/api/v1/auth/verify/`.
          *
-         *     현재 인증 상태 확인
-         *
-         *     쿠키 기반 인증이 정상 작동하는지 테스트용
+         *     Deprecated auth probe. Use `/api/v1/auth/user/`, which is the canonical current-user contract. This route returns the same user payload wrapped in `{authenticated, user}` and is kept only for callers that already depend on that envelope.
          */
         get: operations["accounts_verify_retrieve"];
         put?: never;
@@ -1161,10 +1207,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/follow/`.
-         */
         post: operations["auth_follow_create"];
         delete?: never;
         options?: never;
@@ -1179,10 +1221,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/followers/{user_id}/`.
-         */
         get: operations["auth_followers_retrieve"];
         put?: never;
         post?: never;
@@ -1199,10 +1237,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/following/{user_id}/`.
-         */
         get: operations["auth_following_retrieve"];
         put?: never;
         post?: never;
@@ -1219,10 +1253,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/friends/`.
-         */
         get: operations["auth_friends_retrieve"];
         put?: never;
         post?: never;
@@ -1397,10 +1427,6 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/profile/`.
-         */
         put: operations["auth_profile_update"];
         post?: never;
         delete?: never;
@@ -1416,10 +1442,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/profile/{user_id}/`.
-         */
         get: operations["auth_profile_retrieve"];
         put?: never;
         post?: never;
@@ -1436,10 +1458,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/profile/{user_id}/achievements/`.
-         */
         get: operations["auth_profile_achievements_retrieve"];
         put?: never;
         post?: never;
@@ -1456,10 +1474,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/profile/{user_id}/calendar/`.
-         */
         get: operations["auth_profile_calendar_retrieve"];
         put?: never;
         post?: never;
@@ -1476,10 +1490,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/reading-settings/`.
-         */
         get: operations["auth_reading_settings_retrieve"];
         put?: never;
         post?: never;
@@ -1502,10 +1512,6 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/reading-settings/update/`.
-         */
         patch: operations["auth_reading_settings_update_partial_update"];
         trace?: never;
     };
@@ -1603,10 +1609,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/search/`.
-         */
         get: operations["auth_search_retrieve"];
         put?: never;
         post?: never;
@@ -1791,10 +1793,6 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /**
-         * @deprecated
-         * @description Deprecated compatibility alias. Use `/api/v1/accounts/unfollow/{user_id}/`.
-         */
         delete: operations["auth_unfollow_destroy"];
         options?: never;
         head?: never;
@@ -1876,9 +1874,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description 현재 인증 상태 확인
-         *
-         *     쿠키 기반 인증이 정상 작동하는지 테스트용
+         * @deprecated
+         * @description Deprecated auth probe. Use `/api/v1/auth/user/`, which is the canonical current-user contract. This route returns the same user payload wrapped in `{authenticated, user}` and is kept only for callers that already depend on that envelope.
          */
         get: operations["auth_verify_retrieve"];
         put?: never;
@@ -2414,23 +2411,6 @@ export interface paths {
         };
         /** @description 읽기 통계 조회 */
         get: operations["todos_bible_personal_records_stats_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/todos/bible/personal-records/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description 개인 읽기 기록 API */
-        get: operations["todos_bible_personal_records_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3099,24 +3079,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/todos/hasena/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description 하세나 기록 상세 조회 및 삭제 */
-        get: operations["todos_hasena_retrieve"];
-        put?: never;
-        post?: never;
-        /** @description 하세나 기록 상세 조회 및 삭제 */
-        delete: operations["todos_hasena_destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/todos/invitations/": {
         parameters: {
             query?: never;
@@ -3341,23 +3303,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/todos/plan/{id}/progress/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description 특정 구독의 진도 목록 조회 */
-        get: operations["todos_plan_progress_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/todos/plan/{id}/toggle-active/": {
         parameters: {
             query?: never;
@@ -3369,23 +3314,6 @@ export interface paths {
         put?: never;
         /** @description 구독 활성화/비활성화 토글 */
         post: operations["todos_plan_toggle_active_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/todos/plan/{id}/unsubscribe/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description 구독 취소 및 관련 진행도 데이터 삭제 */
-        post: operations["todos_plan_unsubscribe_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3418,67 +3346,6 @@ export interface paths {
         };
         /** @description 사용자의 구독 중인 플랜과 구독 가능한 플랜 목록 반환 */
         get: operations["todos_plans_user_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/todos/reading/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * @description 성경 진도 업데이트 API
-         *
-         *     [필수 파라미터]
-         *     - plan_id: 플랜 ID (문자열)
-         *     - schedule_ids: 스케줄 ID 리스트 (배열)
-         *     - action: 'complete' 또는 'cancel' (문자열)
-         *
-         *     [요청 예시]
-         *     {
-         *         "plan_id": "1",
-         *         "schedule_ids": ["42", "43", "44"],
-         *         "action": "complete"
-         *     }
-         *
-         *     [응답 예시 - 성공]
-         *     {
-         *         "success": true,
-         *         "plan_id": "1",
-         *         "schedule_ids": ["42", "43", "44"],
-         *         "is_completed": true
-         *     }
-         *
-         *     [응답 예시 - 실패]
-         *     {
-         *         "success": false,
-         *         "error": "스케줄 ID와 플랜 ID가 일치하지 않습니다."
-         *     }
-         */
-        post: operations["todos_reading_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/todos/reading/history/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["todos_reading_history_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3767,40 +3634,6 @@ export interface paths {
         get: operations["todos_stats_users_retrieve"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/todos/stats/visitors/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description 방문자 통계 조회 */
-        get: operations["todos_stats_visitors_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/todos/stats/visitors/increment/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description 방문자 수 증가 */
-        post: operations["todos_stats_visitors_increment_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4475,9 +4308,6 @@ export interface components {
             message: string;
             /** Format: date-time */
             scheduled_deletion_at: string;
-        };
-        DetailResponse: {
-            detail: string;
         };
         /** @description 팔로우 관계 시리얼라이저 */
         Follow: {
@@ -5480,17 +5310,6 @@ export interface components {
             readonly email_verified: boolean;
             readonly has_usable_password_flag: boolean;
         };
-        UserBibleProgressResponse: {
-            readonly id: number;
-            subscription: number;
-            readonly plan_name: string;
-            is_completed?: boolean;
-            /** Format: date-time */
-            completed_at?: string | null;
-            /** Format: date */
-            date: string | null;
-            schedule: number;
-        };
         UserListData: {
             users: components["schemas"]["UserSearchResponseItem"][];
         };
@@ -5621,16 +5440,6 @@ export interface components {
             is_completed: boolean;
             /** Format: date-time */
             completed_at: string | null;
-        };
-        VisitorIncrementResponse: {
-            success: boolean;
-            daily_count: number;
-            counted: boolean;
-        };
-        VisitorStatsResponse: {
-            success: boolean;
-            daily_visitors: number;
-            total_visitors: number;
         };
     };
     responses: never;
@@ -8692,28 +8501,6 @@ export interface operations {
             };
         };
     };
-    todos_bible_personal_records_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this 개인 읽기 기록. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PersonalReadingRecord"];
-                };
-            };
-        };
-    };
     todos_bible_reading_position_retrieve: {
         parameters: {
             query?: never;
@@ -9560,47 +9347,6 @@ export interface operations {
             };
         };
     };
-    todos_hasena_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HasenaRecordResponse"];
-                };
-            };
-        };
-    };
-    todos_hasena_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     todos_invitations_retrieve: {
         parameters: {
             query?: never;
@@ -9920,27 +9666,6 @@ export interface operations {
             };
         };
     };
-    todos_plan_progress_list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserBibleProgressResponse"][];
-                };
-            };
-        };
-    };
     todos_plan_toggle_active_create: {
         parameters: {
             query?: never;
@@ -9958,27 +9683,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActiveResponse"];
-                };
-            };
-        };
-    };
-    todos_plan_unsubscribe_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DetailResponse"];
                 };
             };
         };
@@ -10017,49 +9721,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserPlansResponse"];
-                };
-            };
-        };
-    };
-    todos_reading_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProgressUpdateResponse"];
-                };
-            };
-        };
-    };
-    todos_reading_history_list: {
-        parameters: {
-            query: {
-                /** @description Schedule month (1-12). */
-                month?: number;
-                /** @description Subscribed reading plan ID. */
-                plan_id: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserBibleProgressResponse"][];
                 };
             };
         };
@@ -10431,44 +10092,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TotalUsersResponse"];
-                };
-            };
-        };
-    };
-    todos_stats_visitors_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VisitorStatsResponse"];
-                };
-            };
-        };
-    };
-    todos_stats_visitors_increment_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VisitorIncrementResponse"];
                 };
             };
         };
