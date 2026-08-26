@@ -4,6 +4,7 @@ HttpOnly Cookie 기반 JWT 인증 뷰
 기존 토큰 응답 방식과 쿠키 방식을 모두 지원하여 점진적 마이그레이션 가능
 """
 
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -24,8 +25,14 @@ from .authentication import (
     ACCESS_TOKEN_COOKIE,
     REFRESH_TOKEN_COOKIE,
 )
-from .serializers import CustomTokenObtainPairSerializer, UserSerializer
+from .serializers import (
+    CustomTokenObtainPairSerializer,
+    TokenPairResponseSerializer,
+    TokenRefreshResponseSerializer,
+    UserSerializer,
+)
 from .throttles import LoginThrottle
+from . import openapi_serializers as openapi
 
 import logging
 
@@ -42,6 +49,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [LoginThrottle]
 
+    @extend_schema(responses={200: TokenPairResponseSerializer})
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
 
@@ -79,6 +87,7 @@ class CookieTokenRefreshView(TokenRefreshView):
     쿠키 또는 요청 본문에서 refresh 토큰을 읽음
     """
 
+    @extend_schema(responses={200: TokenRefreshResponseSerializer})
     def post(self, request, *args, **kwargs):
         # 쿠키에서 refresh 토큰 읽기 (우선)
         refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE)
@@ -171,6 +180,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             )
 
 
+@extend_schema(responses={200: openapi.MessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def cookie_logout(request):
@@ -206,6 +216,7 @@ def cookie_logout(request):
     return response
 
 
+@extend_schema(responses={200: openapi.CsrfTokenResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_csrf_token(request):
@@ -218,6 +229,7 @@ def get_csrf_token(request):
     return Response({'csrfToken': csrf_token})
 
 
+@extend_schema(responses={200: openapi.AuthenticatedUserResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def verify_auth(request):

@@ -134,9 +134,6 @@ class PlanSubscriptionDestructiveEndpointTestCase(TestCase):
             start_date=date(2026, 1, 1),
         )
 
-    def unsubscribe_url(self, subscription):
-        return f'{SUBSCRIPTIONS_URL}{subscription.pk}/unsubscribe/'
-
     def detail_url(self, subscription):
         return f'{SUBSCRIPTIONS_URL}{subscription.pk}/'
 
@@ -171,47 +168,46 @@ class PlanSubscriptionDestructiveEndpointTestCase(TestCase):
         self.assertTrue(VideoBibleIntro.objects.filter(pk=self.video_intro_p1.pk).exists())
 
 
-class PlanUnsubscribeApiTests(PlanSubscriptionDestructiveEndpointTestCase):
-    def test_anonymous_unsubscribe_is_denied_without_deleting_anything(self):
+class PlanSubscriptionDeleteBehaviorTests(PlanSubscriptionDestructiveEndpointTestCase):
+    def test_anonymous_delete_is_denied_without_deleting_anything(self):
         anonymous_client = APIClient()
 
-        response = anonymous_client.post(self.unsubscribe_url(self.subscription_a_p1))
+        response = anonymous_client.delete(self.detail_url(self.subscription_a_p1))
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assert_no_seed_data_deleted()
 
-    def test_unsubscribe_foreign_subscription_returns_404_without_deleting_owner_data(self):
+    def test_delete_foreign_subscription_returns_404_without_deleting_owner_data(self):
         self.client.force_authenticate(user=self.user_b)
 
-        response = self.client.post(self.unsubscribe_url(self.subscription_a_p1))
+        response = self.client.delete(self.detail_url(self.subscription_a_p1))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assert_no_seed_data_deleted()
 
-    def test_unsubscribe_nonexistent_subscription_returns_404(self):
-        response = self.client.post(f'{SUBSCRIPTIONS_URL}999999/unsubscribe/')
+    def test_delete_nonexistent_subscription_returns_404(self):
+        response = self.client.delete(f'{SUBSCRIPTIONS_URL}999999/')
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assert_no_seed_data_deleted()
 
-    def test_unsubscribe_default_plan_subscription_is_rejected(self):
-        response = self.client.post(self.unsubscribe_url(self.default_subscription))
+    def test_delete_default_plan_subscription_is_rejected(self):
+        response = self.client.delete(self.detail_url(self.default_subscription))
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('기본 플랜', response.data['detail'])
         self.assertTrue(PlanSubscription.objects.filter(pk=self.default_subscription.pk).exists())
 
-    def test_unsubscribe_deletes_only_requesting_users_plan_artifacts(self):
-        response = self.client.post(self.unsubscribe_url(self.subscription_a_p1))
+    def test_delete_removes_only_requesting_users_plan_artifacts(self):
+        response = self.client.delete(self.detail_url(self.subscription_a_p1))
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn(self.plan_p1.name, response.data['detail'])
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assert_p1_user_a_artifacts_deleted()
         self.assert_p1_survivors_intact()
 
-    def test_resubscribe_after_unsubscribe_creates_fresh_subscription_without_progress(self):
-        unsubscribe_response = self.client.post(self.unsubscribe_url(self.subscription_a_p1))
-        self.assertEqual(unsubscribe_response.status_code, status.HTTP_200_OK)
+    def test_resubscribe_after_delete_creates_fresh_subscription_without_progress(self):
+        delete_response = self.client.delete(self.detail_url(self.subscription_a_p1))
+        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
 
         response = self.client.post(SUBSCRIPTIONS_URL, {'plan': self.plan_p1.pk})
 

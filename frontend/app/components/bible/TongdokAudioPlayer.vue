@@ -87,6 +87,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { PauseIcon, PlayIcon, XIcon } from '@lucide/vue';
+import {
+  PLAYBACK_RATES,
+  type PlaybackRate,
+} from '~/utils/tongdokAudioRuntime';
 
 interface YouTubeStateMessage {
   readonly event?: string;
@@ -138,9 +142,6 @@ const YOUTUBE_PLAYING_STATE = 1;
 const YOUTUBE_PAUSED_STATE = 2;
 const YOUTUBE_BUFFERING_STATE = 3;
 const PROGRESS_SYNC_INTERVAL_MS = 500;
-const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2] as const;
-
-type PlaybackRate = (typeof PLAYBACK_RATES)[number];
 
 const props = defineProps<{
   audioLink: string;

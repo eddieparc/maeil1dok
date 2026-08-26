@@ -141,7 +141,7 @@ export const useReadingPosition = () => {
     }
 
     try {
-      const response = await api.get('/api/v1/todos/bible/reading-position/');
+      const response = await api.GET('/api/v1/todos/bible/reading-position/');
       const serverPosition = response.data?.success ? response.data.position : null;
 
       if (serverPosition) {
@@ -219,7 +219,7 @@ export const useReadingPosition = () => {
     const doSave = async () => {
       isSavingPosition.value = true;
       try {
-        await api.post('/api/v1/todos/bible/reading-position/', {
+        await api.POST('/api/v1/todos/bible/reading-position/', {
           book: position.book,
           chapter: position.chapter,
           scroll_position: scrollPosition,

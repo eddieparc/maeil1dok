@@ -6,5 +6,6 @@ class AccountsConfig(AppConfig):
     name = 'accounts'
 
     def ready(self):
-        """앱 초기화 시 signal 등록"""
+        """앱 초기화 시 signal 및 OpenAPI extension 등록"""
         import accounts.signals  # noqa: F401
+        import accounts.spectacular  # noqa: F401

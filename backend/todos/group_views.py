@@ -1,4 +1,5 @@
 from calendar import monthrange
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from datetime import date
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -12,14 +13,33 @@ from django.utils import timezone
 from accounts.models import User, UserProfile, Follow
 from accounts.serializers import UserSearchSerializer
 from accounts.visibility import is_live_user, live_user_filter
+from authz import can, subject_from_request
+from authz.policies.reading_group import (
+    GroupInvitationCollection,
+    GroupInvitationResource,
+    MembershipProfileVisibility,
+    ProfileGroupsQuery,
+    ReadingGroupCollection,
+    ReadingGroupCreation,
+    ReadingGroupMembershipResource,
+    ReadingGroupResource,
+)
 from .models import (
     ReadingGroup, GroupMembership, GroupInvitation, BibleReadingPlan,
     DailyBibleSchedule, UserBibleProgress, PlanSubscription
 )
 from .serializers import BibleReadingPlanSerializer
+from . import openapi_serializers as openapi
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _authz_denial_response(decision):
+    denial = decision.denial
+    if denial.body is None:
+        return Response(status=denial.status_code)
+    return Response(denial.body, status=denial.status_code)
 
 
 def _visible_groups_for_user(user):
@@ -365,11 +385,20 @@ class ReadingGroupSerializer:
         return data
 
 
+@extend_schema(responses={201: openapi.GroupResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_group(request):
     """그룹 생성"""
     try:
+        decision = can(
+            subject_from_request(request),
+            'create_group',
+            ReadingGroupCreation(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+
         name = (request.data.get('name') or '').strip()
         description = request.data.get('description', '')
         plan_ids = request.data.get('plan_ids', [])
@@ -428,19 +457,58 @@ def create_group(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'search',
+            str,
+            required=False,
+            default='',
+            description='Case-insensitive group name or description search text.',
+        ),
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Filter by active reading plan ID.',
+        ),
+        OpenApiParameter(
+            'only_public',
+            bool,
+            required=False,
+            default=False,
+            description='Return only public groups. Only the case-insensitive literal `true` enables the filter; every other value is treated as false.',
+        ),
+        OpenApiParameter(
+            'only_mine',
+            bool,
+            required=False,
+            default=False,
+            description='Return only the authenticated user’s groups. Only the case-insensitive literal `true` enables the filter; every other value is treated as false.',
+        ),
+    ],
+    responses={200: openapi.GroupsResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_groups(request):
     """그룹 목록 조회"""
     try:
+        decision = can(
+            subject_from_request(request),
+            'list_groups',
+            ReadingGroupCollection(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+
         # 쿼리 파라미터
         search = request.query_params.get('search', '')
         plan_id = request.query_params.get('plan_id')
         only_public = request.query_params.get('only_public', 'false').lower() == 'true'
         only_mine = request.query_params.get('only_mine', 'false').lower() == 'true'
         
-        # 기본 쿼리셋: 공개 그룹 또는 사용자가 속한 비공개 그룹만 노출
-        groups = _visible_groups_for_user(request.user)
+        groups = decision.value
         
         # 검색
         if search:
@@ -490,15 +558,21 @@ def get_groups(request):
         return _group_read_error_response()
 
 
+@extend_schema(responses={200: openapi.GroupResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_group_detail(request, group_id):
     """그룹 상세 조회"""
     try:
-        group = _visible_group_for_read(group_id, request.user)
-        if group is None:
-            return _group_not_found_response()
-        
+        decision = can(
+            subject_from_request(request),
+            'view_group',
+            ReadingGroupResource(group_id=group_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        group = decision.value
+
         return Response({
             'success': True,
             'group': ReadingGroupSerializer.to_dict(group, request)
@@ -508,43 +582,33 @@ def get_group_detail(request, group_id):
         return _group_read_error_response()
 
 
+@extend_schema(responses={200: openapi.GroupMutationResponseSerializer, 201: openapi.GroupMutationResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def join_group(request, group_id):
     """그룹 가입"""
     try:
+        decision = can(
+            subject_from_request(request),
+            'join',
+            ReadingGroupResource(group_id=group_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+
+        join_context = decision.value
         with transaction.atomic():
-            group = ReadingGroup.objects.select_for_update().filter(id=group_id).first()
-            if group is None:
-                return _group_not_found_response()
-
-            # 이미 멤버인지 확인
-            existing_membership = GroupMembership.objects.select_for_update().filter(
-                group=group,
-                user=request.user
-            ).first()
-
-            if existing_membership and existing_membership.is_active:
-                return Response({
-                    'success': False,
-                    'error': '이미 그룹 멤버입니다.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
+            group = ReadingGroup.objects.select_for_update().get(id=join_context.group.id)
+            existing_membership = None
+            if join_context.membership is not None:
+                existing_membership = GroupMembership.objects.select_for_update().get(
+                    pk=join_context.membership.id
+                )
             pending_invitation = None
-            if not group.is_public:
-                pending_invitation = GroupInvitation.objects.select_for_update().filter(
-                    group=group,
-                    invitee=request.user,
-                    status='pending'
-                ).first()
-                if _hide_private_group_mutation(group, existing_membership, pending_invitation):
-                    return _group_not_found_response()
-                if not pending_invitation:
-                    return _deny_private_group_without_invitation()
-
-            # 그룹이 가득 찼는지 확인
-            if group.is_full:
-                return _deny_full_group()
+            if join_context.pending_invitation is not None:
+                pending_invitation = GroupInvitation.objects.select_for_update().get(
+                    pk=join_context.pending_invitation.id
+                )
 
             if existing_membership:
                 # 비활성 멤버십 재활성화
@@ -577,37 +641,21 @@ def join_group(request, group_id):
         return _group_mutation_error_response()
 
 
+@extend_schema(responses={200: openapi.TodoSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def leave_group(request, group_id):
     """그룹 탈퇴"""
     try:
-        group = ReadingGroup.objects.filter(id=group_id).first()
-        if group is None:
-            return _group_not_found_response()
+        decision = can(
+            subject_from_request(request),
+            'leave',
+            ReadingGroupResource(group_id=group_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
 
-        membership = GroupMembership.objects.filter(
-            group=group,
-            user=request.user,
-            is_active=True
-        ).first()
-
-        if not membership:
-            if not group.is_public:
-                return _group_not_found_response()
-            return Response({
-                'success': False,
-                'error': '그룹 멤버가 아닙니다.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # 그룹 생성자는 탈퇴 불가
-        if group.creator == request.user:
-            return Response({
-                'success': False,
-                'error': '그룹 생성자는 탈퇴할 수 없습니다.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # 멤버십 비활성화
+        membership = decision.value
         membership.is_active = False
         membership.save()
         
@@ -620,6 +668,25 @@ def leave_group(request, group_id):
         return _group_mutation_error_response()
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'offset',
+            int,
+            required=False,
+            default=0,
+            description='Zero-based member offset.',
+        ),
+        OpenApiParameter(
+            'limit',
+            int,
+            required=False,
+            default=100,
+            description='Number of members to return (1-100).',
+        ),
+    ],
+    responses={200: openapi.GroupMembersResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_group_members(request, group_id):
@@ -656,10 +723,15 @@ def get_group_members(request, group_id):
                 'success': False,
                 'error': f'limit은 1에서 {MAX_GROUP_MEMBERS_PER_REQUEST} 사이여야 합니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        group = _visible_group_for_read(group_id, request.user)
-        if group is None:
-            return _group_not_found_response()
+
+        decision = can(
+            subject_from_request(request),
+            'view_group_members',
+            ReadingGroupMembershipResource(group_id=group_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        group = decision.value
         
         # 멤버 목록 조회 (페이지네이션 적용)
         all_memberships = GroupMembership.objects.filter(
@@ -711,29 +783,20 @@ def get_group_members(request, group_id):
         return _group_read_error_response()
 
 
+@extend_schema(responses={201: openapi.TodoSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def invite_to_group(request, group_id):
     """그룹 초대"""
     try:
-        group = ReadingGroup.objects.filter(id=group_id).first()
-        if group is None:
-            return _group_not_found_response()
-
-        # 권한 확인 (관리자만 초대 가능)
-        membership = GroupMembership.objects.filter(
-            group=group,
-            user=request.user,
-            is_active=True
-        ).first()
-
-        if not membership or membership.role != 'admin':
-            if not group.is_public:
-                return _group_not_found_response()
-            return Response({
-                'success': False,
-                'error': '관리자만 초대할 수 있습니다.'
-            }, status=status.HTTP_403_FORBIDDEN)
+        decision = can(
+            subject_from_request(request),
+            'invite',
+            ReadingGroupResource(group_id=group_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        group = decision.value
 
         message = request.data.get('message', '')
 
@@ -793,15 +856,20 @@ def invite_to_group(request, group_id):
         return _group_mutation_error_response()
 
 
+@extend_schema(responses={200: openapi.InvitationsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_my_invitations(request):
     """내 초대 목록 조회"""
     try:
-        invitations = GroupInvitation.objects.filter(
-            invitee=request.user,
-            status='pending'
-        ).select_related('group__creator__profile', 'inviter').order_by('-created_at')
+        decision = can(
+            subject_from_request(request),
+            'view_invitations',
+            GroupInvitationCollection(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        invitations = decision.value
         
         invitations_data = []
         for invitation in invitations:
@@ -822,6 +890,7 @@ def get_my_invitations(request):
         return _group_read_error_response()
 
 
+@extend_schema(responses={200: openapi.GroupMutationResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def respond_to_invitation(request, invitation_id):
@@ -835,12 +904,14 @@ def respond_to_invitation(request, invitation_id):
                 'error': '유효한 액션이 아닙니다. (accept/decline)'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        invitation_ref = get_object_or_404(
-            GroupInvitation.objects.only('id', 'group_id'),
-            id=invitation_id,
-            invitee=request.user,
-            status='pending'
+        decision = can(
+            subject_from_request(request),
+            'respond_invitation',
+            GroupInvitationResource(invitation_id=invitation_id),
         )
+        if not decision:
+            return _authz_denial_response(decision)
+        invitation_ref = decision.value
 
         with transaction.atomic():
             group = ReadingGroup.objects.select_for_update().get(id=invitation_ref.group_id)
@@ -898,17 +969,21 @@ def respond_to_invitation(request, invitation_id):
         return _group_mutation_error_response()
 
 
+@extend_schema(responses={200: openapi.GroupsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_user_public_groups(request, user_id):
     """특정 사용자의 프로필에 표시된 그룹 조회"""
     try:
-        user, hidden_response = _user_for_public_groups_read(user_id, request.user)
-        if hidden_response is not None:
-            return hidden_response
-
-        # 본인인 경우 모든 그룹 표시, 타인인 경우 공개 그룹만
-        is_own_profile = request.user.is_authenticated and request.user == user
+        decision = can(
+            subject_from_request(request),
+            'view_profile_groups',
+            ProfileGroupsQuery(user_id=user_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        user = decision.value.user
+        is_own_profile = decision.value.is_own_profile
 
         if is_own_profile:
             # 본인: 모든 그룹 (show_in_profile 상관없이)
@@ -949,16 +1024,19 @@ def get_user_public_groups(request, user_id):
         return _group_read_error_response()
 
 
+@extend_schema(responses={200: openapi.GroupVisibilityResponseSerializer})
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_group_visibility(request, group_id):
     """프로필에서 그룹 표시 여부 설정"""
-    membership = get_object_or_404(
-        GroupMembership,
-        group_id=group_id,
-        user=request.user,
-        is_active=True
+    decision = can(
+        subject_from_request(request),
+        'update_profile_visibility',
+        MembershipProfileVisibility(group_id=group_id),
     )
+    if not decision:
+        return _authz_denial_response(decision)
+    membership = decision.value
 
     show_in_profile, validation_error = _parse_optional_bool(
         request.data,
@@ -983,6 +1061,43 @@ def update_group_visibility(request, group_id):
 # Maximum number of members to include in a single response to prevent resource exhaustion
 MAX_GROUP_MEMBERS_PER_REQUEST = 100
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'year',
+            int,
+            required=False,
+            description='Calendar year (1-9999); defaults to the current year.',
+        ),
+        OpenApiParameter(
+            'month',
+            int,
+            required=False,
+            description='Calendar month (1-12); defaults to the current month.',
+        ),
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Active plan belonging to the group; defaults to the group’s first active plan.',
+        ),
+        OpenApiParameter(
+            'offset',
+            int,
+            required=False,
+            default=0,
+            description='Zero-based member offset.',
+        ),
+        OpenApiParameter(
+            'limit',
+            int,
+            required=False,
+            default=MAX_GROUP_MEMBERS_PER_REQUEST,
+            description='Number of members to return (1-100).',
+        ),
+    ],
+    responses={200: openapi.GroupMemberProgressResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_group_member_progress(request, group_id):
@@ -1025,21 +1140,14 @@ def get_group_member_progress(request, group_id):
                 'error': 'year는 1부터 9999 사이여야 합니다.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            group = ReadingGroup.objects.prefetch_related('plans').get(id=group_id)
-        except ReadingGroup.DoesNotExist:
-            return Response({
-                'success': False,
-                'error': '그룹을 찾을 수 없습니다.'
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        if not _user_is_active_group_member(group, request.user):
-            if not group.is_public:
-                return _group_not_found_response()
-            return Response({
-                'success': False,
-                'error': '그룹 멤버만 조회할 수 있습니다.'
-            }, status=status.HTTP_403_FORBIDDEN)
+        decision = can(
+            subject_from_request(request),
+            'view_member_progress',
+            ReadingGroupMembershipResource(group_id=group_id),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        group = ReadingGroup.objects.prefetch_related('plans').get(id=decision.value.id)
 
         # 조회 플랜 선택
         selected_plan = None

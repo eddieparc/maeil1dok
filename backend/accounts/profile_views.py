@@ -1,4 +1,5 @@
 # noqa: SIZE_OK  — legacy profile endpoint module; account hardening only reuses its serializer validation path
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -15,6 +16,7 @@ from .serializers import (
     PublicUserSerializer, ReadingSettingsSerializer
 )
 from .visibility import is_live_user, live_user_filter
+from . import openapi_serializers as openapi
 from .achievement_config import ACHIEVEMENT_METADATA
 from todos.models import UserBibleProgress, PlanSubscription, DailyBibleSchedule, UserPlanDisplaySettings
 from todos.serializers import CalendarMonthQuerySerializer
@@ -140,6 +142,7 @@ def _validated_calendar_month(request):
     }, None
 
 
+@extend_schema(responses={200: openapi.ProfileResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @handle_api_exception
@@ -165,6 +168,7 @@ def get_user_profile(request, user_id):
     )
 
 
+@extend_schema(responses={200: openapi.ProfileResponseSerializer})
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 @handle_api_exception
@@ -191,6 +195,23 @@ def update_user_profile(request):
     )
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'year',
+            int,
+            required=False,
+            description='Calendar year (1-9999). Must be supplied together with month; defaults to the current year when both are omitted.',
+        ),
+        OpenApiParameter(
+            'month',
+            int,
+            required=False,
+            description='Calendar month (1-12). Must be supplied together with year; defaults to the current month when both are omitted.',
+        ),
+    ],
+    responses={200: openapi.ProfileCalendarResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @handle_api_exception
@@ -314,6 +335,7 @@ def get_user_calendar(request, user_id):
     )
 
 
+@extend_schema(responses={201: openapi.FollowResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @handle_api_exception
@@ -357,6 +379,7 @@ def follow_user(request):
     )
 
 
+@extend_schema(responses={200: openapi.UnfollowResponseSerializer})
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 @handle_api_exception
@@ -385,6 +408,7 @@ def unfollow_user(request, user_id):
     )
 
 
+@extend_schema(responses={200: openapi.FollowersResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @handle_api_exception
@@ -416,6 +440,7 @@ def get_followers(request, user_id):
     )
 
 
+@extend_schema(responses={200: openapi.FollowingResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @handle_api_exception
@@ -447,6 +472,7 @@ def get_following(request, user_id):
     )
 
 
+@extend_schema(responses={200: openapi.FriendsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @handle_api_exception
@@ -475,6 +501,17 @@ def get_friends(request):
     )
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'q',
+            str,
+            required=True,
+            description='Nickname or username search text (minimum two characters).',
+        ),
+    ],
+    responses={200: openapi.UserSearchResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @handle_api_exception
@@ -511,6 +548,7 @@ def search_users(request):
     )
 
 
+@extend_schema(responses={200: openapi.AchievementsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @handle_api_exception
@@ -551,6 +589,7 @@ def get_user_achievements(request, user_id):
     )
 
 
+@extend_schema(responses={200: openapi.ReadingSettingsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @handle_api_exception
@@ -564,6 +603,7 @@ def get_reading_settings(request):
     )
 
 
+@extend_schema(responses={200: openapi.ReadingSettingsResponseSerializer})
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 @handle_api_exception

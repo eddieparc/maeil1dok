@@ -72,7 +72,7 @@ async function handleResend() {
   
   resending.value = true
   try {
-    await api.post('/api/v1/auth/resend-verification/')
+    await api.POST('/api/v1/auth/resend-verification/')
     toast.success('인증 메일을 발송했습니다. 메일함을 확인해주세요.')
     startCooldown()
   } catch (error: any) {

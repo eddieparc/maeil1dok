@@ -41,7 +41,7 @@ export const usePersonalRecord = () => {
     error.value = null;
 
     try {
-      const response = await api.get('/api/v1/todos/bible/personal-records/by-book/', {
+      const response = await api.GET('/api/v1/todos/bible/personal-records/by-book/', {
         params: { book }
       });
 
@@ -69,7 +69,7 @@ export const usePersonalRecord = () => {
     error.value = null;
 
     try {
-      const response = await api.post('/api/v1/todos/bible/personal-records/', {
+      await api.POST('/api/v1/todos/bible/personal-records/', {
         book,
         chapter
       });

@@ -129,7 +129,7 @@ const checkNickname = async () => {
   
   nicknameCheckTimeout = setTimeout(async () => {
     try {
-      const response = await api.post('/api/v1/auth/check-nickname/', { nickname: value })
+      const response = await api.POST('/api/v1/auth/check-nickname/', { nickname: value })
       if (response.available) {
         isNicknameChecked.value = true
         nicknameError.value = ''
@@ -184,7 +184,7 @@ const handleSubmit = async () => {
 
   loading.value = true
   try {
-    const response = await api.post('/api/v1/auth/complete-social-signup/', {
+    const response = await api.POST('/api/v1/auth/complete-social-signup/', {
       signup_token: signupToken.value,
       provider: 'google',
       provider_id: providerId.value,
@@ -195,7 +195,7 @@ const handleSubmit = async () => {
 
     if (response.access) {
       auth.setTokens(response.access, response.refresh)
-      auth.setUser(response.user)
+      auth.setUser(response.user as Parameters<typeof auth.setUser>[0])
       
       if (window.__nativeBridge?.isNativeApp()) {
         window.__nativeBridge.sendToNative({
@@ -203,7 +203,7 @@ const handleSubmit = async () => {
           data: {
             token: response.access,
             refreshToken: response.refresh,
-            user: response.user
+            user: response.user as Parameters<typeof auth.setUser>[0]
           }
         })
       }

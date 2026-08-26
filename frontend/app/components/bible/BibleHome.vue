@@ -227,7 +227,7 @@ import { useBibleData } from '~/composables/useBibleData';
 import { useErrorHandler } from '~/composables/useErrorHandler';
 import { useAuthService } from '~/composables/useAuthService';
 import { useSelectedPlanStore } from '~/stores/selectedPlan';
-import type { BiblePosition, RecentRecord, HomeStatsResponse, RecentRecordRaw } from '~/types/bible';
+import type { BiblePosition } from '~/types/bible';
 
 // Icons
 import BibleHomeHeader from '~/components/bible/BibleHomeHeader.vue';
@@ -257,6 +257,13 @@ const emit = defineEmits<{
   (e: 'show-toc'): void;
   (e: 'start-tongdok', schedule: TodaySchedule): void;
 }>();
+
+interface RecentRecord {
+  book: string;
+  chapter: number;
+  book_name: string;
+  read_date: string | null;
+}
 
 interface TodaySchedule {
   id: number;
@@ -336,13 +343,13 @@ onMounted(async () => {
 
 async function loadHomeStats() {
   try {
-    const statsRes = await api.get('/api/v1/todos/bible/home-stats/');
-    const data = statsRes.data as HomeStatsResponse | undefined;
+    const statsRes = await api.GET('/api/v1/todos/bible/home-stats/');
+    const data = statsRes.data;
     if (data) {
       bookmarkCount.value = data.bookmarks || 0;
       noteCount.value = data.notes || 0;
       highlightCount.value = data.highlights || 0;
-      recentRecords.value = (data.recent_records || []).map((r: RecentRecordRaw) => ({
+      recentRecords.value = (data.recent_records || []).map(r => ({
         ...r,
         book_name: getBookName(r.book)
       }));
@@ -362,11 +369,14 @@ async function loadTodaySchedule() {
   hasPlan.value = true;
 
   try {
-    const response = await api.get(`/api/v1/todos/schedules/today/?plan_id=${planId}`);
-    if (response.data.success && response.data.schedules && response.data.schedules.length > 0) {
+    const response = await api.GET('/api/v1/todos/schedules/today/', {
+      params: { plan_id: planId },
+    });
+    if (response.data.success && response.data.schedules.length > 0) {
       const schedules = response.data.schedules;
       const firstSchedule = schedules[0];
-      const completedCount = schedules.filter((s: any) => s.is_completed).length;
+      if (!firstSchedule) return;
+      const completedCount = schedules.filter(schedule => schedule.is_completed).length;
 
       const unit = getChapterUnit(firstSchedule.book_code);
       let range = `${firstSchedule.start_chapter}${unit}`;
@@ -420,8 +430,8 @@ const dismissTips = () => {
   }
 };
 
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr);
+const formatDate = (dateStr: string | null) => {
+  const date = new Date(dateStr ?? 0);
   const today = new Date();
   const diff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 

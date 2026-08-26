@@ -1,3 +1,4 @@
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -16,8 +17,21 @@ from .services.notifications import (
     mark_all_read,
 )
 from .services.push_notifications import is_web_push_configured, web_push_public_key
+from . import openapi_serializers as openapi
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'unread_only',
+            bool,
+            required=False,
+            default=False,
+            description='Return only unread notifications. Only the exact lowercase literal `true` enables the filter; every other value is treated as false.',
+        ),
+    ],
+    responses={200: openapi.NotificationInboxResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def notification_inbox(request):
@@ -41,6 +55,8 @@ def notification_inbox(request):
     })
 
 
+@extend_schema(methods=['GET'], responses={200: openapi.NotificationSettingsResponseSerializer})
+@extend_schema(methods=['PATCH'], responses={200: openapi.NotificationSettingsResponseSerializer})
 @api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def notification_settings(request):
@@ -66,6 +82,7 @@ def notification_settings(request):
     })
 
 
+@extend_schema(responses={200: openapi.NotificationReadResponseSerializer})
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def mark_notification_read(request, notification_id):
@@ -86,6 +103,7 @@ def mark_notification_read(request, notification_id):
     })
 
 
+@extend_schema(responses={200: openapi.SuccessCountResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_all_notifications_read(request):
@@ -96,6 +114,7 @@ def mark_all_notifications_read(request):
     })
 
 
+@extend_schema(responses={200: openapi.PushConfigResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def push_config(request):
@@ -107,6 +126,7 @@ def push_config(request):
     })
 
 
+@extend_schema(responses={200: openapi.PushSubscriptionResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def register_push_subscription(request):
@@ -137,6 +157,7 @@ def register_push_subscription(request):
     })
 
 
+@extend_schema(responses={200: openapi.SuccessCountResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def remove_push_subscription(request):

@@ -255,20 +255,16 @@ const fetchIntroductions = async () => {
   error.value = null;
   try {
     // 로그인 상태에 따라 다른 API 엔드포인트 호출
-    let endpoint = auth.isAuthenticated.value
-      ? "/api/v1/todos/user/video/intro/"
-      : "/api/v1/todos/video/intro/";
-
-    // plan_id 파라미터 추가 (선택된 플랜이 있는 경우)
     const planId = selectedPlanStore.effectivePlanId;
-    if (planId) {
-      endpoint += `?plan_id=${planId}`;
-    }
+    const response = auth.isAuthenticated.value
+      ? await api.GET('/api/v1/todos/user/video/intro/', {
+          params: { plan_id: planId ?? undefined },
+        })
+      : await api.GET('/api/v1/todos/video/intro/', {
+          params: { plan_id: planId ?? undefined },
+        });
 
-    const response = await api.get(endpoint);
-    if (response.data && response.data.results) {
-      introductions.value = response.data.results;
-    } else if (Array.isArray(response.data)) {
+    if (Array.isArray(response.data)) {
       introductions.value = response.data;
     } else {
       introductions.value = [];
@@ -373,14 +369,14 @@ const toggleCompletion = async (intro) => {
     intro.is_completed = newCompletionStatus;
 
     // API 호출하여 서버에 상태 업데이트
-    const response = await api.post("/api/v1/todos/video/intro/progress/", {
+    const response = await api.POST('/api/v1/todos/video/intro/progress/', {
       video_intro_id: intro.id,
       is_completed: newCompletionStatus,
     });
 
     // 응답 데이터에서 완료 상태 가져오기 (서버 상태와 일치시키기)
-    if (response.data && response.data.is_completed !== undefined) {
-      intro.is_completed = response.data.is_completed;
+    if (response.is_completed !== undefined) {
+      intro.is_completed = response.is_completed;
     }
 
     // 성공 메시지 표시

@@ -1,5 +1,11 @@
 import { useRuntimeConfig } from '#app'
 import { useAuthService } from '~/composables/useAuthService'
+import type {
+  ApiPath,
+  ApiPathFor,
+  ApiQueryParameters,
+  ApiResponseBody,
+} from '~/types/api-contract'
 
 type AxiosConfig = {
   headers?: Record<string, string>
@@ -9,6 +15,28 @@ type AxiosConfig = {
 type AxiosRequestConfig = AxiosConfig;
 
 const CSRF_TOKEN_KEY = 'csrfToken'
+
+type PathParameterNames<Path extends string> =
+  Path extends `${string}{${infer Parameter}}${infer Rest}`
+    ? Parameter | PathParameterNames<Rest>
+    : never
+
+type PathParameters<Path extends ApiPath> = {
+  [Parameter in PathParameterNames<Path>]: string | number
+}
+
+const apiPath = <Path extends ApiPath>(
+  template: Path,
+  parameters: PathParameters<Path>,
+): Path => {
+  let result: string = template
+
+  for (const [name, value] of Object.entries(parameters)) {
+    result = result.replace(`{${name}}`, encodeURIComponent(String(value)))
+  }
+
+  return result as Path
+}
 
 export const saveCsrfToken = (token: string): void => {
   if (typeof localStorage !== 'undefined') {
@@ -278,23 +306,49 @@ export const useApi = () => {
     }
   }
 
+  const GET = <Path extends ApiPathFor<'get'>>(
+    url: Path,
+    requestConfig?: AxiosRequestConfig & { params?: ApiQueryParameters<Path, 'get'> },
+  ) =>
+    get(url, requestConfig) as Promise<{ data: ApiResponseBody<Path, 'get'> }>
+
+  const POST = <Path extends ApiPathFor<'post'>>(url: Path, data?: any, requestConfig?: AxiosRequestConfig) =>
+    post(url, data, requestConfig) as Promise<ApiResponseBody<Path, 'post'>>
+
+  const PUT = <Path extends ApiPathFor<'put'>>(url: Path, data: any) =>
+    put(url, data) as Promise<ApiResponseBody<Path, 'put'>>
+
+  const PATCH = <Path extends ApiPathFor<'patch'>>(url: Path, data: any) =>
+    patch(url, data) as Promise<ApiResponseBody<Path, 'patch'>>
+
+  const remove = async (url: string) => {
+    try {
+      const response = await fetchWithRetry(`${getBaseUrl()}${url}`, {
+        method: 'DELETE',
+        headers: getHeaders(true),
+        credentials: 'include'
+      })
+      return readJsonBody(response)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  const DELETE = <Path extends ApiPathFor<'delete'>>(url: Path) =>
+    remove(url) as Promise<ApiResponseBody<Path, 'delete'>>
+
   return {
     get,
     post,
     put,
     patch,
-    async delete(url: string) {
-      try {
-        const response = await fetchWithRetry(`${getBaseUrl()}${url}`, {
-          method: 'DELETE',
-          headers: getHeaders(true),
-          credentials: 'include'
-        })
-        return readJsonBody(response)
-      } catch (error) {
-        throw error
-      }
-    },
+    delete: remove,
+    GET,
+    POST,
+    PUT,
+    PATCH,
+    DELETE,
+    path: apiPath,
     async upload(url: string, formData: FormData) {
       try {
         const headers: Record<string, string> = {}

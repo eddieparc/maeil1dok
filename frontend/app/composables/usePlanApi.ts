@@ -8,12 +8,28 @@ import { ref } from 'vue';
 import { useApi } from '~/composables/useApi';
 import { useErrorHandler } from '~/composables/useErrorHandler';
 import { useToast } from '~/composables/useToast';
+import type { components } from '~/types/generated/api-schema';
 import type {
   Plan,
   Subscription,
   SubscriptionSummary,
   UserPlansResponse,
 } from '~/types/plan';
+
+const normalizePlan = (plan: components['schemas']['BibleReadingPlan']): Plan => ({
+  id: plan.id,
+  name: plan.name,
+  description: plan.description ?? '',
+  is_default: plan.is_default ?? false,
+  subscriber_count: plan.subscriber_count,
+});
+
+const normalizeSubscription = (
+  subscription: components['schemas']['PlanSubscription'],
+): Subscription => ({
+  ...subscription,
+  is_active: subscription.is_active ?? false,
+});
 
 export function usePlanApi() {
   const api = useApi();
@@ -33,12 +49,11 @@ export function usePlanApi() {
     isFetchingUserPlans.value = true;
 
     try {
-      const response = await api.get('/api/v1/todos/plans/user/');
-      const data = response.data || response;
+      const { data } = await api.GET('/api/v1/todos/plans/user/');
 
       return {
-        subscriptions: data.subscriptions || [],
-        available_plans: data.available_plans || [],
+        subscriptions: data.subscriptions.map(normalizeSubscription),
+        available_plans: data.available_plans.map(normalizePlan),
       };
     } catch (error) {
       handleApiError(error, '플랜 정보 조회');
@@ -57,12 +72,10 @@ export function usePlanApi() {
     isFetchingSubscriptions.value = true;
 
     try {
-      const response = await api.get('/api/v1/todos/plan/');
+      const { data } = await api.GET('/api/v1/todos/plan/');
 
-      if (Array.isArray(response.data)) {
-        return response.data as SubscriptionSummary[];
-      } else if (response.data?.plan_id) {
-        return [response.data as SubscriptionSummary];
+      if (Array.isArray(data)) {
+        return data;
       }
       return [];
     } catch (error) {
@@ -78,7 +91,7 @@ export function usePlanApi() {
    */
   async function subscribeToPlan(planId: number): Promise<boolean> {
     try {
-      await api.post('/api/v1/todos/plan/', { plan: planId });
+      await api.POST('/api/v1/todos/plan/', { plan: planId });
       return true;
     } catch (error) {
       handleApiError(error, '플랜 구독');
@@ -91,7 +104,9 @@ export function usePlanApi() {
    */
   async function togglePlanActive(subscriptionId: number): Promise<boolean> {
     try {
-      await api.post(`/api/v1/todos/plan/${subscriptionId}/toggle-active/`);
+      await api.POST(
+        api.path('/api/v1/todos/plan/{id}/toggle-active/', { id: subscriptionId })
+      );
       return true;
     } catch (error) {
       handleApiError(error, '플랜 상태 변경');
@@ -104,7 +119,7 @@ export function usePlanApi() {
    */
   async function deletePlanSubscription(subscriptionId: number): Promise<boolean> {
     try {
-      await api.delete(`/api/v1/todos/plan/${subscriptionId}/`);
+      await api.DELETE(api.path('/api/v1/todos/plan/{id}/', { id: subscriptionId }));
       return true;
     } catch (error) {
       handleApiError(error, '플랜 삭제');

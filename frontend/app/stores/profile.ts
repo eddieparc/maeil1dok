@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
+import type { components } from '~/types/generated/api-schema'
 
 interface UserProfile {
   id: number
@@ -55,6 +56,22 @@ interface CalendarPlan {
   color: string
 }
 
+const normalizeUserProfile = (
+  profile: components['schemas']['UserProfileResponse']
+): UserProfile => ({
+  ...profile,
+  user: {
+    ...profile.user,
+    profile_image: profile.user.profile_image ?? undefined
+  }
+})
+
+const getApiError = (response: unknown): string | undefined =>
+  typeof response === 'object' && response !== null && 'error' in response
+    && typeof response.error === 'string'
+    ? response.error
+    : undefined
+
 export const useProfileStore = defineStore('profile', {
   state: () => ({
     currentProfile: null as UserProfile | null,
@@ -85,11 +102,14 @@ export const useProfileStore = defineStore('profile', {
       this.error = null
 
       try {
-        const response = await useApi().get(`/api/v1/accounts/profile/${userId}/`)
-        if (response.data?.success) {
-          this.currentProfile = response.data.data?.profile || response.data.profile
+        const api = useApi()
+        const response = await api.GET(
+          api.path('/api/v1/auth/profile/{user_id}/', { user_id: userId })
+        )
+        if (response.data.success) {
+          this.currentProfile = normalizeUserProfile(response.data.data.profile)
         } else {
-          this.error = response.data?.error || '프로필을 불러올 수 없습니다.'
+          this.error = getApiError(response.data) || '프로필을 불러올 수 없습니다.'
         }
       } catch (error: any) {
         this.error = error.message || '프로필 조회 중 오류가 발생했습니다.'
@@ -100,16 +120,17 @@ export const useProfileStore = defineStore('profile', {
 
     async updateProfile(bio: string, isPublic: boolean) {
       try {
-        const data = await useApi().put('/api/v1/accounts/profile/', {
+        const api = useApi()
+        const data = await api.PUT('/api/v1/auth/profile/', {
           bio,
           is_public: isPublic
         })
         
-        if (data?.success) {
-          this.currentProfile = data.profile
+        if (data.success) {
+          this.currentProfile = normalizeUserProfile(data.data.profile)
           return { success: true }
         } else {
-          return { success: false, error: data?.error }
+          return { success: false, error: getApiError(data) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }
@@ -118,10 +139,12 @@ export const useProfileStore = defineStore('profile', {
 
     async fetchAchievements(userId: number) {
       try {
-        const response = await useApi().get(`/api/v1/accounts/profile/${userId}/achievements/`)
-        if (response.data?.success) {
-          // 하위 호환: response.data.data?.achievements 또는 response.data.achievements
-          this.achievements = response.data.data?.achievements ?? response.data.achievements ?? []
+        const api = useApi()
+        const response = await api.GET(
+          api.path('/api/v1/auth/profile/{user_id}/achievements/', { user_id: userId })
+        )
+        if (response.data.success) {
+          this.achievements = response.data.data.achievements
         }
       } catch (error) {
         console.error('업적 조회 실패:', error)
@@ -130,14 +153,15 @@ export const useProfileStore = defineStore('profile', {
 
     async fetchCalendarData(userId: number, year: number, month: number) {
       try {
-        const response = await useApi().get(`/api/v1/accounts/profile/${userId}/calendar/`, {
-          params: { year, month }
-        })
+        const api = useApi()
+        const response = await api.GET(
+          api.path('/api/v1/auth/profile/{user_id}/calendar/', { user_id: userId }),
+          { params: { year, month } }
+        )
 
-        if (response.data?.success) {
-          const data = response.data.data ?? response.data
-          this.calendarData = data.calendar ?? []
-          this.calendarPlans = data.plans ?? []
+        if (response.data.success) {
+          this.calendarData = response.data.data.calendar
+          this.calendarPlans = response.data.data.plans
         }
       } catch (error) {
         console.error('달력 데이터 조회 실패:', error)

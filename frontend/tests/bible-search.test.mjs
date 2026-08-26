@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { compileTemplate, parse as parseSfc } from '@vue/compiler-sfc';
+import { renderToString } from '@vue/server-renderer';
+import * as Vue from 'vue';
+import { createSSRApp, defineComponent, h } from 'vue';
 import esbuild from 'esbuild';
 
 const { transform } = esbuild;
@@ -13,7 +17,7 @@ const importTypescriptModule = async (path) => {
     sourcemap: false,
   });
   const dataUrl = `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
-  return import(`${dataUrl}#${Date.now()}-${Math.random()}`);
+  return import(dataUrl);
 };
 
 const { parseBibleSearchQuery } = await importTypescriptModule(
@@ -53,6 +57,176 @@ const parse = (query) => parseBibleSearchQuery(query, {
   },
 });
 
+const sourceFor = path => readFile(new URL(path, import.meta.url), 'utf8');
+const bookSelectorSource = await sourceFor('../app/components/bible/BookSelector.vue');
+const searchButtonSource = await sourceFor('../app/components/bible/BibleSearchButton.vue');
+const homeHeaderSource = await sourceFor('../app/components/bible/BibleHomeHeader.vue');
+const readerSource = await sourceFor('../app/components/bible/BibleReaderView.vue');
+
+const compileSfcTemplate = (source, filename) => {
+  const { descriptor } = parseSfc(source, { filename });
+  assert.ok(descriptor.template, `${filename} should have a template`);
+  const compiled = compileTemplate({
+    id: `test-${filename}`,
+    source: descriptor.template.content,
+    filename,
+    compilerOptions: { mode: 'function' },
+  });
+  assert.deepEqual(compiled.errors, []);
+  return new Function('Vue', `${compiled.code}; return render`)(Vue);
+};
+
+const iconStub = defineComponent({
+  setup: () => () => h('span', { 'aria-hidden': 'true' }),
+});
+const nuxtLinkStub = defineComponent({
+  name: 'NuxtLink',
+  props: { to: { type: [String, Object], required: true } },
+  setup(props, { slots }) {
+    return () => h('a', {
+      href: typeof props.to === 'string' ? props.to : props.to.path,
+    }, slots.default?.());
+  },
+});
+
+const createSearchButtonComponent = () => defineComponent({
+  name: 'BibleSearchButton',
+  components: { NuxtLink: nuxtLinkStub, SearchIcon: iconStub },
+  render: compileSfcTemplate(searchButtonSource, 'BibleSearchButton.vue'),
+});
+
+const renderBookSelectorInChapterMode = async () => {
+  const modalStub = defineComponent({
+    name: 'UiModalBaseModal',
+    setup(_, { slots }) {
+      return () => h('section', slots.default?.());
+    },
+  });
+  const noop = () => {};
+  const component = defineComponent({
+    components: {
+      ArrowRightIcon: iconStub,
+      SearchIcon: iconStub,
+      SparkleIcon: iconStub,
+      UiModalBaseModal: modalStub,
+      XCircleIcon: iconStub,
+    },
+    setup() {
+      return {
+        VISIBLE_VERSION_NAMES: {},
+        bibleBooks: { old: [], new: [] },
+        chaptersArray: [],
+        confirmedBookId: 'jhn',
+        confirmedBookName: '요한복음',
+        confirmedChapter: 0,
+        currentBook: 'jhn',
+        currentChapter: 3,
+        currentInputValue: '3',
+        currentSearchResult: null,
+        currentVersion: 'GAE',
+        close: noop,
+        getChapterUnit: () => '장',
+        goToSearchResult: noop,
+        handleInput: noop,
+        handleSearchKeydown: noop,
+        handleSubmitButton: noop,
+        inputError: false,
+        inputMode: 'chapter',
+        inputPlaceholder: '요한복음 몇 장?',
+        modelValue: true,
+        resetToSearchMode: noop,
+        searchQuery: '',
+        searchResults: [],
+        selectBook: noop,
+        selectChapter: noop,
+        selectedBookId: 'jhn',
+        selectedResultIndex: 0,
+        selectSearchResult: noop,
+      };
+    },
+    render: compileSfcTemplate(bookSelectorSource, 'BookSelector.vue'),
+  });
+
+  return renderToString(createSSRApp(component));
+};
+
+const renderHomeHeader = async () => {
+  const component = defineComponent({
+    components: {
+      BibleSearchButton: createSearchButtonComponent(),
+      SettingsIcon: iconStub,
+    },
+    render: compileSfcTemplate(homeHeaderSource, 'BibleHomeHeader.vue'),
+  });
+  return renderToString(createSSRApp(component));
+};
+
+const renderReaderHeader = async () => {
+  const emptyStub = defineComponent({ setup: () => () => h('div') });
+  const noop = () => {};
+  const component = defineComponent({
+    components: {
+      BibleSearchButton: createSearchButtonComponent(),
+      BibleToolPopover: emptyStub,
+      BibleViewer: emptyStub,
+      BookmarkFilledIcon: iconStub,
+      BookmarkOutlineIcon: iconStub,
+      BookOpenIcon: iconStub,
+      CalendarCheckIcon: iconStub,
+      CheckCircleIcon: iconStub,
+      CheckCircleOutlineIcon: iconStub,
+      CheckIcon: iconStub,
+      ClientOnly: emptyStub,
+      ChevronLeftIcon: iconStub,
+      ChevronRightIcon: iconStub,
+      FloatingBottomBar: emptyStub,
+      HeadphonesIcon: iconStub,
+      SelectionFloatingControls: emptyStub,
+      TongdokAudioPlayer: emptyStub,
+      XMarkIcon: iconStub,
+    },
+    setup() {
+      return {
+        bookProgress: { read: 0, total: 0, percentage: 0 },
+        chapterSuffix: '장',
+        content: '',
+        currentBookName: '요한복음',
+        currentChapter: 3,
+        handleSelectionClose: noop,
+        handleSelectionCopy: noop,
+        handleSelectionCopyClose: noop,
+        handleSelectionCopyWithFormat: noop,
+        handleSelectionHighlightOrRemove: noop,
+        handleSelectionShare: noop,
+        handleSwipeLeft: noop,
+        handleSwipeRight: noop,
+        hasNextChapter: true,
+        hasPrevChapter: true,
+        highlights: [],
+        isAuthenticated: false,
+        isBookmarked: false,
+        isCompleting: false,
+        isCurrentChapterRead: false,
+        isLoading: false,
+        isMarkingRead: false,
+        isTongdokAudioPlayerOpen: false,
+        isTongdokMode: false,
+        noteCount: 0,
+        scrollPosition: 0,
+        selectionMenuState: { visible: false, mode: null },
+        shortBookName: '요',
+        shortScheduleDate: '',
+        tongdokAudioLink: null,
+        tongdokGuideLink: null,
+        tongdokProgress: null,
+        tongdokScheduleRange: null,
+      };
+    },
+    render: compileSfcTemplate(readerSource, 'BibleReaderView.vue'),
+  });
+  return renderToString(createSSRApp(component));
+};
+
 test('parses compact Korean chapter and verse references', () => {
   const [result] = parse('요3:16');
 
@@ -82,42 +256,28 @@ test('rejects out-of-range verses instead of navigating to a wrong location', ()
 });
 
 test('BookSelector exposes a non-Enter submit button for numeric mobile keyboards', async () => {
-  const source = await readFile(
-    new URL('../app/components/bible/BookSelector.vue', import.meta.url),
-    'utf8',
-  );
+  const html = await renderBookSelectorInChapterMode();
+  assert.match(html, /<button[^>]*type="button"[^>]*aria-label="입력한 장\/절로 이동"/);
 
-  assert.match(source, /class="search-submit-button"/, 'numeric input modes should render a submit button');
-  assert.match(source, /@click="handleSubmitButton"/, 'submit button should invoke the same navigation flow as Enter');
-  assert.match(source, /aria-label="입력한 장\/절로 이동"/, 'submit button should be accessible');
+  // Click behavior moved to Playwright: tests/e2e/browser-behavior.spec.ts.
 });
 
 test('Bible search button opens the search page accessibly', async () => {
-  const source = await readFile(
-    new URL('../app/components/bible/BibleSearchButton.vue', import.meta.url),
-    'utf8',
-  );
+  const SearchButton = createSearchButtonComponent();
+  const html = await renderToString(createSSRApp(SearchButton));
 
-  assert.match(source, /to="\/bible\/search"/, 'Bible search button should open /bible/search');
-  assert.match(source, /aria-label="성경 본문 검색 열기"/, 'Bible search button should be accessible');
+  assert.match(html, /href="\/bible\/search"/);
+  assert.match(html, /aria-label="성경 본문 검색 열기"/);
 });
 
 test('Bible home exposes the shared search button', async () => {
-  const source = await readFile(
-    new URL('../app/components/bible/BibleHomeHeader.vue', import.meta.url),
-    'utf8',
-  );
+  const html = await renderHomeHeader();
 
-  assert.match(source, /<BibleSearchButton/, 'Bible home should render the search button');
-  assert.match(source, /import BibleSearchButton/, 'Bible home should import the search button component');
+  assert.match(html, /<a[^>]*href="\/bible\/search"[^>]*aria-label="성경 본문 검색 열기"/);
 });
 
 test('Bible reader exposes the same search button on /bible', async () => {
-  const source = await readFile(
-    new URL('../app/components/bible/BibleReaderView.vue', import.meta.url),
-    'utf8',
-  );
+  const html = await renderReaderHeader();
 
-  assert.match(source, /<BibleSearchButton/, 'Bible reader should render a search button');
-  assert.match(source, /import BibleSearchButton/, 'Bible reader should import the search button component');
+  assert.match(html, /<a[^>]*href="\/bible\/search"[^>]*aria-label="성경 본문 검색 열기"/);
 });

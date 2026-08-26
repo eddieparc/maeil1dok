@@ -224,9 +224,10 @@ const fetchUserCalendarData = async (year: number, month: number) => {
 
   localIsLoading.value = true
   try {
-    const response = await api.get(`/api/v1/accounts/profile/${props.userId}/calendar/`, {
-      params: { year, month }
-    })
+    const response = await api.GET(
+      api.path('/api/v1/auth/profile/{user_id}/calendar/', { user_id: props.userId }),
+      { params: { year, month } }
+    )
 
     if (response.data?.success) {
       // calendar 데이터를 날짜별로 그룹화
@@ -251,7 +252,7 @@ const fetchUserCalendarData = async (year: number, month: number) => {
       localMonthData.value = monthData
 
       // plans 정보를 settings 형태로 변환
-      localSettings.value = (response.data.data.plans || []).map((plan: any, index: number) => ({
+      localSettings.value = (response.data.data.plans || []).map((plan, index) => ({
         id: plan.id,
         subscription_id: 0,
         plan_id: plan.id,

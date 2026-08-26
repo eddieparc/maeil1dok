@@ -187,7 +187,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { LocationQueryValue } from 'vue-router';
 // useBibleFetch는 이제 useBibleContent 내부에서 사용됨
 import { useTongdokMode } from '~/composables/useTongdokMode';
 import { usePersonalRecord } from '~/composables/usePersonalRecord';
@@ -199,10 +198,19 @@ import { useScheduleApi } from '~/composables/useScheduleApi';
 import { useBibleModals } from '~/composables/bible/useBibleModals';
 import { useBibleContent } from '~/composables/bible/useBibleContent';
 import {
+  buildBibleSelectionShareData,
   parseVerseRangeParam,
   useBiblePageState,
   type BibleVerseRange,
 } from '~/composables/bible/useBiblePageState';
+import {
+  buildReadingPositionSaveCommand,
+  getBibleRouteQueryPolicy,
+  getExplicitReaderScrollPosition as selectExplicitReaderScrollPosition,
+  resetReaderScrollState,
+  setReaderScrollState,
+  type ReaderScrollState,
+} from '~/composables/bible/readerScrollState';
 import { useAuthGuard } from '~/composables/useAuthGuard';
 import { useAuthService } from '~/composables/useAuthService';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
@@ -238,6 +246,7 @@ import Toast from '~/components/Toast.vue';
 
 // 유틸리티
 import { getBookCode } from '~/constants/bible';
+import { parseSearchFocusParam } from '~/utils/bibleSearchRoute';
 
 // 타입
 import type { VerseSelection } from '~/types/bible';
@@ -535,19 +544,17 @@ const focusPendingVerseRange = async () => {
   bibleReaderViewRef.value?.focusVerseRange(verseRange.start, verseRange.end, pendingSearchFocus.value);
 };
 
-const parseSearchFocusParam = (value: LocationQueryValue | LocationQueryValue[] | undefined): string | null => {
-  const rawValue = Array.isArray(value) ? value[0] : value;
-  const normalized = rawValue?.trim();
-  return normalized ? normalized : null;
+const applyReaderScrollState = (state: ReaderScrollState): void => {
+  scrollPosition.value = state.scrollPosition;
+  hasReaderScrollPosition.value = state.hasReaderScrollPosition;
 };
 
 const setReaderScrollPosition = (position: number, fromReaderScroll = false) => {
-  scrollPosition.value = position;
-  hasReaderScrollPosition.value = fromReaderScroll;
+  applyReaderScrollState(setReaderScrollState(position, fromReaderScroll));
 };
 
 const resetReaderScrollPosition = () => {
-  setReaderScrollPosition(0);
+  applyReaderScrollState(resetReaderScrollState());
 };
 
 const restoreSavedScrollPosition = async (position: number | undefined) => {
@@ -558,8 +565,28 @@ const restoreSavedScrollPosition = async (position: number | undefined) => {
   restoreReadingScrollPosition(position);
 };
 
-const getExplicitReaderScrollPosition = () => {
-  return hasReaderScrollPosition.value ? scrollPosition.value : undefined;
+const getExplicitReaderScrollPosition = () => selectExplicitReaderScrollPosition({
+  scrollPosition: scrollPosition.value,
+  hasReaderScrollPosition: hasReaderScrollPosition.value,
+});
+
+const saveCurrentReadingPosition = (
+  immediate: boolean,
+  explicitScrollPosition = getExplicitReaderScrollPosition(),
+): Promise<void> => {
+  const command = buildReadingPositionSaveCommand({
+    book: currentBook.value,
+    chapter: currentChapter.value,
+    version: currentVersion.value,
+  }, immediate, explicitScrollPosition);
+
+  return saveReadingPosition(
+    command.book,
+    command.chapter,
+    command.version,
+    command.immediate,
+    command.explicitScrollPosition,
+  );
 };
 
 // 이벤트 핸들러 (composable wrapper)
@@ -634,7 +661,7 @@ const scrollToTop = () => {
 // BibleViewer 이벤트 핸들러
 const handleScrollPosition = (position: number) => {
   setReaderScrollPosition(position, true);
-  saveReadingPosition(currentBook.value, currentChapter.value, currentVersion.value, false, position);
+  saveCurrentReadingPosition(false, position);
 };
 
 const handleBookmarkAction = (_verses: VerseSelection) => {
@@ -729,14 +756,13 @@ const handleShareAction = async (selection: SelectionSharePayload) => {
     end: selection.endVerse,
   };
   const shareUrl = generateShareUrl(verseRange);
-  const verseLabel = verseRange.start === verseRange.end
-    ? `${verseRange.start}절`
-    : `${verseRange.start}-${verseRange.end}절`;
-  const title = `${currentBookName.value} ${currentChapter.value}${chapterSuffix.value} ${verseLabel}`;
-  const shareData = {
-    title,
-    url: shareUrl
-  };
+  const shareData = buildBibleSelectionShareData({
+    bookName: currentBookName.value,
+    chapter: currentChapter.value,
+    chapterSuffix: chapterSuffix.value,
+    verseRange,
+    url: shareUrl,
+  });
 
   // Web Share API 지원 시 네이티브 공유
   if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
@@ -1178,10 +1204,9 @@ onMounted(async () => {
   initTongdokMode();
 
   // URL에 book/chapter/plan/tongdok이 있으면 그것을 사용 (바로 reader로)
-  const hasBibleLocationQuery = route.query.book || route.query.chapter || route.query.verse;
-  const hasQueryParams = hasBibleLocationQuery || route.query.plan || route.query.tongdok;
+  const routeQueryPolicy = getBibleRouteQueryPolicy(route.query);
 
-  if (hasQueryParams) {
+  if (routeQueryPolicy.shouldInitializeOnEntry) {
     viewMode.value = 'reader';
     initFromQuery();
     resetReaderScrollPosition();
@@ -1189,7 +1214,7 @@ onMounted(async () => {
     await focusPendingVerseRange();
     
     // 통독/플랜 상태용 쿼리는 기존처럼 정리하되, 공유 가능한 성경 위치 딥링크는 유지한다.
-    if (!hasBibleLocationQuery) {
+    if (!routeQueryPolicy.hasBibleLocationQuery) {
       router.replace({ path: '/bible' });
     }
   } else if (!tongdokMode.value) {
@@ -1250,23 +1275,11 @@ onBeforeUnmount(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('beforeunload', handleBeforeUnload);
   }
-  saveReadingPosition(
-    currentBook.value,
-    currentChapter.value,
-    currentVersion.value,
-    true,
-    getExplicitReaderScrollPosition()
-  );
+  saveCurrentReadingPosition(true);
 });
 
 const handleBeforeUnload = () => {
-  saveReadingPosition(
-    currentBook.value,
-    currentChapter.value,
-    currentVersion.value,
-    true,
-    getExplicitReaderScrollPosition()
-  );
+  saveCurrentReadingPosition(true);
 };
 
 // route.query 변경 감지 (딥링크 처리)
@@ -1275,7 +1288,8 @@ watch(
   async (newQuery) => {
     // 쿼리 파라미터가 있으면 처리 (딥링크로 접근한 경우)
     const hasBibleLocationQuery = newQuery.book || newQuery.chapter || newQuery.verse;
-    if (hasBibleLocationQuery || newQuery.tongdok) {
+    const routeQueryPolicy = getBibleRouteQueryPolicy(newQuery);
+    if (routeQueryPolicy.shouldReloadReader) {
       initFromQuery();
       resetReaderScrollPosition();
       await loadBibleContent(currentBook.value, currentChapter.value);
@@ -1314,13 +1328,7 @@ watch(
 watch(
   [() => currentBook.value, () => currentChapter.value, () => currentVersion.value],
   () => {
-    saveReadingPosition(
-      currentBook.value,
-      currentChapter.value,
-      currentVersion.value,
-      false,
-      getExplicitReaderScrollPosition()
-    );
+    saveCurrentReadingPosition(false);
   },
   { flush: 'post' }
 );

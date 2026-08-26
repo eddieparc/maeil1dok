@@ -143,6 +143,7 @@ import PageLayout from '~/components/common/PageLayout.vue'
 
 const auth = useAuthService()
 const socialStore = useSocialStore()
+const api = useApi()
 
 useHead({
   title: '친구 · 매일일독',
@@ -167,11 +168,9 @@ const error = ref(null)
 // 친구 목록 가져오기
 const fetchFriends = async () => {
   try {
-    const response = await useApi().get('/api/v1/accounts/friends/')
-    if (response.data?.success) {
-      // 하위 호환: response.data.data?.friends 또는 response.data.friends
-      const friends = response.data.data?.friends ?? response.data.friends ?? []
-      friendsList.value = friends.map(friend => ({
+    const response = await api.GET('/api/v1/auth/friends/')
+    if (response.data.success) {
+      friendsList.value = response.data.data.friends.map(friend => ({
         ...friend,
         is_friend: true,
         is_mutual_follow: true
@@ -188,10 +187,11 @@ const fetchFollowers = async () => {
   if (!auth.user.value) return
 
   try {
-    const response = await useApi().get(`/api/v1/accounts/followers/${auth.user.value.id}/`)
-    if (response.data?.success) {
-      // 하위 호환: response.data.data?.followers 또는 response.data.followers
-      followersList.value = response.data.data?.followers ?? response.data.followers ?? []
+    const response = await api.GET(
+      api.path('/api/v1/auth/followers/{user_id}/', { user_id: auth.user.value.id })
+    )
+    if (response.data.success) {
+      followersList.value = response.data.data.followers
     }
   } catch (error) {
     console.error('팔로워 목록 조회 실패:', error)
@@ -203,10 +203,11 @@ const fetchFollowing = async () => {
   if (!auth.user.value) return
 
   try {
-    const response = await useApi().get(`/api/v1/accounts/following/${auth.user.value.id}/`)
-    if (response.data?.success) {
-      // 하위 호환: response.data.data?.following 또는 response.data.following
-      followingList.value = response.data.data?.following ?? response.data.following ?? []
+    const response = await api.GET(
+      api.path('/api/v1/auth/following/{user_id}/', { user_id: auth.user.value.id })
+    )
+    if (response.data.success) {
+      followingList.value = response.data.data.following
     }
   } catch (error) {
     console.error('팔로잉 목록 조회 실패:', error)
@@ -221,12 +222,11 @@ const searchUsers = async () => {
   }
 
   try {
-    const response = await useApi().get('/api/v1/accounts/search/', {
+    const response = await api.GET('/api/v1/auth/search/', {
       params: { q: searchQuery.value }
     })
-    if (response.data?.success) {
-      // 하위 호환: response.data.data?.users 또는 response.data.users
-      searchResults.value = response.data.data?.users ?? response.data.users ?? []
+    if (response.data.success) {
+      searchResults.value = response.data.data.users
     }
   } catch (error) {
     console.error('사용자 검색 실패:', error)

@@ -130,8 +130,8 @@ onMounted(async () => {
   }
 
   try {
-    const response = await api.post('/api/v1/auth/verify-reset-token/', { token: token.value })
-    const data = response.data || response
+    const response = await api.POST('/api/v1/auth/verify-reset-token/', { token: token.value })
+    const data = response
     
     if (!data.valid) {
       invalidToken.value = true
@@ -152,11 +152,11 @@ const handleSubmit = async () => {
 
   submitting.value = true
   try {
-    const response = await api.post('/api/v1/auth/reset-password/', {
+    const response = await api.POST('/api/v1/auth/reset-password/', {
       token: token.value,
       new_password: password.value
     })
-    const data = response.data || response
+    const data = response
     
     if (data.success) {
       success.value = true

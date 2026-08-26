@@ -8,6 +8,7 @@ let clickedDownloads;
 let copiedLinks;
 let objectUrls;
 let revokeObjectUrls;
+let sharedPayloads;
 let canvasBlobFactory;
 
 const originalCreateObjectUrl = URL.createObjectURL;
@@ -18,6 +19,7 @@ const installBrowserStubs = () => {
   copiedLinks = [];
   objectUrls = [];
   revokeObjectUrls = [];
+  sharedPayloads = [];
   canvasBlobFactory = () => new Blob(['certification-png'], { type: 'image/png' });
 
   globalThis.window = {
@@ -144,6 +146,37 @@ test('shareCertification downloads a generated PNG when Web Share files are unav
   assert.equal(copiedLinks.length, 0);
   assert.equal(objectUrls[0].type, 'image/png');
   assert.deepEqual(revokeObjectUrls, ['blob:certification-0']);
+
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      clipboard: navigator.clipboard,
+      canShare: ({ files }) => files?.length === 1,
+      async share(payload) {
+        sharedPayloads.push(payload);
+        throw new DOMException('share cancelled', 'AbortError');
+      },
+    },
+  });
+
+  const cancelledResult = await shareCertification({
+    planId: 7,
+    scheduleId: 13,
+    dateLabel: '2026-01-02',
+  });
+  const [sharedPayload] = sharedPayloads;
+
+  assert.equal(cancelledResult, 'shared');
+  assert.equal(sharedPayloads.length, 1);
+  assert.equal(sharedPayload.title, '매일일독 통독 인증 카드');
+  assert.equal(sharedPayload.text, '오늘도 말씀을 읽었습니다');
+  assert.match(sharedPayload.url, /certification=tongdok/);
+  assert.match(sharedPayload.url, /plan_id=7/);
+  assert.match(sharedPayload.url, /schedule_id=13/);
+  assert.equal(sharedPayload.files.length, 1);
+  assert.equal(sharedPayload.files[0].name, 'maeil1dok-tongdok-certification.png');
+  assert.equal(sharedPayload.files[0].type, 'image/png');
+  assert.equal(clickedDownloads, 1);
 });
 
 test('shareCertification falls back to a certification history link when PNG generation fails', async () => {

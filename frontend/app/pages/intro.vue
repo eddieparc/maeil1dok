@@ -169,7 +169,9 @@ const fetchVideoIntro = async () => {
   error.value = null
 
   try {
-    const response = await api.get(`/api/v1/todos/video/intro/${videoIntroId.value}/`)
+    const response = await api.GET(
+      api.path('/api/v1/todos/video/intro/{id}/', { id: videoIntroId.value })
+    )
     videoIntro.value = response.data
 
     // 현재 사용자의 이 영상에 대한 완료 상태 확인
@@ -190,7 +192,7 @@ const checkCompletionStatus = async () => {
   }
   
   try {
-    const userIntrosResponse = await api.get('/api/v1/todos/user/video/intro/')
+    const userIntrosResponse = await api.GET('/api/v1/todos/user/video/intro/')
     let userIntros = userIntrosResponse.data
     
     // API 응답 구조 확인 및 처리
@@ -249,15 +251,15 @@ const toggleCompletion = async () => {
     isCompleted.value = newCompletionStatus // isCompleted 변수도 함께 업데이트
 
     // API 호출하여 서버에 상태 업데이트
-    const response = await api.post('/api/v1/todos/video/intro/progress/', {
+    const response = await api.POST('/api/v1/todos/video/intro/progress/', {
       video_intro_id: videoIntroId.value,
       is_completed: newCompletionStatus
     })
 
     // 응답 데이터에서 완료 상태 가져오기 (서버 상태와 일치시키기)
-    if (response.data && response.data.is_completed !== undefined) {
-      videoIntro.value.is_completed = response.data.is_completed
-      isCompleted.value = response.data.is_completed
+    if (response.is_completed !== undefined) {
+      videoIntro.value.is_completed = response.is_completed
+      isCompleted.value = response.is_completed
     }
     
     // 성공 메시지 표시

@@ -7,8 +7,9 @@
  */
 import { ref, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useBibleData } from './useBibleData';
+import { BIBLE_BOOKS, useBibleData } from './useBibleData';
 import { useApi } from './useApi';
+import type { paths } from '~/types/generated/api-schema';
 
 export interface PlanDetail {
   book: string;
@@ -22,11 +23,11 @@ export interface PlanDetail {
 
 export interface ReadingDetailData {
   book?: string;
-  chapter?: number;
+  chapter?: number | string;
   plan_id?: number;
   plan_detail?: PlanDetail[];
-  audio_link?: string;
-  guide_link?: string;
+  audio_link?: string | null;
+  guide_link?: string | null;
   plan_date?: string;
   schedule_date?: string;
   message?: string;
@@ -36,6 +37,17 @@ export interface ReadingDetailData {
 export interface ReadingDetailResponse {
   data?: ReadingDetailData;
 }
+
+type BibleBook = NonNullable<
+  paths['/api/v1/todos/detail/']['get']['parameters']['query']
+>['book'];
+
+const BIBLE_BOOK_CODES = new Set<string>(
+  [...BIBLE_BOOKS.old, ...BIBLE_BOOKS.new].map(book => book.id)
+);
+
+const toBibleBook = (value: string): BibleBook | undefined =>
+  BIBLE_BOOK_CODES.has(value) ? (value as BibleBook) : undefined;
 
 // localStorage 키
 const TONGDOK_STATE_KEY = 'tongdokModeState';
@@ -261,6 +273,9 @@ export const useTongdokMode = () => {
       return null;
     }
 
+    const bibleBook = toBibleBook(book);
+    if (!bibleBook) return null;
+
     try {
       const hasSameData =
         readingDetailResponse.value?.data &&
@@ -271,10 +286,10 @@ export const useTongdokMode = () => {
         return readingDetailResponse.value?.data || null;
       }
 
-      const response = await api.get('/api/v1/todos/detail/', {
+      const response = await api.GET('/api/v1/todos/detail/', {
         params: {
           plan_id: planId,
-          book,
+          book: bibleBook,
           chapter,
         },
       });
@@ -392,7 +407,7 @@ export const useTongdokMode = () => {
 
     isCompleting.value = true;
     try {
-      await api.post('/api/v1/todos/reading/update/', {
+      await api.POST('/api/v1/todos/reading/update/', {
         plan_id: tongdokPlanId.value,
         schedule_ids: [tongdokScheduleId.value],
         action: 'complete'

@@ -1,3 +1,4 @@
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -11,7 +12,10 @@ from datetime import date, datetime, timedelta
 from accounts.models import User, Follow
 from accounts.serializers import UserSearchSerializer
 from accounts.visibility import live_user_filter
+from authz import can, subject_from_request
+from authz.policies.reading_group import GroupScoreboardResource
 from .models import BibleReadingPlan, UserBibleProgress, PlanSubscription, DailyBibleSchedule, ReadingGroup, GroupMembership
+from . import openapi_serializers as openapi
 from .services.hasena_activity import (
     calculate_hasena_activity_stats_bulk,
     get_hasena_count_annotation,
@@ -24,6 +28,37 @@ SCOREBOARD_CACHE_VERSION = 'v4'
 VALID_SCOREBOARD_PERIODS = {'all', 'week', 'month'}
 DEFAULT_SCOREBOARD_LIMIT = 100
 MAX_SCOREBOARD_LIMIT = 500
+
+SCOREBOARD_QUERY_PARAMETERS = [
+    OpenApiParameter(
+        'period',
+        str,
+        required=False,
+        default='all',
+        enum=sorted(VALID_SCOREBOARD_PERIODS),
+        description='Activity period.',
+    ),
+    OpenApiParameter(
+        'plan_id',
+        int,
+        required=False,
+        description='Active reading plan ID (positive integer).',
+    ),
+    OpenApiParameter(
+        'limit',
+        int,
+        required=False,
+        default=DEFAULT_SCOREBOARD_LIMIT,
+        description='Result limit (1-500). The global scoreboard applies it; other scoreboard variants validate it for compatibility.',
+    ),
+    OpenApiParameter(
+        'month',
+        str,
+        required=False,
+        pattern=r'^\d{4}-\d{2}$',
+        description='Calendar month in YYYY-MM form. Used only when period is month; defaults to the current month.',
+    ),
+]
 
 
 # ===== Helper Functions =====
@@ -434,6 +469,10 @@ def group_scoreboard_not_found_response():
 # ===== API Views =====
 
 
+@extend_schema(
+    parameters=SCOREBOARD_QUERY_PARAMETERS,
+    responses={200: openapi.ScoreboardResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_scoreboard(request):
@@ -540,6 +579,20 @@ def get_scoreboard(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=[
+        *SCOREBOARD_QUERY_PARAMETERS,
+        OpenApiParameter(
+            'type',
+            str,
+            required=False,
+            default='mutual',
+            enum=['mutual', 'following'],
+            description='Follow relationship included in the scoreboard.',
+        ),
+    ],
+    responses={200: openapi.FriendsScoreboardResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_friends_scoreboard(request):
@@ -645,30 +698,26 @@ def get_friends_scoreboard(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=SCOREBOARD_QUERY_PARAMETERS,
+    responses={200: openapi.GroupScoreboardResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_group_scoreboard(request, group_id):
     """그룹 리더보드 조회 - N+1 쿼리 최적화"""
     try:
-        # 그룹 확인
-        try:
-            group = ReadingGroup.objects.get(id=group_id)
-        except ReadingGroup.DoesNotExist:
-            return group_scoreboard_not_found_response()
-
-        # 비공개 그룹이고 멤버가 아닌 경우
-        if not group.is_public:
-            if not request.user.is_authenticated:
-                return group_scoreboard_not_found_response()
-
-            is_member = GroupMembership.objects.filter(
-                group=group,
-                user=request.user,
-                is_active=True
-            ).exists()
-
-            if not is_member:
-                return group_scoreboard_not_found_response()
+        decision = can(
+            subject_from_request(request),
+            'view_group_scoreboard',
+            GroupScoreboardResource(group_id=group_id),
+        )
+        if not decision:
+            denial = decision.denial
+            if denial.body is None:
+                return Response(status=denial.status_code)
+            return Response(denial.body, status=denial.status_code)
+        group = decision.value
 
         params, error_response = parse_scoreboard_params(request, require_limit=False)
         if error_response:
@@ -816,6 +865,10 @@ def get_group_scoreboard(request, group_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=SCOREBOARD_QUERY_PARAMETERS,
+    responses={200: openapi.MyRankingResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_my_ranking(request):

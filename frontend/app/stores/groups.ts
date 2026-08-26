@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useApi } from '~/composables/useApi'
+import type { components } from '~/types/generated/api-schema'
 
 interface BibleReadingPlan {
   id: number
@@ -87,6 +88,61 @@ interface GroupCalendarData {
   [date: string]: CalendarDayData
 }
 
+const normalizeReadingPlan = (plan: components['schemas']['BibleReadingPlan']): BibleReadingPlan => ({
+  ...plan,
+  description: plan.description ?? ''
+})
+
+const normalizeReadingGroup = (group: components['schemas']['ReadingGroupResponse']): ReadingGroup => ({
+  ...group,
+  creator: {
+    ...group.creator,
+    profile_image: group.creator.profile_image ?? undefined
+  },
+  plans: group.plans.map(normalizeReadingPlan),
+  my_role: group.my_role ?? undefined
+})
+
+const normalizeGroupMember = (member: components['schemas']['GroupMember']): GroupMember => ({
+  ...member,
+  user: {
+    ...member.user,
+    profile_image: member.user.profile_image ?? undefined
+  }
+})
+
+const normalizeSchedule = (
+  schedule: components['schemas']['DailyBibleScheduleWithProgress']
+): DailySchedule => ({
+  ...schedule,
+  audio_link: schedule.audio_link ?? undefined,
+  guide_link: schedule.guide_link ?? undefined
+})
+
+const normalizeInvitation = (
+  invitation: components['schemas']['GroupInvitation']
+): GroupInvitation => ({
+  ...invitation,
+  group: normalizeReadingGroup(invitation.group),
+  inviter: {
+    ...invitation.inviter,
+    profile_image: invitation.inviter.profile_image ?? undefined
+  }
+})
+
+const normalizeCalendarDay = (day: components['schemas']['GroupProgressDay']): CalendarDayData => ({
+  ...day,
+  members: day.members.map(member => ({
+    ...member,
+    profile_image: member.profile_image ?? undefined
+  }))
+})
+
+const getApiError = (response: unknown): any =>
+  typeof response === 'object' && response !== null && 'error' in response
+    ? response.error
+    : undefined
+
 export const useGroupsStore = defineStore('groups', {
   state: () => ({
     groups: [] as ReadingGroup[],
@@ -121,14 +177,15 @@ export const useGroupsStore = defineStore('groups', {
       this.error = null
 
       try {
-        const { data } = await useApi().get('/api/v1/todos/groups/', {
+        const api = useApi()
+        const { data } = await api.GET('/api/v1/todos/groups/', {
           params: filters
         })
 
         if (data?.success) {
           // 중복 제거를 위해 Map 사용
-          const uniqueGroups = new Map()
-          data.groups.forEach((group: ReadingGroup) => {
+          const uniqueGroups = new Map<number, ReadingGroup>()
+          data.groups.map(normalizeReadingGroup).forEach(group => {
             uniqueGroups.set(group.id, group)
           })
           const deduplicatedGroups = Array.from(uniqueGroups.values())
@@ -150,13 +207,16 @@ export const useGroupsStore = defineStore('groups', {
       this.isLoading = true
 
       try {
-        const { data } = await useApi().get(`/api/v1/todos/groups/${groupId}/`)
+        const api = useApi()
+        const { data } = await api.GET(
+          api.path('/api/v1/todos/groups/{group_id}/', { group_id: groupId })
+        )
 
         if (data?.success) {
-          this.currentGroup = data.group
+          this.currentGroup = normalizeReadingGroup(data.group)
           return { success: true }
         } else {
-          return { success: false, error: data?.error }
+          return { success: false, error: getApiError(data) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }
@@ -167,10 +227,13 @@ export const useGroupsStore = defineStore('groups', {
 
     async fetchGroupMembers(groupId: number) {
       try {
-        const { data } = await useApi().get(`/api/v1/todos/groups/${groupId}/members/`)
+        const api = useApi()
+        const { data } = await api.GET(
+          api.path('/api/v1/todos/groups/{group_id}/members/', { group_id: groupId })
+        )
 
         if (data?.success) {
-          this.currentGroupMembers = data.members
+          this.currentGroupMembers = data.members.map(normalizeGroupMember)
         }
       } catch (error) {
         console.error('그룹 멤버 조회 실패:', error)
@@ -185,13 +248,15 @@ export const useGroupsStore = defineStore('groups', {
       max_members: number
     }) {
       try {
-        const response = await useApi().post('/api/v1/todos/groups/create/', groupData)
+        const api = useApi()
+        const response = await api.POST('/api/v1/todos/groups/create/', groupData)
 
         if (response?.success) {
-          this.myGroups.push(response.group)
-          return { success: true, data: response.group }
+          const group = normalizeReadingGroup(response.group)
+          this.myGroups.push(group)
+          return { success: true, data: group }
         } else {
-          return { success: false, error: response?.error }
+          return { success: false, error: getApiError(response) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }
@@ -200,7 +265,10 @@ export const useGroupsStore = defineStore('groups', {
 
     async joinGroup(groupId: number) {
       try {
-        const response = await useApi().post(`/api/v1/todos/groups/${groupId}/join/`)
+        const api = useApi()
+        const response = await api.POST(
+          api.path('/api/v1/todos/groups/{group_id}/join/', { group_id: groupId })
+        )
 
         if (response?.success) {
           // 그룹 정보 업데이트
@@ -210,7 +278,7 @@ export const useGroupsStore = defineStore('groups', {
           }
           return { success: true }
         } else {
-          return { success: false, error: response?.error }
+          return { success: false, error: getApiError(response) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }
@@ -219,7 +287,10 @@ export const useGroupsStore = defineStore('groups', {
 
     async leaveGroup(groupId: number) {
       try {
-        const response = await useApi().post(`/api/v1/todos/groups/${groupId}/leave/`)
+        const api = useApi()
+        const response = await api.POST(
+          api.path('/api/v1/todos/groups/{group_id}/leave/', { group_id: groupId })
+        )
 
         if (response?.success) {
           // 그룹 정보 업데이트
@@ -231,7 +302,7 @@ export const useGroupsStore = defineStore('groups', {
           this.myGroups = this.myGroups.filter(g => g.id !== groupId)
           return { success: true }
         } else {
-          return { success: false, error: response?.error }
+          return { success: false, error: getApiError(response) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }
@@ -240,15 +311,19 @@ export const useGroupsStore = defineStore('groups', {
 
     async inviteToGroup(groupId: number, userId: number, message: string = '') {
       try {
-        const response = await useApi().post(`/api/v1/todos/groups/${groupId}/invite/`, {
-          user_id: userId,
-          message
-        })
+        const api = useApi()
+        const response = await api.POST(
+          api.path('/api/v1/todos/groups/{group_id}/invite/', { group_id: groupId }),
+          {
+            user_id: userId,
+            message
+          }
+        )
 
         if (response?.success) {
           return { success: true }
         } else {
-          return { success: false, error: response?.error }
+          return { success: false, error: getApiError(response) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }
@@ -257,10 +332,11 @@ export const useGroupsStore = defineStore('groups', {
 
     async fetchInvitations() {
       try {
-        const { data } = await useApi().get('/api/v1/todos/invitations/')
+        const api = useApi()
+        const { data } = await api.GET('/api/v1/todos/invitations/')
 
         if (data?.success) {
-          this.invitations = data.invitations
+          this.invitations = data.invitations.map(normalizeInvitation)
         }
       } catch (error) {
         console.error('초대 목록 조회 실패:', error)
@@ -269,9 +345,13 @@ export const useGroupsStore = defineStore('groups', {
 
     async respondToInvitation(invitationId: number, action: 'accept' | 'decline') {
       try {
-        const response = await useApi().post(`/api/v1/todos/invitations/${invitationId}/respond/`, {
-          action
-        })
+        const api = useApi()
+        const response = await api.POST(
+          api.path('/api/v1/todos/invitations/{invitation_id}/respond/', {
+            invitation_id: invitationId
+          }),
+          { action }
+        )
 
         if (response?.success) {
           // 초대 목록에서 제거
@@ -279,12 +359,12 @@ export const useGroupsStore = defineStore('groups', {
 
           if (action === 'accept' && response.group) {
             // 내 그룹 목록에 추가
-            this.myGroups.push(response.group)
+            this.myGroups.push(normalizeReadingGroup(response.group))
           }
 
           return { success: true }
         } else {
-          return { success: false, error: response?.error }
+          return { success: false, error: getApiError(response) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }
@@ -293,8 +373,9 @@ export const useGroupsStore = defineStore('groups', {
 
     async fetchGroupPlanSchedule(planId: number, month: number, year?: number) {
       try {
+        const api = useApi()
         const currentYear = year || new Date().getFullYear()
-        const { data } = await useApi().get('/api/v1/todos/schedules/month/', {
+        const { data } = await api.GET('/api/v1/todos/schedules/month/', {
           params: {
             plan_id: planId,
             month: month,
@@ -303,7 +384,7 @@ export const useGroupsStore = defineStore('groups', {
         })
 
         if (data && Array.isArray(data)) {
-          this.currentPlanSchedules = data
+          this.currentPlanSchedules = data.map(normalizeSchedule)
           return { success: true }
         } else {
           return { success: false, error: '일정을 불러올 수 없습니다.' }
@@ -317,21 +398,25 @@ export const useGroupsStore = defineStore('groups', {
       this.isMemberCalendarLoading = true
 
       try {
+        const api = useApi()
         const currentYear = year || new Date().getFullYear()
         const params: Record<string, number> = { month, year: currentYear }
         if (planId) params.plan_id = planId
 
-        const { data } = await useApi().get(`/api/v1/todos/groups/${groupId}/member-progress/`, {
-          params
-        })
+        const { data } = await api.GET(
+          api.path('/api/v1/todos/groups/{group_id}/member-progress/', { group_id: groupId }),
+          { params }
+        )
 
         if (data?.success) {
-          this.memberCalendarData = data.calendar || {}
+          this.memberCalendarData = Object.fromEntries(
+            Object.entries(data.calendar || {}).map(([date, day]) => [date, normalizeCalendarDay(day)])
+          )
           this.memberCalendarPlan = data.plan || null
           this.memberCalendarMeta = data.meta || null
           return { success: true }
         } else {
-          return { success: false, error: data?.error }
+          return { success: false, error: getApiError(data) }
         }
       } catch (error: any) {
         return { success: false, error: error.message || '멤버 진도를 불러올 수 없습니다.' }
@@ -346,10 +431,13 @@ export const useGroupsStore = defineStore('groups', {
       this.error = null
 
       try {
-        const { data } = await useApi().get(`/api/v1/todos/users/${userId}/groups/`)
+        const api = useApi()
+        const { data } = await api.GET(
+          api.path('/api/v1/todos/users/{user_id}/groups/', { user_id: userId })
+        )
 
         if (data?.success) {
-          this.groups = data.groups
+          this.groups = data.groups.map(normalizeReadingGroup)
         }
       } catch (error: any) {
         this.error = error.message || '그룹 목록을 불러올 수 없습니다.'
@@ -361,9 +449,11 @@ export const useGroupsStore = defineStore('groups', {
     // 그룹 프로필 표시 설정
     async updateGroupVisibility(groupId: number, showInProfile: boolean) {
       try {
-        const response = await useApi().patch(`/api/v1/todos/groups/${groupId}/visibility/`, {
-          show_in_profile: showInProfile
-        })
+        const api = useApi()
+        const response = await api.PATCH(
+          api.path('/api/v1/todos/groups/{group_id}/visibility/', { group_id: groupId }),
+          { show_in_profile: showInProfile }
+        )
 
         if (response?.success) {
           // myGroups에서 해당 그룹 업데이트
@@ -373,7 +463,7 @@ export const useGroupsStore = defineStore('groups', {
           }
           return { success: true }
         } else {
-          return { success: false, error: response?.error }
+          return { success: false, error: getApiError(response) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }

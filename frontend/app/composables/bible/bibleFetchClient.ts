@@ -166,13 +166,17 @@ async function fetchWithCacheFallback(options: FallbackOptions): Promise<BibleFe
   return errorResult(options.contentType);
 }
 
-async function fetchKntFromProxy(book: string, chapter: number): Promise<BibleFetchResult> {
+export function buildKntProxyUrl(book: string, chapter: number): string {
   const params = new URLSearchParams({
     version: 'd7a4326402395391-01',
     chapter: `${book.toUpperCase()}.${chapter}`,
   });
+  return `/bible-proxy/KNT/get_chapter.php?${params.toString()}`;
+}
+
+async function fetchKntFromProxy(book: string, chapter: number): Promise<BibleFetchResult> {
   const response = await fetchWithTimeout(
-    `/bible-proxy/KNT/get_chapter.php?${params.toString()}`,
+    buildKntProxyUrl(book, chapter),
     PROXY_SLOW_FALLBACK_TIMEOUT,
   );
 
@@ -193,11 +197,11 @@ async function fetchKntFromProxy(book: string, chapter: number): Promise<BibleFe
   };
 }
 
-async function fetchStandardFromProxy(
+export function buildStandardProxyUrl(
   version: string,
   book: string,
   chapter: number,
-): Promise<BibleFetchResult> {
+): string {
   const params = new URLSearchParams({
     version,
     book,
@@ -206,8 +210,16 @@ async function fetchStandardFromProxy(
     fontSize: '15px',
     fontWeight: 'normal',
   });
+  return `/bible-proxy/bible/korbibReadpage.php?${params.toString()}`;
+}
+
+async function fetchStandardFromProxy(
+  version: string,
+  book: string,
+  chapter: number,
+): Promise<BibleFetchResult> {
   const response = await fetchWithTimeout(
-    `/bible-proxy/bible/korbibReadpage.php?${params.toString()}`,
+    buildStandardProxyUrl(version, book, chapter),
     PROXY_SLOW_FALLBACK_TIMEOUT,
   );
 

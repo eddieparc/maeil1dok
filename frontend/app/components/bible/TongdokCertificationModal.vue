@@ -46,6 +46,28 @@ import {
   type CertificationProgressPayload,
   type CertificationSharePayload,
 } from '~/composables/useCertificationShare';
+import type { components } from '~/types/generated/api-schema';
+
+type CertificationStatus = NonNullable<CertificationProgressPayload['progress']>['status'];
+
+const CERTIFICATION_STATUSES = new Set<string>([
+  'no_progress',
+  'in_progress',
+  'completed',
+] satisfies CertificationStatus[]);
+
+const toCertificationPayload = (
+  response: components['schemas']['CertificationProgressResponse']
+): CertificationProgressPayload | null =>
+  CERTIFICATION_STATUSES.has(response.progress.status)
+    ? {
+        ...response,
+        progress: {
+          ...response.progress,
+          status: response.progress.status as CertificationStatus,
+        },
+      }
+    : null;
 
 const props = defineProps<{
   modelValue: boolean;
@@ -91,13 +113,13 @@ const fetchCertification = async (): Promise<void> => {
   isLoading.value = true;
   statusMessage.value = '';
   try {
-    const response = await api.get('/api/v1/todos/certification/progress/', {
+    const response = await api.GET('/api/v1/todos/certification/progress/', {
       params: {
-        plan_id: props.planId,
-        schedule_id: props.scheduleId,
+        plan_id: props.planId ?? undefined,
+        schedule_id: props.scheduleId ?? undefined,
       },
     });
-    certification.value = response.data?.success ? response.data : null;
+    certification.value = response.data.success ? toCertificationPayload(response.data) : null;
   } catch (error) {
     if (error instanceof Error) {
       certification.value = null;

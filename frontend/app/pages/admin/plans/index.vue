@@ -537,9 +537,9 @@ const fetchPlans = async () => {
     error.value = null;
 
     // 정확한 API 경로 사용
-    const response = await api.get('/api/v1/todos/bible-plans/')
+    const response = await api.GET('/api/v1/todos/bible-plans/')
     
-    // useApi.get()은 { data: 실제응답 } 형태로 반환
+    // useApi.GET()은 { data: 실제응답 } 형태로 반환
     const data = response?.data;
 
     // 응답 데이터 구조 확인 및 처리
@@ -575,11 +575,14 @@ const savePlan = async () => {
     
     if (editingPlan.value) {
       // 플랜 수정 - patch 대신 put 사용
-      await api.put(`/api/v1/todos/bible-plans/${editingPlan.value.id}/`, planForm.value)
+      await api.PUT(
+        api.path('/api/v1/todos/bible-plans/{id}/', { id: editingPlan.value.id }),
+        planForm.value
+      )
       showToastMessage('플랜이 수정되었습니다.')
     } else {
       // 새 플랜 생성
-      await api.post('/api/v1/todos/bible-plans/', planForm.value)
+      await api.POST('/api/v1/todos/bible-plans/', planForm.value)
       showToastMessage('새 플랜이 생성되었습니다.')
     }
     
@@ -608,14 +611,14 @@ const setAsDefault = async (plan) => {
     // 1. 먼저 모든 플랜의 is_default를 false로 설정 (기존 기본 플랜 초기화)
     for (const p of plans.value) {
       if (p.is_default && p.id !== plan.id) {
-        await api.patch(`/api/v1/todos/bible-plans/${p.id}/`, {
+        await api.PATCH(api.path('/api/v1/todos/bible-plans/{id}/', { id: p.id }), {
           is_default: false
         });
       }
     }
     
     // 2. 선택한 플랜을 기본 플랜으로 설정
-    await api.patch(`/api/v1/todos/bible-plans/${plan.id}/`, {
+    await api.PATCH(api.path('/api/v1/todos/bible-plans/{id}/', { id: plan.id }), {
       is_default: true
     });
     
@@ -638,7 +641,7 @@ const toggleActive = async (plan) => {
     isLoading.value = true;
     
     // 단일 필드만 업데이트하는 PATCH 요청
-    await api.patch(`/api/v1/todos/bible-plans/${plan.id}/`, {
+    await api.PATCH(api.path('/api/v1/todos/bible-plans/{id}/', { id: plan.id }), {
       is_active: !plan.is_active
     });
     
@@ -813,20 +816,13 @@ const editSchedule = (schedule) => {
 const fetchSchedules = async (planId) => {
   try {
     loadingSchedules.value = true
-    const url = `/api/v1/todos/schedules/?plan_id=${planId}`
-    
-    const response = await api.get(url)
+    const response = await api.GET('/api/v1/todos/schedules/', {
+      params: { plan_id: planId }
+    })
     
     // 응답 형식 검사 및 변환 수정
-    if (response && response.data && Array.isArray(response.data)) {
-      // 데이터가 response.data에 있는 경우
+    if (Array.isArray(response.data)) {
       schedules.value = response.data
-    } else if (Array.isArray(response)) {
-      // 데이터가 response 자체인 경우
-      schedules.value = response
-    } else if (response && typeof response === 'object') {
-      // 다른 형태의 객체인 경우 (results 필드에 배열이 있을 수 있음)
-      schedules.value = response.results || []
     } else {
       // 기타 경우
       schedules.value = []
@@ -878,7 +874,7 @@ const uploadScheduleExcel = async () => {
     formData.append('update_mode', uploadMode.value === 'replace' ? 'replace' : 'update')
     
     // URL 경로 수정 (하이픈으로 변경)
-    const response = await api.post('/api/v1/todos/schedules/upload-excel/', formData)
+    const response = await api.POST('/api/v1/todos/schedules/upload-excel/', formData)
     
     // 성공 메시지 표시
     showToastMessage(response.detail || '일정이 성공적으로 업로드되었습니다.')
@@ -936,7 +932,7 @@ const deleteSchedule = async (scheduleId) => {
   try {
     loadingSchedules.value = true
     
-    await api.delete(`/api/v1/todos/schedules/${scheduleId}/`)
+    await api.DELETE(api.path('/api/v1/todos/schedules/{id}/', { id: scheduleId }))
     showToastMessage('일정이 삭제되었습니다.')
     
     // 목록 새로고침
@@ -964,14 +960,17 @@ const saveSchedule = async () => {
 
     if (editingSchedule.value) {
       // 기존 일정 수정
-      await api.put(`/api/v1/todos/schedules/${editingSchedule.value.id}/`, {
-        ...scheduleForm.value,
-        plan: selectedPlan.value.id
-      })
+      await api.PUT(
+        api.path('/api/v1/todos/schedules/{id}/', { id: editingSchedule.value.id }),
+        {
+          ...scheduleForm.value,
+          plan: selectedPlan.value.id
+        }
+      )
       showToastMessage('일정이 수정되었습니다.')
     } else {
       // 새 일정 추가
-      await api.post('/api/v1/todos/schedules/', {
+      await api.POST('/api/v1/todos/schedules/', {
         ...scheduleForm.value,
         plan: selectedPlan.value.id
       })

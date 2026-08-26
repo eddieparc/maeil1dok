@@ -18,9 +18,7 @@ urlpatterns = [
     path('schedules/today/', views.get_today_schedules, name='schedules-today'),
     path('schedules/upload-excel/', views.upload_schedules_excel, name='upload-schedules-excel'),
     
-    path('reading/', views.update_bible_progress, name='update_bible_progress'),
     path('reading/update/', views.update_bible_progress, name='update_bible_progress'),
-    path('reading/history/', views.get_reading_history, name='progress-history'),
     path('certification/progress/', views.certification_progress, name='certification-progress'),
 
     path('notifications/', notification_views.notification_inbox, name='notification-inbox'),
@@ -37,8 +35,6 @@ urlpatterns = [
     path('plan/', views.plan_subscription_list, name='plan-subscription-list'),
     path('plan/<int:pk>/', views.plan_subscription_detail, name='plan-subscription-detail'),
     path('plan/<int:pk>/toggle-active/', views.plan_subscription_toggle_active, name='plan-subscription-toggle-active'),
-    path('plan/<int:pk>/progress/', views.plan_subscription_progress, name='plan-subscription-progress'),
-    path('plan/<int:pk>/unsubscribe/', views.plan_subscription_unsubscribe, name='plan-subscription-unsubscribe'),
     
     path('detail/', views.get_chapter_detail, name='chapter-detail'),
     path('next-position/', views.get_next_reading_position, name='next-reading-position'),
@@ -52,7 +48,6 @@ urlpatterns = [
     
     # 하세나 관련 URL
     path('hasena/', views.hasena_record_list, name='hasena-record-list'),
-    path('hasena/<int:pk>/', views.hasena_record_detail, name='hasena-record-detail'),
     path('hasena/update/', views.hasena_record_update, name='hasena-record-update'),
     path('hasena/status/', views.get_user_hasena_status, name='hasena-user-status'),
     path('hasena/day/', views.get_hasena_day, name='hasena-day'),
@@ -69,8 +64,6 @@ urlpatterns = [
     path('stats/users/', views.get_total_users, name='total-users'),
     path('stats/plan/', views.get_plan_stats, name='plan-stats'),
     path('stats/progress/', views.get_progress_stats, name='progress-stats'),
-    path('stats/visitors/', views.get_visitor_stats, name='visitor-stats'),
-    path('stats/visitors/increment/', views.increment_visitor_count, name='increment-visitor-count'),
     
     # 스코어보드/리더보드 관련 URL
     path('scoreboard/', scoreboard_views.get_scoreboard, name='scoreboard'),

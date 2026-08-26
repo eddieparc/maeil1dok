@@ -3,13 +3,20 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "api:generate": "openapi-typescript ../backend/schema.yml -o app/types/generated/api-schema.ts",
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "node --test tests/*.test.mjs",
-    "start": "node .output/server/index.mjs"
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "typecheck": "nuxt typecheck",
+    "start": "node .output/server/index.mjs",
+    "typecheck:ratchet": "node scripts/typecheck-ratchet.mjs",
+    "typecheck:ratchet:update": "node scripts/typecheck-ratchet.mjs --update",
+    "test:source-assertions": "node scripts/source-assertion-count.mjs"
   },
   "dependencies": {
     "@lucide/vue": "^1.20.0",
@@ -32,7 +39,10 @@
     "@playwright/test": "^1.61.0",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^22.19.21",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.1.4"
   },
   "overrides": {
     "esbuild": "^0.28.1",

@@ -95,6 +95,7 @@ import { useApi } from '~/composables/useApi'
 import { useModal } from '~/composables/useModal'
 import BaseModal from '~/components/ui/modal/BaseModal.vue'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
+import type { components } from '~/types/generated/api-schema'
 
 const emit = defineEmits(['close', 'created'])
 const groupsStore = useGroupsStore()
@@ -110,7 +111,7 @@ const form = reactive({
 })
 
 const isCreating = ref(false)
-const availablePlans = ref([])
+const availablePlans = ref<components['schemas']['BibleReadingPlan'][]>([])
 const isPlansLoading = ref(true)
 
 const handleClose = () => {
@@ -121,15 +122,8 @@ const handleClose = () => {
 onMounted(async () => {
   isPlansLoading.value = true
   try {
-    const response = await api.get('/api/v1/todos/plans/')
-    // response.data.plans 또는 response.plans 확인
-    if (response.data?.success) {
-      availablePlans.value = response.data.plans || []
-    } else if (response.data?.plans) {
-      availablePlans.value = response.data.plans
-    } else {
-      availablePlans.value = response.data || response
-    }
+    const response = await api.GET('/api/v1/todos/plans/')
+    availablePlans.value = response.data.success ? response.data.plans : []
   } catch (error) {
     console.error('Failed to load plans:', error)
     modal.alert({

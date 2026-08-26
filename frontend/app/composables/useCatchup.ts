@@ -1,5 +1,6 @@
 import { ref, computed, type Ref } from 'vue'
 import { useApi } from './useApi'
+import type { components } from '~/types/generated/api-schema'
 
 // Type definitions
 export interface OverdueSchedule {
@@ -117,6 +118,60 @@ export interface CatchupSchedulesResponse {
   }>
 }
 
+const normalizeCatchupSession = (
+  session: components['schemas']['CatchupSessionResponse'],
+): CatchupSession => ({
+  ...session,
+  strategy: session.strategy ?? 'parallel',
+  target_rejoin_date: session.target_rejoin_date ?? null,
+  max_daily_readings: session.max_daily_readings ?? null,
+  max_daily_chapters: session.max_daily_chapters ?? null,
+  weekend_multiplier: Number(session.weekend_multiplier ?? 1),
+})
+
+const normalizeCatchupStatus = (
+  response: components['schemas']['CatchupStatusResponse'],
+): CatchupStatus => ({
+  ...response,
+  overdue_range: response.overdue_range
+    ? {
+        start: response.overdue_range.start ?? '',
+        end: response.overdue_range.end ?? '',
+      }
+    : null,
+  active_catchup_session: response.active_catchup_session
+    ? normalizeCatchupSession(response.active_catchup_session)
+    : null,
+})
+
+const normalizeCatchupPreview = (
+  response: components['schemas']['CatchupPreviewResponse'],
+): CatchupPreviewResult => ({
+  ...response,
+  summary: {
+    total_schedules: response.summary.total_schedules ?? 0,
+    total_chapters: response.summary.total_chapters ?? 0,
+    daily_average_readings: response.summary.daily_average_readings ?? 0,
+    daily_average_chapters: response.summary.daily_average_chapters ?? 0,
+    estimated_days: response.summary.estimated_days ?? 0,
+    rejoin_date: response.summary.rejoin_date ?? null,
+  },
+})
+
+const normalizeCatchupSchedules = (
+  response: components['schemas']['CatchupSessionSchedulesResponse'],
+): CatchupSchedulesResponse => ({
+  ...response,
+  session: normalizeCatchupSession(response.session),
+  schedules: response.schedules.map(day => ({
+    ...day,
+    items: day.items.map(schedule => ({
+      ...schedule,
+      is_completed: schedule.is_completed ?? false,
+    })),
+  })),
+})
+
 export const useCatchup = (subscriptionId?: Ref<number | null>) => {
   const api = useApi()
 
@@ -140,8 +195,11 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const res = await api.get(`/api/v1/todos/subscriptions/${id}/catchup-status/`)
-      status.value = res.data
+      const res = await api.GET(api.path(
+        '/api/v1/todos/subscriptions/{subscription_id}/catchup-status/',
+        { subscription_id: id },
+      ))
+      status.value = normalizeCatchupStatus(res.data)
     } catch (e: any) {
       error.value = e.message || '현황을 불러올 수 없습니다'
       status.value = null
@@ -161,7 +219,13 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      preview.value = await api.post(`/api/v1/todos/subscriptions/${id}/catchup/preview/`, settings)
+      const result = await api.POST(
+        api.path('/api/v1/todos/subscriptions/{subscription_id}/catchup/preview/', {
+          subscription_id: id,
+        }),
+        settings,
+      )
+      preview.value = normalizeCatchupPreview(result)
     } catch (e: any) {
       error.value = e.message || '미리보기를 불러올 수 없습니다'
       preview.value = null
@@ -181,9 +245,14 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const result = await api.post(`/api/v1/todos/subscriptions/${id}/catchup/`, settings)
-      currentSession.value = result as CatchupSession
-      return result as CatchupSession
+      const result = await api.POST(
+        api.path('/api/v1/todos/subscriptions/{subscription_id}/catchup/', {
+          subscription_id: id,
+        }),
+        settings,
+      )
+      currentSession.value = normalizeCatchupSession(result)
+      return currentSession.value
     } catch (e: any) {
       error.value = e.message || '따라잡기 생성에 실패했습니다'
       return null
@@ -197,8 +266,8 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const res = await api.get('/api/v1/todos/catchup-sessions/active/')
-      activeSessions.value = res.data
+      const res = await api.GET('/api/v1/todos/catchup-sessions/active/')
+      activeSessions.value = res.data.map(normalizeCatchupSession)
     } catch (e: any) {
       error.value = e.message || '세션 목록을 불러올 수 없습니다'
       activeSessions.value = []
@@ -212,8 +281,11 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const res = await api.get(`/api/v1/todos/catchup-sessions/${sessionId}/`)
-      currentSession.value = res.data
+      const res = await api.GET(api.path(
+        '/api/v1/todos/catchup-sessions/{session_id}/',
+        { session_id: sessionId },
+      ))
+      currentSession.value = normalizeCatchupSession(res.data)
     } catch (e: any) {
       error.value = e.message || '세션 정보를 불러올 수 없습니다'
       currentSession.value = null
@@ -227,11 +299,13 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const url = date
-        ? `/api/v1/todos/catchup-sessions/${sessionId}/schedules/?date=${date}`
-        : `/api/v1/todos/catchup-sessions/${sessionId}/schedules/`
-      const res = await api.get(url)
-      schedules.value = res.data
+      const res = await api.GET(
+        api.path('/api/v1/todos/catchup-sessions/{session_id}/schedules/', {
+          session_id: sessionId,
+        }),
+        { params: { date } },
+      )
+      schedules.value = normalizeCatchupSchedules(res.data)
     } catch (e: any) {
       error.value = e.message || '스케줄을 불러올 수 없습니다'
       schedules.value = null
@@ -245,7 +319,10 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const result = await api.post(`/api/v1/todos/catchup-schedules/${scheduleId}/toggle/`)
+      const result = await api.POST(api.path(
+        '/api/v1/todos/catchup-schedules/{schedule_id}/toggle/',
+        { schedule_id: scheduleId },
+      ))
       return result
     } catch (e: any) {
       error.value = e.message || '완료 처리에 실패했습니다'
@@ -260,7 +337,10 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const result = await api.post(`/api/v1/todos/catchup-sessions/${sessionId}/complete/`)
+      const result = await api.POST(api.path(
+        '/api/v1/todos/catchup-sessions/{session_id}/complete/',
+        { session_id: sessionId },
+      ))
       return result
     } catch (e: any) {
       error.value = e.message || '완료 처리에 실패했습니다'
@@ -275,7 +355,10 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const result = await api.post(`/api/v1/todos/catchup-sessions/${sessionId}/abandon/`)
+      const result = await api.POST(api.path(
+        '/api/v1/todos/catchup-sessions/{session_id}/abandon/',
+        { session_id: sessionId },
+      ))
       return result
     } catch (e: any) {
       error.value = e.message || '포기 처리에 실패했습니다'
@@ -290,9 +373,14 @@ export const useCatchup = (subscriptionId?: Ref<number | null>) => {
     loading.value = true
     error.value = null
     try {
-      const result = await api.patch(`/api/v1/todos/catchup-sessions/${sessionId}/update/`, updates)
-      currentSession.value = result as CatchupSession
-      return result as CatchupSession
+      const result = await api.PATCH(
+        api.path('/api/v1/todos/catchup-sessions/{session_id}/update/', {
+          session_id: sessionId,
+        }),
+        updates,
+      )
+      currentSession.value = normalizeCatchupSession(result)
+      return currentSession.value
     } catch (e: any) {
       error.value = e.message || '수정에 실패했습니다'
       return null

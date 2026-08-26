@@ -80,6 +80,7 @@ INSTALLED_APPS = [
 
     # Third party apps
     'rest_framework',
+    'drf_spectacular',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',  # Token blacklist for rotation
     'corsheaders',
@@ -213,6 +214,7 @@ if security_settings.COOKIE_DOMAIN:
 
 # JWT 설정 추가
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': (
         # HttpOnly Cookie 기반 인증 (쿠키 우선, Authorization 헤더 fallback)
         'accounts.authentication.CookieJWTAuthentication',
@@ -233,6 +235,21 @@ REST_FRAMEWORK = {
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Maeil1dok API',
+    'DESCRIPTION': 'The versioned HTTP contract for the Maeil1dok backend.',
+    'VERSION': '1.0.0',
+    'OAS_VERSION': '3.0.3',
+    'SORT_OPERATIONS': True,
+    'SORT_OPERATION_PARAMETERS': True,
+    'POSTPROCESSING_HOOKS': [
+        'drf_spectacular.hooks.postprocess_schema_enums',
+        'config.openapi.normalize_database_integer_ranges',
+        'config.openapi.add_router_api_root',
+        'config.openapi.mark_duplicate_account_aliases_deprecated',
+    ],
 }
 
 # JWT 토큰 설정

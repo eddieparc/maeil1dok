@@ -7,6 +7,14 @@ import { ref, type Ref } from 'vue';
 import { useAuthService } from '~/composables/useAuthService';
 import { useApi } from './useApi';
 import type { Note } from '~/types/bible';
+import type { components } from '~/types/generated/api-schema';
+
+const normalizeNote = (note: components['schemas']['ReflectionNote']): Note => ({
+  ...note,
+  start_verse: note.start_verse ?? undefined,
+  end_verse: note.end_verse ?? undefined,
+  is_private: note.is_private ?? true,
+});
 
 // Re-export for backward compatibility
 export type { Note } from '~/types/bible';
@@ -32,8 +40,8 @@ export const useNote = () => {
 
     try {
       isNoteLoading.value = true;
-      const response = await api.get('/api/v1/todos/bible/notes/');
-      notes.value = response.data || [];
+      const response = await api.GET('/api/v1/todos/bible/notes/');
+      notes.value = response.data.results.map(normalizeNote);
       return notes.value;
     } catch (error) {
       console.error('노트 목록 조회 실패:', error);
@@ -51,10 +59,10 @@ export const useNote = () => {
     if (!auth.isAuthenticated.value) return [];
 
     try {
-      const response = await api.get('/api/v1/todos/bible/notes/by-chapter/', {
+      const response = await api.GET('/api/v1/todos/bible/notes/by-chapter/', {
         params: { book, chapter }
       });
-      currentChapterNotes.value = response.data?.notes || [];
+      currentChapterNotes.value = response.data.notes.map(normalizeNote);
       return currentChapterNotes.value;
     } catch (error) {
       console.error('장별 노트 조회 실패:', error);
@@ -71,9 +79,9 @@ export const useNote = () => {
 
     try {
       isNoteLoading.value = true;
-      const response = await api.get(`/api/v1/todos/bible/notes/${id}/`);
-      currentNote.value = response.data;
-      return response.data;
+      const response = await api.GET(api.path('/api/v1/todos/bible/notes/{id}/', { id }));
+      currentNote.value = normalizeNote(response.data);
+      return currentNote.value;
     } catch (error) {
       console.error('노트 조회 실패:', error);
       currentNote.value = null;
@@ -100,11 +108,11 @@ export const useNote = () => {
 
     try {
       isNoteLoading.value = true;
-      const response = await api.post('/api/v1/todos/bible/notes/', {
+      const response = await api.POST('/api/v1/todos/bible/notes/', {
         is_private: true,
         ...data
       });
-      const newNote = response.data;
+      const newNote = normalizeNote(response);
       currentChapterNotes.value.push(newNote);
       return newNote;
     } catch (error) {
@@ -125,8 +133,11 @@ export const useNote = () => {
 
     try {
       isNoteLoading.value = true;
-      const response = await api.patch(`/api/v1/todos/bible/notes/${id}/`, data);
-      const updatedNote = response.data;
+      const response = await api.PATCH(
+        api.path('/api/v1/todos/bible/notes/{id}/', { id }),
+        data,
+      );
+      const updatedNote = normalizeNote(response);
 
       // 목록 업데이트
       const index = notes.value.findIndex(n => n.id === id);
@@ -160,7 +171,7 @@ export const useNote = () => {
 
     try {
       isNoteLoading.value = true;
-      await api.delete(`/api/v1/todos/bible/notes/${id}/`);
+      await api.DELETE(api.path('/api/v1/todos/bible/notes/{id}/', { id }));
 
       notes.value = notes.value.filter(n => n.id !== id);
       currentChapterNotes.value = currentChapterNotes.value.filter(n => n.id !== id);

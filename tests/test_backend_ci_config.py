@@ -47,7 +47,7 @@ class BackendCiConfigTest(unittest.TestCase):
     def test_deployment_paths_filter_includes_contract_test(self) -> None:
         filter_marker = "deployment:"
         filter_index = self.workflow.index(filter_marker)
-        jobs_after = self.workflow.index("maeil1dok-next-ci:")
+        jobs_after = self.workflow.index("\n  backend-ci:")
         deployment_block = self.workflow[filter_index:jobs_after]
         self.assertIn("tests/test_backend_ci_config.py", deployment_block)
 

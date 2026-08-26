@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useApi } from '~/composables/useApi'
+import type { components } from '~/types/generated/api-schema'
 
 interface LeaderboardEntry {
   rank: number
@@ -23,7 +24,7 @@ interface LeaderboardEntry {
 }
 
 interface MyRanking {
-  rank: number
+  rank: number | null
   total_users: number
   completed_days: number
   bible_completed_days: number
@@ -43,12 +44,18 @@ const currentMonthKey = (): MonthKey => {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 }
 
-const normalizeLeaderboardEntry = (entry: LeaderboardEntry): LeaderboardEntry => {
+const normalizeLeaderboardEntry = (
+  entry: components['schemas']['LeaderboardEntry']
+): LeaderboardEntry => {
   const bibleCompletedDays = entry.bible_completed_days ?? entry.completed_days ?? 0
   const hasenaCompletedDays = entry.hasena_completed_days ?? 0
 
   return {
     ...entry,
+    user: {
+      ...entry.user,
+      profile_image: entry.user.profile_image ?? undefined
+    },
     completed_days: entry.completed_days ?? bibleCompletedDays,
     bible_completed_days: bibleCompletedDays,
     hasena_completed_days: hasenaCompletedDays,
@@ -58,7 +65,7 @@ const normalizeLeaderboardEntry = (entry: LeaderboardEntry): LeaderboardEntry =>
   }
 }
 
-const normalizeMyRanking = (ranking: MyRanking): MyRanking => {
+const normalizeMyRanking = (ranking: components['schemas']['Ranking']): MyRanking => {
   const bibleCompletedDays = ranking.bible_completed_days ?? ranking.completed_days ?? 0
   const hasenaCompletedDays = ranking.hasena_completed_days ?? 0
 
@@ -119,11 +126,14 @@ export const useScoreboardStore = defineStore('scoreboard', {
       this.selectedMonth = rankingMonth
       
       try {
-        const params: Record<string, string | number> = { period, limit }
-        if (planId) params.plan_id = planId
-        if (period === 'month') params.month = rankingMonth
-        
-        const response = await useApi().get('/api/v1/todos/scoreboard/', { params })
+        const params = {
+          period,
+          limit,
+          ...(planId ? { plan_id: planId } : {}),
+          ...(period === 'month' ? { month: rankingMonth } : {})
+        }
+        const api = useApi()
+        const response = await api.GET('/api/v1/todos/scoreboard/', { params })
 
         if (response.data?.success) {
           this.globalLeaderboard = (response.data.leaderboard ?? []).map(normalizeLeaderboardEntry)
@@ -144,11 +154,14 @@ export const useScoreboardStore = defineStore('scoreboard', {
       this.selectedMonth = rankingMonth
 
       try {
-        const params: Record<string, string | number> = { period, type }
-        if (planId) params.plan_id = planId
-        if (period === 'month') params.month = rankingMonth
-
-        const response = await useApi().get('/api/v1/todos/scoreboard/friends/', { params })
+        const params = {
+          period,
+          type,
+          ...(planId ? { plan_id: planId } : {}),
+          ...(period === 'month' ? { month: rankingMonth } : {})
+        }
+        const api = useApi()
+        const response = await api.GET('/api/v1/todos/scoreboard/friends/', { params })
 
         if (response.data?.success) {
           // type에 따라 다른 상태에 저장
@@ -174,12 +187,15 @@ export const useScoreboardStore = defineStore('scoreboard', {
       this.currentGroupId = groupId
       
       try {
-        const params: Record<string, string | number> = { period }
-        if (period === 'month') params.month = rankingMonth
-
-        const response = await useApi().get(`/api/v1/todos/scoreboard/group/${groupId}/`, {
-          params
-        })
+        const params = {
+          period,
+          ...(period === 'month' ? { month: rankingMonth } : {})
+        }
+        const api = useApi()
+        const response = await api.GET(
+          api.path('/api/v1/todos/scoreboard/group/{group_id}/', { group_id: groupId }),
+          { params }
+        )
 
         if (response.data?.success) {
           this.groupLeaderboard = (response.data.leaderboard ?? []).map(normalizeLeaderboardEntry)
@@ -194,11 +210,13 @@ export const useScoreboardStore = defineStore('scoreboard', {
     async fetchMyRanking(period: Period = 'month', planId?: number, month?: MonthKey) {
       const rankingMonth = month ?? this.selectedMonth
       try {
-        const params: Record<string, string | number> = { period }
-        if (planId) params.plan_id = planId
-        if (period === 'month') params.month = rankingMonth
-        
-        const response = await useApi().get('/api/v1/todos/scoreboard/my-ranking/', { params })
+        const params = {
+          period,
+          ...(planId ? { plan_id: planId } : {}),
+          ...(period === 'month' ? { month: rankingMonth } : {})
+        }
+        const api = useApi()
+        const response = await api.GET('/api/v1/todos/scoreboard/my-ranking/', { params })
 
         if (response.data?.success) {
           this.myRanking = normalizeMyRanking(response.data.ranking)

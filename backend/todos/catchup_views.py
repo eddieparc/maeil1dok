@@ -1,6 +1,7 @@
 """
 Catchup 기능 관련 뷰
 """
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
@@ -26,6 +27,7 @@ from .services import (
     copy_completed_progress, sync_original_progress, get_celebration_data
 )
 from .services.notifications import on_commit_notify_reading_completed
+from . import openapi_serializers as openapi
 
 
 def _parse_recalculate_flag(data):
@@ -121,6 +123,7 @@ def _redistribute_catchup_schedules(session):
         CatchupSchedule.objects.bulk_create(catchup_schedules)
 
 
+@extend_schema(responses={200: openapi.CatchupStatusResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def catchup_status(request, subscription_id):
@@ -175,6 +178,7 @@ def catchup_status(request, subscription_id):
     return Response(serializer.data)
 
 
+@extend_schema(responses={200: openapi.CatchupPreviewResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def catchup_preview(request, subscription_id):
@@ -278,6 +282,7 @@ def catchup_preview(request, subscription_id):
     })
 
 
+@extend_schema(responses={201: openapi.CatchupSessionResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def catchup_create(request, subscription_id):
@@ -372,6 +377,7 @@ def catchup_create(request, subscription_id):
     )
 
 
+@extend_schema(responses={200: openapi.CatchupSessionResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def catchup_session_detail(request, session_id):
@@ -387,6 +393,7 @@ def catchup_session_detail(request, session_id):
     return Response(CatchupSessionSerializer(session).data)
 
 
+@extend_schema(responses={200: openapi.CatchupSessionResponseSerializer})
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def catchup_session_update(request, session_id):
@@ -422,6 +429,17 @@ def catchup_session_update(request, session_id):
     return Response(CatchupSessionSerializer(session).data)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'date',
+            OpenApiTypes.DATE,
+            required=False,
+            description='Return schedules assigned to this date (YYYY-MM-DD). An empty value is invalid.',
+        ),
+    ],
+    responses={200: openapi.CatchupSessionSchedulesResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def catchup_session_schedules(request, session_id):
@@ -463,6 +481,7 @@ def catchup_session_schedules(request, session_id):
     })
 
 
+@extend_schema(responses={200: openapi.CatchupScheduleToggleResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def catchup_schedule_toggle(request, schedule_id):
@@ -517,6 +536,7 @@ def catchup_schedule_toggle(request, schedule_id):
     })
 
 
+@extend_schema(responses={200: openapi.CatchupCompleteResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def catchup_session_complete(request, session_id):
@@ -553,6 +573,7 @@ def catchup_session_complete(request, session_id):
     })
 
 
+@extend_schema(responses={200: openapi.TodoSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def catchup_session_abandon(request, session_id):
@@ -573,6 +594,7 @@ def catchup_session_abandon(request, session_id):
     return Response({'success': True, 'message': '따라잡기가 종료되었습니다.'})
 
 
+@extend_schema(responses={200: openapi.CatchupSessionResponseSerializer(many=True)})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_active_catchup_sessions(request):

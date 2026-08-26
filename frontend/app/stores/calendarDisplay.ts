@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useApi } from '~/composables/useApi'
+import type { components } from '~/types/generated/api-schema'
 
 export interface PlanDisplaySetting {
   id: number
@@ -45,6 +46,20 @@ interface CalendarDisplayState {
   isSettingsLoading: boolean
   error: string | null
 }
+
+const normalizeSetting = (
+  setting: components['schemas']['UserPlanDisplaySettings']
+): PlanDisplaySetting => ({
+  ...setting,
+  color: setting.color ?? '#3B82F6',
+  display_order: setting.display_order ?? 0,
+  is_visible: setting.is_visible ?? true
+})
+
+const getApiError = (response: unknown): any =>
+  typeof response === 'object' && response !== null && 'error' in response
+    ? response.error
+    : undefined
 
 export const useCalendarDisplayStore = defineStore('calendarDisplay', {
   state: (): CalendarDisplayState => ({
@@ -128,12 +143,12 @@ export const useCalendarDisplayStore = defineStore('calendarDisplay', {
 
       try {
         const api = useApi()
-        const response = await api.get('/api/v1/todos/calendar/settings/')
+        const response = await api.GET('/api/v1/todos/calendar/settings/')
 
         if (response.data?.success) {
-          this.settings = response.data.settings
+          this.settings = response.data.settings.map(normalizeSetting)
         } else {
-          this.error = response.data?.error || '설정을 불러올 수 없습니다.'
+          this.error = getApiError(response.data) || '설정을 불러올 수 없습니다.'
         }
       } catch (error: any) {
         this.error = error.message || '설정 조회 중 오류가 발생했습니다.'
@@ -154,12 +169,15 @@ export const useCalendarDisplayStore = defineStore('calendarDisplay', {
 
       try {
         const api = useApi()
-        const response = await api.patch(`/api/v1/todos/calendar/settings/${id}/`, data)
+        const response = await api.PATCH(
+          api.path('/api/v1/todos/calendar/settings/{id}/', { id }),
+          data
+        )
 
-        if (response.data?.success) {
+        if (response.success) {
           // 서버 응답으로 갱신
           if (index !== -1) {
-            this.settings[index] = response.data.setting
+            this.settings[index] = normalizeSetting(response.setting)
           }
           return { success: true }
         } else {
@@ -167,7 +185,7 @@ export const useCalendarDisplayStore = defineStore('calendarDisplay', {
           if (previousSetting && index !== -1) {
             this.settings[index] = previousSetting
           }
-          return { success: false, error: response.data?.error }
+          return { success: false, error: getApiError(response) }
         }
       } catch (error: any) {
         // 롤백
@@ -202,15 +220,15 @@ export const useCalendarDisplayStore = defineStore('calendarDisplay', {
 
       try {
         const api = useApi()
-        const response = await api.post('/api/v1/todos/calendar/settings/reorder/', { orders })
+        const response = await api.POST('/api/v1/todos/calendar/settings/reorder/', { orders })
 
-        if (response.data?.success) {
-          this.settings = response.data.settings
+        if (response.success) {
+          this.settings = response.settings.map(normalizeSetting)
           return { success: true }
         } else {
           // 롤백
           this.settings = previousSettings
-          return { success: false, error: response.data?.error }
+          return { success: false, error: getApiError(response) }
         }
       } catch (error: any) {
         // 롤백
@@ -229,18 +247,18 @@ export const useCalendarDisplayStore = defineStore('calendarDisplay', {
 
       try {
         const api = useApi()
-        const response = await api.get('/api/v1/todos/calendar/month/', {
+        const response = await api.GET('/api/v1/todos/calendar/month/', {
           params: { year: targetYear, month: targetMonth }
         })
 
         if (response.data?.success) {
           this.monthData = response.data.calendar
-          this.settings = response.data.settings
+          this.settings = response.data.settings.map(normalizeSetting)
           this.currentYear = targetYear
           this.currentMonth = targetMonth
           return { success: true }
         } else {
-          this.error = response.data?.error || '캘린더 데이터를 불러올 수 없습니다.'
+          this.error = getApiError(response.data) || '캘린더 데이터를 불러올 수 없습니다.'
           return { success: false, error: this.error }
         }
       } catch (error: any) {
@@ -293,13 +311,13 @@ export const useCalendarDisplayStore = defineStore('calendarDisplay', {
     async fetchLastIncompletePositions() {
       try {
         const api = useApi()
-        const response = await api.get('/api/v1/todos/calendar/last-incomplete/')
+        const response = await api.GET('/api/v1/todos/calendar/last-incomplete/')
 
         if (response.data?.success) {
           this.lastIncompletePositions = response.data.positions
           return { success: true, positions: response.data.positions }
         } else {
-          return { success: false, error: response.data?.error }
+          return { success: false, error: getApiError(response.data) }
         }
       } catch (error: any) {
         return { success: false, error: error.message }

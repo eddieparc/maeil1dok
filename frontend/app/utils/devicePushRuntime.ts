@@ -1,19 +1,6 @@
 import { useApi } from '~/composables/useApi'
 import type { DevicePushPermission } from '~/stores/notifications'
 
-interface PushConfigResponse {
-  success: boolean
-  enabled: boolean
-  vapid_public_key: string
-  message?: string
-}
-
-interface PushSubscriptionResponse {
-  success: boolean
-  message?: string
-  error?: string
-}
-
 interface BrowserPushState {
   supported: boolean
   permission: DevicePushPermission
@@ -74,29 +61,36 @@ export async function unsubscribeCurrentDevice(): Promise<void> {
   const subscription = await registration?.pushManager.getSubscription()
   if (!subscription) return
 
-  await useApi().post('/api/v1/todos/notifications/push/subscriptions/remove/', {
+  const api = useApi()
+  await api.POST('/api/v1/todos/notifications/push/subscriptions/remove/', {
     endpoint: subscription.endpoint,
   })
   await subscription.unsubscribe()
 }
 
 async function fetchPushConfig() {
-  const response: { data: PushConfigResponse } = await useApi().get('/api/v1/todos/notifications/push/config/')
+  const api = useApi()
+  const response = await api.GET('/api/v1/todos/notifications/push/config/')
   if (!response.data.success) {
-    throw new Error(response.data.message ?? '푸시 알림 설정을 불러올 수 없습니다.')
+    throw new Error(getResponseError(response.data) ?? '푸시 알림 설정을 불러올 수 없습니다.')
   }
   return response.data
 }
 
 async function registerSubscriptionWithServer(subscription: PushSubscription): Promise<void> {
   const payload = normalizeSubscriptionPayload(subscription)
-  const response: PushSubscriptionResponse = await useApi().post(
-    '/api/v1/todos/notifications/push/subscriptions/',
-    payload,
-  )
+  const api = useApi()
+  const response = await api.POST('/api/v1/todos/notifications/push/subscriptions/', payload)
   if (!response.success) {
-    throw new Error(response.error ?? response.message ?? '기기 푸시 알림을 저장할 수 없습니다.')
+    throw new Error(getResponseError(response) ?? '기기 푸시 알림을 저장할 수 없습니다.')
   }
+}
+
+function getResponseError(response: unknown): string | undefined {
+  if (typeof response !== 'object' || response === null) return undefined
+  if ('error' in response && typeof response.error === 'string') return response.error
+  if ('message' in response && typeof response.message === 'string') return response.message
+  return undefined
 }
 
 function normalizeSubscriptionPayload(subscription: PushSubscription) {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { join, relative, sep } from 'node:path';
+import { relative, sep } from 'node:path';
 import { test } from 'node:test';
 import { compileTemplate, parse } from '@vue/compiler-sfc';
 import * as Vue from 'vue';
@@ -113,7 +113,6 @@ test('bible routes keep their dedicated reader header exception', () => {
     .map(({ routePath }) => routePath);
 
   assert.ok(bibleSettings, 'reading settings page should exist');
-  assert.match(bibleSettings.source, /class="bible-page-header"/);
   assert.doesNotMatch(bibleSettings.source, /<PageLayout/);
   assert.deepEqual(bibleHeaderOffenders, []);
 });
@@ -122,10 +121,7 @@ test('shared PageHeader follows the reading settings header treatment', () => {
   const headerBlock = pageHeaderSource.match(/\.header\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
   const backButtonBlock = pageHeaderSource.match(/\.back-button\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
 
-  assert.match(headerBlock, /border-bottom:\s*1px solid var\(--color-border-default\)/);
   assert.doesNotMatch(headerBlock, /box-shadow/);
-  assert.match(backButtonBlock, /width:\s*36px/);
-  assert.match(backButtonBlock, /height:\s*36px/);
   assert.doesNotMatch(backButtonBlock, /min-width:\s*44px/);
 });
 

@@ -1,8 +1,10 @@
 # noqa: SIZE_OK  — account endpoints are kept in the legacy Django view module until a dedicated routing split lands
 from django.shortcuts import render
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, authentication_classes, throttle_classes
 from .throttles import LoginThrottle, PasswordResetThrottle, EmailVerificationThrottle
+from . import openapi_serializers as openapi
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -227,6 +229,7 @@ def _required_probe_value(request, field_name):
 
 # Create your views here.
 
+@extend_schema(responses={201: UserSerializer})
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
@@ -246,6 +249,7 @@ def register(request):
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@extend_schema(responses={200: UserSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user(request):
@@ -255,6 +259,7 @@ def get_user(request):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
+@extend_schema(responses={200: openapi.SOCIAL_LOGIN_RESPONSE})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -511,6 +516,7 @@ def get_apple_user_info(id_token):
         raise
 
 
+@extend_schema(responses={200: openapi.AvailabilityResponseSerializer})
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def check_username(request):
@@ -520,6 +526,7 @@ def check_username(request):
     exists = User.objects.filter(username=username).exists()
     return Response({'available': not exists})
 
+@extend_schema(responses={200: openapi.AvailabilityResponseSerializer})
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def check_nickname(request):
@@ -529,6 +536,7 @@ def check_nickname(request):
     exists = User.objects.filter(nickname=nickname).exists()
     return Response({'available': not exists})
 
+@extend_schema(responses={200: openapi.TokenPairResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -589,6 +597,7 @@ def complete_kakao_signup(request):
 # 이메일/비밀번호 인증 (매일일독 계정)
 # ========================================
 
+@extend_schema(responses={200: openapi.TokenPairResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -628,6 +637,7 @@ def email_register(request):
         return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
 
 
+@extend_schema(responses={200: openapi.TokenPairResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -676,6 +686,7 @@ def email_login(request):
 # 소셜 계정 연동 (신규)
 # ========================================
 
+@extend_schema(responses={200: openapi.SOCIAL_LOGIN_RESPONSE})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -740,8 +751,15 @@ def social_login_v2(request):
             email = social_info.get('email')
             # Apple은 프로필 이미지를 제공하지 않음
             profile_image = None
-            # Apple은 첫 로그인 시에만 이름을 제공하므로 빈 문자열로 설정
-            nickname_suggestion = request.data.get('user_name', '')
+            # Apple은 첫 로그인 시에만 이름을 제공하므로 빈 문자열로 설정.
+            # 이름표가 둘이다 — 모바일 셸(`mobile/App.tsx`)은 `full_name`으로 보내고
+            # 웹/문서는 `user_name`을 쓴다. 한쪽만 읽으면 애플 가입자의 닉네임이
+            # 항상 기본값이 되므로 **둘 다 수용**한다. 구버전 셸도 그대로 동작한다.
+            nickname_suggestion = (
+                request.data.get('user_name')
+                or request.data.get('full_name')
+                or ''
+            ).strip()
             
             # Apple relay email인 경우 로그에 기록
             if social_info.get('is_private_email'):
@@ -896,6 +914,7 @@ def social_login_v2(request):
         return Response({'error': '로그인 처리 중 오류가 발생했습니다.'}, status=400)
 
 
+@extend_schema(responses={200: openapi.TokenPairResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -996,6 +1015,7 @@ def complete_social_signup(request):
 # 계정 연동 관리
 # ========================================
 
+@extend_schema(responses={200: openapi.LinkedAccountsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_linked_accounts(request):
@@ -1039,6 +1059,8 @@ def get_linked_accounts(request):
     })
 
 
+@extend_schema(methods=['GET'], responses={200: openapi.AccountEmailResponseSerializer})
+@extend_schema(methods=['PATCH'], responses={200: openapi.AccountEmailUpdateResponseSerializer})
 @api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def account_email(request):
@@ -1079,6 +1101,8 @@ def account_email(request):
     })
 
 
+@extend_schema(methods=['GET'], responses={200: NotificationSettingsSerializer})
+@extend_schema(methods=['PATCH'], responses={200: NotificationSettingsSerializer})
 @api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def notification_settings(request):
@@ -1093,12 +1117,14 @@ def notification_settings(request):
     return Response(serializer.data)
 
 
+@extend_schema(responses={200: openapi.OAuthLinkStateResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def issue_oauth_link_state(request):
     return Response({'state': generate_oauth_link_state(request.user)})
 
 
+@extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def link_social_account(request):
@@ -1228,6 +1254,7 @@ def link_social_account(request):
         return Response({'error': '계정 연동 중 오류가 발생했습니다.'}, status=400)
 
 
+@extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def unlink_social_account(request):
@@ -1257,6 +1284,7 @@ def unlink_social_account(request):
         return Response({'error': '연동 해제 중 오류가 발생했습니다.'}, status=400)
 
 
+@extend_schema(responses={200: openapi.PasswordUpdatedResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def set_password(request):
@@ -1293,6 +1321,7 @@ def set_password(request):
     return response
 
 
+@extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_all_devices(request):
@@ -1310,6 +1339,7 @@ def logout_all_devices(request):
 # 계정 병합
 # ========================================
 
+@extend_schema(responses={200: openapi.AccountMergeResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def merge_accounts(request):
@@ -1606,6 +1636,7 @@ def _restore_scheduled_deletion_account(user, nickname=None):
 # 이메일 인증
 # ========================================
 
+@extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -1645,6 +1676,7 @@ def send_verification_email_view(request):
     return generic_response
 
 
+@extend_schema(responses={200: openapi.UserMessageResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -1684,6 +1716,7 @@ def verify_email(request):
         return Response({'error': '인증 처리 중 오류가 발생했습니다.'}, status=400)
 
 
+@extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def resend_verification_email(request):
@@ -1709,6 +1742,7 @@ def resend_verification_email(request):
 # 비밀번호 재설정
 # ========================================
 
+@extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -1745,6 +1779,7 @@ def request_password_reset(request):
     })
 
 
+@extend_schema(responses={200: openapi.ValidResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -1766,6 +1801,7 @@ def verify_reset_token(request):
     return Response({'valid': True})
 
 
+@extend_schema(responses={200: openapi.UserMessageResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -1820,6 +1856,7 @@ def reset_password(request):
 # 계정 삭제
 # ========================================
 
+@extend_schema(responses={200: openapi.DeleteAccountResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def delete_account(request):
@@ -1881,6 +1918,7 @@ def delete_account(request):
 # 세션 브리지 (Native ↔ WebView 인증 동기화)
 # ========================================
 
+@extend_schema(responses={200: openapi.SessionBridgeIssueResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def session_bridge_issue(request):
@@ -1909,6 +1947,29 @@ def session_bridge_issue(request):
     return Response({'code': code})
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'code',
+            OpenApiTypes.UUID,
+            required=True,
+            description='Single-use session bridge code.',
+        ),
+        OpenApiParameter(
+            'next',
+            str,
+            required=False,
+            default='/',
+            description='Frontend-relative redirect path. Unsafe values redirect to the frontend root.',
+        ),
+    ],
+    responses={
+        (200, 'text/html'): OpenApiTypes.STR,
+        302: OpenApiResponse(
+            description='Redirects to the frontend error route without a response body.',
+        ),
+    },
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def session_bridge_consume(request):

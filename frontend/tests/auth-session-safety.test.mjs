@@ -10,9 +10,8 @@ const errorLoggerSource = await readFile(
   'utf8',
 );
 
-const importErrorLoggerModule = async () => {
-  globalThis.defineNitroPlugin = (fn) => fn;
-  const { code } = await transform(errorLoggerSource, {
+const importTsModule = async (source) => {
+  const { code } = await transform(source, {
     format: 'esm',
     loader: 'ts',
     sourcemap: false,
@@ -21,8 +20,13 @@ const importErrorLoggerModule = async () => {
   return import(`${dataUrl}#${Date.now()}-${Math.random()}`);
 };
 
-const authServiceSource = await readFile(
-  new URL('../app/composables/useAuthService.ts', import.meta.url),
+const importErrorLoggerModule = async () => {
+  globalThis.defineNitroPlugin = (fn) => fn;
+  return importTsModule(errorLoggerSource);
+};
+
+const authSessionPolicySource = await readFile(
+  new URL('../app/composables/authSessionPolicy.ts', import.meta.url),
   'utf8',
 );
 
@@ -36,64 +40,60 @@ const mobileUrlRedactionSource = await readFile(
   'utf8',
 );
 
-const extractFunctionBody = (source, functionName) => {
-  const declarations = [
-    `async function ${functionName}`,
-    `const ${functionName} =`,
-  ];
-  const start = declarations
-    .map(declaration => source.indexOf(declaration))
-    .find(index => index !== -1);
-  assert.notEqual(start, undefined, `${functionName} should exist`);
+test('auth initialize can refresh silently while explicit revalidate logs out on failure', async () => {
+  const {
+    fetchUserWithRefreshPolicy,
+    revalidateAuthSession,
+  } = await importTsModule(authSessionPolicySource);
 
-  const arrowBodyStart = source.indexOf('=> {', start);
-  const functionBodyStart = source.indexOf(' {\n', start);
-  const bodyStart = [arrowBodyStart, functionBodyStart]
-    .filter(index => index !== -1)
-    .map(index => source.indexOf('{', index))
-    .sort((left, right) => left - right)[0];
-  assert.notEqual(bodyStart, undefined, `${functionName} should have a body`);
+  const refreshOptions = [];
+  let fetchCount = 0;
+  let logoutCount = 0;
+  const recoveredUser = { id: 7, nickname: '회복된 사용자' };
+  const recovered = await fetchUserWithRefreshPolicy({
+    fetchUser: async () => (++fetchCount === 1 ? null : recoveredUser),
+    refreshToken: async options => {
+      refreshOptions.push(options);
+      return true;
+    },
+    logout: async () => {
+      logoutCount += 1;
+    },
+  });
 
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === '{') depth += 1;
-    if (char === '}') depth -= 1;
-    if (depth === 0) {
-      return source.slice(bodyStart, index + 1);
-    }
-  }
+  assert.deepEqual(recovered, recoveredUser);
+  assert.deepEqual(refreshOptions, [{ logoutOnFailure: false }]);
+  assert.equal(logoutCount, 0, 'a recoverable session probe must not log the user out');
 
-  assert.fail(`${functionName} body should close`);
-};
+  const failedDependencies = {
+    fetchUser: async () => null,
+    refreshToken: async options => {
+      refreshOptions.push(options);
+      return false;
+    },
+    logout: async () => {
+      logoutCount += 1;
+    },
+  };
 
-test('auth initialize can refresh silently while explicit revalidate logs out on failure', () => {
-  const fetchUserWithRefreshBody = extractFunctionBody(authServiceSource, 'fetchUserWithRefresh');
-  const revalidateBody = extractFunctionBody(authServiceSource, 'revalidate');
+  await fetchUserWithRefreshPolicy(failedDependencies);
+  assert.equal(logoutCount, 0, 'silent initialization failure must preserve the server session');
 
-  assert.match(
-    fetchUserWithRefreshBody,
-    /refreshToken\(\{\s*logoutOnFailure:\s*false\s*\}\)/,
-    'shared fetch should avoid forced logout while probing for a recoverable session',
-  );
-  assert.match(
-    fetchUserWithRefreshBody,
-    /if\s*\(options\.logoutOnFailure\)\s*\{\s*await performLogout\(\)/s,
-    'explicit callers should be able to clear cookies and server session on refresh failure',
-  );
-  assert.match(
-    revalidateBody,
-    /fetchUserWithRefresh\(\{\s*logoutOnFailure:\s*true\s*\}\)/,
-    'explicit revalidation should opt into logout-on-failure behavior',
-  );
+  await fetchUserWithRefreshPolicy(failedDependencies, { logoutOnFailure: true });
+  assert.equal(logoutCount, 1, 'an explicit failure policy must perform logout');
+
+  await revalidateAuthSession(failedDependencies);
+  assert.equal(logoutCount, 2, 'explicit revalidation must force logout after refresh rejection');
+  assert.deepEqual(refreshOptions.slice(1), [
+    { logoutOnFailure: false },
+    { logoutOnFailure: false },
+    { logoutOnFailure: false },
+  ]);
 });
 
-test('mobile webview logs redact auth query secrets before printing URLs', () => {
-  assert.match(mobileUrlRedactionSource, /const SENSITIVE_QUERY_KEYS = new Set/);
-  assert.match(mobileUrlRedactionSource, /for\s*\(const key of parsedUrl\.searchParams\.keys\(\)\)/);
-  assert.match(mobileUrlRedactionSource, /SENSITIVE_QUERY_KEYS\.has\(key\.toLowerCase\(\)\)/);
-  assert.match(mobileUrlRedactionSource, /searchParams\.set\(key,\s*'\[redacted\]'\)/);
-  for (const sensitiveKey of [
+test('mobile webview logs redact auth query secrets before printing URLs', async () => {
+  const { redactSensitiveUrl } = await importTsModule(mobileUrlRedactionSource);
+  const sensitiveKeys = [
     'access',
     'code',
     'refresh',
@@ -102,11 +102,21 @@ test('mobile webview logs redact auth query secrets before printing URLs', () =>
     'access_token',
     'refresh_token',
     'id_token',
-  ]) {
-    assert.match(mobileUrlRedactionSource, new RegExp(`['\"]${sensitiveKey}['\"]`));
+  ];
+  const inputUrl = new URL('https://maeil1dok.app/auth/callback');
+  for (const [index, sensitiveKey] of sensitiveKeys.entries()) {
+    const key = index % 2 === 0 ? sensitiveKey.toUpperCase() : sensitiveKey;
+    inputUrl.searchParams.set(key, `secret-${index}`);
   }
+  inputUrl.searchParams.set('safe', 'keep-me');
 
-  assert.match(mobileAppSource, /import\s*\{\s*redactSensitiveUrl\s*\}\s*from\s*'\.\/urlRedaction';/);
+  const redactedUrl = new URL(redactSensitiveUrl(inputUrl.toString()));
+  for (const [index, sensitiveKey] of sensitiveKeys.entries()) {
+    const key = index % 2 === 0 ? sensitiveKey.toUpperCase() : sensitiveKey;
+    assert.equal(redactedUrl.searchParams.get(key), '[redacted]', `${key} must be redacted`);
+  }
+  assert.equal(redactedUrl.searchParams.get('safe'), 'keep-me');
+
   assert.doesNotMatch(
     mobileAppSource,
     /(?:const|let|var|function)\s+redactSensitiveUrl\b/,
@@ -142,7 +152,6 @@ test('mobile social login logs never print token-bearing response bodies', () =>
     );
   }
 
-  assert.match(mobileAppSource, /\[Apple Login\] Response received/);
 });
 
 test('nuxt SSR redactSensitiveUrl redacts sensitive query keys and keeps relative URLs relative', async () => {
@@ -249,9 +258,4 @@ test('nuxt SSR error logger source never logs raw request URLs or unredacted err
   assert.match(errorLoggerSource, /redactSensitiveText\(error\?\.stack\)/);
   assert.doesNotMatch(errorLoggerSource, /console\.error\('URL:',\s*event\?\.node\?\.req\?\.url/);
   assert.doesNotMatch(errorLoggerSource, /'\[SSR Request\] URL:',\s*url\b/);
-  for (const alias of ['access_token', 'refresh_token', 'id_token']) {
-    assert.match(errorLoggerSource, new RegExp(`'${alias}'`), `${alias} should be a sensitive log key`);
-  }
-  assert.match(errorLoggerSource, /key\.toLowerCase\(\)/, 'query key redaction should be case-insensitive');
-  assert.match(errorLoggerSource, /parsed\.hash = redactSensitiveParameters\(parsed\.hash\)/, 'hash fragments should be redacted');
 });

@@ -157,12 +157,10 @@ const handleSubmit = async () => {
   loading.value = true
   const api = useApi()
   try {
-    const response = await api.post('/api/v1/auth/email-login/', {
+    const data = await api.POST('/api/v1/auth/email-login/', {
       email: email.value,
       password: password.value
     })
-
-    const data = response.data || response
 
     if (data.access) {
       auth.setTokens(data.access, data.refresh)

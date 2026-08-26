@@ -30,8 +30,8 @@ const { code } = await transform(source, {
   sourcemap: false,
 });
 const dataUrl = `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
-const { toLocalDateString, getTodayString, formatDateForInput } = await import(
-  `${dataUrl}#${Date.now()}-${Math.random()}`
+const { toLocalDateString, formatDateForInput } = await import(
+  `${dataUrl}#date-format-local-timezone`
 );
 
 test('sanity: TZ is pinned to Asia/Seoul (UTC+9)', () => {
@@ -66,12 +66,12 @@ test('toLocalDateString returns empty string for nullish/invalid input', () => {
   assert.equal(toLocalDateString('not-a-date'), '');
 });
 
-test('getTodayString matches local calendar components of now (never UTC)', () => {
-  const now = new Date();
-  const expected = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  assert.equal(getTodayString(), expected);
-  // And it is a well-formed YYYY-MM-DD key.
-  assert.match(getTodayString(), /^\d{4}-\d{2}-\d{2}$/);
+test('a fixed reference time produces a deterministic local calendar key', () => {
+  const referenceTime = new Date('2026-07-14T15:30:00Z');
+  const result = formatDateForInput(referenceTime);
+
+  assert.equal(result, '2026-07-15');
+  assert.match(result, /^\d{4}-\d{2}-\d{2}$/);
 });
 
 test('toLocalDateString stays consistent with formatDateForInput', () => {

@@ -408,7 +408,7 @@ const deleteAllBookmarks = async () => {
 
   isDeleting.value = true;
   try {
-    await api.delete('/api/v1/todos/bible/bookmarks/delete-all/');
+    await api.DELETE('/api/v1/todos/bible/bookmarks/delete-all/');
     toast.success('북마크가 모두 삭제되었습니다');
   } catch (error) {
     handleApiError(error, '북마크 삭제');
@@ -435,7 +435,7 @@ const deleteAllNotes = async () => {
 
   isDeleting.value = true;
   try {
-    await api.delete('/api/v1/todos/bible/notes/delete-all/');
+    await api.DELETE('/api/v1/todos/bible/notes/delete-all/');
     toast.success('노트가 모두 삭제되었습니다');
   } catch (error) {
     handleApiError(error, '노트 삭제');
@@ -462,7 +462,7 @@ const deleteAllHighlights = async () => {
 
   isDeleting.value = true;
   try {
-    await api.delete('/api/v1/todos/bible/highlights/delete-all/');
+    await api.DELETE('/api/v1/todos/bible/highlights/delete-all/');
     toast.success('하이라이트가 모두 삭제되었습니다');
   } catch (error) {
     handleApiError(error, '하이라이트 삭제');

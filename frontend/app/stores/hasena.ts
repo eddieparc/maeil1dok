@@ -1,19 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useApi } from '~/composables/useApi'
-
-interface HasenaResponseWrapped {
-  success: boolean
-  data: HasenaData
-}
-
-interface HasenaData {
-  id: number
-  date: string
-  is_completed: boolean
-  created_at: string
-  updated_at: string
-}
+import type { components } from '~/types/generated/api-schema'
 
 interface HasenaRecord {
   id: number
@@ -36,7 +24,8 @@ interface HasenaStats {
   longest_streak: number
 }
 
-type HasenaResponse = HasenaResponseWrapped | HasenaData
+type HasenaResponse = components['schemas']['HasenaStatusResponse']
+type HasenaUpdateResponse = components['schemas']['HasenaRecordUpdateResponse']
 
 export const useHasenaStore = defineStore('hasena', () => {
   const api = useApi()
@@ -71,7 +60,7 @@ export const useHasenaStore = defineStore('hasena', () => {
     error.value = null
 
     try {
-      const { data } = await api.get<HasenaResponse>('/api/v1/todos/hasena/status/')
+      const { data } = await api.GET('/api/v1/todos/hasena/status/')
       if (data.success) {
         isCompleted.value = data.data.is_completed
       }
@@ -85,32 +74,20 @@ export const useHasenaStore = defineStore('hasena', () => {
   }
   
   // 하세나 완료 상태 업데이트 (오늘 날짜용)
-  const updateStatus = async (date: Date): Promise<any> => {
+  const updateStatus = async (date: Date): Promise<HasenaUpdateResponse> => {
     isLoading.value = true
     error.value = null
     
     try {
       const formattedDate = formatApiDate(date)
       
-      const response = await api.post('/api/v1/todos/hasena/update/', {
+      const response = await api.POST('/api/v1/todos/hasena/update/', {
         date: formattedDate,
         is_completed: !isCompleted.value
       })
       
-      // 응답 구조 분석 및 안전한 처리
-      if (response?.success && response?.data) {
+      if (response.success) {
         isCompleted.value = response.data.is_completed
-      } else if (response?.is_completed !== undefined) {
-        isCompleted.value = response.is_completed
-      } else if (response?.data) {
-        // 응답 구조에 따라 처리
-        if (response.data.success && response.data.data) {
-          // success 필드가 있는 경우
-          isCompleted.value = response.data.data.is_completed
-        } else if (response.data.is_completed !== undefined) {
-          // 직접 데이터가 반환되는 경우
-          isCompleted.value = response.data.is_completed
-        }
       }
       
       return response
@@ -123,29 +100,24 @@ export const useHasenaStore = defineStore('hasena', () => {
   }
   
   // 특정 날짜의 완료 상태 업데이트 (달력용)
-  const updateStatusForDate = async (date: Date, currentCompleted: boolean): Promise<any> => {
+  const updateStatusForDate = async (
+    date: Date,
+    currentCompleted: boolean,
+  ): Promise<HasenaUpdateResponse> => {
     error.value = null
     
     try {
       const formattedDate = formatApiDate(date)
       
-      const response = await api.post('/api/v1/todos/hasena/update/', {
+      const response = await api.POST('/api/v1/todos/hasena/update/', {
         date: formattedDate,
         is_completed: !currentCompleted
       })
       
       // 오늘 날짜인 경우 isCompleted도 업데이트
       const todayStr = formatApiDate(new Date())
-      if (formattedDate === todayStr) {
-        if (response?.success && response?.data) {
-          isCompleted.value = response.data.is_completed
-        } else if (response?.data?.success && response.data?.data) {
-          isCompleted.value = response.data.data.is_completed
-        } else if (response?.is_completed !== undefined) {
-          isCompleted.value = response.is_completed
-        } else if (response?.data?.is_completed !== undefined) {
-          isCompleted.value = response.data.is_completed
-        }
+      if (formattedDate === todayStr && response.success) {
+        isCompleted.value = response.data.is_completed
       }
       
       return response
@@ -163,7 +135,9 @@ export const useHasenaStore = defineStore('hasena', () => {
     }
 
     try {
-      const { data } = await api.get<HasenaRecord[]>(`/api/v1/todos/hasena/?year=${year}&month=${month}`)
+      const { data } = await api.GET('/api/v1/todos/hasena/', {
+        params: { year, month }
+      })
       calendarRecords.value = data
       return data
     } catch (err: any) {
@@ -174,9 +148,9 @@ export const useHasenaStore = defineStore('hasena', () => {
 
   const fetchCalendarEntries = async (year: number, month: number): Promise<HasenaCalendarEntry[]> => {
     try {
-      const { data } = await api.get<{ success: boolean; entries: HasenaCalendarEntry[] }>(
-        `/api/v1/todos/hasena/calendar/?year=${year}&month=${month}`
-      )
+      const { data } = await api.GET('/api/v1/todos/hasena/calendar/', {
+        params: { year, month }
+      })
       calendarEntries.value = data.entries || []
       calendarRecords.value = calendarEntries.value.map((entry, index) => ({
         id: index,
@@ -204,7 +178,7 @@ export const useHasenaStore = defineStore('hasena', () => {
     }
 
     try {
-      const { data } = await api.get<{ success: boolean; data: HasenaStats }>('/api/v1/todos/hasena/stats/')
+      const { data } = await api.GET('/api/v1/todos/hasena/stats/')
       if (data.success) {
         stats.value = data.data
         return data.data

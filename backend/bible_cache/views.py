@@ -3,12 +3,21 @@
 """
 
 import logging
+
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from bible_cache.bible_reference import validate_bible_reference
+from bible_cache.serializers import (
+    BibleCacheErrorResponseSerializer,
+    BibleCacheSearchResponseSerializer,
+    BibleCacheStatusResponseSerializer,
+    BibleContentResponseSerializer,
+    SupportedVersionsResponseSerializer,
+)
 from bible_cache.services import BibleFetchService
 from bible_cache.services.bible_fetch_service import BibleFetchError, SUPPORTED_VERSIONS
 from bible_cache.services.cache_search_service import BibleCacheSearchService
@@ -18,6 +27,23 @@ logger = logging.getLogger(__name__)
 BIBLE_FETCH_UNAVAILABLE_MESSAGE = '성경 본문을 일시적으로 가져올 수 없습니다. 잠시 후 다시 시도해주세요.'
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'force_refresh',
+            bool,
+            required=False,
+            default=False,
+            description='Bypass the cache. Only the case-insensitive literal `true` enables this option, and staff authentication is then required; every other value is treated as false.',
+        ),
+    ],
+    responses={
+        200: BibleContentResponseSerializer,
+        400: BibleCacheErrorResponseSerializer,
+        403: BibleCacheErrorResponseSerializer,
+        503: BibleCacheErrorResponseSerializer,
+    },
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_bible_content(request, version: str, book: str, chapter: int):
@@ -119,6 +145,12 @@ def get_bible_content(request, version: str, book: str, chapter: int):
         )
 
 
+@extend_schema(
+    responses={
+        200: BibleCacheStatusResponseSerializer,
+        400: BibleCacheErrorResponseSerializer,
+    },
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_cache_status(request, version: str, book: str, chapter: int):
@@ -165,6 +197,7 @@ def get_cache_status(request, version: str, book: str, chapter: int):
         })
 
 
+@extend_schema(responses={200: SupportedVersionsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_supported_versions(request):
@@ -202,6 +235,22 @@ def get_supported_versions(request):
     })
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter('q', str, required=True, description='Search text (minimum two characters after trimming).'),
+        OpenApiParameter(
+            'version',
+            str,
+            required=False,
+            enum=sorted(SUPPORTED_VERSIONS),
+            description='Bible translation code. Surrounding whitespace is ignored.',
+        ),
+    ],
+    responses={
+        200: BibleCacheSearchResponseSerializer,
+        400: BibleCacheErrorResponseSerializer,
+    },
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search_cached_content(request):

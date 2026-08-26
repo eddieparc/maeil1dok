@@ -296,7 +296,9 @@ const loadAISummary = async () => {
   summaryContent.value = ''
   
   try {
-    const { data } = await api.get(`/api/v1/todos/hasena/summary/?video_id=${latestVideoId.value}`)
+    const { data } = await api.GET('/api/v1/todos/hasena/summary/', {
+      params: { video_id: latestVideoId.value }
+    })
     
     if (data.success) {
       summaryContent.value = data.summary
@@ -329,13 +331,17 @@ const generateAISummary = async () => {
     // 기존 요약이 있으면 재생성 API 호출, 없으면 생성 API 호출
     if (summaryContent.value) {
       // 재생성: POST /api/v1/todos/hasena/summaries/regenerate/
-      const response = await api.post('/api/v1/todos/hasena/summaries/regenerate/', {
+      data = await api.POST('/api/v1/todos/hasena/summaries/regenerate/', {
         video_id: latestVideoId.value
       })
-      data = response.data
     } else {
       // 신규 생성: GET /api/v1/todos/hasena/summary/?generate=true
-      const response = await api.get(`/api/v1/todos/hasena/summary/?video_id=${latestVideoId.value}&generate=true`)
+      const response = await api.GET('/api/v1/todos/hasena/summary/', {
+        params: {
+          video_id: latestVideoId.value,
+          generate: true
+        }
+      })
       data = response.data
     }
     
@@ -373,7 +379,7 @@ const fetchHasenaContent = async () => {
     summaryError.value = null
     summaryContent.value = ''
 
-    const { data } = await api.get('/api/v1/todos/hasena/day/', {
+    const { data } = await api.GET('/api/v1/todos/hasena/day/', {
       params: { date: selectedDate.value }
     })
 

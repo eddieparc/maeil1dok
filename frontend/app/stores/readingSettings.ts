@@ -234,15 +234,11 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
       this.isLoading = true
       try {
         const api = useApi()
-        const response = await api.get('/api/v1/accounts/reading-settings/')
+        const response = await api.GET('/api/v1/auth/reading-settings/')
 
-        if (response.data?.success && response.data.settings) {
-          const serverSettings = response.data.settings
-          // lineHeight 변환: 문자열이면 숫자로 변환
-          let lineHeight = serverSettings.line_height || this.settings.lineHeight
-          if (typeof lineHeight === 'string' && LEGACY_LINE_HEIGHTS[lineHeight]) {
-            lineHeight = LEGACY_LINE_HEIGHTS[lineHeight]
-          }
+        if (response.data.success && response.data.data.settings) {
+          const serverSettings = response.data.data.settings
+          const lineHeight = serverSettings.line_height || this.settings.lineHeight
           // Merge server settings (snake_case from backend)
           this.settings = {
             ...this.settings,
@@ -278,7 +274,7 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
       this.isSyncing = true
       try {
         const api = useApi()
-        await api.patch('/api/v1/accounts/reading-settings/update/', {
+        await api.PATCH('/api/v1/auth/reading-settings/update/', {
           theme: this.settings.theme,
           font_family: this.settings.fontFamily,
           font_size: this.settings.fontSize,

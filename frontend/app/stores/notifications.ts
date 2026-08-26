@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useApi } from '~/composables/useApi'
+import type { components } from '~/types/generated/api-schema'
 import {
   isDevicePushSupported,
   readBrowserPushState,
@@ -7,28 +8,15 @@ import {
   unsubscribeCurrentDevice,
 } from '~/utils/devicePushRuntime'
 
-export interface NotificationItem {
-  id: number
-  type: 'reading_reminder' | 'hasena_reminder' | 'friend_activity' | 'system'
-  title: string
-  body: string
-  target_url: string
-  data: Record<string, string | number | boolean>
-  actor_name: string | null
-  is_read: boolean
-  read_at: string | null
-  created_at: string
-}
+type GeneratedNotificationItem = components['schemas']['TodoNotification']
+type GeneratedNotificationSettings = components['schemas']['TodoNotificationSettings']
+type GeneratedNotificationInboxResponse = components['schemas']['NotificationInboxResponse']
 
-export interface NotificationSettings {
-  notifications_enabled: boolean
-  reading_reminders_enabled: boolean
-  hasena_reminders_enabled: boolean
-  friend_activity_enabled: boolean
-  reading_reminder_time: string
-  hasena_reminder_time: string
-  timezone: string
-}
+export interface NotificationItem extends GeneratedNotificationItem {}
+
+export interface NotificationSettings extends GeneratedNotificationSettings {}
+
+export interface NotificationInboxResponse extends GeneratedNotificationInboxResponse {}
 
 export type DevicePushPermission = NotificationPermission | 'unsupported' | 'unavailable'
 
@@ -38,20 +26,6 @@ export interface DevicePushState {
   subscribed: boolean
   isSyncing: boolean
   error: string | null
-}
-
-export interface NotificationInboxResponse {
-  success: boolean
-  message?: string
-  unread_count: number
-  notifications: NotificationItem[]
-  settings: NotificationSettings
-}
-
-interface NotificationSettingsResponse {
-  success: boolean
-  message?: string
-  settings: NotificationSettings
 }
 
 type NotificationSettingsPatch = Partial<NotificationSettings>
@@ -82,11 +56,12 @@ export const useNotificationsStore = defineStore('notifications', {
       this.isLoading = true
       this.error = null
       try {
-        const response: { data: NotificationInboxResponse } = await useApi().get('/api/v1/todos/notifications/', {
-          params: unreadOnly ? { unread_only: 'true' } : undefined,
+        const api = useApi()
+        const response = await api.GET('/api/v1/todos/notifications/', {
+          params: unreadOnly ? { unread_only: true } : undefined,
         })
         if (!response.data.success) {
-          throw new Error(response.data.message ?? '알림을 불러올 수 없습니다.')
+          throw new Error(getResponseMessage(response.data) ?? '알림을 불러올 수 없습니다.')
         }
         this.notifications = response.data.notifications ?? []
         this.unreadCount = response.data.unread_count ?? 0
@@ -102,9 +77,10 @@ export const useNotificationsStore = defineStore('notifications', {
       this.isLoading = true
       this.error = null
       try {
-        const response: { data: NotificationSettingsResponse } = await useApi().get('/api/v1/todos/notifications/settings/')
+        const api = useApi()
+        const response = await api.GET('/api/v1/todos/notifications/settings/')
         if (!response.data.success) {
-          throw new Error(response.data.message ?? '알림 설정을 불러올 수 없습니다.')
+          throw new Error(getResponseMessage(response.data) ?? '알림 설정을 불러올 수 없습니다.')
         }
         this.settings = response.data.settings
       } catch (error) {
@@ -124,7 +100,13 @@ export const useNotificationsStore = defineStore('notifications', {
       this.unreadCount = Math.max(0, this.unreadCount - 1)
 
       try {
-        await useApi().patch(`/api/v1/todos/notifications/${notificationId}/read/`, {})
+        const api = useApi()
+        await api.PATCH(
+          api.path('/api/v1/todos/notifications/{notification_id}/read/', {
+            notification_id: notificationId,
+          }),
+          {},
+        )
       } catch (error) {
         target.is_read = false
         target.read_at = null
@@ -145,7 +127,8 @@ export const useNotificationsStore = defineStore('notifications', {
       this.unreadCount = 0
 
       try {
-        await useApi().post('/api/v1/todos/notifications/mark-all-read/')
+        const api = useApi()
+        await api.POST('/api/v1/todos/notifications/mark-all-read/')
       } catch (error) {
         this.notifications = previousNotifications
         this.unreadCount = previousUnreadCount
@@ -157,9 +140,10 @@ export const useNotificationsStore = defineStore('notifications', {
       this.isSaving = true
       this.error = null
       try {
-        const response: NotificationSettingsResponse = await useApi().patch('/api/v1/todos/notifications/settings/', patch)
+        const api = useApi()
+        const response = await api.PATCH('/api/v1/todos/notifications/settings/', patch)
         if (!response.success) {
-          throw new Error(response.message ?? '알림 설정 저장에 실패했습니다.')
+          throw new Error(getResponseMessage(response) ?? '알림 설정 저장에 실패했습니다.')
         }
         this.settings = response.settings
         return { success: true }
@@ -245,6 +229,13 @@ export const useNotificationsStore = defineStore('notifications', {
 
   },
 })
+
+function getResponseMessage(response: unknown): string | undefined {
+  if (typeof response !== 'object' || response === null || !('message' in response)) {
+    return undefined
+  }
+  return typeof response.message === 'string' ? response.message : undefined
+}
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) {

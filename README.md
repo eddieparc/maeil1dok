@@ -21,7 +21,6 @@
 |---|---|---|
 | `backend/` | Django 5.2, DRF, MySQL 8, Celery/Redis | 프로덕션 |
 | `frontend/` | Nuxt 4 SSR, Pinia, Tailwind | 프로덕션 |
-| `maeil1dok-next/` | Next.js, Supabase | v2 개발 중 |
 | `mobile/` | Expo React Native WebView | EAS 배포 |
 
 프로덕션은 `main` 브랜치 품질 게이트 통과 후 OCI에 자동 배포됩니다. 운영 구조와 수동 절차는 [DEPLOY.md](DEPLOY.md)를 따릅니다.
@@ -34,9 +33,6 @@
 
 # Frontend
 (cd frontend && npm test && npm run build)
-
-# Next.js v2
-(cd maeil1dok-next && npm test && npm run build)
 
 # Mobile
 (cd mobile && npm test && npm run typecheck)
@@ -56,4 +52,3 @@ python3 -m unittest \
 - [AGENTS.md](AGENTS.md): 저장소 구조, 명령, 에이전트 규칙
 - [DEPLOY.md](DEPLOY.md): OCI 배포와 운영
 - [DESIGN.md](DESIGN.md): 디자인 토큰과 UI 규칙
-- [docs/migration-v2/README.md](docs/migration-v2/README.md): Next.js v2 마이그레이션

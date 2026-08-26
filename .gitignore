@@ -147,20 +147,6 @@ maeil1dok-poc/out/
 maeil1dok-poc/mobile/app.json
 !maeil1dok-poc/src/lib/
 
-# Next.js Project (Plan B)
-maeil1dok-next/.env.local
-maeil1dok-next/node_modules/
-maeil1dok-next/.next/
-maeil1dok-next/out/
-!maeil1dok-next/src/lib/
-
-# Migration toolkit — extracted production user data (sensitive, never commit)
-maeil1dok-next/scripts/migrate/data/
-maeil1dok-next/scripts/migrate/*.log
-
-# Migration test results
-maeil1dok-next/test-results/
-maeil1dok-next/playwright-report/.auth-state.json
 .vercel
 .env*.local
 

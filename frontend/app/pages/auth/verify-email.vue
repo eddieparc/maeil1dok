@@ -82,8 +82,8 @@ onMounted(async () => {
   }
 
   try {
-    const response = await api.post('/api/v1/auth/verify-email/', { token })
-    const data = response.data || response
+    const response = await api.POST('/api/v1/auth/verify-email/', { token })
+    const data = response
     
     if (data.success) {
       success.value = true
@@ -110,7 +110,7 @@ const resendEmail = async () => {
   
   resending.value = true
   try {
-    await api.post('/api/v1/auth/send-verification/', { email: userEmail.value })
+    await api.POST('/api/v1/auth/send-verification/', { email: userEmail.value })
     errorMessage.value = '인증 메일이 재발송되었습니다. 이메일을 확인해주세요.'
   } catch (error) {
     const errorData = error.response?.data || {}

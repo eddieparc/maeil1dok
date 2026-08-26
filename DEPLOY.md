@@ -37,7 +37,7 @@ maeil1dok 은 `maeil1dok_default` 네트워크만 사용하고, 외부 노출은
 `main` push 시 `.github/workflows/ci.yml`:
 
 1. 품질 게이트 — `backend-ci`(**MySQL 8 서비스 컨테이너**로 풀스위트), `frontend-ci`,
-   `maeil1dok-next-ci`, `mobile-ci`, `deployment-config-ci` (변경된 경로만)
+   `mobile-ci`, `deployment-config-ci` (변경된 경로만)
 2. `deploy-oci` — backend/frontend 변경 + 게이트 전부 그린일 때:
    rsync(`.env*` 제외) → `compose build web celery-worker celery-beat frontend` → `up -d` → **터널 경유 라이브 스모크**
    (`/health/` + `/ready/` + 프론트 200 확인, 실패 시 잡 실패)

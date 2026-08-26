@@ -1,3 +1,5 @@
+importScripts('/notificationRuntime.js')
+
 self.addEventListener('install', event => {
   event.waitUntil(self.skipWaiting())
 })
@@ -35,7 +37,7 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close()
 
-  const targetUrl = notificationTargetUrl(event.notification.data?.url)
+  const targetUrl = self.resolveNotificationTargetUrl(event.notification.data?.url, self.location.origin)
 
   event.waitUntil((async () => {
     const clientList = await self.clients.matchAll({
@@ -51,11 +53,3 @@ self.addEventListener('notificationclick', event => {
     await self.clients.openWindow(targetUrl)
   })())
 })
-
-function notificationTargetUrl(value) {
-  const url = new URL(value || '/notifications', self.location.origin)
-  if (url.origin !== self.location.origin) {
-    return new URL('/notifications', self.location.origin).href
-  }
-  return url.href
-}

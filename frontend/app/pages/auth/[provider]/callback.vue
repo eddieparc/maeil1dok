@@ -11,6 +11,14 @@
 import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
+import {
+  buildLinkSocialPayload,
+  firstQueryValue,
+  getMergeToken,
+  getNativeAppScheme,
+  isSignedLinkState,
+  type NativeAppState,
+} from '#shared/utils/authCallbackRuntime'
 
 const route = useRoute()
 const auth = useAuthService()
@@ -18,31 +26,14 @@ const { consumeRedirectUrl } = useNavigation()
 
 const statusMessage = ref('처리 중입니다...')
 
-const firstQueryValue = (value: unknown) => {
-  if (typeof value === 'string') return value
-  if (Array.isArray(value) && typeof value[0] === 'string') return value[0]
-  return ''
-}
-
-const parseStateParam = () => {
+const parseStateParam = (): NativeAppState | null => {
   const state = firstQueryValue(route.query.state)
   if (!state) return null
   try {
-    return JSON.parse(decodeURIComponent(state))
+    return JSON.parse(decodeURIComponent(state)) as NativeAppState
   } catch {
     return null
   }
-}
-
-const ALLOWED_APP_SCHEMES = new Set(['maeil1dok', 'maeil1dok-dev'])
-const SIGNED_LINK_STATE_PATTERN = /^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$/
-
-const isSignedLinkState = (state: string) => SIGNED_LINK_STATE_PATTERN.test(state)
-
-const getSafeAppScheme = (scheme: unknown) => {
-  if (typeof scheme !== 'string') return ''
-  if (!ALLOWED_APP_SCHEMES.has(scheme)) return ''
-  return scheme
 }
 
 const redirectToApp = (scheme: string, provider: string, params: Record<string, string>) => {
@@ -74,8 +65,8 @@ onMounted(async () => {
   const code = firstQueryValue(route.query.code)
   const state = firstQueryValue(route.query.state)
   const stateData = parseStateParam()
-  const safeAppScheme = getSafeAppScheme(stateData?.scheme)
-  const isFromApp = stateData?.from === 'app' && Boolean(safeAppScheme)
+  const safeAppScheme = getNativeAppScheme(stateData)
+  const isFromApp = Boolean(safeAppScheme)
   const isLinkAction = isSignedLinkState(state)
 
   if (!code) {
@@ -122,14 +113,9 @@ const handleLinkSocialAccount = async (provider: string, code: string, state: st
   try {
     const api = useApi()
     
-    const payload: Record<string, string> = { provider, code, state }
-    if (provider === 'apple') {
-      if (idToken) {
-        payload.id_token = idToken
-      }
-    }
+    const payload = buildLinkSocialPayload(provider, code, state, idToken)
     
-    const response = await api.post('/api/v1/auth/link-social/', payload)
+    const response = await api.POST('/api/v1/auth/link-social/', payload)
 
     navigateTo({
       path: '/account/settings',
@@ -143,7 +129,7 @@ const handleLinkSocialAccount = async (provider: string, code: string, state: st
         provider,
         code,
         id_token: idToken || undefined,
-        merge_token: getString(errorData, 'merge_token') || undefined,
+        merge_token: getMergeToken(errorData),
         current_account: errorData.current_account,
         other_account: errorData.other_account
       }))
@@ -221,19 +207,19 @@ const handleKakaoCallback = async (code: string, isFromApp = false, appScheme?: 
 const handleGoogleCallback = async (code: string, isFromApp = false, appScheme?: string) => {
   try {
     const api = useApi()
-    const response = await api.post('/api/v1/auth/social-login/v2/', {
+    const response = await api.POST('/api/v1/auth/social-login/v2/', {
       provider: 'google',
       code
     })
 
-    const data = response.data || response
+    const data = response
 
-    if (data.needsSignup) {
+    if ('needsSignup' in data && data.needsSignup) {
       if (isFromApp && appScheme) {
         redirectToApp(appScheme, 'google', {
           needsSignup: 'true',
           provider: 'google',
-          provider_id: data.provider_id,
+          provider_id: data.provider_id as string,
           email: data.email || '',
           suggested_nickname: data.suggested_nickname || '',
           profile_image: data.profile_image || '',
@@ -254,16 +240,17 @@ const handleGoogleCallback = async (code: string, isFromApp = false, appScheme?:
         })
       }
     } else {
+      const loginData = data as Extract<typeof data, { access: string }>
       if (isFromApp && appScheme) {
         redirectToApp(appScheme, 'google', {
-          access: data.access,
-          refresh: data.refresh,
-          user: encodeURIComponent(JSON.stringify(data.user))
+          access: loginData.access,
+          refresh: loginData.refresh,
+          user: encodeURIComponent(JSON.stringify(loginData.user))
         })
       } else {
-        if (data.access) {
-          auth.setTokens(data.access, data.refresh)
-          auth.setUser(data.user)
+        if (loginData.access) {
+          auth.setTokens(loginData.access, loginData.refresh)
+          auth.setUser(loginData.user as Parameters<typeof auth.setUser>[0])
         }
         const redirectUrl = consumeRedirectUrl() || '/'
         navigateTo(redirectUrl)
@@ -296,21 +283,21 @@ const handleAppleCallback = async (code: string, idToken: string, userInfo: stri
       }
     }
     
-    const response = await api.post('/api/v1/auth/social-login/v2/', {
+    const response = await api.POST('/api/v1/auth/social-login/v2/', {
       provider: 'apple',
       code,
       id_token: idToken,
       full_name: fullName
     })
 
-    const data = response.data || response
+    const data = response
 
-    if (data.needsSignup) {
+    if ('needsSignup' in data && data.needsSignup) {
       if (isFromApp && appScheme) {
         redirectToApp(appScheme, 'apple', {
           needsSignup: 'true',
           provider: 'apple',
-          provider_id: data.provider_id,
+          provider_id: data.provider_id as string,
           email: data.email || '',
           suggested_nickname: data.suggested_nickname || '',
           profile_image: data.profile_image || '',
@@ -331,16 +318,17 @@ const handleAppleCallback = async (code: string, idToken: string, userInfo: stri
         })
       }
     } else {
+      const loginData = data as Extract<typeof data, { access: string }>
       if (isFromApp && appScheme) {
         redirectToApp(appScheme, 'apple', {
-          access: data.access,
-          refresh: data.refresh,
-          user: encodeURIComponent(JSON.stringify(data.user))
+          access: loginData.access,
+          refresh: loginData.refresh,
+          user: encodeURIComponent(JSON.stringify(loginData.user))
         })
       } else {
-        if (data.access) {
-          auth.setTokens(data.access, data.refresh)
-          auth.setUser(data.user)
+        if (loginData.access) {
+          auth.setTokens(loginData.access, loginData.refresh)
+          auth.setUser(loginData.user as Parameters<typeof auth.setUser>[0])
         }
         const redirectUrl = consumeRedirectUrl() || '/'
         navigateTo(redirectUrl)

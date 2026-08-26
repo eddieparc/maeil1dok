@@ -252,7 +252,7 @@ const fetchPlans = async () => {
 
   try {
     loading.value = true
-    const response = await api.get('/api/v1/todos/bible-plans/')
+    const response = await api.GET('/api/v1/todos/bible-plans/')
 
     // 응답 구조 처리 - data 속성 확인
     if (response.data && Array.isArray(response.data)) {
@@ -278,19 +278,17 @@ const fetchVideoIntros = async () => {
   loading.value = true
   try {
 
-    const url = selectedPlanId.value
-      ? `/api/v1/todos/video/intro/?plan_id=${selectedPlanId.value}`
-      : '/api/v1/todos/video/intro/'
-
-    const response = await api.get(url)
+    const selectedPlan = Number(selectedPlanId.value)
+    const planId = selectedPlanId.value && Number.isInteger(selectedPlan)
+      ? selectedPlan
+      : undefined
+    const response = await api.GET('/api/v1/todos/video/intro/', {
+      params: { plan_id: planId }
+    })
 
     // 응답 구조 처리 - data 속성 확인
-    if (response.data && Array.isArray(response.data)) {
+    if (Array.isArray(response.data)) {
       videoIntros.value = response.data
-    } else if (Array.isArray(response)) {
-      videoIntros.value = response
-    } else if (response.results && Array.isArray(response.results)) {
-      videoIntros.value = response.results
     } else {
       showToastMessage('영상 개론 목록 형식이 올바르지 않습니다.', 'error')
     }
@@ -313,7 +311,7 @@ const deleteVideoIntro = async (id) => {
   if (!confirmed) return
 
   try {
-    await api.delete(`/api/v1/todos/video/intro/${id}/`)
+    await api.DELETE(api.path('/api/v1/todos/video/intro/{id}/', { id }))
     showToastMessage('영상 개론이 삭제되었습니다.', 'success')
     fetchVideoIntros()
   } catch (error) {

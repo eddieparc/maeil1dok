@@ -324,7 +324,12 @@ import { useApi } from '~/composables/useApi'
 import { useRuntimeConfig } from 'nuxt/app'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
-import { buildOAuthLinkUrl, buildSocialMergePayload } from '~/utils/accountSettingsRuntime.js'
+import {
+  buildDeleteAccountPayload,
+  buildOAuthLinkUrl,
+  buildSocialMergePayload,
+  getProviderDisplayName,
+} from '~/utils/accountSettingsRuntime.js'
 
 useHead({
   title: '계정 설정 - 매일일독',
@@ -389,12 +394,6 @@ interface NativeWindow extends Window {
   ReactNativeWebView?: {
     postMessage(message: string): void
   }
-}
-
-const PROVIDER_LABELS: Record<Provider, string> = {
-  kakao: '카카오',
-  google: 'Google',
-  apple: 'Apple',
 }
 
 const loading = ref(true)
@@ -566,7 +565,7 @@ const normalizeMergeInfo = (payload: unknown): MergeInfo | null => {
 
 const fetchLinkedAccounts = async () => {
   try {
-    const response = await api.get('/api/v1/auth/linked-accounts/')
+    const response = await api.GET('/api/v1/auth/linked-accounts/')
     linkedAccounts.value = normalizeLinkedAccounts(response.data)
   } catch (error) {
     await modal.alert({
@@ -580,8 +579,8 @@ const fetchLinkedAccounts = async () => {
 }
 
 const getOAuthLinkState = async () => {
-  const response = await api.post('/api/v1/auth/oauth/link-state/')
-  const state = response.data?.state
+  const response = await api.POST('/api/v1/auth/oauth/link-state/')
+  const state = response.state
   if (typeof state !== 'string' || !state) {
     throw new Error('Invalid OAuth state')
   }
@@ -655,7 +654,7 @@ const handleUnlink = async (provider: Provider) => {
   if (!confirmed) return
 
   try {
-    await api.post('/api/v1/auth/unlink-social/', { provider })
+    await api.POST('/api/v1/auth/unlink-social/', { provider })
     await modal.alert({
       title: '연결 해제 완료',
       description: '소셜 계정 연결이 해제되었습니다.',
@@ -693,7 +692,7 @@ const handleSetPassword = async () => {
 
   passwordLoading.value = true
   try {
-    await api.post('/api/v1/auth/set-password/', {
+    await api.POST('/api/v1/auth/set-password/', {
       current_password: currentPassword.value || undefined,
       new_password: newPassword.value,
       new_password_confirm: newPasswordConfirm.value
@@ -727,7 +726,7 @@ const handleResendVerification = async () => {
   
   resendingEmail.value = true
   try {
-    await api.post('/api/v1/auth/resend-verification/')
+    await api.POST('/api/v1/auth/resend-verification/')
     await modal.alert({
       title: '인증 메일 발송',
       description: '인증 메일을 발송했습니다. 메일함을 확인해주세요.',
@@ -788,7 +787,7 @@ const handleLogoutAllDevices = async () => {
 
   accountActionLoading.value = true
   try {
-    await api.post('/api/v1/auth/logout-all/')
+    await api.POST('/api/v1/auth/logout-all/')
     await auth.logout()
     navigateTo('/')
   } catch (error: unknown) {
@@ -825,10 +824,10 @@ const handleDeleteAccount = async () => {
 
   accountActionLoading.value = true
   try {
-    await api.post('/api/v1/auth/delete-account/', {
-      password: deletePassword.value,
-      confirm_delete: true
-    })
+    await api.POST(
+      '/api/v1/auth/delete-account/',
+      buildDeleteAccountPayload(deletePassword.value),
+    )
     await modal.alert({
       title: '계정 삭제 요청 완료',
       description: '계정 삭제가 요청되었습니다. 30일 후 완전히 삭제됩니다.',
@@ -859,13 +858,13 @@ const handleMerge = async (keepAccount: KeepAccount) => {
   
   mergeLoading.value = true
   try {
-    const response = await api.post('/api/v1/auth/merge-accounts/', payload)
+    const response = await api.POST('/api/v1/auth/merge-accounts/', payload)
     
     const data = response
     
     if (keepAccount === 'other' && data.access) {
       auth.setTokens(data.access, data.refresh)
-      auth.setUser(data.user)
+      auth.setUser(data.user as Parameters<typeof auth.setUser>[0])
     }
     
     showMergeModal.value = false
@@ -892,13 +891,6 @@ const handleMerge = async (keepAccount: KeepAccount) => {
 
 const closeMergeModal = () => {
   showMergeConfirmModal.value = false
-}
-
-const getProviderDisplayName = (provider: string) => {
-  if (isProvider(provider)) {
-    return PROVIDER_LABELS[provider]
-  }
-  return provider
 }
 
 const isProvider = (provider: string): provider is Provider => {

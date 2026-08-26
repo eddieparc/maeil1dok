@@ -1,12 +1,8 @@
-"""
-Regression tests for N+1 query behavior in UserBibleProgress read endpoints.
+"""Regression tests for N+1 behavior in the monthly schedule progress endpoint.
 
-Both `GET /api/v1/todos/reading/history/` and
-`GET /api/v1/todos/plan/<pk>/progress/` serialize many `UserBibleProgress`
-rows through `UserBibleProgressSerializer`, which reads
-`subscription.plan.name` and `schedule.date`. Without preloading
-`schedule` and `subscription__plan`, serializing N rows issues per-row
-SELECTs. These tests pin the query count to a small constant ceiling.
+`GET /api/v1/todos/schedules/month/` is the consumed read path for both schedule
+metadata and the authenticated user's completion state. The endpoint must keep
+query counts bounded as the number of schedules grows.
 """
 from datetime import date
 
@@ -27,6 +23,7 @@ User = get_user_model()
 
 ROW_COUNT = 40
 SCHEDULE_MONTH = 1
+SCHEDULE_YEAR = 2026
 SELECT_CEILING = 5
 
 
@@ -44,6 +41,12 @@ class UserBibleProgressNPlusOneTest(TestCase):
     def setUpTestData(cls):
         cls.user = User.objects.create_user(
             username='reader',
+            nickname='progress-reader',
+            password='testpass123',
+        )
+        cls.other_user = User.objects.create_user(
+            username='reader-without-subscription',
+            nickname='reader-without-subscription',
             password='testpass123',
         )
         cls.plan = BibleReadingPlan.objects.create(
@@ -55,14 +58,13 @@ class UserBibleProgressNPlusOneTest(TestCase):
         cls.subscription = PlanSubscription.objects.create(
             user=cls.user,
             plan=cls.plan,
-            start_date=date(2026, SCHEDULE_MONTH, 1),
+            start_date=date(SCHEDULE_YEAR, SCHEDULE_MONTH, 1),
             is_active=True,
         )
 
-        # All schedules live in the same month so the month-filter test
-        # matches every row. Uniqueness is (plan, date, book); we keep the
-        # date fixed and vary `book` to stay within the month.
-        fixed_date = date(2026, SCHEDULE_MONTH, 15)
+        # Uniqueness is (plan, date, book), so vary the book while keeping all
+        # schedules in the same month.
+        fixed_date = date(SCHEDULE_YEAR, SCHEDULE_MONTH, 15)
         for i in range(ROW_COUNT):
             schedule = DailyBibleSchedule.objects.create(
                 plan=cls.plan,
@@ -81,23 +83,27 @@ class UserBibleProgressNPlusOneTest(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
-    def _assert_rows_hydrated(self, data):
+    def _get_month(self, **extra_query):
+        return self.client.get(
+            '/api/v1/todos/schedules/month/',
+            {
+                'plan_id': self.plan.id,
+                'month': SCHEDULE_MONTH,
+                **extra_query,
+            },
+        )
+
+    def _assert_schedules_hydrated(self, data, *, with_progress):
         self.assertEqual(len(data), ROW_COUNT)
         for row in data:
-            self.assertIsNotNone(row.get('plan_name'))
             self.assertEqual(row['plan_name'], 'Progress Plan')
-            self.assertIsNotNone(row.get('date'))
+            self.assertIsNotNone(row['date'])
+            if with_progress:
+                self.assertIn('is_completed', row)
+            else:
+                self.assertNotIn('is_completed', row)
 
-    def test_plan_subscription_progress_has_no_n_plus_one(self):
-        with CaptureQueriesContext(connection) as context:
-            response = self.client.get(
-                f'/api/v1/todos/plan/{self.subscription.id}/progress/'
-            )
-            self.assertEqual(response.status_code, 200)
-
-        data = response.json()
-        self._assert_rows_hydrated(data)
-
+    def _assert_bounded_selects(self, context):
         selects = _select_count(context)
         self.assertLessEqual(
             selects,
@@ -107,41 +113,28 @@ class UserBibleProgressNPlusOneTest(TestCase):
             + "\n".join(q['sql'] for q in context.captured_queries),
         )
 
-    def test_reading_history_has_no_n_plus_one(self):
+    def test_month_schedules_with_progress_has_no_n_plus_one(self):
         with CaptureQueriesContext(connection) as context:
-            response = self.client.get(
-                f'/api/v1/todos/reading/history/?plan_id={self.plan.id}'
-            )
+            response = self._get_month()
             self.assertEqual(response.status_code, 200)
 
-        data = response.json()
-        self._assert_rows_hydrated(data)
+        self._assert_schedules_hydrated(response.json(), with_progress=True)
+        self._assert_bounded_selects(context)
 
-        selects = _select_count(context)
-        self.assertLessEqual(
-            selects,
-            SELECT_CEILING,
-            f"Expected <= {SELECT_CEILING} SELECTs but got {selects}. "
-            "This suggests an N+1 query issue.\n"
-            + "\n".join(q['sql'] for q in context.captured_queries),
-        )
-
-    def test_reading_history_month_filter_has_no_n_plus_one(self):
+    def test_month_schedules_with_year_filter_has_no_n_plus_one(self):
         with CaptureQueriesContext(connection) as context:
-            response = self.client.get(
-                f'/api/v1/todos/reading/history/'
-                f'?plan_id={self.plan.id}&month={SCHEDULE_MONTH}'
-            )
+            response = self._get_month(year=SCHEDULE_YEAR)
             self.assertEqual(response.status_code, 200)
 
-        data = response.json()
-        self._assert_rows_hydrated(data)
+        self._assert_schedules_hydrated(response.json(), with_progress=True)
+        self._assert_bounded_selects(context)
 
-        selects = _select_count(context)
-        self.assertLessEqual(
-            selects,
-            SELECT_CEILING,
-            f"Expected <= {SELECT_CEILING} SELECTs but got {selects}. "
-            "This suggests an N+1 query issue.\n"
-            + "\n".join(q['sql'] for q in context.captured_queries),
-        )
+    def test_month_schedules_without_subscription_has_no_n_plus_one(self):
+        self.client.force_authenticate(user=self.other_user)
+
+        with CaptureQueriesContext(connection) as context:
+            response = self._get_month(year=SCHEDULE_YEAR)
+            self.assertEqual(response.status_code, 200)
+
+        self._assert_schedules_hydrated(response.json(), with_progress=False)
+        self._assert_bounded_selects(context)

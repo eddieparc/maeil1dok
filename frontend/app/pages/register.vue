@@ -140,7 +140,7 @@ const checkUsername = async () => {
   if (!formData.value.username) return
 
   try {
-    const response = await api.post('/api/v1/auth/check-username/', {
+    const response = await api.POST('/api/v1/auth/check-username/', {
       username: formData.value.username
     })
 
@@ -161,7 +161,7 @@ const checkNickname = async () => {
   if (!formData.value.nickname) return
 
   try {
-    const response = await api.post('/api/v1/auth/check-nickname/', {
+    const response = await api.POST('/api/v1/auth/check-nickname/', {
       nickname: formData.value.nickname
     })
 

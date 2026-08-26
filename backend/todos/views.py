@@ -1,3 +1,4 @@
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework.decorators import api_view, authentication_classes, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
@@ -8,14 +9,16 @@ from datetime import date, datetime
 from django.conf import settings
 import hmac
 import time
-from .models import DailyBibleSchedule, UserBibleProgress, BibleReadingPlan, PlanSubscription, VideoBibleIntro, HasenaRecord, HasenaEntry, UserVideoIntroProgress, VisitorCount, PersonalReadingRecord
-from .serializers import DailyBibleScheduleSerializer, UserBibleProgressSerializer, BibleProgressResponse, BibleReadingPlanSerializer, PlanSubscriptionSerializer, PlanSubscriptionUpdateSerializer, VideoBibleIntroSerializer, HasenaRecordCreateSerializer, HasenaRecordListQuerySerializer
+from .models import DailyBibleSchedule, UserBibleProgress, BibleReadingPlan, PlanSubscription, VideoBibleIntro, HasenaRecord, HasenaEntry, UserVideoIntroProgress, PersonalReadingRecord
+from . import serializers as todo_serializers
+from . import openapi_serializers as openapi
+from .serializers import DailyBibleScheduleSerializer, BibleReadingPlanSerializer, PlanSubscriptionSerializer, PlanSubscriptionUpdateSerializer, VideoBibleIntroSerializer, HasenaRecordCreateSerializer, HasenaRecordListQuerySerializer
 import logging
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.contrib.auth import get_user_model
-from rest_framework import viewsets, permissions, status
+from rest_framework import mixins, viewsets, permissions, status
 from rest_framework.decorators import action
 from django.db import IntegrityError, OperationalError, transaction
 from django.db.models import Q, Count
@@ -24,6 +27,40 @@ import re
 from io import BytesIO
 from django.utils.timezone import localtime
 from accounts.services.achievement_service import AchievementService
+from authz import can, subject_from_request
+from authz.policies.bible_bookmark import (
+    BibleBookmarkChapterQuery,
+    BibleBookmarkCollection,
+    BibleBookmarkCreation,
+    BibleBookmarkResource,
+)
+from authz.policies.bible_highlight import (
+    BibleHighlightChapterQuery,
+    BibleHighlightCollection,
+    BibleHighlightCreation,
+    BibleHighlightResource,
+)
+from authz.policies.bible_note import (
+    ReflectionNoteChapterQuery,
+    ReflectionNoteCollection,
+    ReflectionNoteCreation,
+    ReflectionNoteResource,
+)
+from authz.policies.bible_personal_record import (
+    PersonalReadingRecordBookQuery,
+    PersonalReadingRecordCollection,
+    PersonalReadingRecordCreation,
+)
+from authz.policies.bible_reading_position import ReadingPositionCurrent
+from authz.policies.plan_subscription import (
+    PlanSubscriptionCollection,
+    PlanSubscriptionCreation,
+    PlanSubscriptionResource,
+)
+from authz.policies.reading_progress import (
+    CertificationProgress,
+    ReadingProgressUpdate,
+)
 from .services.notifications import (
     on_commit_notify_hasena_completed,
     on_commit_notify_reading_completed,
@@ -36,6 +73,20 @@ User = get_user_model()
 SUBSCRIPTION_CREATE_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
 HASENA_RECORD_UPSERT_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
 PERSONAL_READING_RECORD_UPSERT_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
+
+
+def _authz_denial_response(decision):
+    denial = decision.denial
+    if denial.body is None:
+        return Response(status=denial.status_code)
+    return Response(denial.body, status=denial.status_code)
+
+
+def _authz_object_id(pk):
+    try:
+        return int(pk)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _get_cron_request_secret(request):
@@ -423,6 +474,7 @@ def _validate_progress_request(data):
     }, None
 
 
+@extend_schema(responses={200: openapi.ProgressUpdateResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def update_bible_progress(request):
@@ -464,56 +516,21 @@ def update_bible_progress(request):
         schedule_ids = progress_request['schedule_ids']
         action = progress_request['action']
 
-        # 1. 스케줄 조회 및 검증
-        try:
-            requested_schedules = list(
-                _readable_schedule_queryset(request.user).filter(id__in=schedule_ids)
-            )
-            if not requested_schedules:
-                return Response({
-                    'success': False,
-                    'error': '존재하지 않는 스케줄입니다.'
-                }, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error in update_bible_progress schedule lookup: {str(e)}", exc_info=True)
-            return Response({
-                'success': False,
-                'error': '요청 처리 중 오류가 발생했습니다.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
-        # 2. 스케줄의 plan_id와 요청의 plan_id 일치 여부 검증
-        found_schedule_ids = {schedule.id for schedule in requested_schedules}
-        if found_schedule_ids != set(schedule_ids):
-            return Response({
-                'success': False,
-                'error': '존재하지 않는 스케줄입니다.'
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        daily_schedules = [
-            schedule for schedule in requested_schedules
-            if schedule.plan_id == plan_id
-        ]
-        if len(daily_schedules) != len(schedule_ids):
-            return Response({
-                'success': False,
-                'error': '스케줄 ID와 플랜 ID가 일치하지 않습니다.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # 3. 사용자의 플랜 구독 확인
-        try:
-            subscription = PlanSubscription.objects.get(
-                user=request.user,
+        decision = can(
+            subject_from_request(request),
+            'update_progress',
+            ReadingProgressUpdate(
                 plan_id=plan_id,
-                plan__is_active=True,
-                is_active=True
-            )
-        except PlanSubscription.DoesNotExist:
-            return Response({
-                'success': False,
-                'error': '구독 중인 플랜이 아닙니다.'
-            }, status=status.HTTP_404_NOT_FOUND)
+                schedule_ids=tuple(schedule_ids),
+            ),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
 
-        # 4. 진도 업데이트 또는 생성 (bulk 연산으로 최적화)
+        subscription = decision.value.subscription
+        daily_schedules = decision.value.schedules
+
+        # 진도 업데이트 또는 생성 (bulk 연산으로 최적화)
         is_completed = action == 'complete'
         now = timezone.now()
         completed_schedules = list(daily_schedules)
@@ -572,61 +589,6 @@ def update_bible_progress(request):
             'error': '요청 처리 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_reading_history(request):
-    plan_id = request.query_params.get('plan_id')
-    month = request.query_params.get('month')
-    
-    logger.info(f'Fetching reading history for user: {request.user.id}, plan: {plan_id}, month: {month}')
-    
-    if not plan_id:
-        logger.warning("Plan ID is missing from request")
-        return Response({'error': 'Plan ID is required'}, status=400)
-        
-    try:
-        plan_id = int(plan_id)
-
-        if not _can_read_plan_schedules(request.user, plan_id):
-            return Response({'error': '구독 중인 플랜이 아닙니다.'}, status=404)
-        
-        if month:
-            month = int(month)
-            if month < 1 or month > 12:
-                return Response(
-                    {'error': 'month는 1 이상 12 이하이어야 합니다.'},
-                    status=400,
-                )
-            logger.info(f"Filtering progress for plan_id={plan_id}, month={month}")
-            # schedule을 통해 해당 월의 progress 조회
-            schedules = DailyBibleSchedule.objects.filter(
-                plan_id=plan_id,
-                date__month=month
-            )
-            progress = UserBibleProgress.objects.filter(
-                subscription__plan_id=plan_id,
-                subscription__user=request.user,
-                schedule__in=schedules
-            ).select_related('schedule', 'subscription__plan').order_by('schedule__date')
-        else:
-            logger.info(f"Filtering progress for plan_id={plan_id}")
-            progress = UserBibleProgress.objects.filter(
-                subscription__plan_id=plan_id,
-                subscription__user=request.user
-            ).select_related('schedule', 'subscription__plan').order_by('schedule__date')
-            
-        serializer = UserBibleProgressSerializer(progress, many=True)
-        logger.info(f"Found {len(progress)} progress records")
-        return Response(serializer.data)
-    except ValueError as ve:
-        logger.error(f"Invalid parameter format: {str(ve)}")
-        return Response({'error': 'Invalid plan ID or month format'}, status=400)
-    except Exception as e:
-        logger.error(f"Error in get_reading_history: {str(e)}", exc_info=True)
-        return Response({'error': '요청 처리 중 오류가 발생했습니다.'}, status=500)
-
-
-
 def parse_positive_int_param(request, name):
     raw_value = request.query_params.get(name)
     if raw_value in (None, ''):
@@ -657,6 +619,23 @@ def format_schedule_range(schedule):
     return f'{schedule.book} {schedule.start_chapter}-{schedule.end_chapter}장'
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Active subscribed plan ID (positive integer); defaults to the first active subscription.',
+        ),
+        OpenApiParameter(
+            'schedule_id',
+            int,
+            required=False,
+            description='Schedule ID from the selected plan (positive integer); defaults to the latest completed schedule.',
+        ),
+    ],
+    responses={200: openapi.CertificationProgressResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def certification_progress(request):
@@ -668,32 +647,16 @@ def certification_progress(request):
     if error_response:
         return error_response
 
-    subscriptions = PlanSubscription.objects.filter(
-        user=request.user,
-        is_active=True,
-    ).select_related('plan').order_by('id')
-    if plan_id:
-        subscriptions = subscriptions.filter(plan_id=plan_id)
+    decision = can(
+        subject_from_request(request),
+        'view_certification_progress',
+        CertificationProgress(plan_id=plan_id, schedule_id=schedule_id),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
 
-    subscription = subscriptions.first()
-    if not subscription:
-        return Response({
-            'success': False,
-            'error': '활성 구독 중인 플랜이 없습니다.',
-        }, status=status.HTTP_404_NOT_FOUND)
-
-    selected_schedule = None
-    if schedule_id:
-        selected_schedule = DailyBibleSchedule.objects.filter(
-            id=schedule_id,
-            plan=subscription.plan,
-        ).first()
-        if not selected_schedule:
-            return Response({
-                'success': False,
-                'error': '선택한 스케줄을 찾을 수 없습니다.',
-            }, status=status.HTTP_404_NOT_FOUND)
-
+    subscription = decision.value.subscription
+    selected_schedule = decision.value.selected_schedule
     schedules = DailyBibleSchedule.objects.filter(plan=subscription.plan)
     total_schedules = schedules.count()
     end_date = schedules.order_by('-date').values_list('date', flat=True).first()
@@ -775,6 +738,19 @@ def _parse_optional_year(raw_year):
     return year, None
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter('month', int, required=True, description='Schedule month (1-12).'),
+        OpenApiParameter('plan_id', int, required=True, description='Active public reading plan ID.'),
+        OpenApiParameter(
+            'year',
+            int,
+            required=False,
+            description='Schedule year (1-9999). When omitted, matching months from every year are returned.',
+        ),
+    ],
+    responses={200: openapi.DailyBibleScheduleWithProgressSerializer(many=True)},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_schedules_for_month(request):
@@ -1257,157 +1233,149 @@ class BibleReadingPlanViewSet(viewsets.ModelViewSet):
         serializer = DailyBibleScheduleSerializer(schedules, many=True)
         return Response(serializer.data)
 
+@extend_schema(methods=['GET'], responses={200: openapi.PLAN_SUBSCRIPTION_LIST_RESPONSE})
+@extend_schema(methods=['POST'], responses={201: PlanSubscriptionSerializer})
 @api_view(['GET', 'POST'])
 @permission_classes([permissions.AllowAny])
 def plan_subscription_list(request):
     """플랜 구독 목록 조회 및 생성"""
-    # 비로그인 사용자인 경우 활성화된 모든 공개 플랜 반환
-    if not request.user.is_authenticated:
-        if request.method != 'GET':
-            return Response(
-                {'detail': 'Authentication credentials were not provided.'},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-        public_plans = BibleReadingPlan.objects.filter(is_active=True).order_by('-is_default', 'name')
-        if not public_plans.exists():
-            return Response({
-                'error': '활성화된 플랜이 없습니다.'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        # 기본 플랜이 먼저 오도록 정렬된 목록 반환
-        return Response([{
-            'plan_id': plan.id,
-            'plan_name': plan.name,
-            'is_default': plan.is_default
-        } for plan in public_plans])
+    subject = subject_from_request(request)
 
-    # GET 요청 처리 (구독 목록 조회)
     if request.method == 'GET':
-        # 로그인 사용자인 경우 중복 없는 구독 목록 반환
-        queryset = PlanSubscription.objects.filter(
-            user=request.user,
-            is_active=True
-        ).distinct()  # 중복 제거
-        serializer = PlanSubscriptionSerializer(queryset, many=True)
+        decision = can(
+            subject,
+            'view_subscriptions',
+            PlanSubscriptionCollection(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+
+        collection = decision.value
+        if collection.public_plans:
+            return Response([{
+                'plan_id': plan.id,
+                'plan_name': plan.name,
+                'is_default': plan.is_default
+            } for plan in collection.items])
+
+        serializer = PlanSubscriptionSerializer(collection.items, many=True)
         return Response(serializer.data)
-    
-    # POST 요청 처리 (구독 생성)
-    elif request.method == 'POST':
-        plan_id = request.data.get('plan')
-        
-        # 플랜 정보 가져오기
-        try:
-            plan = _get_subscription_plan(plan_id)
-        except OperationalError as exc:
-            if not _is_database_lock_error(exc):
-                raise
-            return Response(
-                {"detail": "구독 요청이 몰려 처리하지 못했습니다. 다시 시도해주세요."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
-        if plan is None:
-            return Response(
-                {"detail": "존재하지 않는 플랜입니다."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    decision = can(
+        subject,
+        'subscribe',
+        PlanSubscriptionCreation(owner_id=getattr(request.user, 'id', None)),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
 
-        # 비활성화된 플랜은 신규 구독 불가
-        if not plan.is_active:
-            return Response(
-                {"detail": "현재 신규 구독이 중단된 플랜입니다."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        subscription, created = _get_or_create_plan_subscription(request.user, plan)
-        if not created:
-            return Response(
-                {"detail": "이미 구독 중인 플랜입니다."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        serializer = PlanSubscriptionSerializer(subscription)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    plan_id = request.data.get('plan')
 
+    try:
+        plan = _get_subscription_plan(plan_id)
+    except OperationalError as exc:
+        if not _is_database_lock_error(exc):
+            raise
+        return Response(
+            {"detail": "구독 요청이 몰려 처리하지 못했습니다. 다시 시도해주세요."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if plan is None:
+        return Response(
+            {"detail": "존재하지 않는 플랜입니다."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    if not plan.is_active:
+        return Response(
+            {"detail": "현재 신규 구독이 중단된 플랜입니다."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    subscription, created = _get_or_create_plan_subscription(request.user, plan)
+    if not created:
+        return Response(
+            {"detail": "이미 구독 중인 플랜입니다."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    serializer = PlanSubscriptionSerializer(subscription)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+@extend_schema(methods=['GET'], responses={200: PlanSubscriptionSerializer})
+@extend_schema(methods=['PUT'], responses={200: PlanSubscriptionSerializer})
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([permissions.IsAuthenticated])
 def plan_subscription_detail(request, pk):
     """플랜 구독 상세 조회, 수정, 삭제"""
-    try:
-        subscription = PlanSubscription.objects.get(pk=pk, user=request.user)
-    except PlanSubscription.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    # GET 요청 처리 (상세 조회)
+    action_name = {
+        'GET': 'view_subscription',
+        'PUT': 'update_subscription',
+        'DELETE': 'unsubscribe',
+    }[request.method]
+    decision = can(
+        subject_from_request(request),
+        action_name,
+        PlanSubscriptionResource(subscription_id=pk),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+
+    subscription = decision.value
     if request.method == 'GET':
         serializer = PlanSubscriptionSerializer(subscription)
         return Response(serializer.data)
-    
-    # PUT 요청 처리 (수정)
-    elif request.method == 'PUT':
+
+    if request.method == 'PUT':
         serializer = PlanSubscriptionUpdateSerializer(subscription, data=request.data, partial=True)
         if serializer.is_valid():
             updated_subscription = serializer.save()
             return Response(PlanSubscriptionSerializer(updated_subscription).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    # DELETE 요청 처리 (삭제)
-    elif request.method == 'DELETE':
-        # 기본 플랜 구독은 삭제할 수 없음
-        if subscription.plan.is_default:
-            return Response(
-                {"detail": "기본 플랜 구독은 삭제할 수 없습니다."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        with transaction.atomic():
-            _delete_plan_subscription_with_artifacts(subscription)
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
+    with transaction.atomic():
+        _delete_plan_subscription_with_artifacts(subscription)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+@extend_schema(responses={200: openapi.ActiveResponseSerializer})
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def plan_subscription_toggle_active(request, pk):
     """구독 활성화/비활성화 토글"""
-    try:
-        subscription = PlanSubscription.objects.get(pk=pk, user=request.user)
-    except PlanSubscription.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    # 기본 플랜 구독은 비활성화할 수 없음
-    if subscription.plan.is_default and subscription.is_active:
-        return Response(
-            {"detail": "기본 플랜 구독은 취소할 수 없습니다."}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    next_is_active = not subscription.is_active
-    if next_is_active and not subscription.plan.is_active:
-        return Response(
-            {"detail": "현재 신규 구독이 중단된 플랜은 다시 활성화할 수 없습니다."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    decision = can(
+        subject_from_request(request),
+        'toggle_active',
+        PlanSubscriptionResource(subscription_id=pk),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
 
-    subscription.is_active = next_is_active
+    subscription = decision.value
+    subscription.is_active = not subscription.is_active
     subscription.save()
-    
+
     return Response({"is_active": subscription.is_active})
 
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def plan_subscription_progress(request, pk):
-    """특정 구독의 진도 목록 조회"""
-    try:
-        subscription = PlanSubscription.objects.select_related('plan').get(
-            pk=pk,
-            user=request.user,
-            plan__is_active=True,
-        )
-    except PlanSubscription.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    progress = subscription.progress.select_related('schedule', 'subscription__plan').all()
-    serializer = UserBibleProgressSerializer(progress, many=True)
-    return Response(serializer.data)
-
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Active public reading plan ID. Without it, only basic chapter information is returned.',
+        ),
+        OpenApiParameter(
+            'book',
+            str,
+            required=True,
+            enum=sorted(book_to_code.values()),
+            description='Bible book code.',
+        ),
+        OpenApiParameter('chapter', int, required=True, description='Positive chapter number.'),
+    ],
+    responses={200: openapi.ChapterDetailResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_chapter_detail(request):
@@ -1532,6 +1500,12 @@ def get_chapter_detail(request):
         logger.error(f"Error in get_chapter_detail: {str(e)}", exc_info=True)
         return Response({'error': '요청 처리 중 오류가 발생했습니다.'}, status=500)
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter('plan_id', int, required=True, description='Active public reading plan ID.'),
+    ],
+    responses={200: openapi.TodaySchedulesResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_today_schedules(request):
@@ -1641,6 +1615,7 @@ def get_today_schedules(request):
             'error': '요청 처리 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@extend_schema(responses={200: openapi.UserPlansResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_plans(request):
@@ -1673,6 +1648,7 @@ def get_user_plans(request):
         logger.error(f"Error in get_user_plans: {str(e)}", exc_info=True)
         return Response({'error': '요청 처리 중 오류가 발생했습니다.'}, status=500)
 
+@extend_schema(responses={200: openapi.AvailablePlansResponseSerializer})
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_available_plans(request):
@@ -1688,6 +1664,12 @@ def get_available_plans(request):
         logger.error(f"Error in get_available_plans: {str(e)}", exc_info=True)
         return Response({'success': False, 'error': '요청 처리 중 오류가 발생했습니다.'}, status=500)
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter('plan_id', int, required=True, description='Active public reading plan ID.'),
+    ],
+    responses={200: openapi.NextReadingPositionResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_next_reading_position(request):
@@ -1896,6 +1878,19 @@ def get_next_reading_position(request):
             'message': '요청 처리 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@extend_schema(
+    methods=['GET'],
+    parameters=[
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Active public reading plan ID.',
+        ),
+    ],
+    responses={200: VideoBibleIntroSerializer(many=True)},
+)
+@extend_schema(methods=['POST'], responses={201: VideoBibleIntroSerializer})
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def video_intro_list(request):
@@ -1957,6 +1952,7 @@ def _admin_permission_error(request):
     return None
 
 
+@extend_schema(methods=['GET'], responses={200: VideoBibleIntroSerializer})
 @api_view(['GET', 'DELETE'])
 @permission_classes([AllowAny])
 def video_intro_detail(request, pk):
@@ -1986,6 +1982,7 @@ def video_intro_detail(request, pk):
         video_intro.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+@extend_schema(responses={200: openapi.UploadResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdminUser])
 @parser_classes([MultiPartParser, FormParser])
@@ -2202,6 +2199,17 @@ def upload_video_intros(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Subscribed plan ID. Invalid or unsubscribed values are ignored and all active subscribed plans are returned.',
+        ),
+    ],
+    responses={200: openapi.UserVideoIntroSerializer(many=True)},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_video_intros(request):
@@ -2254,6 +2262,15 @@ def get_user_video_intros(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@extend_schema(
+    methods=['GET'],
+    parameters=[
+        OpenApiParameter('year', int, required=False, description='Record year (1-9999).'),
+        OpenApiParameter('month', int, required=False, description='Record month (1-12).'),
+    ],
+    responses={200: openapi.HasenaRecordListItemSerializer(many=True)},
+)
+@extend_schema(methods=['POST'], responses={200: openapi.HasenaRecordResponseSerializer, 201: openapi.HasenaRecordResponseSerializer})
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def hasena_record_list(request):
@@ -2310,29 +2327,7 @@ def hasena_record_list(request):
             'updated_at': record.updated_at.isoformat(),
         }, status=response_status)
 
-@api_view(['GET', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def hasena_record_detail(request, pk):
-    """하세나 기록 상세 조회 및 삭제"""
-    try:
-        record = HasenaRecord.objects.get(pk=pk, user=request.user)
-    except HasenaRecord.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    if request.method == 'GET':
-        data = {
-            'id': record.id,
-            'date': record.date.isoformat(),
-            'is_completed': record.is_completed,
-            'created_at': record.created_at.isoformat(),
-            'updated_at': record.updated_at.isoformat()
-        }
-        return Response(data)
-    
-    elif request.method == 'DELETE':
-        record.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
+@extend_schema(responses={200: openapi.VideoIntroProgressResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def update_video_intro_progress(request):
@@ -2394,32 +2389,19 @@ def update_video_intro_progress(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def plan_subscription_unsubscribe(request, pk):
-    """
-    구독 취소 및 관련 진행도 데이터 삭제
-    """
-    try:
-        subscription = PlanSubscription.objects.get(pk=pk, user=request.user)
-    except PlanSubscription.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    
-    # 기본 플랜 구독은 취소할 수 없음
-    if subscription.plan.is_default:
-        return Response(
-            {"detail": "기본 플랜 구독은 취소할 수 없습니다."}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # 플랜 정보 저장 (응답에 사용)
-    plan_name = subscription.plan.name
-    
-    with transaction.atomic():
-        _delete_plan_subscription_with_artifacts(subscription)
-    
-    return Response({"detail": f"{plan_name} 플랜 구독이 취소되었습니다."})
-
+@extend_schema(
+    methods=['GET'],
+    parameters=[
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Readable plan ID (positive integer).',
+        ),
+    ],
+    responses={200: DailyBibleScheduleSerializer(many=True)},
+)
+@extend_schema(methods=['POST'], responses={201: DailyBibleScheduleSerializer})
 @api_view(['GET', 'POST'])
 @permission_classes([permissions.IsAuthenticated])
 def schedule_list(request):
@@ -2445,6 +2427,8 @@ def schedule_list(request):
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
+@extend_schema(methods=['GET'], responses={200: DailyBibleScheduleSerializer})
+@extend_schema(methods=['PUT'], responses={200: DailyBibleScheduleSerializer})
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([permissions.IsAuthenticated])
 def schedule_detail(request, pk):
@@ -2475,6 +2459,7 @@ def schedule_detail(request, pk):
         schedule.delete()
         return Response(status=204)
 
+@extend_schema(responses={200: openapi.UploadResponseSerializer})
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, permissions.IsAdminUser])
 @parser_classes([MultiPartParser, FormParser])
@@ -2585,6 +2570,17 @@ def upload_schedules_excel(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Active public reading plan ID. Without it, all active users are counted.',
+        ),
+    ],
+    responses={200: openapi.TotalUsersResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])  # IsAuthenticated에서 AllowAny로 변경
 def get_total_users(request):
@@ -2621,6 +2617,12 @@ def get_total_users(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter('plan_id', int, required=True, description='Active public reading plan ID.'),
+    ],
+    responses={200: openapi.PlanStatsResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])  # IsAuthenticated, IsAdminUser에서 AllowAny로 변경
 def get_plan_stats(request):
@@ -2678,6 +2680,17 @@ def get_plan_stats(request):
             'error': '요청 처리 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'plan_id',
+            int,
+            required=False,
+            description='Active public reading plan ID; defaults to the active default plan.',
+        ),
+    ],
+    responses={200: openapi.ProgressStatsResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])  # IsAuthenticated에서 AllowAny로 변경
 def get_progress_stats(request):
@@ -2774,66 +2787,7 @@ def get_progress_stats(request):
             'error': '요청 처리 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def increment_visitor_count(request):
-    """방문자 수 증가"""
-    try:
-        # 세션에서 마지막 방문 날짜 확인
-        last_visit = request.session.get('last_visit')
-        
-        # localtime() 대신 timezone.now()를 사용하여 aware datetime 얻기
-        today = timezone.now().date().isoformat()
-
-        # 오늘 이미 방문했다면 카운트하지 않음
-        if last_visit == today:
-            today_count = VisitorCount.objects.filter(date=timezone.now().date()).first()
-            return Response({
-                'success': True,
-                'daily_count': today_count.daily_count if today_count else 0,
-                'counted': False
-            })
-
-        # 오늘 첫 방문이면 카운트 증가
-        visitor_count = VisitorCount.increment_daily_count()
-
-        # 세션에 마지막 방문 날짜 저장
-        request.session['last_visit'] = today
-
-        return Response({
-            'success': True,
-            'daily_count': visitor_count.daily_count,
-            'counted': True
-        })
-    except Exception as e:
-        logger.error(f"Error in increment_visitor_count: {str(e)}", exc_info=True)
-        return Response({
-            'success': False,
-            'error': '요청 처리 중 오류가 발생했습니다.'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_visitor_stats(request):
-    """방문자 통계 조회"""
-    try:
-        today = timezone.now().date()
-        today_count = VisitorCount.objects.filter(date=today).first()
-        daily_visitors = today_count.daily_count if today_count else 0
-        total_visitors = VisitorCount.get_total_visitors()
-
-        return Response({
-            'success': True,
-            'daily_visitors': daily_visitors,
-            'total_visitors': total_visitors
-        })
-    except Exception as e:
-        logger.error(f"Error in get_visitor_stats: {str(e)}", exc_info=True)
-        return Response({
-            'success': False,
-            'error': '요청 처리 중 오류가 발생했습니다.'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+@extend_schema(responses={200: openapi.HasenaRecordUpdateResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def hasena_record_update(request):
@@ -2872,6 +2826,7 @@ def hasena_record_update(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@extend_schema(responses={200: openapi.HasenaStatusResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_hasena_status(request):
@@ -2903,6 +2858,12 @@ def get_user_hasena_status(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter('date', OpenApiTypes.DATE, required=True, description='Hasena date (YYYY-MM-DD).'),
+    ],
+    responses={200: openapi.HasenaDayResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def get_hasena_day(request):
@@ -2952,6 +2913,13 @@ def get_hasena_day(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter('year', int, required=True, description='Calendar year (2020 or later).'),
+        OpenApiParameter('month', int, required=True, description='Calendar month (1-12).'),
+    ],
+    responses={200: openapi.HasenaCalendarResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def get_hasena_calendar(request):
@@ -2997,6 +2965,7 @@ def get_hasena_calendar(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(responses={200: openapi.HasenaSyncResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
@@ -3023,6 +2992,25 @@ def sync_hasena_entries_from_cron(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter('video_id', str, required=True, description='Hasena video ID.'),
+        OpenApiParameter(
+            'date',
+            OpenApiTypes.DATE,
+            required=False,
+            description='Video date (strict YYYY-MM-DD).',
+        ),
+        OpenApiParameter(
+            'generate',
+            bool,
+            required=False,
+            default=False,
+            description='Generate a missing summary. Only the case-insensitive literal `true` enables generation; every other value is treated as false. Staff authentication is required when enabled.',
+        ),
+    ],
+    responses={200: openapi.HasenaSummaryResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def get_hasena_summary(request):
@@ -3078,6 +3066,7 @@ def get_hasena_summary(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(responses={200: openapi.HasenaSummaryResponseSerializer, 202: openapi.HasenaSummaryPendingResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([permissions.AllowAny])
@@ -3206,6 +3195,25 @@ def generate_hasena_summary_from_cron(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'page',
+            int,
+            required=False,
+            default=1,
+            description='Positive page number.',
+        ),
+        OpenApiParameter(
+            'page_size',
+            int,
+            required=False,
+            default=20,
+            description='Results per page (1-100).',
+        ),
+    ],
+    responses={200: openapi.HasenaSummaryListResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def list_hasena_summaries(request):
@@ -3245,6 +3253,7 @@ def list_hasena_summaries(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(responses={200: openapi.HasenaSummaryRegenerateResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def regenerate_hasena_summary(request):
@@ -3279,6 +3288,7 @@ def regenerate_hasena_summary(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(responses={200: openapi.HasenaSummaryUpdateResponseSerializer})
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_hasena_summary(request, video_id):
@@ -3315,6 +3325,7 @@ def update_hasena_summary(request, video_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(responses={200: openapi.HasenaStatsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_hasena_stats(request):
@@ -3403,13 +3414,26 @@ from .serializers import (
 from collections import defaultdict
 
 
+@extend_schema(methods=['GET'], responses={200: openapi.ReadingPositionResponseSerializer})
+@extend_schema(methods=['POST'], responses={200: openapi.TodoSuccessMessageResponseSerializer})
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def reading_position_view(request):
     """마지막 읽기 위치 조회/저장 API"""
+    action_name = (
+        'view_reading_position' if request.method == 'GET' else 'save_reading_position'
+    )
+    decision = can(
+        subject_from_request(request),
+        action_name,
+        ReadingPositionCurrent(),
+    )
+    if not decision:
+        return _authz_denial_response(decision)
+    position = decision.value
+
     if request.method == 'GET':
         try:
-            position = UserReadingPosition.objects.filter(user=request.user).first()
             if position:
                 serializer = UserReadingPositionSerializer(position)
                 return Response({'success': True, 'position': serializer.data})
@@ -3423,7 +3447,6 @@ def reading_position_view(request):
 
     elif request.method == 'POST':
         try:
-            position = UserReadingPosition.objects.filter(user=request.user).first()
             serializer = UserReadingPositionSerializer(
                 position,
                 data=request.data,
@@ -3446,14 +3469,49 @@ def reading_position_view(request):
 
 class BibleBookmarkViewSet(viewsets.ModelViewSet):
     """북마크 CRUD API"""
+    queryset = BibleBookmark.objects.none()
     serializer_class = BibleBookmarkSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return BibleBookmark.objects.filter(user=self.request.user)
+        decision = can(
+            subject_from_request(self.request),
+            'list_bookmarks',
+            BibleBookmarkCollection(),
+        )
+        if not decision:
+            return BibleBookmark.objects.none()
+        return decision.value
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def retrieve(self, request, *args, **kwargs):
+        decision = can(
+            subject_from_request(request),
+            'view_bookmark',
+            BibleBookmarkResource(bookmark_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(decision.value)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        decision = can(
+            subject_from_request(request),
+            'update_bookmark',
+            BibleBookmarkResource(bookmark_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(
+            decision.value, data=request.data, partial=partial
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
     def _existing_bookmark_response(self, bookmark):
         return Response({
@@ -3468,6 +3526,13 @@ class BibleBookmarkViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
+            decision = can(
+                subject_from_request(request),
+                'create_bookmark',
+                BibleBookmarkCreation(owner_id=getattr(request.user, 'id', None)),
+            )
+            if not decision:
+                return _authz_denial_response(decision)
             # 중복 북마크 체크
             data = serializer.validated_data
             bookmark_type = data.get('bookmark_type', 'chapter')
@@ -3502,11 +3567,25 @@ class BibleBookmarkViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
+        decision = can(
+            subject_from_request(request),
+            'delete_bookmark',
+            BibleBookmarkResource(bookmark_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        self.perform_destroy(decision.value)
         return Response({'success': True, 'message': '북마크가 삭제되었습니다'})
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter('book', str, required=True, description='Bible book code.'),
+            OpenApiParameter('chapter', int, required=True, description='Chapter number.'),
+        ],
+        responses={200: todo_serializers.BibleBookmarkByChapterResponseSerializer},
+    )
     @action(detail=False, methods=['get'], url_path='by-chapter')
     def by_chapter(self, request):
         """특정 장의 북마크 조회"""
@@ -3526,14 +3605,28 @@ class BibleBookmarkViewSet(viewsets.ModelViewSet):
                 'error': 'chapter must be a number'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        bookmarks = self.get_queryset().filter(book=book, chapter=chapter)
-        serializer = self.get_serializer(bookmarks, many=True)
+        decision = can(
+            subject_from_request(request),
+            'view_bookmarks_by_chapter',
+            BibleBookmarkChapterQuery(book=book, chapter=chapter),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(decision.value, many=True)
         return Response({'success': True, 'bookmarks': serializer.data})
 
+    @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     @action(detail=False, methods=['delete'], url_path='delete-all')
     def delete_all(self, request):
         """모든 북마크 삭제"""
-        count, _ = self.get_queryset().delete()
+        decision = can(
+            subject_from_request(request),
+            'clear_bookmarks',
+            BibleBookmarkCollection(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        count, _ = decision.value.delete()
         return Response({
             'success': True,
             'message': f'{count}개의 북마크가 삭제되었습니다'
@@ -3542,27 +3635,83 @@ class BibleBookmarkViewSet(viewsets.ModelViewSet):
 
 class ReflectionNoteViewSet(viewsets.ModelViewSet):
     """묵상노트 CRUD API"""
+    queryset = ReflectionNote.objects.none()
     serializer_class = ReflectionNoteSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return ReflectionNote.objects.filter(user=self.request.user)
+        decision = can(
+            subject_from_request(self.request),
+            'list_notes',
+            ReflectionNoteCollection(),
+        )
+        if not decision:
+            return ReflectionNote.objects.none()
+        return decision.value
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def retrieve(self, request, *args, **kwargs):
+        decision = can(
+            subject_from_request(request),
+            'view_note',
+            ReflectionNoteResource(note_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(decision.value)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        decision = can(
+            subject_from_request(request),
+            'update_note',
+            ReflectionNoteResource(note_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(
+            decision.value, data=request.data, partial=partial
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
+            decision = can(
+                subject_from_request(request),
+                'create_note',
+                ReflectionNoteCreation(owner_id=getattr(request.user, 'id', None)),
+            )
+            if not decision:
+                return _authz_denial_response(decision)
             self.perform_create(serializer)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
+        decision = can(
+            subject_from_request(request),
+            'delete_note',
+            ReflectionNoteResource(note_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        self.perform_destroy(decision.value)
         return Response({'success': True, 'message': '묵상노트가 삭제되었습니다'})
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter('book', str, required=True, description='Bible book code.'),
+            OpenApiParameter('chapter', int, required=True, description='Chapter number.'),
+        ],
+        responses={200: todo_serializers.ReflectionNoteByChapterResponseSerializer},
+    )
     @action(detail=False, methods=['get'], url_path='by-chapter')
     def by_chapter(self, request):
         """특정 장의 묵상노트 조회"""
@@ -3582,14 +3731,28 @@ class ReflectionNoteViewSet(viewsets.ModelViewSet):
                 'error': 'chapter must be a number'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        notes = self.get_queryset().filter(book=book, chapter=chapter)
-        serializer = self.get_serializer(notes, many=True)
+        decision = can(
+            subject_from_request(request),
+            'view_notes_by_chapter',
+            ReflectionNoteChapterQuery(book=book, chapter=chapter),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(decision.value, many=True)
         return Response({'success': True, 'notes': serializer.data})
 
+    @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     @action(detail=False, methods=['delete'], url_path='delete-all')
     def delete_all(self, request):
         """모든 묵상노트 삭제"""
-        count, _ = self.get_queryset().delete()
+        decision = can(
+            subject_from_request(request),
+            'clear_notes',
+            ReflectionNoteCollection(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        count, _ = decision.value.delete()
         return Response({
             'success': True,
             'message': f'{count}개의 묵상노트가 삭제되었습니다'
@@ -3598,27 +3761,83 @@ class ReflectionNoteViewSet(viewsets.ModelViewSet):
 
 class BibleHighlightViewSet(viewsets.ModelViewSet):
     """하이라이트 CRUD API"""
+    queryset = BibleHighlight.objects.none()
     serializer_class = BibleHighlightSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return BibleHighlight.objects.filter(user=self.request.user)
+        decision = can(
+            subject_from_request(self.request),
+            'list_highlights',
+            BibleHighlightCollection(),
+        )
+        if not decision:
+            return BibleHighlight.objects.none()
+        return decision.value
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def retrieve(self, request, *args, **kwargs):
+        decision = can(
+            subject_from_request(request),
+            'view_highlight',
+            BibleHighlightResource(highlight_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(decision.value)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        decision = can(
+            subject_from_request(request),
+            'update_highlight',
+            BibleHighlightResource(highlight_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(
+            decision.value, data=request.data, partial=partial
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
+            decision = can(
+                subject_from_request(request),
+                'create_highlight',
+                BibleHighlightCreation(owner_id=getattr(request.user, 'id', None)),
+            )
+            if not decision:
+                return _authz_denial_response(decision)
             self.perform_create(serializer)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
+        decision = can(
+            subject_from_request(request),
+            'delete_highlight',
+            BibleHighlightResource(highlight_id=_authz_object_id(kwargs.get('pk'))),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        self.perform_destroy(decision.value)
         return Response({'success': True, 'message': '하이라이트가 삭제되었습니다'})
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter('book', str, required=True, description='Bible book code.'),
+            OpenApiParameter('chapter', int, required=True, description='Chapter number.'),
+        ],
+        responses={200: todo_serializers.BibleHighlightByChapterResponseSerializer},
+    )
     @action(detail=False, methods=['get'], url_path='by-chapter')
     def by_chapter(self, request):
         """특정 장의 하이라이트 조회"""
@@ -3638,14 +3857,28 @@ class BibleHighlightViewSet(viewsets.ModelViewSet):
                 'error': 'chapter must be a number'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        highlights = self.get_queryset().filter(book=book, chapter=chapter)
-        serializer = self.get_serializer(highlights, many=True)
+        decision = can(
+            subject_from_request(request),
+            'view_highlights_by_chapter',
+            BibleHighlightChapterQuery(book=book, chapter=chapter),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        serializer = self.get_serializer(decision.value, many=True)
         return Response({'success': True, 'highlights': serializer.data})
 
+    @extend_schema(responses={200: todo_serializers.SuccessMessageResponseSerializer})
     @action(detail=False, methods=['delete'], url_path='delete-all')
     def delete_all(self, request):
         """모든 하이라이트 삭제"""
-        count, _ = self.get_queryset().delete()
+        decision = can(
+            subject_from_request(request),
+            'clear_highlights',
+            BibleHighlightCollection(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        count, _ = decision.value.delete()
         return Response({
             'success': True,
             'message': f'{count}개의 하이라이트가 삭제되었습니다'
@@ -3672,14 +3905,26 @@ BIBLE_CHAPTER_COUNTS = {
 }
 
 
-class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
+class PersonalReadingRecordViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
     """개인 읽기 기록 API"""
+    queryset = PersonalReadingRecord.objects.none()
     serializer_class = PersonalReadingRecordSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post']  # 삭제/수정 불가
 
     def get_queryset(self):
-        return PersonalReadingRecord.objects.filter(user=self.request.user)
+        decision = can(
+            subject_from_request(self.request),
+            'list_reading_records',
+            PersonalReadingRecordCollection(),
+        )
+        if not decision:
+            return PersonalReadingRecord.objects.none()
+        return decision.value
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -3700,6 +3945,14 @@ class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        decision = can(
+            subject_from_request(request),
+            'record_reading',
+            PersonalReadingRecordCreation(owner_id=getattr(request.user, 'id', None)),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+
         data = serializer.validated_data
         record, created = _upsert_personal_reading_record(
             user=request.user,
@@ -3712,10 +3965,20 @@ class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
         )
         return Response(self.get_serializer(record).data, status=response_status)
 
+    @extend_schema(
+        responses={200: todo_serializers.PersonalRecordStatsResponseSerializer},
+    )
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """읽기 통계 조회"""
-        records = self.get_queryset()
+        decision = can(
+            subject_from_request(request),
+            'view_reading_record_stats',
+            PersonalReadingRecordCollection(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        records = decision.value
 
         # 책별 읽은 장 수 계산
         books_progress = defaultdict(lambda: {'read': 0, 'total': 0})
@@ -3767,6 +4030,12 @@ class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
 
         return Response({'success': True, 'stats': stats})
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter('book', str, required=True, description='Bible book code.'),
+        ],
+        responses={200: todo_serializers.PersonalRecordsByBookResponseSerializer},
+    )
     @action(detail=False, methods=['get'], url_path='by-book')
     def by_book(self, request):
         """특정 책의 읽기 기록 조회"""
@@ -3777,7 +4046,14 @@ class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
                 'error': 'book required'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        records = self.get_queryset().filter(book=book)
+        decision = can(
+            subject_from_request(request),
+            'view_reading_records_by_book',
+            PersonalReadingRecordBookQuery(book=book),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        records = decision.value
         serializer = self.get_serializer(records, many=True)
 
         # 읽은 장 목록
@@ -3792,10 +4068,20 @@ class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
             'is_completed': len(read_chapters) >= total_chapters if total_chapters > 0 else False
         })
 
+    @extend_schema(
+        responses={200: todo_serializers.PersonalRecordDatesResponseSerializer},
+    )
     @action(detail=False, methods=['get'])
     def dates(self, request):
         """읽기 날짜 목록 조회 (캘린더용)"""
-        records = self.get_queryset()
+        decision = can(
+            subject_from_request(request),
+            'view_reading_dates',
+            PersonalReadingRecordCollection(),
+        )
+        if not decision:
+            return _authz_denial_response(decision)
+        records = decision.value
         dates = list(
             records.values_list('read_date', flat=True)
             .distinct()
@@ -3806,6 +4092,18 @@ class PersonalReadingRecordViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'dates': date_strings})
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'recent_limit',
+            int,
+            required=False,
+            default=5,
+            description='Number of recent reading records to return; values are clamped to 1-50.',
+        ),
+    ],
+    responses={200: openapi.BibleHomeStatsResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_bible_home_stats(request):

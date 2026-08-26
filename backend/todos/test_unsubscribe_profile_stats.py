@@ -92,17 +92,12 @@ class UnsubscribeProfileStatsTest(TestCase):
         self.assertEqual(profile.current_streak, current_streak)
         self.assertEqual(profile.longest_streak, longest_streak)
 
-    def _unsubscribe(self, subscription):
-        with patch("accounts.services.achievement_service.timezone") as mock_timezone:
-            mock_timezone.now.return_value.date.return_value = self.FIXED_DATE
-            return self.client.post(f"/api/v1/todos/plan/{subscription.pk}/unsubscribe/")
-
     def _delete_subscription(self, subscription):
         with patch("accounts.services.achievement_service.timezone") as mock_timezone:
             mock_timezone.now.return_value.date.return_value = self.FIXED_DATE
             return self.client.delete(f"/api/v1/todos/plan/{subscription.pk}/")
 
-    def test_unsubscribe_recalculates_profile_stats_downward(self):
+    def test_subscription_delete_preserves_earned_achievement(self):
         achievement, _ = UserAchievement.objects.get_or_create(
             user=self.user,
             achievement_type="first_complete",
@@ -110,9 +105,9 @@ class UnsubscribeProfileStatsTest(TestCase):
         )
         self._assert_profile_stats(2, 2, 2)
 
-        response = self._unsubscribe(self.subscription_b)
+        response = self._delete_subscription(self.subscription_b)
 
-        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.status_code, 204)
         self._assert_profile_stats(1, 1, 1)
         self.assertTrue(UserBibleProgress.objects.filter(pk=self.progress_a.pk).exists())
         self.assertFalse(UserBibleProgress.objects.filter(pk=self.progress_b.pk).exists())
@@ -128,24 +123,24 @@ class UnsubscribeProfileStatsTest(TestCase):
         self.assertTrue(UserBibleProgress.objects.filter(pk=self.progress_a.pk).exists())
         self.assertFalse(UserBibleProgress.objects.filter(pk=self.progress_b.pk).exists())
 
-    def test_unsubscribing_last_plan_zeroes_stats(self):
-        first_response = self._unsubscribe(self.subscription_b)
-        self.assertEqual(first_response.status_code, 200, first_response.data)
+    def test_deleting_last_plan_zeroes_stats(self):
+        first_response = self._delete_subscription(self.subscription_b)
+        self.assertEqual(first_response.status_code, 204)
 
-        second_response = self._unsubscribe(self.subscription_a)
+        second_response = self._delete_subscription(self.subscription_a)
 
-        self.assertEqual(second_response.status_code, 200, second_response.data)
+        self.assertEqual(second_response.status_code, 204)
         self._assert_profile_stats(0, 0, 0)
 
-    def test_stats_recalculation_failure_rolls_back_unsubscribe(self):
+    def test_stats_recalculation_failure_rolls_back_delete(self):
         self.client.raise_request_exception = False
 
         with patch(
             "todos.views.AchievementService.update_user_stats",
             side_effect=RuntimeError("forced stats failure"),
         ):
-            response = self.client.post(
-                f"/api/v1/todos/plan/{self.subscription_b.pk}/unsubscribe/"
+            response = self.client.delete(
+                f"/api/v1/todos/plan/{self.subscription_b.pk}/"
             )
 
         self.assertEqual(response.status_code, 500)

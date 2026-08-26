@@ -5,6 +5,11 @@
  */
 
 import { computed, readonly } from 'vue'
+import {
+  fetchInitialAuthUser,
+  fetchUserWithRefreshPolicy,
+  revalidateAuthSession,
+} from './authSessionPolicy'
 
 export interface AuthUser {
   id: number
@@ -238,18 +243,14 @@ export function useAuthService() {
   }
 
   async function fetchUserWithRefresh(options: FetchUserWithRefreshOptions = {}): Promise<AuthUser | null> {
-    const user = await fetchUserFromApi()
-    if (user) return user
-
-    const refreshed = await refreshToken({ logoutOnFailure: false })
-    if (!refreshed) {
-      if (options.logoutOnFailure) {
-        await performLogout()
-      }
-      return null
-    }
-
-    return fetchUserFromApi()
+    return fetchUserWithRefreshPolicy(
+      {
+        fetchUser: fetchUserFromApi,
+        refreshToken,
+        logout: performLogout,
+      },
+      options,
+    )
   }
 
   function startRefreshTimer(): void {
@@ -281,7 +282,10 @@ export function useAuthService() {
           _user.value = cachedUser
         }
 
-        const user = cachedUser ? await fetchUserWithRefresh() : await fetchUserFromApi()
+        const user = await fetchInitialAuthUser(cachedUser, {
+          fetchUser: fetchUserFromApi,
+          fetchUserWithRefresh,
+        })
         
         if (user) {
           _user.value = user
@@ -491,7 +495,11 @@ export function useAuthService() {
   }
 
   async function revalidate(): Promise<boolean> {
-    const user = await fetchUserWithRefresh({ logoutOnFailure: true })
+    const user = await revalidateAuthSession({
+      fetchUser: fetchUserFromApi,
+      refreshToken,
+      logout: performLogout,
+    })
     
     if (user) {
       _user.value = user

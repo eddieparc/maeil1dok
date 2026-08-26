@@ -202,7 +202,7 @@ const checkNickname = async () => {
   
   nicknameCheckTimeout = setTimeout(async () => {
     try {
-      const response = await api.post('/api/v1/auth/check-nickname/', { nickname: value })
+      const response = await api.POST('/api/v1/auth/check-nickname/', { nickname: value })
       if (response.available) {
         isNicknameChecked.value = true
         nicknameError.value = ''
@@ -253,21 +253,21 @@ const handleSubmit = async () => {
   
   loading.value = true
   try {
-    const response = await api.post('/api/v1/auth/email-register/', {
+    const response = await api.POST('/api/v1/auth/email-register/', {
       email: email.value,
       password: password.value,
       password_confirm: passwordConfirm.value,
       nickname: nickname.value
     })
 
-    const data = response.data || response
+    const data = response
 
     if (data.access) {
       auth.setTokens(data.access, data.refresh)
-      auth.setUser(data.user)
+      auth.setUser(data.user as Parameters<typeof auth.setUser>[0])
       
       try {
-        await api.post('/api/v1/auth/send-verification/', { email: email.value })
+        await api.POST('/api/v1/auth/send-verification/', { email: email.value })
       } catch (e) {
         // ignore if verification email fails
       }

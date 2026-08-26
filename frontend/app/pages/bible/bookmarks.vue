@@ -153,7 +153,7 @@ const handleDelete = async (bookmark: Bookmark) => {
   if (!confirmed) return;
 
   try {
-    await api.delete(`/api/v1/todos/bible/bookmarks/${bookmark.id}/`);
+    await api.DELETE(api.path('/api/v1/todos/bible/bookmarks/{id}/', { id: bookmark.id }));
     bookmarks.value = bookmarks.value.filter(b => b.id !== bookmark.id);
   } catch (error) {
     handleApiError(error, '북마크 삭제');

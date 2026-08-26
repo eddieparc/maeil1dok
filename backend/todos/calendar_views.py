@@ -6,6 +6,7 @@ from calendar import monthrange
 from collections import defaultdict
 
 from django.db import transaction
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from django.db.models import Exists, OuterRef, Subquery
 
 from rest_framework import status
@@ -24,6 +25,7 @@ from .serializers import (
     UserPlanDisplaySettingsSerializer,
 )
 from .views import book_to_code
+from . import openapi_serializers as openapi
 
 
 def _calendar_settings_for_user(user):
@@ -52,6 +54,7 @@ def _duplicate_values(values):
     return duplicates
 
 
+@extend_schema(responses={200: openapi.CalendarSettingsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_calendar_settings(request):
@@ -69,6 +72,7 @@ def get_calendar_settings(request):
     })
 
 
+@extend_schema(responses={200: openapi.CalendarSettingResponseSerializer})
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_calendar_setting(request, pk):
@@ -108,6 +112,7 @@ def update_calendar_setting(request, pk):
     })
 
 
+@extend_schema(responses={200: openapi.CalendarSettingsResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def reorder_calendar_settings(request):
@@ -219,6 +224,23 @@ def _calendar_item(display_setting, schedule, is_completed):
     }
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            'year',
+            int,
+            required=False,
+            description='Calendar year (1-9999). Must be supplied together with month; defaults to the current year when both are omitted.',
+        ),
+        OpenApiParameter(
+            'month',
+            int,
+            required=False,
+            description='Calendar month (1-12). Must be supplied together with year; defaults to the current month when both are omitted.',
+        ),
+    ],
+    responses={200: openapi.CalendarMonthResponseSerializer},
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_calendar_month_data(request):
@@ -300,6 +322,7 @@ def get_calendar_month_data(request):
     })
 
 
+@extend_schema(responses={200: openapi.LastIncompletePositionsResponseSerializer})
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_last_incomplete_positions(request):

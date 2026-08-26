@@ -685,7 +685,7 @@ class UpdateBibleProgressTest(ProgressTestBase):
         self.assertEqual(res.status_code, 404)
         self.assertFalse(UserBibleProgress.objects.filter(subscription=self.subscription).exists())
 
-    def test_history_rejects_inactive_plan_subscription(self):
+    def test_month_schedules_rejects_inactive_plan(self):
         UserBibleProgress.objects.create(
             subscription=self.subscription,
             schedule=self.schedules[0],
@@ -695,49 +695,57 @@ class UpdateBibleProgressTest(ProgressTestBase):
         self.plan.is_active = False
         self.plan.save(update_fields=['is_active'])
 
-        res = self.client.get('/api/v1/todos/reading/history/', {'plan_id': self.plan.id})
+        res = self.client.get(
+            '/api/v1/todos/schedules/month/',
+            {'plan_id': self.plan.id, 'month': date.today().month},
+        )
 
         self.assertEqual(res.status_code, 404)
 
-    def test_history_rejects_out_of_range_month(self):
+    def test_month_schedules_rejects_out_of_range_month(self):
         for bad_month in ('0', '13', '99'):
             res = self.client.get(
-                '/api/v1/todos/reading/history/',
+                '/api/v1/todos/schedules/month/',
                 {'plan_id': self.plan.id, 'month': bad_month},
             )
             self.assertEqual(res.status_code, 400, bad_month)
-            self.assertIn('month', res.data['error'])
+            self.assertIn('Month', res.data['error'])
 
-    def test_history_accepts_valid_month(self):
+    def test_month_schedules_includes_completion_state(self):
         UserBibleProgress.objects.create(
             subscription=self.subscription,
             schedule=self.schedules[0],
             is_completed=True,
             completed_at=timezone.now(),
         )
-        this_month = date.today().month
 
         res = self.client.get(
-            '/api/v1/todos/reading/history/',
-            {'plan_id': self.plan.id, 'month': this_month},
+            '/api/v1/todos/schedules/month/',
+            {'plan_id': self.plan.id, 'month': date.today().month},
         )
 
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(len(res.data) >= 1)
+        schedule = next(item for item in res.data if item['id'] == self.schedules[0].id)
+        self.assertTrue(schedule['is_completed'])
 
-    def test_subscription_progress_rejects_inactive_plan_subscription(self):
+    def test_month_schedules_omits_progress_for_inactive_subscription(self):
         UserBibleProgress.objects.create(
             subscription=self.subscription,
             schedule=self.schedules[0],
             is_completed=True,
             completed_at=timezone.now(),
         )
-        self.plan.is_active = False
-        self.plan.save(update_fields=['is_active'])
+        self.subscription.is_active = False
+        self.subscription.save(update_fields=['is_active'])
 
-        res = self.client.get(f'/api/v1/todos/plan/{self.subscription.id}/progress/')
+        res = self.client.get(
+            '/api/v1/todos/schedules/month/',
+            {'plan_id': self.plan.id, 'month': date.today().month},
+        )
 
-        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.status_code, 200)
+        schedule = next(item for item in res.data if item['id'] == self.schedules[0].id)
+        self.assertNotIn('is_completed', schedule)
 
     def test_plan_schedule_mismatch_rejected(self):
         other_plan = BibleReadingPlan.objects.create(name='다른 플랜', created_by=self.user)

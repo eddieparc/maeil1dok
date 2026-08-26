@@ -19,7 +19,7 @@ urlpatterns = [
 
 @override_settings(ROOT_URLCONF=__name__)
 class ReadingFlowProfileStatsTest(TestCase):
-    READING_URL = "/api/v1/todos/reading/"
+    READING_URL = "/api/v1/todos/reading/update/"
     FIXED_DATE = date(2026, 7, 10)
 
     def setUp(self):

@@ -7,7 +7,7 @@ interface Subscription {
   plan_id: number
   plan_name: string
   start_date: string
-  is_active: boolean
+  is_active?: boolean
   is_default: boolean
 }
 
@@ -38,7 +38,7 @@ export const useSubscriptionStore = defineStore('subscription', {
       this.error = null
 
       try {
-        const response = await api.get('/api/v1/todos/plans/user/')
+        const response = await api.GET('/api/v1/todos/plans/user/')
         this.subscriptions = response.data.subscriptions || []
       } catch (error) {
         this.error = '구독 정보를 불러오는데 실패했습니다'
@@ -52,15 +52,17 @@ export const useSubscriptionStore = defineStore('subscription', {
       const api = useApi()
       
       try {
-        const response = await api.post(`/api/v1/todos/plan/${subscriptionId}/toggle-active/`)
+        const response = await api.POST(
+          api.path('/api/v1/todos/plan/{id}/toggle-active/', { id: subscriptionId })
+        )
         
         // 상태 업데이트
-        const index = this.subscriptions.findIndex(sub => sub.id === subscriptionId)
-        if (index !== -1) {
-          this.subscriptions[index].is_active = response.data.is_active
+        const subscription = this.subscriptions.find(sub => sub.id === subscriptionId)
+        if (subscription) {
+          subscription.is_active = response.is_active
         }
 
-        return response.data
+        return response
       } catch (error) {
         throw error
       }
@@ -70,14 +72,14 @@ export const useSubscriptionStore = defineStore('subscription', {
       const api = useApi()
       
       try {
-        const response = await api.post('/api/v1/todos/plan/', {
+        const response = await api.POST('/api/v1/todos/plan/', {
           plan: planId
         })
         
         // 새로운 구독 정보 추가
         await this.fetchSubscriptions()
         
-        return response.data
+        return response
       } catch (error) {
         throw error
       }

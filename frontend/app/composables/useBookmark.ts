@@ -7,6 +7,14 @@ import { ref, type Ref } from 'vue';
 import { useAuthService } from '~/composables/useAuthService';
 import { useApi } from './useApi';
 import type { Bookmark } from '~/types/bible';
+import type { components } from '~/types/generated/api-schema';
+
+const normalizeBookmark = (bookmark: components['schemas']['BibleBookmark']): Bookmark => ({
+  ...bookmark,
+  start_verse: bookmark.start_verse ?? undefined,
+  end_verse: bookmark.end_verse ?? undefined,
+  title: bookmark.title ?? '',
+});
 
 // Re-export for backward compatibility
 export type { Bookmark } from '~/types/bible';
@@ -27,10 +35,10 @@ export const useBookmark = () => {
 
     try {
       isBookmarkLoading.value = true;
-      const response = await api.get('/api/v1/todos/bible/bookmarks/by-chapter/', {
+      const response = await api.GET('/api/v1/todos/bible/bookmarks/by-chapter/', {
         params: { book, chapter }
       });
-      currentBookmarks.value = response.data?.bookmarks || [];
+      currentBookmarks.value = response.data.bookmarks.map(normalizeBookmark);
     } catch (error) {
       console.error('북마크 불러오기 실패:', error);
       currentBookmarks.value = [];
@@ -64,7 +72,7 @@ export const useBookmark = () => {
 
     try {
       isBookmarkLoading.value = true;
-      await api.post('/api/v1/todos/bible/bookmarks/', {
+      await api.POST('/api/v1/todos/bible/bookmarks/', {
         bookmark_type: bookmarkType,
         book,
         chapter,
@@ -89,7 +97,7 @@ export const useBookmark = () => {
 
     try {
       isBookmarkLoading.value = true;
-      await api.delete(`/api/v1/todos/bible/bookmarks/${bookmarkId}/`);
+      await api.DELETE(api.path('/api/v1/todos/bible/bookmarks/{id}/', { id: bookmarkId }));
       await loadBookmarks(book, chapter);
       return true;
     } catch (error) {
@@ -135,10 +143,8 @@ export const useBookmark = () => {
     if (!auth.isAuthenticated.value) return [];
 
     try {
-      const response = await api.get('/api/v1/todos/bible/bookmarks/');
-      // DRF pagination 응답 처리: { results: [...] } 또는 직접 배열
-      const data = response.data;
-      return Array.isArray(data) ? data : (data?.results || []);
+      const response = await api.GET('/api/v1/todos/bible/bookmarks/');
+      return response.data.results.map(normalizeBookmark);
     } catch (error) {
       console.error('전체 북마크 불러오기 실패:', error);
       return [];

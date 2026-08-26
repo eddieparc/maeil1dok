@@ -7,6 +7,7 @@ import { ref, type Ref } from 'vue';
 import { useAuthService } from '~/composables/useAuthService';
 import { useApi } from './useApi';
 import type { Highlight } from '~/types/bible';
+import type { components } from '~/types/generated/api-schema';
 
 // Re-export for backward compatibility
 export type { Highlight } from '~/types/bible';
@@ -19,6 +20,11 @@ export const DEFAULT_HIGHLIGHT_COLORS = [
   { name: '빨강', value: '#FEE2E2' },
   { name: '보라', value: '#E9D5FF' },
 ];
+
+const normalizeHighlight = (highlight: components['schemas']['BibleHighlight']): Highlight => ({
+  ...highlight,
+  color: highlight.color ?? DEFAULT_HIGHLIGHT_COLORS[0]!.value,
+});
 
 export const useHighlight = () => {
   const auth = useAuthService();
@@ -63,8 +69,8 @@ export const useHighlight = () => {
 
     try {
       isHighlightLoading.value = true;
-      const response = await api.get('/api/v1/todos/bible/highlights/');
-      highlights.value = response.data || [];
+      const response = await api.GET('/api/v1/todos/bible/highlights/');
+      highlights.value = response.data.results.map(normalizeHighlight);
     } catch (error) {
       console.error('하이라이트 목록 조회 실패:', error);
       highlights.value = [];
@@ -83,10 +89,10 @@ export const useHighlight = () => {
     }
 
     try {
-      const response = await api.get('/api/v1/todos/bible/highlights/by-chapter/', {
+      const response = await api.GET('/api/v1/todos/bible/highlights/by-chapter/', {
         params: { book, chapter }
       });
-      chapterHighlights.value = response.data?.highlights || [];
+      chapterHighlights.value = response.data.highlights.map(normalizeHighlight);
     } catch (error) {
       console.error('장별 하이라이트 조회 실패:', error);
       chapterHighlights.value = [];
@@ -119,13 +125,13 @@ export const useHighlight = () => {
 
     try {
       isHighlightLoading.value = true;
-      const response = await api.post('/api/v1/todos/bible/highlights/', data);
-      const newHighlight = response.data || response;
-      if (newHighlight?.id) {
+      const response = await api.POST('/api/v1/todos/bible/highlights/', data);
+      const newHighlight = normalizeHighlight(response);
+      if (newHighlight.id) {
         chapterHighlights.value.push(newHighlight);
         return newHighlight;
       }
-      console.error('하이라이트 생성 응답 형식 오류:', response);
+      console.error('하이라이트 생성 응답 형식 오류:', newHighlight);
       return null;
     } catch (error) {
       console.error('하이라이트 생성 실패:', error);
@@ -146,10 +152,13 @@ export const useHighlight = () => {
 
     try {
       isHighlightLoading.value = true;
-      const response = await api.put(`/api/v1/todos/bible/highlights/${id}/`, data);
-      const updated = response.data || response;
+      const response = await api.PUT(
+        api.path('/api/v1/todos/bible/highlights/{id}/', { id }),
+        data,
+      );
+      const updated = normalizeHighlight(response);
 
-      if (updated?.id) {
+      if (updated.id) {
         const index = chapterHighlights.value.findIndex(h => h.id === id);
         if (index !== -1) {
           chapterHighlights.value[index] = updated;
@@ -173,7 +182,7 @@ export const useHighlight = () => {
 
     try {
       isHighlightLoading.value = true;
-      await api.delete(`/api/v1/todos/bible/highlights/${id}/`);
+      await api.DELETE(api.path('/api/v1/todos/bible/highlights/{id}/', { id }));
 
       // 로컬 상태 업데이트
       highlights.value = highlights.value.filter(h => h.id !== id);

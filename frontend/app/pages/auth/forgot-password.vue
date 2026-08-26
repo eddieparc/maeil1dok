@@ -97,7 +97,7 @@ const submitted = ref(false)
 const handleSubmit = async () => {
   loading.value = true
   try {
-    await api.post('/api/v1/auth/request-password-reset/', { email: email.value })
+    await api.POST('/api/v1/auth/request-password-reset/', { email: email.value })
     submitted.value = true
   } catch (error) {
     await modal.alert({

@@ -1,10 +1,4 @@
-const ALLOWED_APP_SCHEMES = new Set(['maeil1dok', 'maeil1dok-dev']);
-
-const getSafeAppScheme = (scheme: unknown) => {
-  if (typeof scheme !== 'string') return '';
-  if (!ALLOWED_APP_SCHEMES.has(scheme)) return '';
-  return scheme;
-};
+import { getNativeAppScheme } from '#shared/utils/authCallbackRuntime';
 
 export default defineEventHandler((event) => {
   const url = getRequestURL(event);
@@ -26,8 +20,8 @@ export default defineEventHandler((event) => {
     return;
   }
   
-  const safeScheme = getSafeAppScheme(stateData?.scheme);
-  if (stateData?.from !== 'app' || !safeScheme) {
+  const safeScheme = getNativeAppScheme(stateData);
+  if (!safeScheme) {
     return;
   }
   

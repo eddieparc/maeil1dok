@@ -189,7 +189,7 @@ class MainFlowCatchupSyncTest(TestCase):
     """Completing/cancelling a reading from the main flow must keep the active
     catchup session's denormalized CatchupSchedule rows in sync."""
 
-    READING_URL = "/api/v1/todos/reading/"
+    READING_URL = "/api/v1/todos/reading/update/"
 
     def setUp(self):
         self.client = APIClient()

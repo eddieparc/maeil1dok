@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 from .models import (
-    DailyBibleSchedule, UserBibleProgress, BibleReadingPlan,
+    DailyBibleSchedule, BibleReadingPlan,
     PlanSubscription, VideoBibleIntro, UserPlanDisplaySettings,
     CatchupSession, CatchupSchedule,
     UserReadingPosition, BibleBookmark, ReflectionNote, BibleHighlight, PersonalReadingRecord,
@@ -127,27 +127,14 @@ class DailyBibleScheduleSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError("유효한 URL을 입력하세요.")
         return value
 
-class UserBibleProgressSerializer(serializers.ModelSerializer):
-    plan_name = serializers.CharField(source='subscription.plan.name', read_only=True)
-    date = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = UserBibleProgress
-        fields = ['id', 'subscription', 'plan_name', 'is_completed', 'completed_at', 'date', 'schedule']
-        
-    def get_date(self, obj):
-        # N+1 방지를 위해 schedule을 select_related로 가져오세요.
-        return obj.schedule.date if obj.schedule else None
-
-
 class BibleProgressResponse(serializers.Serializer):
     status = serializers.CharField()  # completed, not_started
     section = serializers.SerializerMethodField()
-    
+
     def get_section(self, obj):
         if not obj.get('section'):
             return None
-            
+
         return {
             'date': obj['section'].date,
             'book': obj['section'].book,
@@ -155,6 +142,7 @@ class BibleProgressResponse(serializers.Serializer):
             'end_chapter': obj['section'].end_chapter,
             'is_completed': obj.get('is_completed', False)
         }
+
 
 class BibleReadingPlanSerializer(serializers.ModelSerializer):
     created_by_username = serializers.SerializerMethodField()
@@ -169,7 +157,7 @@ class BibleReadingPlanSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_by', 'created_by_username', 'subscriber_count']
     
-    def get_created_by_username(self, obj):
+    def get_created_by_username(self, obj) -> str:
         # N+1 방지를 위해 created_by를 select_related로 가져오세요.
         if obj.created_by:
             return obj.created_by.username
@@ -598,7 +586,7 @@ class BibleBookmarkSerializer(VerseWindowValidationMixin, BibleLocationValidatio
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
-    def get_book_name(self, obj):
+    def get_book_name(self, obj) -> str:
         return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
 
     def validate(self, attrs):
@@ -621,7 +609,7 @@ class ReflectionNoteSerializer(VerseWindowValidationMixin, BibleLocationValidati
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
-    def get_book_name(self, obj):
+    def get_book_name(self, obj) -> str:
         return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
 
     def validate(self, attrs):
@@ -643,7 +631,7 @@ class BibleHighlightSerializer(VerseWindowValidationMixin, BibleLocationValidati
         ]
         read_only_fields = ['id', 'book_name', 'created_at', 'updated_at']
 
-    def get_book_name(self, obj):
+    def get_book_name(self, obj) -> str:
         return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
 
     def validate(self, attrs):
@@ -662,8 +650,59 @@ class PersonalReadingRecordSerializer(BibleLocationValidationMixin, serializers.
         fields = ['id', 'book', 'book_name', 'chapter', 'read_date', 'created_at']
         read_only_fields = ['id', 'created_at']
 
-    def get_book_name(self, obj):
+    def get_book_name(self, obj) -> str:
         return BIBLE_BOOKS_KOR.get(obj.book, obj.book)
+
+
+class SuccessMessageResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+
+
+class BibleBookmarkByChapterResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    bookmarks = BibleBookmarkSerializer(many=True)
+
+
+class ReflectionNoteByChapterResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    notes = ReflectionNoteSerializer(many=True)
+
+
+class BibleHighlightByChapterResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    highlights = BibleHighlightSerializer(many=True)
+
+
+class PersonalRecordsByBookResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    records = PersonalReadingRecordSerializer(many=True)
+    read_chapters = serializers.ListField(child=serializers.IntegerField())
+    total_chapters = serializers.IntegerField()
+    is_completed = serializers.BooleanField()
+
+
+class PersonalRecordDatesResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    dates = serializers.ListField(child=serializers.DateField())
+
+
+class BookProgressSerializer(serializers.Serializer):
+    read = serializers.IntegerField()
+    total = serializers.IntegerField()
+
+
+class PersonalRecordStatsDataSerializer(serializers.Serializer):
+    total_chapters_read = serializers.IntegerField()
+    books_read = serializers.IntegerField()
+    books_completed = serializers.IntegerField()
+    current_streak = serializers.IntegerField()
+    books_progress = serializers.DictField(child=BookProgressSerializer())
+
+
+class PersonalRecordStatsResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    stats = PersonalRecordStatsDataSerializer()
 
 
 HASENA_RECORD_MIN_DATE = date(1900, 1, 1)

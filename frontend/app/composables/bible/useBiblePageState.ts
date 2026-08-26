@@ -20,13 +20,24 @@
  */
 
 import { ref, computed, type Ref, type ComputedRef } from 'vue';
-import type { LocationQuery, LocationQueryValue } from 'vue-router';
+import type { LocationQuery } from 'vue-router';
 import { useBibleData } from '~/composables/useBibleData';
 import { useNavigation } from '~/composables/useNavigation';
+import {
+  buildBibleShareUrl,
+  type BibleVerseRange,
+} from './bibleShare';
 import type { ViewMode } from '~/types/bible';
 
 // Re-export for backward compatibility
 export type { ViewMode } from '~/types/bible';
+export {
+  buildBibleSelectionShareData,
+  buildBibleShareUrl,
+  formatVerseRangeParam,
+  parseVerseRangeParam,
+  type BibleVerseRange,
+} from './bibleShare';
 
 /**
  * useBiblePageState 반환 타입
@@ -68,49 +79,6 @@ export interface UseBiblePageStateReturn {
   // URL Generation
   generateShareUrl: (verseRange?: BibleVerseRange) => string;
 }
-
-export interface BibleVerseRange {
-  start: number;
-  end: number;
-}
-
-const getFirstQueryValue = (
-  value: LocationQueryValue | LocationQueryValue[] | undefined
-): string | null => {
-  if (Array.isArray(value)) {
-    const [firstValue] = value;
-    return firstValue ?? null;
-  }
-
-  return value ?? null;
-};
-
-export const parseVerseRangeParam = (
-  value: LocationQueryValue | LocationQueryValue[] | undefined
-): BibleVerseRange | null => {
-  const rawValue = getFirstQueryValue(value)?.trim();
-  if (!rawValue) return null;
-
-  const match = rawValue.match(/^(\d+)(?:-(\d+))?$/);
-  if (!match) return null;
-
-  const [, startValue, endValue] = match;
-  if (!startValue) return null;
-
-  const start = Number.parseInt(startValue, 10);
-  const end = endValue ? Number.parseInt(endValue, 10) : start;
-  if (!Number.isInteger(start) || !Number.isInteger(end) || start <= 0 || end < start) {
-    return null;
-  }
-
-  return { start, end };
-};
-
-const formatVerseRangeParam = (verseRange: BibleVerseRange): string => {
-  return verseRange.start === verseRange.end
-    ? String(verseRange.start)
-    : `${verseRange.start}-${verseRange.end}`;
-};
 
 /**
  * Bible 페이지 상태 및 네비게이션 composable
@@ -278,22 +246,12 @@ export function useBiblePageState(): UseBiblePageStateReturn {
   // ============================================
 
   const generateShareUrl = (verseRange?: BibleVerseRange): string => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    const params = new URLSearchParams();
-
-    params.set('book', currentBook.value);
-    params.set('chapter', String(currentChapter.value));
-
-    // GAE(개역개정)가 아닐 때만 version 포함
-    if (currentVersion.value !== 'GAE') {
-      params.set('version', currentVersion.value);
-    }
-
-    if (verseRange && verseRange.start > 0 && verseRange.end >= verseRange.start) {
-      params.set('verse', formatVerseRangeParam(verseRange));
-    }
-
-    return `${baseUrl}/bible?${params.toString()}`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return buildBibleShareUrl(origin, {
+      book: currentBook.value,
+      chapter: currentChapter.value,
+      version: currentVersion.value,
+    }, verseRange);
   };
 
   // ============================================

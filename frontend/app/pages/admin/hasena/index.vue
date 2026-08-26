@@ -152,7 +152,9 @@ const fetchSummaries = async (reset = true) => {
   }
 
   try {
-    const { data } = await api.get(`/api/v1/todos/hasena/summaries/?page=${page.value}&page_size=${pageSize}`)
+    const { data } = await api.GET('/api/v1/todos/hasena/summaries/', {
+      params: { page: page.value, page_size: pageSize }
+    })
     if (data.success) {
       if (reset) {
         summaries.value = data.summaries
@@ -179,7 +181,7 @@ const regenerateSummary = async (videoId: string) => {
   
   regenerating.value = videoId
   try {
-    const { data } = await api.post('/api/v1/todos/hasena/summaries/regenerate/', { video_id: videoId })
+    const data = await api.POST('/api/v1/todos/hasena/summaries/regenerate/', { video_id: videoId })
     if (data.success) {
       await fetchSummaries()
     }
@@ -203,7 +205,9 @@ const openEditModal = (summary: Summary) => {
 
 const fetchFullSummary = async (videoId: string) => {
   try {
-    const { data } = await api.get(`/api/v1/todos/hasena/summary/?video_id=${videoId}`)
+    const { data } = await api.GET('/api/v1/todos/hasena/summary/', {
+      params: { video_id: videoId }
+    })
     if (data.success) {
       editForm.value.summary = data.summary
       editForm.value.title = data.title || ''
@@ -223,10 +227,15 @@ const saveSummary = async () => {
   
   saving.value = true
   try {
-    const { data } = await api.put(`/api/v1/todos/hasena/summaries/${editForm.value.video_id}/`, {
-      summary: editForm.value.summary,
-      title: editForm.value.title
-    })
+    const data = await api.PUT(
+      api.path('/api/v1/todos/hasena/summaries/{video_id}/', {
+        video_id: editForm.value.video_id
+      }),
+      {
+        summary: editForm.value.summary,
+        title: editForm.value.title
+      }
+    )
     if (data.success) {
       await fetchSummaries()
       closeEditModal()

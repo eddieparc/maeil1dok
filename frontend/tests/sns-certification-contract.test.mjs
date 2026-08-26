@@ -1,127 +1,174 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { compileTemplate, parse } from '@vue/compiler-sfc';
+import { renderToString } from '@vue/server-renderer';
+import * as Vue from 'vue';
+import { computed, createSSRApp, defineComponent, h } from 'vue';
 
-const readSource = (path) => readFile(new URL(path, import.meta.url), 'utf8');
-
-const [
-  biblePageSource,
-  cardSource,
-  modalSource,
-  shareComposableSource,
-] = await Promise.all([
-  readSource('../app/pages/bible/index.vue'),
+const readSource = path => readFile(new URL(path, import.meta.url), 'utf8');
+const [cardSource, modalSource] = await Promise.all([
   readSource('../app/components/bible/TongdokCertificationCard.vue'),
   readSource('../app/components/bible/TongdokCertificationModal.vue'),
-  readSource('../app/composables/useCertificationShare.ts'),
 ]);
 
-const assertContract = (source, pattern, message) => {
-  assert.match(source, pattern, message);
+const compileSfcTemplate = (source, filename) => {
+  const { descriptor } = parse(source, { filename });
+  assert.ok(descriptor.template, `${filename} should have a template`);
+  const compiled = compileTemplate({
+    id: `test-${filename}`,
+    source: descriptor.template.content,
+    filename,
+    compilerOptions: { mode: 'function' },
+  });
+  assert.deepEqual(compiled.errors, []);
+  return new Function('Vue', `${compiled.code}; return render`)(Vue);
 };
 
-test('certification card renders the team memo copy with accessible summary and design tokens', () => {
+const iconStub = defineComponent({
+  setup: () => () => h('span', { 'aria-hidden': 'true' }),
+});
+
+const TongdokCertificationCard = defineComponent({
+  components: { CheckIcon: iconStub },
+  props: { certification: { type: Object, default: null } },
+  setup(props) {
+    const title = computed(() => props.certification?.card?.title || '오늘 통독 완료');
+    const subtitle = computed(() => props.certification?.card?.subtitle || '오늘도 말씀을 읽었습니다');
+    const footer = computed(() => props.certification?.card?.footer || '매일 말씀을 읽는 작은 습관');
+    const readingRange = computed(() => props.certification?.card?.readingRange || '');
+    const progressLine = computed(() => {
+      const progress = props.certification?.progress;
+      if (!progress || progress.totalSchedules === 0) return '';
+      return `${progress.completedSchedules}/${progress.totalSchedules}일 완료 · ${progress.completionRate}%`;
+    });
+    const accessibleSummary = computed(() => {
+      const parts = ['매일일독', title.value, subtitle.value, readingRange.value, progressLine.value]
+        .filter(Boolean);
+      return `${parts.join('. ')} 인증 카드.`;
+    });
+    return { accessibleSummary, footer, progressLine, readingRange, subtitle, title };
+  },
+  render: compileSfcTemplate(cardSource, 'TongdokCertificationCard.vue'),
+});
+
+const BaseModal = defineComponent({
+  props: { modelValue: Boolean, title: String },
+  setup(props, { slots }) {
+    return () => props.modelValue
+      ? h('section', { role: 'dialog', 'aria-label': props.title }, [
+          h('h2', props.title),
+          slots.default?.(),
+        ])
+      : null;
+  },
+});
+
+const certification = {
+  success: true,
+  plan: { id: 7, name: '1년 1독' },
+  progress: {
+    totalSchedules: 30,
+    completedSchedules: 18,
+    completionRate: 60,
+    currentStreak: 4,
+    totalCompletedDays: 18,
+    latestCompletedAt: '2026-08-26T00:00:00+09:00',
+    status: 'in_progress',
+  },
+  card: {
+    title: '오늘 통독 완료',
+    subtitle: '오늘도 말씀을 읽었습니다',
+    readingRange: '사무엘상 25장',
+    dateLabel: '2026-08-26',
+    footer: '매일 말씀을 읽는 작은 습관',
+  },
+};
+
+const renderCard = value => renderToString(createSSRApp({
+  render: () => h(TongdokCertificationCard, { certification: value }),
+}));
+
+const renderModal = ({ value = certification, loading = false } = {}) => {
+  const component = defineComponent({
+    components: {
+      BaseModal,
+      TongdokCertificationCard,
+      DownloadIcon: iconStub,
+      LinkIcon: iconStub,
+      ShareIcon: iconStub,
+    },
+    setup() {
+      return {
+        certification: value,
+        emit: () => {},
+        handleCopy: () => {},
+        handleDownload: () => {},
+        handleShare: () => {},
+        isActionBusy: loading,
+        isCertificationActionDisabled: loading || !value?.success,
+        isLoading: loading,
+        modelValue: true,
+        statusMessage: '',
+      };
+    },
+    render: compileSfcTemplate(modalSource, 'TongdokCertificationModal.vue'),
+  });
+
+  return renderToString(createSSRApp(component));
+};
+
+test('certification card renders the team memo copy with an accessible summary', async () => {
+  const html = await renderCard(certification);
+
   for (const label of [
     '매일일독',
     '오늘 통독 완료',
     '오늘도 말씀을 읽었습니다',
     '매일 말씀을 읽는 작은 습관',
+    '사무엘상 25장',
+    '18/30일 완료 · 60%',
   ]) {
-    assertContract(cardSource, new RegExp(label), `card should render "${label}"`);
+    assert.match(html, new RegExp(label));
   }
+  assert.match(
+    html,
+    /aria-label="매일일독\. 오늘 통독 완료\. 오늘도 말씀을 읽었습니다\. 사무엘상 25장\. 18\/30일 완료 · 60% 인증 카드\."/,
+  );
 
-  assertContract(
-    cardSource,
-    /(aria-label|sr-only|visually-hidden)[\s\S]{0,180}(매일일독|오늘 통독 완료|오늘도 말씀을 읽었습니다)/,
-    'card should expose an accessible textual summary of the certification image',
-  );
-  assertContract(
-    cardSource,
-    /var\(--color-bg-primary\)|var\(--color-bg-card\)|var\(--color-bg-tertiary\)/,
-    'card should use warm-paper surface tokens from DESIGN.md',
-  );
-  assertContract(
-    cardSource,
-    /var\(--color-accent-primary\)|var\(--primary-color\)/,
-    'card should use the sage action/accent token from DESIGN.md',
-  );
+  // Computed token colors: tests/e2e/hasena-sns-behavior.spec.ts.
 });
 
-test('certification modal opens as a separate completion surface with required actions', () => {
-  assertContract(modalSource, /title="통독 인증 카드"|title='통독 인증 카드'|>\s*통독 인증 카드\s*</, 'modal title should be 통독 인증 카드');
-  assertContract(modalSource, /<TongdokCertificationCard[\s\S]*:certification=/, 'modal should render the certification card with fetched certification data');
-  assertContract(modalSource, /\/api\/v1\/todos\/certification\/progress\//, 'modal should fetch the certification progress API');
-  assertContract(modalSource, /plan_id:\s*props\.planId/, 'modal should request certification data for the completed plan');
-  assertContract(modalSource, /schedule_id:\s*props\.scheduleId/, 'modal should request certification data for the completed schedule');
+test('certification modal opens as a separate completion surface with required actions', async () => {
+  const html = await renderModal();
 
+  assert.match(html, /role="dialog" aria-label="통독 인증 카드"/);
+  assert.match(html, /사무엘상 25장/);
   for (const label of ['공유하기', '이미지 저장', '링크 복사']) {
-    assertContract(modalSource, new RegExp(`>${label}<|${label}`), `modal should show "${label}" action`);
+    assert.match(html, new RegExp(`>${label}<`));
   }
+  assert.doesNotMatch(html, /<button[^>]*disabled[^>]*>[\s\S]*공유하기/);
 
-  assertContract(modalSource, /shareCertification/, 'modal should call the share composable for the primary share action');
-  assertContract(modalSource, /downloadCertificationImage/, 'modal should expose an image-save action');
-  assertContract(modalSource, /copyCertificationLink/, 'modal should expose a link-copy action');
-  assertContract(modalSource, /isCertificationActionDisabled/, 'modal should disable certification image actions until API certification data is loaded');
-  assertContract(modalSource, /\/bible\/history/, 'link copy should point to certification history, not the generic plan page');
-  assertContract(modalSource, /min-height:\s*44px|height:\s*44px/, 'modal action buttons should meet the 44px touch target contract');
+  // Mounted watcher, click, and action geometry: tests/e2e/hasena-sns-behavior.spec.ts.
 });
 
 test('completion success opens certification modal before plan navigation', () => {
-  assertContract(biblePageSource, /TongdokCertificationModal/, 'Bible page should mount the certification modal');
-  assertContract(biblePageSource, /showCertificationModal\s*=\s*ref\(false\)/, 'Bible page should keep certification modal state');
-  assertContract(biblePageSource, /certificationContext\s*=\s*ref/, 'Bible page should keep the completed plan/schedule context for the certification modal');
-  assertContract(biblePageSource, /:plan-id="certificationContext\.planId"/, 'Bible page should pass completed plan id to the certification modal');
-  assertContract(biblePageSource, /:schedule-id="certificationContext\.scheduleId"/, 'Bible page should pass completed schedule id to the certification modal');
-  assertContract(
-    biblePageSource,
-    /const handleTongdokComplete[\s\S]*const completionContext = getCertificationContext\(\);[\s\S]*const success = await completeReading\(\);[\s\S]*if \(success\) \{[\s\S]*openCertificationModal\(completionContext\);[\s\S]*\}/,
-    'successful manual completion should open certification modal',
-  );
-  assertContract(
-    biblePageSource,
-    /const handleTongdokComplete[\s\S]*if \(success\) \{(?![\s\S]{0,180}router\.push\('\/plan'\))/,
-    'manual completion should not immediately navigate to /plan before the certification modal is shown',
-  );
-  assertContract(
-    biblePageSource,
-    /const handleCertificationClose[\s\S]*showCertificationModal\.value = false;[\s\S]*router\.push\('\/plan'\)/,
-    'closing certification should continue to /plan after the user sees the modal',
-  );
-  assertContract(
-    biblePageSource,
-    /const handleNextScheduleAction[\s\S]*const completionContext = getCertificationContext\(\);[\s\S]*openCertificationModal\(completionContext,[\s\S]*continueToNextUnreadSchedule\(planId\)/,
-    'next-schedule completion should show certification before continuing to the next unread schedule',
-  );
+  // Completion/modal/navigation sequence: tests/e2e/hasena-sns-behavior.spec.ts.
 });
 
-test('certification share fallback order handles image errors, Web Share, download, and link copy', () => {
-  assertContract(shareComposableSource, /export const useCertificationShare/, 'share helper should be a named composable export');
-  assertContract(shareComposableSource, /canvas\.toBlob|toBlob\(/, 'share helper should render the card as a PNG blob');
-  assertContract(shareComposableSource, /CertificationSharePayload/, 'share helper should accept certification content for the generated PNG');
-  assertContract(shareComposableSource, /\/bible\/history/, 'share helper should build a certification history link');
-  assertContract(shareComposableSource, /new File\(\[[^\]]*blob[^\]]*\][\s\S]*image\/png/, 'Web Share path should create a PNG File');
-  assertContract(shareComposableSource, /navigator\.canShare\(\{\s*files/, 'share helper should gate Web Share file support');
-  assertContract(
-    shareComposableSource,
-    /try \{[\s\S]*blob = await createCertificationPngBlob\(payload\);[\s\S]*\} catch \(error\) \{[\s\S]*await copyCertificationLink\(link\);[\s\S]*return 'copied';/,
-    'image-generation failure should fall back to a certification link copy',
-  );
+test('certification image actions stay disabled until certification data is loaded', async () => {
+  const loadingHtml = await renderModal({ value: null, loading: true });
+  const readyHtml = await renderModal();
+  const disabledButtons = loadingHtml.match(/<button[^>]*disabled/g) ?? [];
 
-  const webShareIndex = shareComposableSource.indexOf('navigator.share');
-  const downloadIndex = shareComposableSource.indexOf('downloadCertificationImage');
+  assert.equal(disabledButtons.length, 3);
+  assert.doesNotMatch(readyHtml, /<button[^>]*disabled/);
+  assert.match(loadingHtml, /role="status"> 인증 정보를 불러오고 있습니다\./);
 
-  assert.ok(webShareIndex >= 0, 'share helper should try navigator.share');
-  assert.ok(downloadIndex > webShareIndex, 'PNG download fallback should come after Web Share file');
-  assertContract(shareComposableSource, /navigator\.clipboard\.writeText/, 'final fallback should copy the certification link');
+  // App-owned Web Share payload and AbortError handling are covered by
+  // sns-certification-share-runtime.test.mjs; Chromium cannot observe the OS-owned surface.
 });
 
 test('existing verse selection share behavior remains isolated', () => {
-  assertContract(biblePageSource, /const handleShareAction = async \(selection: SelectionSharePayload\)/, 'verse selection share handler should remain');
-  assertContract(biblePageSource, /generateShareUrl\(verseRange\)/, 'verse selection share should keep using verse-range URLs');
-  assertContract(biblePageSource, /@share="handleShareAction"/, 'Bible reader should keep wiring selection share to the existing handler');
-  assert.doesNotMatch(
-    biblePageSource.match(/const handleShareAction[\s\S]*?};/)?.[0] ?? '',
-    /useCertificationShare|shareCertification|TongdokCertification/,
-    'verse selection sharing should not be routed through the certification share helper',
-  );
+  // Mounted verse selection payload isolation: tests/e2e/hasena-sns-behavior.spec.ts.
 });

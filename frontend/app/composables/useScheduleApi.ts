@@ -6,14 +6,41 @@
 
 import { ref } from 'vue';
 import { useApi } from '~/composables/useApi';
+import { BIBLE_BOOKS } from '~/composables/useBibleData';
 import { useErrorHandler } from '~/composables/useErrorHandler';
 import { useToast } from '~/composables/useToast';
+import type { components, paths } from '~/types/generated/api-schema';
 import type {
   Schedule,
   NextPositionResponse,
-  CurrentPositionResponse,
   ReadingAction,
 } from '~/types/plan';
+
+type BibleBook = NonNullable<
+  paths['/api/v1/todos/detail/']['get']['parameters']['query']
+>['book'];
+
+const BIBLE_BOOK_CODES = new Set<string>(
+  [...BIBLE_BOOKS.old, ...BIBLE_BOOKS.new].map(book => book.id)
+);
+const NEXT_POSITION_STATUSES = new Set<string>([
+  'next_incomplete',
+  'all_completed',
+  'today',
+  'nearest',
+  'no_schedule',
+  'error',
+] satisfies NextPositionResponse['status'][]);
+
+const toBibleBook = (value: string): BibleBook | undefined =>
+  BIBLE_BOOK_CODES.has(value) ? (value as BibleBook) : undefined;
+
+const normalizeNextPosition = (
+  response: components['schemas']['NextReadingPositionResponse']
+): NextPositionResponse | null =>
+  NEXT_POSITION_STATUSES.has(response.status)
+    ? { ...response, status: response.status as NextPositionResponse['status'] }
+    : null;
 
 export function useScheduleApi() {
   const api = useApi();
@@ -29,7 +56,7 @@ export function useScheduleApi() {
    * 월별 일정 조회
    */
   async function fetchMonthlySchedules(
-    planId: number | string,
+    planId: number,
     month: number
   ): Promise<Schedule[]> {
     // 동일한 파라미터로 이미 호출 중이면 스킵
@@ -42,10 +69,13 @@ export function useScheduleApi() {
     isFetchingSchedules.value = true;
 
     try {
-      const response = await api.get('/api/v1/todos/schedules/month/', {
+      const response = await api.GET('/api/v1/todos/schedules/month/', {
         params: { plan_id: planId, month },
       });
-      return response.data || [];
+      return response.data.map(schedule => ({
+        ...schedule,
+        is_completed: schedule.is_completed ?? false,
+      }));
     } catch (error) {
       handleApiError(error, '일정 조회', { silent: true });
       return [];
@@ -58,16 +88,16 @@ export function useScheduleApi() {
    * 다음 미완료 위치 조회
    */
   async function fetchNextPosition(
-    planId: number | string
+    planId: number
   ): Promise<NextPositionResponse | null> {
     if (isFetchingNextPosition.value) return null;
     isFetchingNextPosition.value = true;
 
     try {
-      const { data } = await api.get('/api/v1/todos/next-position/', {
+      const { data } = await api.GET('/api/v1/todos/next-position/', {
         params: { plan_id: planId },
       });
-      return data;
+      return normalizeNextPosition(data);
     } catch (error) {
       handleApiError(error, '다음 위치 조회', { silent: true });
       return null;
@@ -80,13 +110,16 @@ export function useScheduleApi() {
    * 현재 읽기 위치 조회
    */
   async function fetchCurrentPosition(
-    planId: number | string,
+    planId: number,
     book: string,
     chapter: number
-  ): Promise<CurrentPositionResponse | null> {
+  ): Promise<components['schemas']['ChapterDetailResponse'] | null> {
+    const bibleBook = toBibleBook(book);
+    if (!bibleBook) return null;
+
     try {
-      const response = await api.get('/api/v1/todos/detail/', {
-        params: { plan_id: planId, book, chapter },
+      const response = await api.GET('/api/v1/todos/detail/', {
+        params: { plan_id: planId, book: bibleBook, chapter },
       });
       return response.data;
     } catch (error) {
@@ -99,17 +132,17 @@ export function useScheduleApi() {
    * 읽기 상태 업데이트
    */
   async function updateReadingStatus(
-    planId: number | string,
+    planId: number,
     scheduleIds: number[],
     action: ReadingAction
   ): Promise<boolean> {
     try {
-      const response = await api.post('/api/v1/todos/reading/update/', {
+      const response = await api.POST('/api/v1/todos/reading/update/', {
         plan_id: planId,
         schedule_ids: scheduleIds,
         action,
       });
-      return response.data?.success !== false;
+      return response.success !== false;
     } catch (error) {
       handleApiError(error, '상태 변경');
       return false;
@@ -120,7 +153,7 @@ export function useScheduleApi() {
    * 일괄 읽기 상태 업데이트 (토스트 메시지 포함)
    */
   async function updateBulkReadingStatus(
-    planId: number | string,
+    planId: number,
     scheduleIds: number[],
     action: ReadingAction
   ): Promise<boolean> {

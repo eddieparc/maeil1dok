@@ -6,13 +6,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'maeil1dok-next/**'
       - 'backend/**'
       - 'frontend/**'
       - 'mobile/**'
       - 'docs/**'
       - '*.md'
-      - 'scripts/migrate-v2/**'
       - 'tests/test_frontend_deployment_config.py'
       - 'tests/test_backend_ci_config.py'
       - 'tests/test_mobile_ci_config.py'
@@ -22,13 +20,11 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
     paths:
-      - 'maeil1dok-next/**'
       - 'backend/**'
       - 'frontend/**'
       - 'mobile/**'
       - 'docs/**'
       - '*.md'
-      - 'scripts/migrate-v2/**'
       - 'tests/test_frontend_deployment_config.py'
       - 'tests/test_backend_ci_config.py'
       - 'tests/test_mobile_ci_config.py'
@@ -38,7 +34,6 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      maeil1dok-next: ${{ steps.filter.outputs.maeil1dok-next }}
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       deployment: ${{ steps.filter.outputs.deployment }}
@@ -51,8 +46,6 @@ jobs:
         id: filter
         with:
           filters: |
-            maeil1dok-next:
-              - 'maeil1dok-next/**'
             backend:
               - 'backend/**'
               - '.github/workflows/ci.yml'
@@ -65,48 +58,11 @@ jobs:
             deployment:
               - 'docs/**'
               - '*.md'
-              - 'scripts/migrate-v2/**'
               - 'tests/test_frontend_deployment_config.py'
               - 'tests/test_backend_ci_config.py'
               - 'tests/test_mobile_ci_config.py'
               - 'tests/test_documentation_integrity.py'
               - '.github/workflows/ci.yml'
-
-  maeil1dok-next-ci:
-    needs: changes
-    if: needs.changes.outputs.maeil1dok-next == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: maeil1dok-next
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: maeil1dok-next/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: TypeScript check
-        run: npx tsc --noEmit
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Unit tests
-        run: npm run test
-
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
   backend-ci:
     needs: changes
@@ -170,6 +126,9 @@ jobs:
 
       - name: Django system checks
         run: python manage.py check --fail-level WARNING
+
+      - name: OpenAPI schema drift gate
+        run: python manage.py test tests.test_openapi_schema
 
       - name: Backend tests (full suite)
         run: python manage.py test accounts todos tests bible_cache
@@ -243,13 +202,46 @@ jobs:
       - name: Account contract tests
         run: npm run test
 
+      # 타입체크는 기존 오류 175건(시그니처 102종)이 남아 있어 그대로는 붉다.
+      # 래칫은 그 기준선을 고정하고 **새로 생긴 오류만** 실패시킨다 —
+      # OpenAPI 스키마에서 생성한 API 계약 타입은 이것이 유일한 집행 수단이다.
+      - name: Typecheck ratchet
+        run: npm run typecheck:ratchet
+
       - name: Production build
         run: npm run build
+
+  frontend-e2e:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser behavior tests
+        run: npm run test:e2e
+
   # ── 자동 배포 (urban-blanks 패턴) ─────────────────────────────────────
   # main push 에서 관련 품질 잡이 모두 성공하면 OCI VM 에 rsync → compose build/up → 라이브 스모크.
   # 시크릿: OCI_HOST / OCI_SSH_USER / OCI_SSH_KEY. .env.oci·.env.frontend.oci·cloudflared 설정은 VM 에 상주.
   deploy-oci:
-    needs: [changes, backend-ci, frontend-ci, deployment-config-ci, maeil1dok-next-ci, mobile-ci]
+    needs: [changes, backend-ci, frontend-ci, frontend-e2e, deployment-config-ci, mobile-ci]
     if: >-
       !cancelled() && !failure() &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main' &&

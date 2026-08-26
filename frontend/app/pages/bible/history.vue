@@ -113,7 +113,7 @@ import { useBibleData } from '~/composables/useBibleData';
 import { useErrorHandler } from '~/composables/useErrorHandler';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
-import type { ReadingStats, ReadingStatsResponse, ReadingDatesResponse } from '~/types/bible';
+import type { ReadingStats } from '~/types/bible';
 
 definePageMeta({
   layout: 'default'
@@ -171,17 +171,15 @@ const filteredBooks = computed(() => {
 // 통계 로드
 const loadStats = async () => {
   try {
-    const response = await api.get('/api/v1/todos/bible/personal-records/stats/');
-    const statsData = response.data as ReadingStatsResponse | undefined;
-    if (statsData?.success && statsData?.stats) {
-      stats.value = statsData.stats;
+    const response = await api.GET('/api/v1/todos/bible/personal-records/stats/');
+    if (response.data.success) {
+      stats.value = response.data.stats;
     }
 
     // 읽기 날짜 로드 (캘린더용)
-    const datesResponse = await api.get('/api/v1/todos/bible/personal-records/dates/');
-    const datesData = datesResponse.data as ReadingDatesResponse | undefined;
-    if (datesData?.success && datesData?.dates) {
-      readingDates.value = datesData.dates;
+    const datesResponse = await api.GET('/api/v1/todos/bible/personal-records/dates/');
+    if (datesResponse.data.success) {
+      readingDates.value = datesResponse.data.dates;
     }
   } catch (error) {
     handleSilentError(error, '읽기 통계 로드');

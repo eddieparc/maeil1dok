@@ -1,3 +1,19 @@
+const PROVIDER_LABELS = {
+  kakao: '카카오',
+  google: 'Google',
+  apple: 'Apple',
+}
+
+export const getProviderDisplayName = provider =>
+  Object.prototype.hasOwnProperty.call(PROVIDER_LABELS, provider)
+    ? PROVIDER_LABELS[provider]
+    : provider
+
+export const buildDeleteAccountPayload = password => ({
+  password,
+  confirm_delete: true,
+})
+
 export const buildOAuthLinkUrl = (provider, providerConfig, state) => {
   if (!providerConfig.clientId || !providerConfig.redirectUri) {
     throw new Error('OAuth provider configuration is incomplete.')

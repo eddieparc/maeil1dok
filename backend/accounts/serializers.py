@@ -22,7 +22,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'nickname', 'email', 'profile_image', 'is_staff', 'email_verified', 'has_usable_password_flag')
         read_only_fields = ('id', 'is_staff', 'email_verified', 'has_usable_password_flag')
         
-    def get_is_staff(self, obj):
+    def get_is_staff(self, obj) -> bool:
         # superuser나 staff 권한이 있는 경우 admin으로 간주
         return obj.is_superuser or obj.is_staff
 
@@ -86,6 +86,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         logger.info(f"일반 로그인 성공: user_id={self.user.id}, username={self.user.username}")
         return data 
+
+
+class TokenPairResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    user = UserSerializer(allow_null=True)
+
+
+class TokenRefreshResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

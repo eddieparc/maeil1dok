@@ -97,9 +97,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { ChevronDownIcon, SearchIcon } from '@lucide/vue';
+import type { paths } from '~/types/generated/api-schema';
 import { useApi } from '~/composables/useApi';
 import { useBibleData } from '~/composables/useBibleData';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
+import {
+  highlightBibleSearchSnippet,
+} from '~/utils/bibleSearchSnippet';
+import { buildBibleSearchResultQuery } from '~/utils/bibleSearchRoute';
 import '~/assets/css/bible-search.css';
 
 type SearchResult = {
@@ -132,6 +137,22 @@ const message = ref('');
 const isSearching = ref(false);
 const hasSearched = ref(false);
 const searchInputRef = ref<HTMLInputElement | null>(null);
+
+// 백엔드는 역본 코드를 열거형으로 받는다(OpenAPI 계약). UI 상태는 문자열이므로
+// 호출 경계에서 좁힌다 — 알 수 없는 값은 보내지 않고 서버 기본값에 맡긴다.
+// 계약이 바뀌면 이 타입이 따라 바뀌고 여기서 타입 오류로 드러난다.
+type BibleVersion = NonNullable<
+  NonNullable<paths['/api/v1/bible-cache/search/']['get']['parameters']['query']>['version']
+>;
+
+const BIBLE_VERSIONS = new Set<string>([
+  'ASV', 'COG', 'COGNEW', 'GAE', 'GRK', 'HAN', 'HEB',
+  'KJV', 'KNT', 'SAE', 'SAENEW', 'WEB', 'WOORI',
+] satisfies BibleVersion[]);
+
+function toBibleVersion(value: string): BibleVersion | undefined {
+  return BIBLE_VERSIONS.has(value) ? (value as BibleVersion) : undefined;
+}
 
 const versionOptions = computed(() =>
   Object.entries(versionNames).map(([code, name]) => ({ code, name }))
@@ -187,10 +208,10 @@ const search = async (): Promise<void> => {
   hasSearched.value = true;
 
   try {
-    const response = await api.get('/api/v1/bible-cache/search/', {
+    const response = await api.GET('/api/v1/bible-cache/search/', {
       params: {
         q: query.value,
-        version: version.value || undefined,
+        version: toBibleVersion(version.value),
       },
     });
     const data = parseSearchResponse(response.data);
@@ -207,53 +228,14 @@ const search = async (): Promise<void> => {
 
 const resultUrl = (result: SearchResult) => ({
   path: '/bible',
-  query: {
-    book: result.book,
-    chapter: String(result.chapter),
-    version: result.version,
-    verse: result.verse ? String(result.verse) : undefined,
-    search: query.value,
-  },
+  query: buildBibleSearchResultQuery(result, query.value),
 });
 
 const versionLabel = (code: string): string => versionNames[code] || code;
 const bookLabel = (book: string): string => bookNames[book] || book;
 const chapterSuffix = (book: string): string => getChapterUnit(book);
-const sanitizeSnippet = (snippet: string): string =>
-  decodeHtmlEntities(snippet)
-    .replace(/\s*직접입력\s*\[[^\]]+\]\s*/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-const decodeHtmlEntities = (value: string): string => {
-  if (typeof document === 'undefined') return value.replace(/&nbsp;/g, ' ');
-
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = value;
-  return textarea.value;
-};
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-
-const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const highlightSnippet = (snippet: string): string => {
-  const cleaned = sanitizeSnippet(snippet);
-  const escaped = escapeHtml(cleaned);
-  if (!query.value) return escaped;
-
-  return escaped.replace(
-    new RegExp(`(${escapeRegExp(escapeHtml(query.value))})`, 'gi'),
-    '<mark class="search-hit">$1</mark>'
-  );
-};
+const highlightSnippet = (snippet: string): string =>
+  highlightBibleSearchSnippet(snippet, query.value);
 
 const focusSearchInput = (): void => {
   searchInputRef.value?.focus();

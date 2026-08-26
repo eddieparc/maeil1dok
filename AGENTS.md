@@ -10,8 +10,9 @@
 |---|---|---|
 | `backend/` | Django 5.2 + DRF + MySQL 8 + Celery/Redis, JWT + OAuth(Kakao/Google/Apple) | **프로덕션** (api.maeil1dok.app) |
 | `frontend/` | Nuxt 4 SSR + Pinia + Tailwind | **프로덕션** (maeil1dok.app) |
-| `maeil1dok-next/` | Next.js + Supabase | v2 WIP (미배포, 계획: `docs/migration-v2/`) |
 | `mobile/` | Expo React Native (WebView 앱) | EAS로 별도 배포 |
+
+v2 이전 시도(`maeil1dok-next/` Next.js+Supabase 및 계획 문서 `docs/migration-v2/`)는 폐기되어 리포에서 제거했다.
 
 ## 프로덕션 / 배포
 
@@ -30,10 +31,8 @@ TEST_DB_ENGINE=mysql DB_HOST=... manage.py test ...                # CI와 동�
 
 # frontend (frontend/)
 npm run dev | npm run test | npm run build
-
-# maeil1dok-next (maeil1dok-next/)
-npm run test        # vitest
-npm run build
+npm run api:generate         # OpenAPI 스키마 -> TS 타입 재생성
+npm run typecheck:ratchet    # 타입 오류 래칫 (CI 게이트)
 
 # mobile (mobile/)
 npm test            # node --test
@@ -57,3 +56,18 @@ python3 -m unittest \
   `const modal = useModal()` → `await modal.confirm({...})` / `await modal.alert({...})`
   (구현: `frontend/app/components/ui/modal/`, `composables/useModal.ts`).
 - 시크릿/키는 커밋 금지(.env.oci 계열은 gitignore).
+- **API 계약은 `backend/schema.yml`이 단일 원천이다.** 뷰·시리얼라이저를 바꾸면
+  `manage.py spectacular --file schema.yml --validate`로 재생성해 **함께 커밋**한다 —
+  안 하면 `tests.test_openapi_schema`가 바이트 비교로 CI를 떨어뜨린다.
+  프론트 타입은 그 스키마에서 생성하므로(`npm run api:generate`) 스키마를 고쳤으면
+  타입도 재생성한다. 자세한 것은 **backend/OPENAPI.md**.
+- **프론트 API 호출은 생성 타입 기반 facade를 쓴다** — `api.GET('/api/v1/...')`,
+  `api.POST(...)`, 경로 파라미터는 `api.path('/a/{id}/', { id })`, query는 `params` 객체로.
+  구형 `api.get<T>(...)`처럼 **응답 타입을 손으로 주장하지 않는다**(스키마가 준다).
+  모범 예시: `frontend/app/stores/groups.ts`, 열거형 처리는 `frontend/app/pages/bible/search.vue`.
+- **타입체크는 래칫으로 강제한다.** 기존 오류는 `frontend/typecheck-baseline.json`에 고정돼 있고
+  **신규 오류만 실패**한다. 기존 오류를 고쳤으면 `npm run typecheck:ratchet:update`로 기준선을
+  낮춰 함께 커밋한다. **기준선을 올려서 통과시키지 않는다** — 부채는 줄기만 해야 한다.
+- 안전망: `backend/tests/test_api_characterization.py`(라우트별 3페르소나 HTTP 골든)와
+  `backend/tests/test_social_login_v2_contract.py`(모바일 셸이 의존하는 로그인 계약·쿠키 속성).
+  응답이 바뀌면 **의도된 변경일 때만** 골든을 갱신한다(`backend/tests/CHARACTERIZATION.md`).

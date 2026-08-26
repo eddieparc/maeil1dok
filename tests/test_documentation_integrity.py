@@ -8,7 +8,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 MACHINE_PATH = re.compile(r"(?:file:///)?/Users/[^/]+/|[A-Za-z]:\\Users\\[^\\]+\\")
-ARCHIVE_ROOT = REPO_ROOT / "docs" / "migration-v2" / "archive"
 
 
 def repository_files() -> list[Path]:
@@ -42,8 +41,6 @@ class DocumentationIntegrityTests(unittest.TestCase):
         available = {path.resolve() for path in self.repository_paths if path.exists()}
         violations = []
         for path in self.markdown_files:
-            if path.is_relative_to(ARCHIVE_ROOT):
-                continue
             for line_number, line in enumerate(path.read_text().splitlines(), start=1):
                 for raw_target in MARKDOWN_LINK.findall(line):
                     target = raw_target.strip().split(maxsplit=1)[0].strip("<>")
@@ -62,18 +59,6 @@ class DocumentationIntegrityTests(unittest.TestCase):
                     violations.append(
                         f"{path.relative_to(REPO_ROOT)}:{line_number} -> {target}"
                     )
-        self.assertEqual([], violations)
-
-    def test_historical_migration_reports_are_archived(self):
-        active_root = REPO_ROOT / "docs" / "migration-v2"
-        historical_name = re.compile(
-            r"(?:critique|review|handoff|completion-report|design-references-analysis)"
-        )
-        violations = [
-            path.name
-            for path in active_root.iterdir()
-            if path.is_file() and historical_name.search(path.name)
-        ]
         self.assertEqual([], violations)
 
 
