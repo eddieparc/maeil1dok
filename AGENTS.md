@@ -68,6 +68,14 @@ python3 -m unittest \
 - **타입체크는 래칫으로 강제한다.** 기존 오류는 `frontend/typecheck-baseline.json`에 고정돼 있고
   **신규 오류만 실패**한다. 기존 오류를 고쳤으면 `npm run typecheck:ratchet:update`로 기준선을
   낮춰 함께 커밋한다. **기준선을 올려서 통과시키지 않는다** — 부채는 줄기만 해야 한다.
+- **로컬 초록은 CI 초록이 아니다.** 두 가지가 실측으로 확인됐다:
+  - **백엔드**: 기본 SQLite 는 `max_length` 를 강제하지 않는다. 21자 fixture 가 로컬에서
+    통과하고 CI 의 실제 MySQL 8 에서 `DataError 1406` 으로 죽었다. 스키마·모델에 닿는
+    변경은 `TEST_DB_ENGINE=mysql DB_PORT=... manage.py test ...` 로 **양쪽 엔진 모두**
+    돌려라. 엔진마다 다른 결함이 나온다(정수 id 값이 달라져 발화하는 테스트도 있었다).
+  - **프론트**: `.nuxt` 잔여 산출물이 타입 오류를 가린다. 그 상태로 래칫 기준선을
+    갱신하면 **없는 오류를 고친 것으로 착각해 기준선을 잘못 낮추고**, CI 의 깨끗한
+    체크아웃에서 되살아난다. 기준선 갱신 전에 `rm -rf frontend/.nuxt frontend/.output`.
 - 안전망: `backend/tests/test_api_characterization.py`(라우트별 3페르소나 HTTP 골든)와
   `backend/tests/test_social_login_v2_contract.py`(모바일 셸이 의존하는 로그인 계약·쿠키 속성).
   응답이 바뀌면 **의도된 변경일 때만** 골든을 갱신한다(`backend/tests/CHARACTERIZATION.md`).

@@ -621,7 +621,10 @@ def create_characterization_fixtures():
         verses=[{"verse": 1, "text": "Characterization verse"}],
         source_url="https://example.com/hasena",
     )
-    summary_video_id = "fixture-summary-video"
+    # Must fit HasenaSummary.video_id (max_length=20). SQLite does not enforce
+    # max_length, so an over-long value passes locally and fails CI on real MySQL
+    # with DataError 1406 -- keep this within the column width.
+    summary_video_id = "fixture-sum-video"
     HasenaSummary.objects.create(
         video_id=summary_video_id,
         video_date=date(2026, 1, 15),

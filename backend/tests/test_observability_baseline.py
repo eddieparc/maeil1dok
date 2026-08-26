@@ -486,7 +486,13 @@ class HealthEndpointTest(TestCase):
             set(web_push.keys()),
             {'status', 'configured', 'active_subscriptions'},
         )
-        content = response.content
+        # Check the parsed JSON values, not raw bytes. A raw substring search finds
+        # short numeric ids inside unrelated numbers -- `str(subscription.id) == '20'`
+        # matches the '20' in a "2026-..." timestamp, so the assertion failed for a
+        # leak that never happened once the id sequence reached two digits. Which
+        # ids a test sees depends on how many rows earlier tests created, so this
+        # was order-dependent and passed in isolation.
+        leaked = self._collect_scalars(response.json())
         for secret in (
             self._INCOMPLETE_VAPID['WEB_PUSH_VAPID_PUBLIC_KEY'],
             self._COMPLETE_VAPID['WEB_PUSH_VAPID_PRIVATE_KEY'],
@@ -494,10 +500,41 @@ class HealthEndpointTest(TestCase):
             subscription.endpoint,
             subscription.p256dh,
             subscription.auth,
-            str(subscription.user_id),
-            str(subscription.id),
+            subscription.user_id,
+            subscription.id,
         ):
-            self.assertNotIn(secret.encode(), content)
+            self.assertNotIn(self._tagged(secret), leaked)
+
+    @staticmethod
+    def _tagged(value):
+        """Pair a value with its type name so bool and int stay distinguishable.
+
+        Python treats `True == 1`, so an id of 1 would otherwise "match" the
+        `configured: false` / `active_subscriptions: true` booleans this payload
+        legitimately contains.
+        """
+        return type(value).__name__, value
+
+    @classmethod
+    def _collect_scalars(cls, payload):
+        """Every scalar value and key in a JSON payload, tagged with its type.
+
+        Secrets leak as whole values or keys, never as a fragment spliced across
+        two unrelated fields, so comparing against discrete scalars is both
+        stricter about real leaks and immune to coincidental digit overlap.
+        """
+        found = set()
+        stack = [payload]
+        while stack:
+            item = stack.pop()
+            if isinstance(item, dict):
+                found.update(cls._tagged(key) for key in item)
+                stack.extend(item.values())
+            elif isinstance(item, list):
+                stack.extend(item)
+            else:
+                found.add(cls._tagged(item))
+        return found
 
     def test_web_push_disabled_subscriptions_do_not_fail_readiness(self):
         now = self._WEB_PUSH_NOW

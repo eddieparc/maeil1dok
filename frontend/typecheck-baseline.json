@@ -1,5 +1,5 @@
 {
-  "total": 163,
+  "total": 162,
   "signatures": {
     "app/components/BibleScheduleContent.vue: TS2322: Type 'Schedule | undefined' is not assignable to type 'Schedule | { id: number; date: string; book: string; start_chapter: number; end_chapter: number; is_completed: boolean; } | null'.": 1,
     "app/components/BibleScheduleContent.vue: TS2322: Type 'Schedule | undefined' is not assignable to type '{ id: number; date: string; book: string; start_chapter: number; end_chapter: number; is_completed: boolean; } | null'.": 2,
@@ -87,7 +87,6 @@
     "app/pages/bible/index.vue: TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.": 1,
     "app/pages/groups/[id].vue: TS2532: Object is possibly 'undefined'.": 4,
     "app/pages/groups/index.vue: TS2322: Type 'string' is not assignable to type '\"all\" | \"public\" | \"mine\"'.": 1,
-    "app/pages/groups/index.vue: TS7016: Could not find a declaration file for module 'lodash-es'. '/Users/jgp/GitHub/maeil1dok/frontend/node_modules/lodash-es/lodash.js' implicitly has an 'any' type.": 1,
     "app/pages/notifications/index.vue: TS2322: Type '\"default\"' is not assignable to type '\"user\" | \"note\" | \"bookmark\" | \"highlight\" | \"history\" | \"plan\" | \"schedule\" | undefined'.": 1,
     "app/pages/notifications/settings.vue: TS2322: Type '\"default\"' is not assignable to type '\"user\" | \"note\" | \"bookmark\" | \"highlight\" | \"history\" | \"plan\" | \"schedule\" | undefined'.": 1,
     "app/pages/notifications/settings.vue: TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.": 1,
