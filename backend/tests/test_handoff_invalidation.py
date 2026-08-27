@@ -215,3 +215,135 @@ class HandoffHelperTest(TestCase):
         self.assertIsNone(issued_at)
         handoff.mark_logged_out(cache, 7)
         self.assertTrue(handoff.code_is_invalidated_by_logout(cache, 7, issued_at))
+
+class HandoffGenerationRaceTest(TestCase):
+    """A handoff issued across a logout must not survive it.
+
+    The timestamp comparison alone leaves a window: the issue path stamps its
+    instant when it *commits*, so an issue that starts before the logout and
+    commits after it carries a later timestamp and passes. The user logged out and
+    a code minted from their pre-logout request is still redeemable.
+
+    A per-user monotonic generation closes it. Issue captures the generation when
+    it starts and only publishes if it is unchanged at commit; logout advances the
+    generation. An issue that straddles a logout is therefore rejected at commit
+    rather than silently winning.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username='race', password='pw-race-1234', nickname='race'
+        )
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_issue_started_before_logout_is_rejected_at_commit(self):
+        generation = handoff.current_generation(cache, self.user.id)
+
+        # Logout happens while the issue is in flight.
+        handoff.mark_logged_out(cache, self.user.id)
+
+        published = handoff.publish_code(
+            cache,
+            user_id=self.user.id,
+            code=str(uuid.uuid4()),
+            observed_generation=generation,
+            ttl_seconds=60,
+        )
+        self.assertFalse(
+            published,
+            'an issue that started before the logout must not commit afterwards',
+        )
+
+    def test_issue_within_one_generation_succeeds(self):
+        generation = handoff.current_generation(cache, self.user.id)
+        code = str(uuid.uuid4())
+
+        self.assertTrue(
+            handoff.publish_code(
+                cache,
+                user_id=self.user.id,
+                code=code,
+                observed_generation=generation,
+                ttl_seconds=60,
+            )
+        )
+        self.assertEqual(_consume_session_bridge_user_id(cache, code), self.user.id)
+
+    def test_logout_advances_the_generation(self):
+        before = handoff.current_generation(cache, self.user.id)
+        handoff.mark_logged_out(cache, self.user.id)
+        after = handoff.current_generation(cache, self.user.id)
+        self.assertGreater(after, before)
+
+    def test_logout_landing_between_the_check_and_the_write_is_caught(self):
+        """The interleaving the post-write re-check exists for.
+
+        Two guards look redundant because the tests above put the logout entirely
+        BEFORE `publish_code`, where either guard alone suffices. The one that
+        matters here is different: the pre-check passes, then a logout lands, then
+        the write completes -- leaving a live code published after a logout.
+
+        Driven by making the cache write itself trigger the logout, which is the
+        only way to place another actor inside that window deterministically. A
+        sleep would be timing luck, not a test.
+        """
+        generation = handoff.current_generation(cache, self.user.id)
+        code = str(uuid.uuid4())
+
+        real_set = cache.set
+        logged_out = {'done': False}
+
+        def set_then_logout(key, value, *args, **kwargs):
+            result = real_set(key, value, *args, **kwargs)
+            if key == f'session_bridge:{code}' and not logged_out['done']:
+                logged_out['done'] = True
+                handoff.mark_logged_out(cache, self.user.id)
+            return result
+
+        cache.set = set_then_logout
+        try:
+            published = handoff.publish_code(
+                cache,
+                user_id=self.user.id,
+                code=code,
+                observed_generation=generation,
+                ttl_seconds=60,
+            )
+        finally:
+            cache.set = real_set
+
+        self.assertTrue(logged_out['done'], 'the interleaving must have happened')
+        self.assertFalse(
+            published,
+            'a logout between the check and the write must refuse the publish',
+        )
+        self.assertIsNone(
+            _consume_session_bridge_user_id(cache, code),
+            'and the code must not be left behind in the cache',
+        )
+
+    def test_generation_is_per_user(self):
+        other = User.objects.create_user(
+            username='race-other', password='pw-other-1234', nickname='other'
+        )
+        other_generation = handoff.current_generation(cache, other.id)
+
+        handoff.mark_logged_out(cache, self.user.id)
+
+        self.assertEqual(
+            handoff.current_generation(cache, other.id),
+            other_generation,
+            "one user's logout must not invalidate another user's in-flight issue",
+        )
+        self.assertTrue(
+            handoff.publish_code(
+                cache,
+                user_id=other.id,
+                code=str(uuid.uuid4()),
+                observed_generation=other_generation,
+                ttl_seconds=60,
+            )
+        )

@@ -41,9 +41,16 @@ def logout_marker_key(user_id) -> str:
 
 
 def mark_logged_out(cache, user_id, *, now=None) -> float:
-    """Record that this user logged out. Returns the recorded instant."""
+    """Record that this user logged out. Returns the recorded instant.
+
+    Advances the handoff generation as well as writing the timestamp. The timestamp
+    rejects codes already published; the generation rejects codes still being
+    published by an issue that started before this logout. Both are needed -- see
+    the generation section below.
+    """
     instant = now if now is not None else time.time()
     cache.set(logout_marker_key(user_id), instant, timeout=LOGOUT_MARKER_TTL_SECONDS)
+    advance_generation(cache, user_id)
     return instant
 
 
@@ -103,3 +110,73 @@ def code_is_invalidated_by_logout(cache, user_id, issued_at) -> bool:
     if issued_at is None:
         return True
     return issued_at <= marker
+
+
+# --- Per-user handoff generation -------------------------------------------------
+#
+# The logout timestamp alone leaves one window open. The issue path stamps its
+# instant when it COMMITS, so an issue that started before a logout and committed
+# after it carries a later timestamp and passes the comparison -- a code minted
+# from a pre-logout request stays redeemable after the user signed out.
+#
+# A monotonic per-user counter closes it. Issue reads the generation when it
+# starts and publishes only if it is unchanged at commit; logout advances it. An
+# issue straddling a logout is rejected at commit instead of silently winning.
+#
+# The counter shares the logout marker's lifetime: both describe "what happened to
+# this user's session recently", and a counter that outlived the marker would keep
+# rejecting issues for a logout no longer being enforced.
+
+
+def generation_key(user_id) -> str:
+    return f'session_bridge_gen:{user_id}'
+
+
+def current_generation(cache, user_id) -> int:
+    """The user's current handoff generation. Absent counter reads as 0."""
+    value = cache.get(generation_key(user_id))
+    try:
+        return int(value) if value is not None else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def advance_generation(cache, user_id) -> int:
+    """Bump the generation, rejecting every issue that started before now.
+
+    `cache.incr` is atomic on Redis, which is what makes concurrent logouts safe.
+    It raises when the key is absent, so seed-then-retry covers the first logout.
+    """
+    key = generation_key(user_id)
+    try:
+        return int(cache.incr(key))
+    except ValueError:
+        # Key absent. `add` fails if another request seeded it first, in which case
+        # incrementing is the correct move.
+        if cache.add(key, 1, timeout=LOGOUT_MARKER_TTL_SECONDS):
+            return 1
+        return int(cache.incr(key))
+
+
+def publish_code(cache, *, user_id, code, observed_generation, ttl_seconds) -> bool:
+    """Publish a handoff code, unless a logout intervened since issue began.
+
+    Returns False when the generation moved, meaning this issue straddled a logout
+    and must not produce a usable code. The caller surfaces that as a retry rather
+    than handing back a code that would be rejected at redemption anyway.
+
+    The generation is re-read after writing, not only before: a logout landing
+    between the check and the write would otherwise leave a live code behind. On a
+    late detection the code is deleted again, so the window closes either way.
+    """
+    if current_generation(cache, user_id) != observed_generation:
+        return False
+
+    cache_key = f'session_bridge:{code}'
+    cache.set(cache_key, build_code_payload(user_id), timeout=ttl_seconds)
+
+    if current_generation(cache, user_id) != observed_generation:
+        cache.delete(cache_key)
+        return False
+
+    return True

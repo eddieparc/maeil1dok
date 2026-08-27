@@ -1964,7 +1964,21 @@ def delete_account(request):
 # 세션 브리지 (Native ↔ WebView 인증 동기화)
 # ========================================
 
-@extend_schema(responses={200: openapi.SessionBridgeIssueResponseSerializer})
+@extend_schema(
+    responses={
+        200: openapi.SessionBridgeIssueResponseSerializer,
+        # Declared because the app shell consumes this route: a 409 means a logout
+        # raced this issue and the shell must send the user back to sign-in rather
+        # than retry with the same session. Leaving it undeclared would hide a real
+        # outcome from the generated client types.
+        409: OpenApiResponse(
+            description=(
+                'A logout landed while this handoff was being issued, so no code '
+                'was published. The caller must re-authenticate.'
+            ),
+        ),
+    }
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def session_bridge_issue(request):
@@ -1977,6 +1991,11 @@ def session_bridge_issue(request):
     from django.core.cache import cache
     
     user = request.user
+    # Captured BEFORE the eligibility check and before minting the code: the window
+    # this guards is "logout landed after this request started", so the reference
+    # point has to be the start of the request, not the moment of publication.
+    observed_generation = handoff.current_generation(cache, user.id)
+
     if not _is_session_bridge_user_eligible(user):
         return Response(
             {'error': '삭제 예정이거나 비활성화된 계정은 세션 브리지를 사용할 수 없습니다.'},
@@ -1986,11 +2005,23 @@ def session_bridge_issue(request):
     code = str(uuid.uuid4())
     cache_key = f'session_bridge:{code}'
     
-    cache.set(
-        cache_key,
-        handoff.build_code_payload(user.id),
-        timeout=SESSION_BRIDGE_TTL_SECONDS,
-    )
+    # Publish under the generation observed at the start of this request. A logout
+    # that lands mid-flight moves the generation and the publish is refused, so a
+    # code minted from a pre-logout request cannot outlive the logout.
+    if not handoff.publish_code(
+        cache,
+        user_id=user.id,
+        code=code,
+        observed_generation=observed_generation,
+        ttl_seconds=SESSION_BRIDGE_TTL_SECONDS,
+    ):
+        logger.info(
+            "세션 브리지 발급이 로그아웃과 경합해 거부됨: user_id=%s", user.id
+        )
+        return Response(
+            {'error': '로그인 상태가 변경되었습니다. 다시 로그인해 주세요.'},
+            status=409,
+        )
     
     logger.info(f"세션 브리지 코드 발급: user_id={user.id}, code={code[:8]}...")
     

@@ -1029,7 +1029,7 @@ export interface paths {
          * @deprecated
          * @description Deprecated compatibility alias. Use `/api/v1/auth/verify/`.
          *
-         *     Deprecated auth probe. Use `/api/v1/auth/user/`, which is the canonical current-user contract. This route returns the same user payload wrapped in `{authenticated, user}` and is kept only for callers that already depend on that envelope.
+         *     Auth probe. `/api/v1/auth/user/` is the canonical current-user contract; this route returns the same user payload wrapped in `{authenticated, user}` and exists for callers that depend on that envelope.
          */
         get: operations["accounts_verify_retrieve"];
         put?: never;
@@ -1873,10 +1873,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @deprecated
-         * @description Deprecated auth probe. Use `/api/v1/auth/user/`, which is the canonical current-user contract. This route returns the same user payload wrapped in `{authenticated, user}` and is kept only for callers that already depend on that envelope.
-         */
+        /** @description Auth probe. `/api/v1/auth/user/` is the canonical current-user contract; this route returns the same user payload wrapped in `{authenticated, user}` and exists for callers that depend on that envelope. */
         get: operations["auth_verify_retrieve"];
         put?: never;
         post?: never;
@@ -6212,6 +6209,13 @@ export interface operations {
                     "application/json": components["schemas"]["SessionBridgeIssueResponse"];
                 };
             };
+            /** @description A logout landed while this handoff was being issued, so no code was published. The caller must re-authenticate. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     accounts_set_password_create: {
@@ -7198,6 +7202,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SessionBridgeIssueResponse"];
                 };
+            };
+            /** @description A logout landed while this handoff was being issued, so no code was published. The caller must re-authenticate. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
