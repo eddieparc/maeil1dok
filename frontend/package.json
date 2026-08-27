@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "api:generate": "openapi-typescript ../backend/schema.yml -o app/types/generated/api-schema.ts",
-    "build": "nuxt build",
+    "build": "node scripts/write-build-marker.mjs && nuxt build",
+    "build:marker": "node scripts/write-build-marker.mjs",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

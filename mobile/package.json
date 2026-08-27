@@ -11,7 +11,8 @@
     "web": "expo start --web",
     "build": "./scripts/build.sh",
     "build:slow": "./scripts/build.sh --low-priority",
-    "clean": "./scripts/build.sh --clean"
+    "clean": "./scripts/build.sh --clean",
+    "publish:ota": "node scripts/publish-ota.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

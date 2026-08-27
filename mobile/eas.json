@@ -43,6 +43,34 @@
       "env": {
         "EXPO_PUBLIC_ENV": "production"
       }
+    },
+    "diagnostic": {
+      "extends": "preview",
+      "channel": "diagnostic",
+      "autoIncrement": false,
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "diagnostic"
+      }
+    },
+    "localtest": {
+      "extends": "development",
+      "channel": "localtest",
+      "autoIncrement": false,
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "localtest"
+      }
     }
   },
   "submit": {
