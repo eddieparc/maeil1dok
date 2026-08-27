@@ -494,3 +494,59 @@ test('both policy call sites report an unreachable session', async () => {
     'revalidate must set the unknown-offline state on transport failure',
   );
 });
+
+test('a failed session restore preserves webview cookies and stored tokens', async () => {
+  // The core bug. When the shell's stored refresh token fails to redeem, the cause
+  // is almost always that the web app already rotated it -- and the webview cookies
+  // are still perfectly valid. Wiping them (CookieManager.clearAll) destroys a live
+  // session and logs the user out for having used the app.
+  //
+  // Task 9: the restore-failure path must not clear cookies.
+  // Task 11: it must not delete the stored tokens either. Deleting them removes the
+  // only chance a later restore has of succeeding, and the token may be valid again
+  // once the web app is not mid-rotation.
+  //
+  // Explicit logout keeps clearing everything: that is a user instruction, not an
+  // inference from a failed request.
+  const mobileAppSource = await readFile(
+    new URL('../../mobile/App.tsx', import.meta.url),
+    'utf8',
+  );
+
+  // Both boundaries are asserted to exist first. `indexOf` returns -1 for a name
+  // that is not there, and `slice(start, -1)` silently returns the rest of the
+  // file -- which swept the legitimate logout call sites into this slice and made
+  // the assertion below fail against correct code.
+  const restoreStart = mobileAppSource.indexOf('const restoreStoredSession');
+  const restoreEnd = mobileAppSource.indexOf('const handleEmailLogin');
+  assert.ok(restoreStart > 0, 'restoreStoredSession must exist');
+  assert.ok(
+    restoreEnd > restoreStart,
+    'the slice boundary must exist and follow the start',
+  );
+  const restoreBody = mobileAppSource.slice(restoreStart, restoreEnd);
+
+  assert.ok(
+    !/clearStoredAuth\(\)/.test(restoreBody),
+    'the restore path must not clear cookies or stored tokens on failure',
+  );
+  assert.match(
+    restoreBody,
+    /abandonRestore|keepStoredAuth/,
+    'the restore path needs an explicit non-destructive give-up',
+  );
+
+  // The destructive helper must still exist and still be used for real logout.
+  assert.match(
+    mobileAppSource,
+    /CookieManager\.clearAll\(\)/,
+    'explicit logout must still clear cookies',
+  );
+
+  const clearCallSites = mobileAppSource.match(/clearStoredAuth\(\)/g) ?? [];
+  assert.equal(
+    clearCallSites.length,
+    2,
+    'only the two explicit-logout paths may clear stored auth',
+  );
+});

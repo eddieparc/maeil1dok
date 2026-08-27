@@ -187,6 +187,24 @@ function AppContent() {
     await SecureStore.deleteItemAsync('maeil1dok_refresh_token');
   };
 
+  /**
+   * Give up on restoring the stored session WITHOUT destroying anything.
+   *
+   * A failed restore is not evidence that the session is over. The usual cause is
+   * that the web app already rotated the refresh token, which leaves this stored
+   * copy stale while the webview cookies remain perfectly valid. Clearing cookies
+   * here (the old behaviour) destroyed a live session and logged the user out for
+   * having used the app; deleting the stored tokens removed the only chance a later
+   * restore had of succeeding.
+   *
+   * Explicit logout still clears everything — that is a user instruction, not an
+   * inference drawn from one failed request.
+   */
+  const abandonRestore = (reason: string): boolean => {
+    console.log(`[SessionRestore] giving up without clearing auth: ${reason}`);
+    return false;
+  };
+
   const restoreStoredSession = async (): Promise<boolean> => {
     try {
       const storedRefreshToken = await SecureStore.getItemAsync('maeil1dok_refresh_token');
@@ -202,14 +220,12 @@ function AppContent() {
       });
 
       if (!response.ok) {
-        await clearStoredAuth();
-        return false;
+        return abandonRestore(`refresh rejected with ${response.status}`);
       }
 
       const data = await response.json();
       if (!data.access || !data.refresh) {
-        await clearStoredAuth();
-        return false;
+        return abandonRestore('refresh response missing tokens');
       }
 
       const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
