@@ -127,7 +127,13 @@ export const useApi = () => {
 
     if (response.status === 401) {
       if (auth.isAuthenticated.value) {
-        const refreshSuccess = await auth.refreshToken()
+        // refreshToken() returns a reasoned outcome, not a boolean: an object is
+        // always truthy, so testing it directly would read a failed refresh as a
+        // success and retry the request with the same dead credentials.
+        const refreshOutcome = await auth.refreshToken()
+        const refreshSuccess =
+          refreshOutcome === true ||
+          (typeof refreshOutcome === 'object' && refreshOutcome !== null && refreshOutcome.ok)
 
         if (refreshSuccess) {
           const isMutatingMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(

@@ -8,6 +8,7 @@ import { computed, readonly } from 'vue'
 import {
   fetchInitialAuthUser,
   fetchUserWithRefreshPolicy,
+  type RefreshOutcome,
   revalidateAuthSession,
 } from './authSessionPolicy'
 
@@ -22,7 +23,17 @@ export interface AuthUser {
   has_usable_password_flag?: boolean
 }
 
-export type AuthState = 'loading' | 'authenticated' | 'unauthenticated'
+/**
+ * `unknown-offline` means the session could not be verified because the server
+ * was unreachable -- not that the user is signed out. Treating those as the same
+ * state is what logs people out when they walk into a tunnel; callers must show a
+ * neutral retry surface for this one and keep the session.
+ */
+export type AuthState =
+  | 'loading'
+  | 'authenticated'
+  | 'unauthenticated'
+  | 'unknown-offline'
 
 interface RefreshTokenOptions {
   logoutOnFailure?: boolean
@@ -180,7 +191,12 @@ export function useAuthService() {
   const _authState = useState<AuthState>('auth:state', () => 'loading')
   const _isInitialized = useState<boolean>('auth:initialized', () => false)
   const _initPromise = useState<Promise<void> | null>('auth:initPromise', () => null)
-  const _refreshState = useState<{ isRefreshing: boolean; promise: Promise<boolean> | null }>(
+  // The in-flight promise carries the full outcome, not a boolean. If this stayed
+  // `Promise<boolean> | null`, a concurrent caller awaiting the shared promise
+  // would receive a coerced value and `unreachable` would arrive at the policy
+  // layer as `rejected` -- logging the user out for being offline through a
+  // second path.
+  const _refreshState = useState<{ isRefreshing: boolean; promise: Promise<RefreshOutcome> | null }>(
     'auth:refreshState',
     () => ({ isRefreshing: false, promise: null })
   )
@@ -209,7 +225,7 @@ export function useAuthService() {
     }
   }
 
-  async function refreshToken(options: RefreshTokenOptions = {}): Promise<boolean> {
+  async function refreshToken(options: RefreshTokenOptions = {}): Promise<RefreshOutcome> {
     if (_refreshState.value.isRefreshing && _refreshState.value.promise) {
       return _refreshState.value.promise
     }
@@ -218,21 +234,30 @@ export function useAuthService() {
     _refreshState.value.promise = (async () => {
       try {
         const result = await apiRequest<{ access?: string }>('POST', '/api/v1/auth/token/refresh/')
-        
+
         if (result.status === 401 || result.status === 403) {
           if (options.logoutOnFailure ?? true) {
             await performLogout()
           }
-          return false
+          return { ok: false, reason: 'rejected' }
+        }
+
+        // apiRequest reports transport failures (offline, DNS, TLS, timeout) as
+        // status 0. That is a different answer from "the server refused": the
+        // session may still be perfectly valid, we just could not ask.
+        if (result.status === 0) {
+          return { ok: false, reason: 'unreachable' }
         }
 
         if (!result.ok || !result.data?.access) {
-          return false
+          return { ok: false, reason: 'rejected' }
         }
 
-        return true
+        return { ok: true }
       } catch {
-        return false
+        // Reaching here means the failure was not even an HTTP exchange, so it
+        // cannot be read as a rejection.
+        return { ok: false, reason: 'unreachable' }
       } finally {
         _refreshState.value.isRefreshing = false
         _refreshState.value.promise = null
@@ -248,6 +273,11 @@ export function useAuthService() {
         fetchUser: fetchUserFromApi,
         refreshToken,
         logout: performLogout,
+        onUnreachable: () => {
+          // Hold the session and surface "we don't know" rather than signing the
+          // user out for being offline.
+          _authState.value = 'unknown-offline'
+        },
       },
       options,
     )
@@ -570,6 +600,11 @@ export function useAuthService() {
     authState: computed(() => _authState.value),
     isAuthenticated: computed(() => _authState.value === 'authenticated'),
     isLoading: computed(() => _authState.value === 'loading'),
+    // True when the session could not be verified because the server was
+    // unreachable. Callers must NOT treat this as signed out: show a neutral
+    // retry surface and keep whatever session exists. Distinct from isLoading,
+    // which means "still checking" rather than "we asked and could not tell".
+    isSessionUnknown: computed(() => _authState.value === 'unknown-offline'),
     isStaff: computed(() => _user.value?.is_staff === true),
     isInitialized: readonly(_isInitialized),
 

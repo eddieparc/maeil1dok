@@ -259,3 +259,155 @@ test('nuxt SSR error logger source never logs raw request URLs or unredacted err
   assert.doesNotMatch(errorLoggerSource, /console\.error\('URL:',\s*event\?\.node\?\.req\?\.url/);
   assert.doesNotMatch(errorLoggerSource, /'\[SSR Request\] URL:',\s*url\b/);
 });
+
+test('a refresh that could not reach the server must not log the user out', async () => {
+  const {
+    fetchUserWithRefreshPolicy,
+    revalidateAuthSession,
+  } = await importTsModule(authSessionPolicySource);
+
+  // A boolean cannot distinguish "the server rejected this refresh" from "the
+  // request never arrived". Collapsing them means a subway tunnel reads as a
+  // revoked session and the user is signed out for being offline. The refresh
+  // outcome therefore carries a reason, and only a rejection may force logout.
+  let logoutCount = 0;
+  let unreachableCount = 0;
+  const unreachableDependencies = {
+    fetchUser: async () => null,
+    refreshToken: async () => ({ ok: false, reason: 'unreachable' }),
+    logout: async () => {
+      logoutCount += 1;
+    },
+    onUnreachable: () => {
+      unreachableCount += 1;
+    },
+  };
+
+  const offlineResult = await revalidateAuthSession(unreachableDependencies);
+  assert.equal(offlineResult, null, 'an unreachable refresh yields no user');
+  assert.equal(
+    logoutCount,
+    0,
+    'a transport failure must never log the user out',
+  );
+  assert.equal(
+    unreachableCount,
+    1,
+    'the caller must be told the session state is unknown, not unauthenticated',
+  );
+
+  // The 401 path must still sign the user out, otherwise a genuinely revoked
+  // session would linger.
+  let rejectedLogoutCount = 0;
+  const rejectedDependencies = {
+    fetchUser: async () => null,
+    refreshToken: async () => ({ ok: false, reason: 'rejected' }),
+    logout: async () => {
+      rejectedLogoutCount += 1;
+    },
+  };
+
+  await revalidateAuthSession(rejectedDependencies);
+  assert.equal(
+    rejectedLogoutCount,
+    1,
+    'a rejected refresh must still force logout',
+  );
+
+  // Silent initialization keeps its existing contract: no logout either way.
+  let silentLogoutCount = 0;
+  await fetchUserWithRefreshPolicy({
+    fetchUser: async () => null,
+    refreshToken: async () => ({ ok: false, reason: 'rejected' }),
+    logout: async () => {
+      silentLogoutCount += 1;
+    },
+  });
+  assert.equal(
+    silentLogoutCount,
+    0,
+    'silent initialization must not log out on rejection',
+  );
+
+  // A plain boolean still works: existing callers are unchanged.
+  let legacyLogoutCount = 0;
+  await revalidateAuthSession({
+    fetchUser: async () => null,
+    refreshToken: async () => false,
+    logout: async () => {
+      legacyLogoutCount += 1;
+    },
+  });
+  assert.equal(
+    legacyLogoutCount,
+    1,
+    'a boolean false keeps its rejection semantics',
+  );
+});
+
+test('a reasoned refresh outcome is never read as a bare truthy value', async () => {
+  // `refreshToken()` returns an object now. Every call site that used it as a
+  // boolean must unwrap `.ok`, because `{ ok: false }` is truthy and would make a
+  // failed refresh look like a success -- retrying the request with credentials
+  // that were just refused.
+  const useApiSource = await readFile(
+    new URL('../app/composables/useApi.ts', import.meta.url),
+    'utf8',
+  );
+  const authServiceSource = await readFile(
+    new URL('../app/composables/useAuthService.ts', import.meta.url),
+    'utf8',
+  );
+
+  const truthyMisread = /const\s+(\w+)\s*=\s*await\s+auth\.refreshToken\(\)\s*\n\s*\n?\s*if\s*\(\1\)/;
+  assert.ok(
+    !truthyMisread.test(useApiSource),
+    'useApi must unwrap the refresh outcome instead of testing the object itself',
+  );
+
+  // The neutral state must be its own thing: folding it into `unauthenticated`
+  // reintroduces the logout-on-offline bug, and folding it into `loading` would
+  // spin forever instead of offering a retry.
+  assert.match(
+    authServiceSource,
+    /'unknown-offline'/,
+    'the auth state machine must carry an unknown-offline state',
+  );
+  assert.match(
+    authServiceSource,
+    /isSessionUnknown:\s*computed\(\(\)\s*=>\s*_authState\.value === 'unknown-offline'\)/,
+    'callers need a derived flag for the unknown state',
+  );
+  assert.match(
+    authServiceSource,
+    /isAuthenticated:\s*computed\(\(\)\s*=>\s*_authState\.value === 'authenticated'\)/,
+    'unknown-offline must not count as authenticated',
+  );
+});
+
+test('transport failures and rejections produce different refresh reasons', async () => {
+  // Pins the mapping at the producer: status 0 (offline/timeout/DNS) is
+  // unreachable, 401/403 is rejected. Without this, a future edit could collapse
+  // them again and the policy layer would have nothing to distinguish.
+  const authServiceSource = await readFile(
+    new URL('../app/composables/useAuthService.ts', import.meta.url),
+    'utf8',
+  );
+
+  const refreshBody = authServiceSource.slice(
+    authServiceSource.indexOf('async function refreshToken'),
+    authServiceSource.indexOf('async function fetchUserWithRefresh'),
+  );
+
+  assert.ok(refreshBody.length > 0, 'refreshToken body must be locatable');
+  assert.match(
+    refreshBody,
+    /result\.status === 0[\s\S]{0,200}reason: 'unreachable'/,
+    'a status-0 result must map to unreachable',
+  );
+  assert.match(
+    refreshBody,
+    /result\.status === 401 \|\| result\.status === 403[\s\S]{0,300}reason: 'rejected'/,
+    'a 401/403 must map to rejected',
+  );
+});
