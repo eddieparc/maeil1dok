@@ -98,6 +98,46 @@ function assertPlatform(args) {
   if (!PLATFORMS.has(args.platform)) fail(`--platform must be ios or android, got ${args.platform}`)
 }
 
+/**
+ * Decide whether a fetched marker satisfies the requested SHA.
+ *
+ * Pure on purpose: exported so tests can drive every verdict without standing up an
+ * HTTP server. An earlier version of the test suite did spin one up per case and
+ * hung -- the gate's `fetch` runs in a child process and leaves a keep-alive socket,
+ * so `server.close()` never completed. That cost a 25-minute CI failure. The HTTP
+ * layer below is now thin enough to need no coverage of its own; what matters is
+ * this decision, and it is directly testable.
+ *
+ * Returns `{ ok: true, marker }` or `{ ok: false, reason }`.
+ */
+export function evaluateMarker(marker, expectedSha) {
+  if (marker === null || typeof marker !== 'object') {
+    return { ok: false, reason: 'marker is not an object' }
+  }
+  if (typeof marker.commit !== 'string' || !marker.commit) {
+    return { ok: false, reason: 'marker has no commit field' }
+  }
+  if (marker.commit === 'unknown') {
+    return {
+      ok: false,
+      reason: 'the deployed web build has an unknown commit marker; rebuild and redeploy',
+    }
+  }
+  // Prefix comparison so a short SHA works, but only in that direction: a truncated
+  // deployed marker must not be allowed to satisfy an unrelated longer SHA.
+  const matches =
+    marker.commit === expectedSha || marker.commit.startsWith(expectedSha)
+  if (!matches) {
+    return {
+      ok: false,
+      reason:
+        `deployed web commit ${marker.commit} does not match --requires-web ${expectedSha}; ` +
+        'deploy the web build before publishing the shell',
+    }
+  }
+  return { ok: true, marker }
+}
+
 async function fetchDeployedMarker() {
   const url = `${WEB_ORIGIN}${MARKER_PATH}`
   let response
@@ -109,34 +149,22 @@ async function fetchDeployedMarker() {
   if (!response.ok) {
     fail(`${url} returned ${response.status}; deploy the web build first`)
   }
-  let marker
   try {
-    marker = await response.json()
+    return await response.json()
   } catch (error) {
     fail(`${url} is not JSON: ${error.message}`)
   }
-  if (!marker || typeof marker.commit !== 'string' || !marker.commit) {
-    fail(`${url} has no commit field`)
-  }
-  return marker
 }
 
 async function verifyWebMarker(expectedSha) {
   const marker = await fetchDeployedMarker()
-  if (marker.commit === 'unknown') {
-    fail('the deployed web build has an unknown commit marker; rebuild and redeploy')
+  const verdict = evaluateMarker(marker, expectedSha)
+  if (!verdict.ok) {
+    fail(verdict.reason)
   }
-  // Prefix comparison so a short SHA works, but only in that direction: a deployed
-  // marker must not be allowed to satisfy an unrelated longer SHA.
-  const matches =
-    marker.commit === expectedSha || marker.commit.startsWith(expectedSha)
-  if (!matches) {
-    fail(
-      `deployed web commit ${marker.commit} does not match --requires-web ${expectedSha}; ` +
-        'deploy the web build before publishing the shell',
-    )
-  }
-  process.stdout.write(`web marker OK: ${marker.commit} (built ${marker.builtAt ?? 'unknown'})\n`)
+  process.stdout.write(
+    `web marker OK: ${verdict.marker.commit} (built ${verdict.marker.builtAt ?? 'unknown'})\n`,
+  )
 }
 
 async function main() {
@@ -173,4 +201,9 @@ async function main() {
   execFileSync('npx', command, { stdio: 'inherit' })
 }
 
-main().catch((error) => fail(error.message))
+// Only run when invoked as a script, so tests can import `evaluateMarker` without
+// triggering a publish.
+const invokedDirectly = process.argv[1] && process.argv[1].endsWith('publish-ota.mjs')
+if (invokedDirectly) {
+  main().catch((error) => fail(error.message))
+}

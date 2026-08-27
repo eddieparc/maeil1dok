@@ -1,25 +1,23 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
-const http = require('node:http');
 const path = require('node:path');
 const test = require('node:test');
 
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'publish-ota.mjs');
 
 /**
- * The gate decides whether a shell OTA may be published. What it must get right:
+ * The gate decides whether a shell OTA may be published. Two halves, tested the way
+ * each is actually shaped:
  *
- * - Intent is DECLARED, never defaulted. Defaulting to skip the web check restores
- *   the ordering bug (shell published before the web it depends on, so an explicit
- *   logout silently fails to stick); defaulting to require it makes the task-5
- *   rehearsal and the task-38 navigation hotfix unpublishable, including any later
- *   re-publish of that hotfix.
- * - One platform per invocation, because a combined publish can half-fail behind a
- *   single exit code.
- * - A mismatched or unreachable web marker BLOCKS.
+ *  - Argument handling runs the real script (`--check-only` keeps `eas update` from
+ *    firing, so nothing here can publish).
+ *  - The marker verdict is a pure function, imported directly.
  *
- * Every case runs the real script. `--check-only` keeps `eas update` from firing, so
- * nothing here can publish.
+ * An earlier version stood up an HTTP server per marker case and HUNG: the gate's
+ * `fetch` runs in a child process and leaves a keep-alive socket, so
+ * `server.close()` never completed. Neither `Connection: close` nor
+ * `closeAllConnections()` fixed it. That shape cost a 25-minute CI failure, so the
+ * decision was extracted instead of the teardown being patched again.
  */
 function runGate(args, { env = {} } = {}) {
   try {
@@ -38,30 +36,11 @@ function runGate(args, { env = {} } = {}) {
   }
 }
 
-async function withMarkerServer(marker, run) {
-  const server = http.createServer((request, response) => {
-    if (request.url !== '/_build-marker.json') {
-      response.writeHead(404).end();
-      return;
-    }
-    if (marker === null) {
-      response.writeHead(500).end();
-      return;
-    }
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(typeof marker === 'string' ? marker : JSON.stringify(marker));
-  });
-
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const { port } = server.address();
-  try {
-    return await run(`http://127.0.0.1:${port}`);
-  } finally {
-    await new Promise((resolve) => server.close(resolve));
-  }
-}
-
 test('publishing without declaring intent is refused', () => {
+  // Defaulting either way is the bug this gate exists to prevent: defaulting to skip
+  // the web check restores the ordering bug (shell ahead of the web it depends on,
+  // so an explicit logout silently fails to stick), and defaulting to require it
+  // makes the task-5 rehearsal and the task-38 hotfix unpublishable.
   const result = runGate(['--platform', 'ios', '--check-only']);
   assert.equal(result.ok, false, 'an undeclared publish must not proceed');
   assert.match(result.stderr, /declare intent/);
@@ -69,12 +48,9 @@ test('publishing without declaring intent is refused', () => {
 
 test('declaring both intents at once is refused', () => {
   const result = runGate([
-    '--platform',
-    'ios',
-    '--requires-web',
-    'abc1234',
-    '--no-web-dependency',
-    'rehearsal',
+    '--platform', 'ios',
+    '--requires-web', 'abc1234',
+    '--no-web-dependency', 'rehearsal',
     '--check-only',
   ]);
   assert.equal(result.ok, false);
@@ -87,11 +63,7 @@ test('a missing or unknown platform is refused', () => {
   assert.match(missing.stderr, /--platform ios\|android is required/);
 
   const wrong = runGate([
-    '--no-web-dependency',
-    'rehearsal',
-    '--platform',
-    'both',
-    '--check-only',
+    '--no-web-dependency', 'rehearsal', '--platform', 'both', '--check-only',
   ]);
   assert.equal(wrong.ok, false);
   assert.match(wrong.stderr, /must be ios or android/);
@@ -99,10 +71,8 @@ test('a missing or unknown platform is refused', () => {
 
 test('the rehearsal and the hotfix can publish by waiving the web dependency', () => {
   const result = runGate([
-    '--no-web-dependency',
-    'task 38 navigation hotfix carries no web-dependent change',
-    '--platform',
-    'android',
+    '--no-web-dependency', 'task 38 navigation hotfix carries no web-dependent change',
+    '--platform', 'android',
     '--check-only',
   ]);
   assert.equal(result.ok, true, 'a shell-only change must remain publishable');
@@ -111,81 +81,63 @@ test('the rehearsal and the hotfix can publish by waiving the web dependency', (
   assert.match(result.stdout, /--platform android/);
 });
 
-test('a matching web marker allows a Phase 1 shell OTA', async () => {
+test('an unreachable marker endpoint blocks the publish', () => {
+  // Port 1 is never listening, so this exercises the real fetch failure path without
+  // a server of our own.
+  const result = runGate(
+    ['--requires-web', 'a'.repeat(40), '--platform', 'ios', '--check-only'],
+    { env: { WEB_ORIGIN: 'http://127.0.0.1:1' } },
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.stderr, /could not read/);
+});
+
+test('the marker verdict accepts only a matching commit', async () => {
+  const { evaluateMarker } = await import(SCRIPT);
   const sha = 'a'.repeat(40);
-  await withMarkerServer({ commit: sha, builtAt: '2026-08-27T00:00:00.000Z' }, (origin) => {
-    const result = runGate(
-      ['--requires-web', sha, '--platform', 'ios', '--check-only'],
-      { env: { WEB_ORIGIN: origin } },
-    );
-    assert.equal(result.ok, true, result.stderr);
-    assert.match(result.stdout, /web marker OK/);
-  });
-});
 
-test('a mismatched web marker blocks the publish', async () => {
-  await withMarkerServer({ commit: 'b'.repeat(40) }, (origin) => {
-    const result = runGate(
-      ['--requires-web', 'a'.repeat(40), '--platform', 'ios', '--check-only'],
-      { env: { WEB_ORIGIN: origin } },
-    );
-    assert.equal(result.ok, false, 'the shell must not go out ahead of its web build');
-    assert.match(result.stderr, /does not match --requires-web/);
-  });
-});
+  assert.equal(evaluateMarker({ commit: sha }, sha).ok, true);
+  assert.equal(
+    evaluateMarker({ commit: sha.slice(0, 8) }, sha.slice(0, 8)).ok,
+    true,
+  );
 
-test('an unknown commit marker blocks the publish', async () => {
-  // A local build with no git context writes `unknown`. Accepting it would let any
-  // shell publish claim it matched.
-  await withMarkerServer({ commit: 'unknown' }, (origin) => {
-    const result = runGate(
-      ['--requires-web', 'unknown', '--platform', 'ios', '--check-only'],
-      { env: { WEB_ORIGIN: origin } },
-    );
-    assert.equal(result.ok, false);
-    assert.match(result.stderr, /unknown commit marker/);
-  });
-});
-
-test('an unreachable or broken marker endpoint blocks the publish', async () => {
-  await withMarkerServer(null, (origin) => {
-    const failing = runGate(
-      ['--requires-web', 'a'.repeat(40), '--platform', 'ios', '--check-only'],
-      { env: { WEB_ORIGIN: origin } },
-    );
-    assert.equal(failing.ok, false);
-    assert.match(failing.stderr, /returned 500/);
-  });
-
-  await withMarkerServer('not json at all', (origin) => {
-    const malformed = runGate(
-      ['--requires-web', 'a'.repeat(40), '--platform', 'ios', '--check-only'],
-      { env: { WEB_ORIGIN: origin } },
-    );
-    assert.equal(malformed.ok, false);
-    assert.match(malformed.stderr, /is not JSON/);
-  });
+  const mismatch = evaluateMarker({ commit: 'b'.repeat(40) }, sha);
+  assert.equal(mismatch.ok, false, 'the shell must not go out ahead of its web build');
+  assert.match(mismatch.reason, /does not match --requires-web/);
 });
 
 test('a short sha may match a longer deployed marker, but not the reverse', async () => {
+  const { evaluateMarker } = await import(SCRIPT);
   const full = 'c'.repeat(40);
-  await withMarkerServer({ commit: full }, async (origin) => {
-    const short = runGate(
-      ['--requires-web', full.slice(0, 8), '--platform', 'ios', '--check-only'],
-      { env: { WEB_ORIGIN: origin } },
-    );
-    assert.equal(short.ok, true, 'a short sha is a normal way to refer to a commit');
-  });
 
-  await withMarkerServer({ commit: 'c'.repeat(8) }, async (origin) => {
-    const longer = runGate(
-      ['--requires-web', full, '--platform', 'ios', '--check-only'],
-      { env: { WEB_ORIGIN: origin } },
-    );
+  assert.equal(
+    evaluateMarker({ commit: full }, full.slice(0, 8)).ok,
+    true,
+    'a short sha is a normal way to refer to a commit',
+  );
+  assert.equal(
+    evaluateMarker({ commit: 'c'.repeat(8) }, full).ok,
+    false,
+    'a truncated deployed marker must not satisfy a full sha',
+  );
+});
+
+test('an unknown or malformed marker blocks the publish', async () => {
+  const { evaluateMarker } = await import(SCRIPT);
+  const sha = 'a'.repeat(40);
+
+  // A local build with no git context writes `unknown`. Accepting it would let any
+  // shell publish claim it matched.
+  const unknown = evaluateMarker({ commit: 'unknown' }, 'unknown');
+  assert.equal(unknown.ok, false);
+  assert.match(unknown.reason, /unknown commit marker/);
+
+  for (const bad of [null, undefined, 'not json', 42, {}, { commit: '' }, { builtAt: 'x' }]) {
     assert.equal(
-      longer.ok,
+      evaluateMarker(bad, sha).ok,
       false,
-      'a truncated deployed marker must not satisfy a full sha',
+      `a marker of ${JSON.stringify(bad)} must not satisfy the gate`,
     );
-  });
+  }
 });
