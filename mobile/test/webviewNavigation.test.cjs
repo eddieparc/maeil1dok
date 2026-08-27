@@ -136,3 +136,81 @@ test('description만으로도 취소를 판별한다', () => {
     false,
   );
 });
+
+test('navigation policy compares origins, not URL prefixes', () => {
+  // A prefix/substring allowlist is not an allowlist. Every case below reaches the
+  // WebView bridge (window.ReactNativeWebView.postMessage) if it is allowed, so an
+  // attacker-controlled page that slips through owns the shell's message channel.
+  //
+  //   startsWith('https://api.maeil1dok.app')  <- 'https://api.maeil1dok.app.evil.example/x'
+  //   includes('youtube.com')                  <- 'https://youtube.com.evil.example/'
+  //   includes('accounts.google.com')          <- '...google.com.evil.example/x'
+  const blocked = [
+    ['a', 'https://api.maeil1dok.app.evil.example/x'],
+    ['b', 'https://maeil1dok.app.evil.example/x'],
+    ['e', 'https://accounts.google.com.evil.example/x'],
+    ['f', 'https://youtube.com.evil.example/'],
+    ['g', 'not-a-url-at-all'],
+    // The dot boundary exists for THIS shape. `youtube.com.evil.example` ends with
+    // `evil.example`, so a bare endsWith already rejects it -- the host a bare
+    // endsWith would wrongly accept is one that merely ends in the domain text.
+    ['f2', 'https://evilyoutube.com/x'],
+    ['f3', 'https://notgooglevideo.com/x'],
+    // Unconfigured first-party subdomains are blocked today; allowing them would be
+    // a regression, so suffix matching must NOT be used for our own origins.
+    ['b2', 'https://foo.maeil1dok.app/x'],
+    // http downgrade of an otherwise allowed host
+    ['b3', 'http://maeil1dok.app/bible'],
+  ];
+  for (const [label, url] of blocked) {
+    assert.equal(
+      shouldAllowWebViewNavigation({ url, isTopFrame: true }, OPTIONS),
+      false,
+      `case ${label} must be blocked: ${url}`,
+    );
+  }
+
+  const allowed = [
+    ['c', 'https://api.maeil1dok.app/api/v1/auth/user/'],
+    ['d', 'https://maeil1dok.app/bible'],
+    // Real media hosts need arbitrary subdomains, so those specific services get
+    // boundary-safe suffix matching. Exact-matching them would break playback.
+    ['h', 'https://www.youtube.com/watch?v=x'],
+    ['i', 'https://rr1---sn-abc.googlevideo.com/x'],
+    ['h2', 'https://i.ytimg.com/vi/x/default.jpg'],
+    ['e2', 'https://accounts.google.com/o/oauth2/auth'],
+  ];
+  for (const [label, url] of allowed) {
+    assert.equal(
+      shouldAllowWebViewNavigation({ url, isTopFrame: true }, OPTIONS),
+      true,
+      `case ${label} must be allowed: ${url}`,
+    );
+  }
+
+  // (j) about: handling unchanged.
+  assert.equal(
+    shouldAllowWebViewNavigation({ url: 'about:blank', isTopFrame: true }, OPTIONS),
+    true,
+    'case j: about:blank keeps its current behaviour',
+  );
+});
+
+test('fatal-error classification uses origins too', () => {
+  // Same substring flaw on the error path: an attacker origin that merely looks
+  // like ours would be treated as "our document" and escalated to a full-screen
+  // error, which is a lower-severity but identical class of bug.
+  assert.equal(
+    isFatalWebViewError(
+      { url: 'https://api.maeil1dok.app.evil.example/x', code: 500 },
+      OPTIONS,
+    ),
+    false,
+    'a look-alike origin is third-party, not our document',
+  );
+  assert.equal(
+    isFatalWebViewError({ url: 'https://maeil1dok.app/bible', code: 500 }, OPTIONS),
+    true,
+    'our own document still escalates',
+  );
+});

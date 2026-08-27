@@ -39,7 +39,36 @@ export const OAUTH_DOMAINS = [
   'appleid.apple.com',
 ] as const;
 
-const YOUTUBE_DOMAINS = ['youtube.com', 'ytimg.com', 'googlevideo.com'] as const;
+/**
+ * Services that legitimately serve from arbitrary subdomains (`www.youtube.com`,
+ * `rr1---sn-abc.googlevideo.com`). Only these get suffix matching, and only with a
+ * dot boundary -- a bare `endsWith` would accept `evilyoutube.com`.
+ */
+const MEDIA_SUFFIX_DOMAINS = ['youtube.com', 'ytimg.com', 'googlevideo.com'] as const;
+
+function parsedUrl(url: string): URL | null {
+  try {
+    return new URL(url);
+  } catch {
+    // An unparseable URL cannot be proven safe, so it is not allowed.
+    return null;
+  }
+}
+
+function originOf(url: string): string | null {
+  const parsed = parsedUrl(url);
+  return parsed ? parsed.origin : null;
+}
+
+function isHttps(parsed: URL): boolean {
+  return parsed.protocol === 'https:';
+}
+
+function matchesMediaDomain(host: string): boolean {
+  return MEDIA_SUFFIX_DOMAINS.some(
+    (domain) => host === domain || host.endsWith(`.${domain}`),
+  );
+}
 
 const NATIVE_SCHEMES = ['youtube://', 'vnd.youtube://', 'intent://'] as const;
 
@@ -69,27 +98,47 @@ export function shouldAllowWebViewNavigation(
     return true;
   }
 
-  if (url.includes('/login') && url.startsWith(options.webAppUrl)) {
-    return false;
+  // `about:` is not a network navigation; keep its existing pass-through.
+  if (url.startsWith('about:')) {
+    return true;
   }
 
   if (NATIVE_SCHEMES.some((scheme) => url.startsWith(scheme))) {
     return false;
   }
 
-  if (OAUTH_DOMAINS.some((domain) => url.includes(domain))) {
-    return true;
-  }
-
-  if (YOUTUBE_DOMAINS.some((domain) => url.includes(domain))) {
-    return true;
-  }
-
-  if (!url.startsWith(options.webAppUrl) && !url.startsWith(options.apiUrl) && !url.startsWith('about:')) {
+  const parsed = parsedUrl(url);
+  if (!parsed || !isHttps(parsed)) {
+    // Unparseable, or a scheme downgrade of an otherwise allowed host.
     return false;
   }
 
-  return true;
+  const webOrigin = originOf(options.webAppUrl);
+  const apiOrigin = originOf(options.apiUrl);
+
+  // First-party origins: EXACT match. Suffix matching here would open the bridge to
+  // every unconfigured subdomain (`foo.maeil1dok.app`), which is blocked today.
+  const isFirstParty =
+    (webOrigin !== null && parsed.origin === webOrigin) ||
+    (apiOrigin !== null && parsed.origin === apiOrigin);
+
+  if (isFirstParty && parsed.pathname.startsWith('/login')) {
+    return false;
+  }
+  if (isFirstParty) {
+    return true;
+  }
+
+  // OAuth hosts: exact host match. There is no reason to accept their subdomains.
+  if (OAUTH_DOMAINS.some((domain) => parsed.hostname === domain)) {
+    return true;
+  }
+
+  if (matchesMediaDomain(parsed.hostname)) {
+    return true;
+  }
+
+  return false;
 }
 
 export function isFatalWebViewError(
@@ -109,9 +158,20 @@ export function isFatalWebViewError(
   }
 
   const url = typeof error.url === 'string' ? error.url : '';
-  if (url && !url.startsWith(options.webAppUrl) && !url.startsWith(options.apiUrl)) {
-    // 서드파티 리소스/서브프레임 실패는 앱 전체 실패가 아니다.
-    return false;
+  if (url) {
+    // Origin equality, not prefix: a look-alike host is third-party, and escalating
+    // its failure to a full-screen error would misattribute someone else's page to us.
+    const failedOrigin = originOf(url);
+    const webOrigin = originOf(options.webAppUrl);
+    const apiOrigin = originOf(options.apiUrl);
+    const isOurDocument =
+      failedOrigin !== null &&
+      ((webOrigin !== null && failedOrigin === webOrigin) ||
+        (apiOrigin !== null && failedOrigin === apiOrigin));
+    if (!isOurDocument) {
+      // 서드파티 리소스/서브프레임 실패는 앱 전체 실패가 아니다.
+      return false;
+    }
   }
 
   return true;
