@@ -529,6 +529,13 @@ export function useAuthService() {
       fetchUser: fetchUserFromApi,
       refreshToken,
       logout: performLogout,
+      // Same handling as the silent path. Without this, an explicit revalidation
+      // that cannot reach the server would leave the state untouched: the banner
+      // would never appear on this path, and a failed retry from the banner would
+      // make it disappear as if the problem were solved.
+      onUnreachable: () => {
+        _authState.value = 'unknown-offline'
+      },
     })
     
     if (user) {

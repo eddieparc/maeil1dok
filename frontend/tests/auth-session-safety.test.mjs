@@ -411,3 +411,86 @@ test('transport failures and rejections produce different refresh reasons', asyn
     'a 401/403 must map to rejected',
   );
 });
+
+test('the unknown-session surface is neutral, global, and offers a retry', async () => {
+  // The state exists but nothing renders it yet. Without a surface the user sees
+  // a page that silently refuses to work: `isAuthenticated` is false so
+  // auth-gated UI hides, and no explanation appears anywhere.
+  //
+  // It has to be ONE global surface. Branching on `isSessionUnknown` inside each
+  // of the 8+ components that read `isAuthenticated` guarantees one gets missed,
+  // and `app.vue` already hosts EmailVerificationBanner for exactly this shape.
+  const bannerSource = await readFile(
+    new URL('../app/components/auth/SessionUnknownBanner.vue', import.meta.url),
+    'utf8',
+  );
+  const appSource = await readFile(
+    new URL('../app/app.vue', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(
+    appSource,
+    /<SessionUnknownBanner\s*\/>/,
+    'app.vue must host the banner globally',
+  );
+  assert.match(
+    appSource,
+    /import SessionUnknownBanner from '~\/components\/auth\/SessionUnknownBanner\.vue'/,
+    'app.vue must import the banner',
+  );
+
+  // Machine-consumed contract, not prose: the banner keys off the derived flag
+  // and exposes a retry hook plus a sign-in escape hatch.
+  assert.match(
+    bannerSource,
+    /isSessionUnknown/,
+    'the banner must be driven by the derived unknown-session flag',
+  );
+  assert.match(
+    bannerSource,
+    /data-testid="session-unknown-retry"/,
+    'the retry control needs a stable hook for QA and e2e',
+  );
+  assert.match(
+    bannerSource,
+    /data-testid="session-unknown-signin"/,
+    'the user must still be able to sign in manually from this surface',
+  );
+
+  // The retry must actually re-ask the server, not just hide the banner.
+  assert.match(
+    bannerSource,
+    /revalidate|refreshUser|initialize/,
+    'retry must re-verify the session rather than dismissing the notice',
+  );
+});
+
+test('both policy call sites report an unreachable session', async () => {
+  // Two call sites feed the policy: the silent init path and the explicit
+  // revalidate path. Wiring only one leaves a hole -- the banner never appears on
+  // the unwired path, and a failed retry from the banner would make it vanish as
+  // if the problem were solved. This was actually missed once.
+  const authServiceSource = await readFile(
+    new URL('../app/composables/useAuthService.ts', import.meta.url),
+    'utf8',
+  );
+
+  const callSites = authServiceSource.match(/onUnreachable:/g) ?? [];
+  assert.equal(
+    callSites.length,
+    2,
+    'both fetchUserWithRefresh and revalidate must handle the unreachable case',
+  );
+
+  const revalidateBody = authServiceSource.slice(
+    authServiceSource.indexOf('async function revalidate('),
+    authServiceSource.indexOf('function setTokens('),
+  );
+  assert.ok(revalidateBody.length > 0, 'revalidate body must be locatable');
+  assert.match(
+    revalidateBody,
+    /onUnreachable:[\s\S]{0,200}'unknown-offline'/,
+    'revalidate must set the unknown-offline state on transport failure',
+  );
+});

@@ -5,6 +5,12 @@
       <EmailVerificationBanner />
     </ClientOnly>
 
+    <!-- Shown when the session could not be verified (server unreachable).
+         Client-only: the state is decided by a client-side refresh attempt. -->
+    <ClientOnly>
+      <SessionUnknownBanner />
+    </ClientOnly>
+
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
@@ -26,6 +32,7 @@ import Toast from '~/components/Toast.vue'
 import ModalHost from '~/components/ui/modal/ModalHost.vue'
 import ToastHost from '~/components/ui/toast/ToastHost.vue'
 import EmailVerificationBanner from '~/components/auth/EmailVerificationBanner.vue'
+import SessionUnknownBanner from '~/components/auth/SessionUnknownBanner.vue'
 
 // Legacy toast 인스턴스 (마이그레이션 완료 후 제거 예정)
 const legacyToast = ref()
