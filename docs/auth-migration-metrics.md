@@ -24,6 +24,33 @@
 naive KST 다. 카운터의 `hour` 는 UTC 이므로 경계에서 `to_utc_naive()` 로 한 번 변환한다.
 직접 SQL 로 질의할 때 이 차이를 잊으면 **모든 창이 9시간 밀린다.**
 
+## 계측 배포 검증 (2026-08-27, 에이전트 실측)
+
+계측 사슬이 프로덕션에서 끝까지 동작함을 확인했다. 배포 커밋 `bc869579`,
+워크플로 실행 `33032464561`(workflow_dispatch — push 경로는 경로 필터에 걸려
+`deploy-oci` 가 skip 됐다).
+
+| 확인 | 결과 |
+|---|---|
+| 마이그레이션 | `todos 0033_notification_settings_absorb_legacy` `[X]`, `authmetrics 0001_initial` `[X]` |
+| CI 스모크 | `attempt 1: /health/ 200, /ready/ 200, frontend 200` → `SMOKE OK` |
+| 이벤트 기록 | 익명 `/auth/user/`(401) → `auth / none / auth_user / client=web` |
+| 원인 분류 | 손상 refresh(401) → `refresh_401 / refresh-redemption / cause=malformed` |
+| 클라이언트 분류 | `X-Client: web` 과 `shell` 이 각각 그대로 기록됨 (작업 1 CORS + 작업 2 분류기 동시 성립) |
+| 집계 | `aggregate_pending()` → `FOLDED=3`, `PENDING_AFTER=0`, `COUNTERS=3` |
+| **시간대** | 서버 로컬 11시(KST)의 이벤트가 카운터에 **`hour=2`(UTC)** 로 기록됨 |
+| 세대 CAS | `GEN=0->1`, 로그아웃을 걸친 발급 `STRADDLE_REFUSED=True` (프로덕션 Redis) |
+
+**시간대 항목이 특히 중요하다.** `to_utc_naive()` 경계 변환이 없으면 모든 롤링 창이
+9시간 밀려 롤백 판정이 엉뚱한 시간대를 본다. `hour=2` 는 그 변환이 프로덕션에서 실제로
+작동한다는 증거다.
+
+celery beat 는 2분 주기로 `authmetrics.aggregate_auth_events` 를 보내고 worker 가
+받는 것을 로그로 확인했다. 배포 직후 두 실행(11:16, 11:18)이 `0` 을 반환한 것은 그
+시점에 이벤트가 아직 없었기 때문이며(프로브는 11:20), 직접 실행하니 3건 전부 접혔다.
+
+---
+
 ## 식별 문자열 실측 (작업 2 — 사람)
 
 작업 2 의 `client` 분류기는 `X-Client` 헤더가 없는 구버전 셸을 User-Agent 로 판정한다.
