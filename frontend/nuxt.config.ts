@@ -88,7 +88,12 @@ export default defineNuxtConfig({
     hasenaPlaylistId: process.env.HASENA_PLAYLIST_ID || '',
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8019',
-      bibleCacheUrl: process.env.NUXT_PUBLIC_BIBLE_CACHE_URL || '',  // 성경 캐시 서버 URL (failback용)
+      bibleCacheUrl: process.env.NUXT_PUBLIC_BIBLE_CACHE_URL || '',
+      // 'notice' 또는 'blocking'. 채널 없는 구 스토어 바이너리 사용자에게
+      // 스토어 업데이트를 안내한다. 기본이 'notice' 인 것은 안전 속성이다 —
+      // 새 스토어 빌드가 실제로 올라가기 전에 'blocking' 으로 두면 업데이트할
+      // 대상이 없는 사용자를 앱에서 쫓아낸다. 스토어 반영을 확인한 뒤 켠다.
+      legacyShellEnforcement: process.env.NUXT_PUBLIC_LEGACY_SHELL_ENFORCEMENT || 'notice',  // 성경 캐시 서버 URL (failback용)
       KAKAO_CLIENT_ID: process.env.NUXT_PUBLIC_KAKAO_CLIENT_ID || process.env.KAKAO_CLIENT_ID,
       kakaoJsKey: process.env.NUXT_PUBLIC_KAKAO_JS_KEY || process.env.KAKAO_JS_KEY,
       KAKAO_REDIRECT_URI: process.env.NUXT_PUBLIC_KAKAO_REDIRECT_URI || process.env.KAKAO_REDIRECT_URI,
