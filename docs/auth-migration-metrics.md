@@ -51,6 +51,82 @@ celery beat 는 2분 주기로 `authmetrics.aggregate_auth_events` 를 보내고
 
 ---
 
+## 롤업 쿼리 (작업 7 — 에이전트, 2026-08-29 프로덕션 실행)
+
+게이트가 읽는 네 질의를 여기 고정한다. **요청 비율 기반 게이트는 금지한다** — 한 기기가
+재시도로 요청을 부풀리면 코호트가 통째로 왜곡된다. 분모는 항상 명시된 것만 쓴다.
+
+```python
+from datetime import timedelta
+from django.db.models import Sum
+from authmetrics.models import AuthMetricCounter, EventKind, Outcome, AgeBucket
+from authmetrics.recording import utc_now_naive
+
+today = utc_now_naive().date()
+base = AuthMetricCounter.objects.filter(day__gte=today - timedelta(days=7))
+def total(**f):
+    return base.filter(**f).aggregate(t=Sum("count"))["t"] or 0
+
+# (a) 북극성 — 30일 미만 자격증명으로 성공한 인증의 비율
+a_num = total(event=EventKind.AUTH, outcome=Outcome.SUCCESS, age_bucket=AgeBucket.LT_30D)
+a_den = total(event=EventKind.AUTH, outcome=Outcome.SUCCESS)
+
+# (b) 로그인 성공률 — 분모는 로그인 "시도"
+b_num = total(event=EventKind.LOGIN, outcome=Outcome.SUCCESS)
+b_den = total(event=EventKind.LOGIN)
+
+# (c) 인증 401률
+c_num = total(event=EventKind.AUTH, status=401)
+c_den = total(event=EventKind.AUTH)
+
+# (d) 클라이언트 코호트 크기
+d = list(base.values("client").annotate(t=Sum("count")).order_by("-t"))
+```
+
+**실행 결과 (2026-08-29, 최근 7일, 프로덕션)**
+
+| 질의 | 값 |
+|---|---|
+| (a) 북극성 | `0 / 132` |
+| (b) 로그인 성공률 | `4 / 6` |
+| (c) 인증 401률 | `70 / 204` |
+| (d) 코호트 | **질의 실패 — 아래 참조** |
+
+### (a) 가 0 인 것은 결함이 아니다
+
+`age_bucket` 은 **refresh 상환 경로에서만** 실제 나이를 안다. 쿠키·헤더 access-JWT 인증은
+자격증명 발급 시각을 알 수 없어 `unknown` 으로 들어간다. 따라서 현재 분모 132 는 거의 전부
+access-JWT 경로이고 `lt_30d` 는 0 이 맞다. **북극성을 이 분모로 읽으면 안 된다** —
+`method=refresh-redemption` 으로 좁혀야 의미가 생긴다. 셸 코호트가 식별되기 전(H2)까지는
+이 지표를 판정에 쓰지 않는다.
+
+### (d) 는 카운터에서 답할 수 없었다 — 실측으로 드러난 결함
+
+2026-08-29 프로덕션 실행에서 (d) 만 실패했다. 원인은 **`client` 가 카운터 grain 에 없고
+아웃박스에만 있었다**는 것이다. 아웃박스는 집계 후 배수되고 보존 기한이 지나면 삭제되므로,
+며칠 뒤에 묻는 코호트 질문에 **구조적으로 답할 수 없는** 상태였다.
+
+더 나쁜 것은 손실이었다. grain 에 `client` 가 없으면 **서로 다른 클라이언트의 이벤트가
+같은 카운터 행으로 접힌다** — 회귀 테스트가 `1 != 2` 로 이것을 잡았다
+(`tests.test_auth_metrics_store.ClientCohortSurvivesAggregationTests`).
+
+`authmetrics/migrations/0002_counter_client_dimension.py` 가 expand-only 로 컬럼을 더하고
+grain 유니크 제약을 새로 건다. 기존 행은 `client=''` 로 남으므로 충돌하지 않는다.
+
+**배포 직전 아웃박스 스냅샷** (이 값은 배포 후 카운터에서 계속 읽을 수 있어야 한다):
+
+| client | 건수 |
+|---|---|
+| `unknown` | 208 |
+| `shell` | 2 |
+| (빈 값) | 2 |
+| `web` | 1 |
+
+`unknown` 이 압도적인 것은 **H2(식별 문자열 실측)가 아직 안 끝났기 때문**이며 의도된 상태다
+(`SHELL_UA_PATTERNS` 를 비워 둔 채 추측하지 않는다). H2 완료 전 코호트 비율은 판정에 쓰지 않는다.
+
+---
+
 ## 식별 문자열 실측 (작업 2 — 사람)
 
 작업 2 의 `client` 분류기는 `X-Client` 헤더가 없는 구버전 셸을 User-Agent 로 판정한다.
@@ -140,12 +216,22 @@ iOS 웹뷰 / Android 웹뷰 / iOS 네이티브 / Android 네이티브는 **서�
 
 ## 승격과 도달 확인 (8단계 — 사람)
 
+> **2026-08-29 — H1 을 (3-a) 로 가정하고 후속 작업을 진행했다 (사용자 지시).**
+> 실기기 검증은 **수행되지 않았다.** 아래 표는 여전히 비어 있으며, 이 가정은 **셸 OTA 를
+> 실제로 게시하기 전에 반드시 실측으로 대체해야 한다.** 가정이 틀렸다면(=OTA 미도달)
+> 셸 변경(작업 9·11·36 셸부분·38 과 이번 작업 5 관측면)은 **스토어 제출로만** 나갈 수 있고
+> H7(제출 자격)이 선행 조건이 된다. 서버·웹 변경은 이 가정과 무관하게 이미 유효하다.
+>
+> 가정을 실측으로 바꾸는 비용은 낮아졌다 — 이번 변경이 `Updates.updateId` 를 **콘솔 1줄과
+> 로그인 화면 하단** 두 곳에 노출하므로, 종전의 "관측 수단이 없어 확인 자체가 불가능"
+> (게이트 M49 MAJOR) 순환이 해소됐다.
+
 | 항목 | 값 |
 |---|---|
-| 검증한 업데이트 그룹 id | (미기록) |
+| 검증한 업데이트 그룹 id | (미기록 — H1 가정 처리) |
 | 재게시로 생긴 새 그룹 id | |
 | 내용 일치 확인 방법 | |
-| 대표 기기 도달 확인 | |
+| 대표 기기 도달 확인 | **가정 (3-a), 실기기 미검증** |
 
 **`eas update` 는 새 번들을 새로 게시한다** — 검증한 그 그룹이 아니라 다시 번들한 다른 내용이
 나갈 수 있으므로 `update:republish` 로 승격하고, 재게시가 **새 그룹 id 를 만든다**는 사실을
