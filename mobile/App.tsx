@@ -31,6 +31,12 @@ import CookieManager from '@react-native-cookies/cookies';
 import { resolveWebViewConfig } from './webviewConfig';
 import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
 import { redactSensitiveUrl } from './urlRedaction';
+import * as Updates from 'expo-updates';
+import {
+  formatBundleIdentityLabel,
+  formatBundleIdentityLine,
+  resolveBundleIdentity,
+} from './bundleIdentity';
 import { isFatalWebViewError, shouldAllowWebViewNavigation } from './webviewNavigation';
 
 SplashScreen.preventAutoHideAsync();
@@ -93,6 +99,26 @@ function AppContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Which bundle is actually running. Read once: `expo-updates` values are fixed
+  // for the lifetime of the launch, and the OTA reach verdict (handoff H1) needs
+  // a value that cannot drift while the operator is reading it.
+  const bundleIdentity = useRef(
+    resolveBundleIdentity({
+      updateId: Updates.updateId,
+      runtimeVersion: Updates.runtimeVersion,
+      channel: Updates.channel,
+      isEmbeddedLaunch: Updates.isEmbeddedLaunch,
+      appVersion: Constants.expoConfig?.version,
+    }),
+  ).current;
+
+  // Two independent observation surfaces on purpose: a device log is unreachable
+  // on some phones, and the login footer is unreachable when the app cannot get
+  // that far. Either one alone leaves the reach test unanswerable.
+  useEffect(() => {
+    console.log(formatBundleIdentityLine(bundleIdentity));
+  }, [bundleIdentity]);
 
   useEffect(() => {
     const loadFonts = async () => {
@@ -786,6 +812,10 @@ function AppContent() {
                   <Text style={styles.registerLink}>이메일로 회원가입</Text>
                 </TouchableOpacity>
               </View>
+
+              <Text style={styles.bundleIdentityText}>
+                {formatBundleIdentityLabel(bundleIdentity)}
+              </Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -872,6 +902,14 @@ function AppContent() {
 }
 
 const styles = StyleSheet.create({
+  // Deliberately quiet: this is a diagnostic surface for the OTA reach test, not
+  // product copy. It must be readable when asked for and ignorable otherwise.
+  bundleIdentityText: {
+    marginTop: 24,
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#94a3b8',
+  },
   container: {
     flex: 1,
     backgroundColor: '#faf8f6',
