@@ -113,24 +113,39 @@ class CookieTokenRefreshView(TokenRefreshView):
 
     @extend_schema(responses={200: TokenRefreshResponseSerializer})
     def post(self, request, *args, **kwargs):
-        # 쿠키에서 refresh 토큰 읽기 (우선)
-        refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE)
-        used_cookie = refresh_token is not None
+        # 본문에 토큰을 제시한 요청은 CSRF 검사 대상이 아니다.
+        #
+        # CSRF 가 막는 것은 "브라우저가 가진 주변 권한(쿠키)으로 공격자가 요청을
+        # 일으키는 것"이다. 공격자는 HttpOnly refresh 쿠키를 읽을 수 없으므로 이
+        # 본문을 만들 수 없다 — 그 값을 제시했다는 사실 자체가 소지 증명이고,
+        # 쿠키의 주변 권한에 기대지 않았다는 증명이다.
+        #
+        # 이 분기가 없어서 실제로 무슨 일이 있었는지 (2026-08-30 프로덕션 실측):
+        # 셸은 저장한 토큰을 본문에 담아 보내는데 `sharedCookiesEnabled` 때문에
+        # 네이티브 fetch 가 refresh 쿠키까지 자동 첨부한다. 쿠키가 보이니 CSRF 검사가
+        # 돌고, 네이티브 fetch 에는 Origin 도 Referer 도 없어 Django 의 검사는 절대
+        # 통과할 수 없다. 그래서 **모든** 상환이 403 이었고 본문 토큰은 읽히지도
+        # 않았다. 세션은 1시간짜리 access 쿠키로만 버텼고 사용자는 매시간 로그아웃됐다.
+        body_token = request.data.get('refresh') if hasattr(request.data, 'get') else None
+        cookie_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE)
 
-        if used_cookie:
-            csrf_rejection = CSRFCheck(lambda req: None).process_view(request, None, (), {})
-            if csrf_rejection:
-                _record_refresh_rejection(
-                    request, refresh_metrics.CAUSE_CSRF, status_code=403
+        if body_token:
+            refresh_token = body_token
+        else:
+            # 쿠키 단독 상환 = 주변 권한에 기댄 요청. 여기서는 보호를 그대로 둔다.
+            refresh_token = cookie_token
+            if cookie_token is not None:
+                csrf_rejection = CSRFCheck(lambda req: None).process_view(
+                    request, None, (), {}
                 )
-                return Response(
-                    {'error': 'CSRF validation failed'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-        # 쿠키에 없으면 요청 본문에서 읽기 (하위 호환)
-        if not refresh_token:
-            refresh_token = request.data.get('refresh')
+                if csrf_rejection:
+                    _record_refresh_rejection(
+                        request, refresh_metrics.CAUSE_CSRF, status_code=403
+                    )
+                    return Response(
+                        {'error': 'CSRF validation failed'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
 
         if not refresh_token:
             _record_refresh_rejection(

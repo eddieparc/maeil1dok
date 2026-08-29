@@ -243,10 +243,11 @@ class RefreshRejectionCauseTest(TestCase):
     def test_blacklisted_young_token_is_the_north_star_signal(self):
         """The fingerprint of the bug this migration exists to fix.
 
-        A cookie-free client is required: the view prefers the cookie, so a
-        client that kept the rotation response's cookie would rotate again
-        successfully and never exercise the body token. The shell sends the stored
-        token in the body with no cookie, which is the real bug path.
+        Uses a fresh client for isolation only. It used to be *required*, because
+        the view preferred the cookie and a client holding the rotation response's
+        cookie would rotate again and never exercise the body token. That
+        precedence was reversed on 2026-08-30 (see the test below), so the body
+        token is now what gets judged either way.
         """
         rotator = APIClient()
         rotated = rotator.post(
@@ -270,12 +271,27 @@ class RefreshRejectionCauseTest(TestCase):
             'without a real age the north-star predicate cannot be evaluated',
         )
 
-    def test_cookie_replay_does_not_reach_the_body_token(self):
-        """Documents why the test above needs a fresh client.
+    def test_the_body_token_takes_precedence_over_the_cookie(self):
+        """Precedence reversed 2026-08-30. Pinned here because it is deliberate.
 
-        Not a redundant assertion: it pins the cookie-over-body precedence that
-        made an earlier version of this test silently pass without ever producing
-        a blacklisted rejection.
+        It used to be cookie-over-body. Two measured reasons overturned that:
+
+        1. **The cookie path was unreachable for the shell.** Redeeming by cookie
+           requires CSRF, and the shell's native `fetch` sends neither `Origin` nor
+           `Referer`, so Django's check can never pass. Because the shell also
+           attaches the cookie (`sharedCookiesEnabled` + `credentials: 'include'`),
+           cookie precedence meant **every** shell redemption was answered 403 and
+           the body token it did send was never read.
+        2. **Cookie precedence masked the north-star signal.** A shell holding a
+           stale stored token beside a fresh cookie rotated the cookie and looked
+           healthy, so `refresh_401{cause=blacklisted}` -- the whole point of the
+           measurement -- could not fire. The docstring of the test above admitted
+           exactly this.
+
+        The reverse design (read the cookie but let a body token waive CSRF) was
+        rejected: an attacker could present *their own* valid token to waive the
+        check and have the victim's cookie rotated. With body precedence, a token
+        an attacker supplies only ever refreshes that attacker's own session.
         """
         client = APIClient()
         first = client.post(
@@ -283,13 +299,19 @@ class RefreshRejectionCauseTest(TestCase):
         )
         self.assertEqual(first.status_code, 200)
 
+        # The cookie now holds the rotated token, but the body still carries the
+        # original -- which rotation blacklisted. The body is what gets judged.
         second = client.post(
             REFRESH_URL, {'refresh': self.tokens['refresh']}, format='json'
         )
-        self.assertEqual(second.status_code, 200)
-        self.assertFalse(
-            events(event=EventKind.REFRESH_401),
-            'the cookie path rotated successfully, so no rejection should exist',
+        self.assertEqual(second.status_code, 401)
+
+        event = events(event=EventKind.REFRESH_401)[-1]
+        self.assertEqual(
+            event.cause,
+            refresh_metrics.CAUSE_BLACKLISTED,
+            'the replayed body token must surface as the north-star cause, not be '
+            'hidden behind a still-valid cookie',
         )
 
     def test_stale_generation_is_its_own_cause(self):
