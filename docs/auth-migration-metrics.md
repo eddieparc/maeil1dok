@@ -53,13 +53,17 @@ celery beat 는 2분 주기로 `authmetrics.aggregate_auth_events` 를 보내고
 
 ## refresh 상환이 100% CSRF 403 이었다 (2026-08-30 실측, 수정·배포)
 
-H1 판정 뒤 실기기 시험을 하다 드러났다. 프로덕션 이벤트를 열어 보니 **성공한 refresh
-상환이 한 건도 없었다.**
+H1 판정 뒤 실기기 시험을 하다 드러났다. 3시간 창의 프로덕션 이벤트가 전부 이랬다.
 
 ```
-refresh_401 / refresh-redemption  fail  status=403  cause=csrf   ← 예외 없이 전부
+refresh_401 / refresh-redemption  fail  status=403  cause=csrf
 auth        / cookie-access-jwt   success status=200             ← 바로 뒤에 성공
 ```
+
+**정정**: 처음엔 이것을 "성공한 상환이 한 건도 없다" 로 적었는데 과장이었다. 2일 창으로
+넓히면 `route=auth_refresh` 의 성공이 **83건** 있다. 막힌 것은 **셸이고 웹은 정상이었다**
+(누적 실패 17건은 전부 `cause=csrf`, 전부 셸발). 그 3시간 창에 셸 트래픽만 있었던 것이다.
+계약 테스트의 `쿠키단독 + 유효 CSRF 헤더 → 200` 케이스가 웹 경로의 건강함을 따로 증명한다.
 
 ### 원인
 
@@ -99,6 +103,42 @@ auth        / cookie-access-jwt   success status=200             ← 바로 뒤�
 
 로그아웃도 같은 병이었다(`cookie_logout` 도 쿠키가 있으면 CSRF 검사). 본문이 없어 서버로는
 못 풀고, 셸이 공유 쿠키 저장소의 `csrftoken` 을 헤더로 싣도록 고쳤다 — 다음 스토어 빌드로 간다.
+
+### 성공은 `refresh-redemption` 으로 기록되지 않는다 (질의 주의)
+
+`method=refresh-redemption` 은 **거부에만** 붙는다. 상환이 성공하면 미들웨어가 남기는
+일반 인증 이벤트로 기록된다.
+
+| 결과 | 남는 행 |
+|---|---|
+| 성공 | `event=auth, method=none, outcome=success, status=200, route_bucket=auth_refresh` |
+| 거부 | `event=refresh_401, method=refresh-redemption, outcome=fail, cause=<원인>` |
+
+`method='refresh-redemption'` 으로만 필터하면 **성공은 절대 보이지 않는다.** 성공률을 보려면
+`route_bucket=auth_refresh` 로 잡아야 한다. 2026-08-30 검증 때 내가 이 함정에 빠져
+"성공이 기록되지 않았다" 고 잘못 읽을 뻔했다.
+
+### 배포 후 실표면 검증 (2026-08-30, 커밋 `7ec253cc`)
+
+자격증명 없이도 판정 가능한 판별자를 배포 전후로 같은 명령으로 찍었다 — 쓰레기 본문 토큰 +
+refresh 쿠키 + CSRF 헤더 없음.
+
+| 시점 | 응답 | 뜻 |
+|---|---|---|
+| 배포 전 | `403 {"error":"CSRF validation failed"}` | 본문 토큰이 읽히지도 않음 |
+| 배포 후 | `401 {"error":"Invalid or expired refresh token"}` | **본문 토큰이 읽힘** |
+
+이어서 실제 유효 토큰으로 **셸과 동일한 요청 형태**(본문 + 쿠키 + CSRF 헤더 없음 +
+Origin/Referer 없음)를 프로덕션에 보냈다.
+
+```
+REDEEM_STATUS=200  REDEEM_KEYS=['access','refresh']  ROTATED=True
+EV 23:40:42 auth/none success status=200 route=auth_refresh          ← 성공 기록
+EV 23:39:42 refresh_401/refresh-redemption fail 401 cause=malformed  ← 판별자 기록
+```
+
+> 컨테이너 안에서 공개 URL 로 요청하면 Cloudflare 가 `Python-urllib` UA 를 `error code: 1010`
+> 으로 막는다. 검사 대상은 그 앞단이 아니므로 평범한 UA 를 붙여야 Django 까지 닿는다.
 
 ### 시간대 함정 (이번에 나를 속인 것)
 
