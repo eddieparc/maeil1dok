@@ -25,10 +25,91 @@
  */
 
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'https://maeil1dok.app'
 const MARKER_PATH = '/_build-marker.json'
 const PLATFORMS = new Set(['ios', 'android'])
+const MOBILE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
+/**
+ * What runtime and project does a published update belong to?
+ *
+ * Derived from app config rather than assumed, because guessing the runtime makes
+ * the reach check worthless: it would query a runtime no installed app asks for
+ * and report the answer as proof.
+ */
+export function resolveUpdateTarget(appConfig) {
+  const expo = appConfig?.expo
+  const projectId = expo?.extra?.eas?.projectId
+  if (typeof projectId !== 'string' || !projectId) {
+    return { ok: false, reason: 'app.json has no expo.extra.eas.projectId' }
+  }
+  const policy = expo?.runtimeVersion?.policy
+  if (policy !== 'appVersion') {
+    return {
+      ok: false,
+      reason:
+        `runtimeVersion.policy is ${policy ?? 'unset'}; this gate can only derive ` +
+        'the runtime when the policy is appVersion. Update the gate together with the policy.',
+    }
+  }
+  const runtimeVersion = expo?.version
+  if (typeof runtimeVersion !== 'string' || !runtimeVersion) {
+    return { ok: false, reason: 'app.json has no expo.version to use as the runtime' }
+  }
+  return { ok: true, projectId, runtimeVersion }
+}
+
+/**
+ * Did the publish become the update the server actually serves?
+ *
+ * `eas update` printing "Published!" says a record was created, not that any
+ * client will be offered it. Comparing the served update id across the publish is
+ * the cheapest honest check: it fails when the runtime/channel pair serves nothing
+ * and when the new update did not take effect.
+ */
+export function evaluateServedUpdate({ before, after }) {
+  if (after === null || after === undefined) {
+    return {
+      ok: false,
+      reason:
+        'the update server serves nothing for this runtime and channel after publishing; ' +
+        'no client asking for them will ever receive this update',
+    }
+  }
+  if (before === after) {
+    return {
+      ok: false,
+      reason: `the served update is unchanged (${after}); the publish did not take effect`,
+    }
+  }
+  return { ok: true, updateId: after }
+}
+
+/** Thin HTTP layer; the decision above is what carries the coverage. */
+async function fetchServedUpdateId({ projectId, platform, runtimeVersion, channel }) {
+  try {
+    const response = await fetch(`https://u.expo.dev/${projectId}`, {
+      headers: {
+        'expo-protocol-version': '1',
+        'expo-api-version': '1',
+        'expo-platform': platform,
+        'expo-runtime-version': runtimeVersion,
+        'expo-channel-name': channel,
+        'expo-expect-signature': 'false',
+        accept: 'multipart/mixed',
+      },
+    })
+    if (response.status !== 200) return null
+    const body = await response.text()
+    return body.match(/"id"\s*:\s*"([^"]+)"/)?.[1] ?? null
+  } catch {
+    return null
+  }
+}
 
 function fail(message) {
   process.stderr.write(`publish-ota: ${message}\n`)
@@ -192,13 +273,51 @@ async function main() {
     args.message ?? `ota ${args.platform} ${new Date().toISOString()}`,
   ]
 
+  // Stated on every run, including check-only. An operator who reads only
+  // "Published!" concludes the fix shipped. For months it had not: the store
+  // binary carries no update channel, so every check it made was answered
+  // HTTP 400 and no published update ever reached it.
+  process.stdout.write(
+    '게시는 도달이 아니다 — 이 명령은 설치된 바이너리가 이 채널을 싣고 있는지 알 수 없다.\n' +
+      'publishing does not prove reach; verify the binary with ' +
+      '`node scripts/verify-store-artifact.mjs --artifact <path>`\n',
+  )
+
+  const appConfig = JSON.parse(readFileSync(resolve(MOBILE_ROOT, 'app.json'), 'utf8'))
+  const target = resolveUpdateTarget(appConfig)
+  if (!target.ok) fail(target.reason)
+
   if (args.checkOnly) {
     process.stdout.write(`check-only: would run npx ${command.join(' ')}\n`)
     return
   }
 
+  const query = {
+    projectId: target.projectId,
+    platform: args.platform,
+    runtimeVersion: target.runtimeVersion,
+    channel: args.channel,
+  }
+  const before = await fetchServedUpdateId(query)
+
   process.stdout.write(`running npx ${command.join(' ')}\n`)
   execFileSync('npx', command, { stdio: 'inherit' })
+
+  // The CDN can take a moment to serve a freshly published update. Bounded and
+  // exit-early: it stops the instant the served id changes, and a stall becomes a
+  // reported failure instead of a silent pass.
+  let after = null
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    after = await fetchServedUpdateId(query)
+    if (after !== null && after !== before) break
+    await new Promise((done) => setTimeout(done, 5000))
+  }
+
+  const served = evaluateServedUpdate({ before, after })
+  if (!served.ok) fail(served.reason)
+  process.stdout.write(
+    `served update for runtime ${target.runtimeVersion} on channel ${args.channel}: ${served.updateId}\n`,
+  )
 }
 
 // Only run when invoked as a script, so tests can import `evaluateMarker` without

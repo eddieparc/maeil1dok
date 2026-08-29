@@ -141,3 +141,70 @@ test('an unknown or malformed marker blocks the publish', async () => {
     );
   }
 });
+
+
+/**
+ * Publishing is not delivery — the 2026-08-29 lesson.
+ *
+ * `eas update` reported success for months while the store binary received
+ * nothing: it sends no update channel, so the server answered every check with
+ * HTTP 400. The gate has to stop treating "published" as "reachable".
+ */
+test('the served update must actually change after a publish', async () => {
+  const { evaluateServedUpdate } = await import(SCRIPT);
+
+  // Nothing served for this runtime/channel: the publish went somewhere no
+  // client will ever ask for.
+  const nothing = evaluateServedUpdate({ before: 'a', after: null });
+  assert.equal(nothing.ok, false);
+  assert.match(nothing.reason, /serv/i);
+
+  // Same id before and after means the publish did not become the served update.
+  const unchanged = evaluateServedUpdate({ before: 'a', after: 'a' });
+  assert.equal(unchanged.ok, false);
+  assert.match(unchanged.reason, /unchanged|did not change/i);
+
+  assert.equal(evaluateServedUpdate({ before: null, after: 'a' }).ok, true);
+  assert.equal(evaluateServedUpdate({ before: 'a', after: 'b' }).ok, true);
+});
+
+test('the update target is derived from app config, never guessed', async () => {
+  const { resolveUpdateTarget } = await import(SCRIPT);
+
+  const target = resolveUpdateTarget({
+    expo: {
+      version: '1.2.2',
+      runtimeVersion: { policy: 'appVersion' },
+      extra: { eas: { projectId: 'abc-123' } },
+    },
+  });
+  assert.equal(target.ok, true);
+  assert.equal(target.runtimeVersion, '1.2.2');
+  assert.equal(target.projectId, 'abc-123');
+
+  // A different policy means the runtime cannot be read off `version`. Guessing
+  // here would query a runtime no device uses and call the answer proof.
+  const fingerprint = resolveUpdateTarget({
+    expo: { version: '1.2.2', runtimeVersion: { policy: 'fingerprint' }, extra: { eas: { projectId: 'a' } } },
+  });
+  assert.equal(fingerprint.ok, false);
+
+  const noProject = resolveUpdateTarget({
+    expo: { version: '1.2.2', runtimeVersion: { policy: 'appVersion' }, extra: {} },
+  });
+  assert.equal(noProject.ok, false);
+});
+
+test('every run states that publishing does not prove reach', () => {
+  const result = runGate([
+    '--check-only',
+    '--no-web-dependency',
+    'reason',
+    '--platform',
+    'ios',
+  ]);
+  assert.equal(result.ok, true, result.stderr);
+  // The store binary that shipped could not receive any update. An operator
+  // reading only "Published!" concluded the fix had gone out; it had not.
+  assert.match(result.stdout, /도달|reach/i);
+});
