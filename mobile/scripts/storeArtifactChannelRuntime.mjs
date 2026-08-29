@@ -46,3 +46,66 @@ export function judgeChannel(input) {
   }
   return { ok: true, reason: `${input.platform}: channel "${input.found}"` }
 }
+
+export const IOS_HEADERS_KEY = 'EXUpdatesRequestHeaders'
+export const ANDROID_HEADERS_KEY =
+  'expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY'
+
+/**
+ * Put the channel into a prebuilt project.
+ *
+ * Warning alone does not work here: after `expo prebuild` the channel is ALWAYS
+ * absent, so a warning fires on every run and stops being read. The local build
+ * path has to END UP with a channel, which is what EAS Build would have done.
+ *
+ * Idempotent because prebuild is re-run constantly; a second pass must not nest
+ * or duplicate the key.
+ */
+export function injectIosChannel(plistXml, channel) {
+  const existing = extractIosChannel(plistXml)
+  if (existing === channel) return plistXml
+
+  if (existing !== null) {
+    const anchor = plistXml.indexOf(IOS_HEADERS_KEY)
+    return (
+      plistXml.slice(0, anchor) +
+      plistXml
+        .slice(anchor)
+        .replace(
+          new RegExp(`(<key>${CHANNEL_HEADER}</key>\\s*<string>)[^<]*(</string>)`),
+          `$1${channel}$2`,
+        )
+    )
+  }
+
+  const at = plistXml.indexOf('<dict>')
+  if (at === -1) throw new Error('not a plist: no top-level <dict>')
+  const block =
+    `\n  <key>${IOS_HEADERS_KEY}</key>\n  <dict>\n` +
+    `    <key>${CHANNEL_HEADER}</key>\n    <string>${channel}</string>\n  </dict>`
+  return plistXml.slice(0, at + '<dict>'.length) + block + plistXml.slice(at + '<dict>'.length)
+}
+
+export function injectAndroidChannel(manifestXml, channel) {
+  const existing = extractAndroidChannel(manifestXml)
+  if (existing === channel) return manifestXml
+
+  const value = `{&quot;${CHANNEL_HEADER}&quot;:&quot;${channel}&quot;}`
+  const escapedKey = ANDROID_HEADERS_KEY.replace(/\./g, '\\.')
+
+  if (existing !== null) {
+    return manifestXml.replace(
+      new RegExp(`(android:name="${escapedKey}"\\s+android:value=")[^"]*(")`),
+      `$1${value}$2`,
+    )
+  }
+
+  // Anchored to the update URL rather than `</application>`: the two belong
+  // together, and this keeps the edit valid for a manifest fragment too.
+  const anchor = manifestXml.match(/<meta-data android:name="expo\.modules\.updates\.EXPO_UPDATE_URL"/)
+  if (!anchor) throw new Error('manifest has no expo-updates configuration to attach the channel to')
+  return manifestXml.replace(
+    anchor[0],
+    `<meta-data android:name="${ANDROID_HEADERS_KEY}" android:value="${value}"/>\n    ${anchor[0]}`,
+  )
+}

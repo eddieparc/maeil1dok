@@ -119,6 +119,14 @@ run_prebuild() {
     print_step "$platform prebuild 실행 중..."
     cd "$PROJECT_DIR"
     npx expo prebuild --platform "$platform" --clean
+
+    # prebuild 는 업데이트 채널을 심지 않는다 — EAS Build 가 하는 일이다.
+    # 채널 없는 바이너리는 업데이트 확인마다 HTTP 400 을 받아 OTA 를 영원히 못 받는다.
+    # 로컬 빌드로 스토어에 올린 앱이 몇 달 동안 어떤 업데이트도 받지 못한 원인이 이것이다.
+    print_step "업데이트 채널 주입 중..."
+    node "$SCRIPT_DIR/inject-update-channel.mjs" --channel production
+    node "$SCRIPT_DIR/verify-store-artifact.mjs" --native
+
     print_success "Prebuild 완료!"
 }
 
@@ -149,13 +157,20 @@ build_local() {
     if [ "$platform" = "android" ]; then
         if [ "$type" = "apk" ]; then
             cd android && $gradle_cmd assembleRelease $gradle_opts
+            node "$SCRIPT_DIR/verify-store-artifact.mjs" --artifact "$PROJECT_DIR/android/app/build/outputs/apk/release/app-release.apk"
             print_success "APK 생성 완료: android/app/build/outputs/apk/release/app-release.apk"
         else
             cd android && $gradle_cmd bundleRelease $gradle_opts
+            # 제출 직전 마지막 관문. 채널이 없으면 exit 1 로 여기서 멎는다.
+            node "$SCRIPT_DIR/verify-store-artifact.mjs" --artifact "$PROJECT_DIR/android/app/build/outputs/bundle/release/app-release.aab"
             print_success "AAB 생성 완료: android/app/build/outputs/bundle/release/app-release.aab"
         fi
     elif [ "$platform" = "ios" ]; then
         print_warning "iOS 로컬 빌드는 Xcode가 필요합니다. 프로젝트를 엽니다..."
+        # Xcode 로 Archive 한 .ipa 는 이 스크립트가 볼 수 없다. 프로젝트 쪽 채널만
+        # 확인해 주고, 제출 전에 산출물을 직접 검증하도록 안내한다.
+        node "$SCRIPT_DIR/verify-store-artifact.mjs" --native
+        print_warning "Archive 후 제출 전에 반드시 실행: npm run verify:store -- --artifact <경로.ipa>"
         open ios/*.xcworkspace
     fi
 }

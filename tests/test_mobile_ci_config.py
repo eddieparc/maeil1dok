@@ -139,3 +139,40 @@ class StoreArtifactVerifierTest(unittest.TestCase):
 
         self.assertIn("verify:store", scripts)
         self.assertIn("verify-store-artifact.mjs", scripts["verify:store"])
+
+
+class LocalBuildChannelGuardTest(unittest.TestCase):
+    """The local build path must not be able to produce a channel-less binary silently.
+
+    This is the path that actually shipped the broken binary. `scripts/build.sh`
+    offers "빌드 환경 선택: 1) 클라우드(EAS Build) / 2) 로컬", and choosing local runs
+    `expo prebuild --clean` followed by gradlew or Xcode. None of those three inject
+    an update channel -- only EAS Build does -- so the resulting binary asks the
+    update server for a manifest without `expo-channel-name` and is answered
+    HTTP 400 forever.
+
+    Documentation alone does not close this: `DEPLOYMENT_MOBILE.md` already described
+    only the EAS path while the tool kept offering the local one right beside it.
+    The check has to run where the mistake is made.
+    """
+
+    def setUp(self) -> None:
+        self.script = (
+            Path(__file__).resolve().parents[1] / "mobile" / "scripts" / "build.sh"
+        ).read_text(encoding="utf-8")
+
+    def test_the_local_build_path_verifies_the_update_channel(self) -> None:
+        start = self.script.index("build_local()")
+        end = self.script.index("\n}", start)
+        body = self.script[start:end]
+
+        self.assertIn("verify-store-artifact", body)
+
+    def test_the_prebuild_step_verifies_the_update_channel(self) -> None:
+        # prebuild is the earliest point the omission exists, and for iOS it is the
+        # only one this script reaches: the local iOS path just opens Xcode.
+        start = self.script.index("run_prebuild()")
+        end = self.script.index("\n}", start)
+        body = self.script[start:end]
+
+        self.assertIn("verify-store-artifact", body)

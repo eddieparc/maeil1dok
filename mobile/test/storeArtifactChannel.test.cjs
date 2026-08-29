@@ -23,8 +23,13 @@ function loadModule(name) {
   return moduleInstance.exports;
 }
 
-const { extractIosChannel, extractAndroidChannel, judgeChannel } =
-  loadModule('storeArtifactChannel.ts');
+const {
+  extractIosChannel,
+  extractAndroidChannel,
+  injectIosChannel,
+  injectAndroidChannel,
+  judgeChannel,
+} = loadModule('storeArtifactChannel.ts');
 
 const PLIST_WITH_CHANNEL = `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
@@ -115,4 +120,47 @@ test('Given a real compiled manifest Then UTF-16 interleaving does not hide the 
   // has one -- a gate that always fails is a gate everyone learns to ignore.
   const utf16 = [...'{"expo-channel-name":"production"}'].map((c) => `${c}\0`).join('');
   assert.equal(extractAndroidChannel(`\0\0${utf16}\0\0`), 'production');
+});
+
+
+/**
+ * Warning about the missing channel is not enough — after `expo prebuild` it is
+ * ALWAYS missing, so a warning fires every time and stops being read. The local
+ * build path has to end up with a channel, not merely be told it lacks one.
+ *
+ * Verified by round-trip: inject, then read back with the same reader the release
+ * gate uses. Asserting on the emitted text instead would let a malformed edit pass.
+ */
+test('Given a prebuilt plist Then injecting makes the channel readable', () => {
+  const injected = injectIosChannel(PLIST_WITHOUT_CHANNEL, 'production');
+  assert.equal(extractIosChannel(injected), 'production');
+  // Untouched keys survive: the file still configures updates.
+  assert.match(injected, /EXUpdatesRuntimeVersion/);
+  assert.match(injected, /EXUpdatesURL/);
+});
+
+test('Given a plist that already carries a channel Then injection is idempotent', () => {
+  // prebuild is re-run constantly; a second pass must not nest or duplicate keys.
+  const once = injectIosChannel(PLIST_WITHOUT_CHANNEL, 'production');
+  const twice = injectIosChannel(once, 'production');
+  assert.equal(extractIosChannel(twice), 'production');
+  assert.equal(twice, once);
+});
+
+test('Given a different channel Then injection replaces rather than appends', () => {
+  const production = injectIosChannel(PLIST_WITHOUT_CHANNEL, 'production');
+  const preview = injectIosChannel(production, 'preview');
+  assert.equal(extractIosChannel(preview), 'preview');
+});
+
+test('Given a prebuilt android manifest Then injecting makes the channel readable', () => {
+  const injected = injectAndroidChannel(MANIFEST_WITHOUT_CHANNEL, 'production');
+  assert.equal(extractAndroidChannel(injected), 'production');
+  assert.match(injected, /EXPO_UPDATE_URL/);
+});
+
+test('Given an android manifest already carrying a channel Then injection is idempotent', () => {
+  const once = injectAndroidChannel(MANIFEST_WITHOUT_CHANNEL, 'production');
+  assert.equal(injectAndroidChannel(once, 'production'), once);
+  assert.equal(extractAndroidChannel(injectAndroidChannel(once, 'preview')), 'preview');
 });
