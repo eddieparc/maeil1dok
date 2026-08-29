@@ -21,7 +21,8 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -179,13 +180,24 @@ function checkArtifact(target, expected) {
   if (extension === '.ipa') {
     const member = listZip(path).find((name) => name.endsWith('.app/Expo.plist'))
     if (!member) fail(`${path} contains no Expo.plist; expo-updates is not configured at all`)
-    return [
-      judgeChannel({
-        platform: 'ios (.ipa)',
-        found: extractIosChannel(readZipMember(path, member) ?? ''),
-        expected,
-      }),
-    ]
+    // Xcode packages plists into the .ipa in BINARY form (`bplist00`). Reading the
+    // zip member as text sees noise and reports "no channel" for a build that has
+    // one -- measured against a real export whose `.app` passed the same check.
+    // Extract, then convert, exactly as the `.app` branch does.
+    const scratch = mkdtempSync(join(tmpdir(), 'verify-ipa-'))
+    try {
+      const extracted = join(scratch, 'Expo.plist')
+      writeFileSync(extracted, readZipMember(path, member) ?? '', 'latin1')
+      return [
+        judgeChannel({
+          platform: 'ios (.ipa)',
+          found: extractIosChannel(readPlist(extracted)),
+          expected,
+        }),
+      ]
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+    }
   }
 
   if (extension === '.apk' || extension === '.aab') {
