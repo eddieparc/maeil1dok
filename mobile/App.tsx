@@ -39,6 +39,17 @@ import {
 } from './bundleIdentity';
 import { isFatalWebViewError, shouldAllowWebViewNavigation } from './webviewNavigation';
 
+/**
+ * `decelerationRate` is typed Float by Fabric codegen. The documented `'normal'`
+ * string form crashed the app on launch under the new architecture:
+ *
+ *   java.lang.ClassCastException: java.lang.String cannot be cast to java.lang.Double
+ *       at RNCWebViewManagerDelegate.setProperty
+ *
+ * Observed on the Android emulator. 0.998 is the numeric value `'normal'` meant.
+ */
+const DECELERATION_RATE_NORMAL = 0.998;
+
 SplashScreen.preventAutoHideAsync();
 
 Notifications.setNotificationHandler({
@@ -865,7 +876,7 @@ function AppContent() {
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
         androidLayerType="hardware"
-        decelerationRate="normal"
+        decelerationRate={DECELERATION_RATE_NORMAL}
         pullToRefreshEnabled={false}
         mediaPlaybackRequiresUserAction={false}
         allowsInlineMediaPlayback={true}
