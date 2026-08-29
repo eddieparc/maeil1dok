@@ -250,9 +250,16 @@ function AppContent() {
         return false;
       }
 
+      // 본문 토큰을 제시하므로 서버는 이 요청에 CSRF 를 요구하지 않는다. 그래도
+      // 헤더를 싣는다 — 서버 정책이 다시 조여지면 셸이 조용히 403 으로 죽는데,
+      // 그 실패는 1시간 뒤에야 드러나고 원인도 보이지 않는다.
+      const refreshCsrfCookies = await CookieManager.get(API_URL).catch(() => null);
       const response = await fetch(`${API_URL}/api/v1/auth/token/refresh/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...csrfHeadersFrom(refreshCsrfCookies),
+        },
         body: JSON.stringify({ refresh: storedRefreshToken }),
         credentials: 'include',
       });

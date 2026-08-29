@@ -80,3 +80,16 @@ test('the shell logout call actually carries the header', () => {
   assert.match(block, /csrfHeadersFrom\(/);
   assert.match(block, /CookieManager\.get\(/);
 });
+
+test('the shell refresh call carries the header too', () => {
+  // Not required today (the server exempts body-token requests), but the header
+  // is what keeps the shell working if that exemption is ever tightened. Without
+  // it the failure reappears only after the access cookie expires an hour later,
+  // with nothing on screen to explain it.
+  const source = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf8');
+  const start = source.indexOf('auth/token/refresh/');
+  assert.notEqual(start, -1, 'refresh call not found');
+  const block = source.slice(Math.max(0, start - 500), start + 400);
+
+  assert.match(block, /csrfHeadersFrom\(/);
+});
