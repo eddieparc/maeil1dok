@@ -100,6 +100,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.oci
+      args:
+        # 배포 워크플로가 COMMIT_SHA 를 넘긴다. 없으면 unknown 으로 떨어지고
+        # 셸 OTA 게이트가 그 빌드를 거부한다 — 조용히 통과시키는 것보다 낫다.
+        COMMIT_SHA: ${COMMIT_SHA:-unknown}
     env_file: .env.frontend.oci
     environment:
       - NODE_ENV=production

@@ -178,3 +178,40 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         self.assertIn("'/bible'", nuxt_config)
         self.assertIn("'/bible/'", nuxt_config)
         self.assertIn("'cache-control': 'no-store'", nuxt_config)
+
+
+class BuildMarkerCommitPlumbingTest(unittest.TestCase):
+    """The deployed web marker must carry a real commit, not `unknown`.
+
+    `frontend/scripts/write-build-marker.mjs` reads `GITHUB_SHA`/`COMMIT_SHA` and
+    falls back to `git rev-parse`. The production web image has none of the three:
+    CI rsyncs the tree without `.git` and the build runs inside Docker on the VM.
+    The marker therefore shipped as `unknown`, and the shell OTA gate
+    (`mobile/scripts/publish-ota.mjs --requires-web`) refuses an unknown marker --
+    so the ordering guarantee it exists to enforce was unenforceable in production.
+
+    The commit has to be threaded build-arg -> image env -> build script.
+    """
+
+    def setUp(self) -> None:
+        self.repo_root = Path(__file__).resolve().parents[1]
+
+    def test_dockerfile_accepts_and_exports_the_commit_before_building(self) -> None:
+        source = (self.repo_root / "frontend" / "Dockerfile.oci").read_text(encoding="utf-8")
+
+        self.assertIn("ARG COMMIT_SHA", source)
+        self.assertIn("ENV COMMIT_SHA", source)
+        # Order matters: an ENV declared after the build cannot reach the script.
+        self.assertLess(source.index("ENV COMMIT_SHA"), source.index("RUN npm run build"))
+
+    def test_compose_passes_the_commit_into_the_frontend_image_build(self) -> None:
+        source = (self.repo_root / "docker-compose.oci.yml").read_text(encoding="utf-8")
+        frontend_block = source[source.index("  frontend:"):]
+
+        self.assertIn("COMMIT_SHA", frontend_block.split("celery-worker")[0])
+
+    def test_ci_supplies_the_commit_to_the_remote_build(self) -> None:
+        source = (self.repo_root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+        self.assertIn("COMMIT_SHA", source)
+        self.assertIn("github.sha", source)

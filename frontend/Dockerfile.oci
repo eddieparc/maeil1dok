@@ -5,6 +5,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
+# 배포된 웹 빌드를 식별하는 커밋. CI 가 rsync 로 `.git` 없이 트리만 올리고 빌드는 VM 의
+# 도커 안에서 돌기 때문에, 이 인자가 없으면 write-build-marker.mjs 가 커밋을 알아낼 방법이
+# 전혀 없어 마커가 `unknown` 으로 나간다. 그러면 셸 OTA 게이트(--requires-web)가 순서를
+# 검증하지 못해 게이트 자체가 무력해진다.
+ARG COMMIT_SHA=unknown
+ENV COMMIT_SHA=$COMMIT_SHA
 RUN npm run build
 
 FROM node:20-slim AS runtime
