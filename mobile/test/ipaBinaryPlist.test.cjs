@@ -8,6 +8,21 @@ const test = require('node:test');
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'verify-store-artifact.mjs');
 
 /**
+ * `plutil` is macOS-only. iOS artifacts are only ever produced and verified on a
+ * Mac, so on Linux CI these cases have nothing to exercise — the fixture itself
+ * cannot even be created. Skipped with a stated reason rather than deleted, so
+ * the coverage still runs where it means something.
+ */
+const PLUTIL = (() => {
+  try {
+    execFileSync('plutil', ['-help'], { stdio: 'ignore' });
+    return false;
+  } catch (error) {
+    return error.code === 'ENOENT' ? 'plutil is macOS-only; iOS artifacts are verified on macOS' : false;
+  }
+})();
+
+/**
  * Xcode packages plists into an .ipa in BINARY form (`bplist00`), not XML.
  *
  * Measured 2026-08-30: the archive's `.app` passed the check while the `.ipa`
@@ -47,7 +62,7 @@ function runVerifier(artifact) {
   }
 }
 
-test('an .ipa whose plist is binary is read, not rejected', () => {
+test('an .ipa whose plist is binary is read, not rejected', { skip: PLUTIL }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipa-ok-'));
   try {
     const result = runVerifier(makeIpa(dir, 'production'));
@@ -58,7 +73,7 @@ test('an .ipa whose plist is binary is read, not rejected', () => {
   }
 });
 
-test('an .ipa on the wrong channel is still rejected', () => {
+test('an .ipa on the wrong channel is still rejected', { skip: PLUTIL }, () => {
   // The fix must not turn the check into a rubber stamp.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipa-bad-'));
   try {

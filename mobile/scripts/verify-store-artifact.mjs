@@ -100,8 +100,16 @@ function readPlist(target) {
       maxBuffer: 16 * 1024 * 1024,
     })
   } catch {
-    // Not macOS, or already XML. The raw text still parses in the XML case.
-    return readFileSync(target, 'utf8')
+    const raw = readFileSync(target, 'latin1')
+    // Already XML: the raw text parses fine.
+    if (!raw.startsWith('bplist')) return raw
+    // Binary plist with no `plutil` to convert it. Reading on would report
+    // "no channel" for a build that may well have one -- a false FAIL teaches
+    // operators to bypass the gate. Say what is actually wrong instead.
+    fail(
+      `${target} is a binary plist and \`plutil\` is unavailable on this platform. ` +
+        'Verify iOS artifacts on macOS.',
+    )
   }
 }
 
