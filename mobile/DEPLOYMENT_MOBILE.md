@@ -193,9 +193,19 @@ eas build --profile development --platform android
 > **OTA 를 영원히 못 받는다.** 실제로 그렇게 나간 빌드가 몇 달치 OTA 를 통째로 놓쳤다
 > (2026-08-29 실측, `docs/auth-migration-metrics.md` 의 `## H1 판정`).
 >
-> 지금은 `build.sh` 가 prebuild 직후 채널을 자동 주입하고 검증한다. 그래도 **EAS 빌드를
-> 권장한다** — 자동 주입은 이 스크립트를 거칠 때만 동작하고 Xcode/gradlew 직접 호출은
-> 우회한다. iOS 를 Xcode 로 Archive 했다면 제출 전에 반드시:
+> **정확히 말하면 위험한 것은 "로컬 빌드" 가 아니라 "EAS 파이프라인을 거치지 않은 생짜
+> 빌드" 다.** `eas build --local` 은 이 맥에서 돌면서도 채널을 심고 `credentials.json` 으로
+> 서명하며 클라우드 크레딧을 쓰지 않는다(2026-08-29 빌드 로그로 확인). 이 프로젝트는
+> Expo 유료 구독이 없으므로 **`--local` 이 정식 경로다.**
+>
+> | 경로 | 채널 | 크레딧 |
+> |---|---|---|
+> | `eas build` (클라우드) | 심긴다 | 소모 |
+> | **`eas build --local`** | **심긴다** | **미소모** ← 이 프로젝트 |
+> | `expo prebuild` + `gradlew`/Xcode | 안 심긴다 | 미소모 ← 사고 원인 |
+>
+> `build.sh` 의 세 번째 경로에는 자동 주입·검증을 붙여 뒀지만, Xcode/gradlew 를 직접
+> 부르면 우회된다. 그렇게 만들었다면 제출 전에 반드시:
 >
 > ```bash
 > cd mobile && npm run verify:store -- --artifact <경로.ipa>

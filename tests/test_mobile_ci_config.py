@@ -176,3 +176,44 @@ class LocalBuildChannelGuardTest(unittest.TestCase):
         body = self.script[start:end]
 
         self.assertIn("verify-store-artifact", body)
+
+
+class LocalSigningWorkflowTest(unittest.TestCase):
+    """Store builds are produced locally and signed locally, by choice.
+
+    There is no Expo subscription, so cloud builds are not the path this project
+    ships on. That makes the local path first-class rather than a hazard to warn
+    about -- and it only became safe once `build.sh` started injecting and
+    verifying the update channel.
+
+    Two settings decide whether that path is coherent:
+
+    - `appVersionSource: local` makes `app.json` the single version truth. Under
+      `remote`, EAS ignored the values `build.sh` writes, which is how versionCode
+      ended up disagreeing three ways (app.json 8 / EAS remote 16 / device 17).
+    - `credentialsSource: local` makes the build read `credentials.json` instead of
+      reaching for credentials stored in the Expo account.
+    """
+
+    def setUp(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        self.eas = json.loads((repo_root / "mobile" / "eas.json").read_text(encoding="utf-8"))
+
+    def test_app_json_is_the_single_version_source(self) -> None:
+        self.assertEqual(self.eas["cli"]["appVersionSource"], "local")
+
+    def test_production_does_not_auto_increment_a_locally_owned_version(self) -> None:
+        # With a local source, auto-increment rewrites app.json mid-build, so the
+        # version that ships is not the one that was reviewed.
+        self.assertFalse(self.eas["build"]["production"]["autoIncrement"])
+
+    def test_production_signs_with_local_credentials(self) -> None:
+        self.assertEqual(self.eas["build"]["production"]["credentialsSource"], "local")
+
+    def test_submit_config_carries_the_values_we_can_know(self) -> None:
+        # Placeholders here fail at submission time, after a build has been made.
+        ios = self.eas["submit"]["production"]["ios"]
+
+        self.assertEqual(ios["ascAppId"], "6758072829")
+        self.assertEqual(ios["appleTeamId"], "F42N2AFRM6")
+        self.assertNotIn("YOUR_", json.dumps(ios))

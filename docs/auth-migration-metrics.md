@@ -404,14 +404,34 @@ Archive)를 한다. **prebuild·gradlew·Xcode 어느 것도 채널을 심지 �
 
 - 권장: `eas build --profile production --platform <p>` — `eas.json` 의
   `production.channel = "production"` 을 EAS 가 바이너리에 심는다.
-- 로컬 빌드 경로는 이제 **채널을 자동으로 심는다**. `build.sh` 의 `run_prebuild()` 가
+**[2026-08-29 정밀화 — 위험한 것은 "로컬 빌드"가 아니다]** `eas build --local` 을 실제로
+돌려 보고 갈렸다. 그 빌드 로그에 이 줄이 있다.
+
+```
+[PREPARE_CREDENTIALS] Injecting signing config into build.gradle
+[CONFIGURE_EXPO_UPDATES] Setting the update request headers in 'AndroidManifest.xml'
+                          to '{"expo-channel-name":"production"}'
+```
+
+**`--local` 은 EAS 빌드 파이프라인을 이 맥에서 돌리는 것이므로 채널을 심는다.** 클라우드
+크레딧도 쓰지 않는다. 사고를 낸 것은 로컬 빌드 자체가 아니라 **EAS 파이프라인을 거치지 않은
+생짜 빌드** — `build.sh:build_local()` 의 `gradlew` 직접 호출과 Xcode Archive 다.
+
+| 경로 | 채널 | 서명 | 클라우드 크레딧 |
+|---|---|---|---|
+| `eas build` (클라우드) | 심긴다 | EAS 원격 자격 | **소모** |
+| **`eas build --local`** | **심긴다** | `credentials.json` | **미소모** ← 이 프로젝트의 경로 |
+| `expo prebuild` + `gradlew`/Xcode | **안 심긴다** | 직접 설정해야 함 | 미소모 ← **사고 원인** |
+
+- 세 번째 경로는 이제 **채널을 자동으로 심는다**. `build.sh` 의 `run_prebuild()` 가
   prebuild 직후 `scripts/inject-update-channel.mjs` 로 채널을 넣고
   `scripts/verify-store-artifact.mjs --native` 로 확인하며, Android 산출물은 빌드 직후에도
   검증한다(채널이 없으면 `exit 1` 로 멎는다). iOS 는 Xcode 로 Archive 하므로 산출물을
   스크립트가 볼 수 없어, 제출 전에 `npm run verify:store -- --artifact <경로.ipa>` 를
   직접 돌리라고 안내한다.
-- 그래도 **EAS 빌드를 권장한다.** 자동 주입은 이 리포의 스크립트를 거칠 때만 동작하고,
-  Xcode 나 gradlew 를 직접 부르면 우회된다.
+- 그래도 **`eas build --local` 을 권장한다.** Expo 유료 구독이 없어 클라우드 빌드는 이
+  프로젝트의 경로가 아니고, `--local` 이 크레딧 없이 같은 보장을 준다. 자동 주입은 이 리포의
+  스크립트를 거칠 때만 동작하므로 Xcode 나 gradlew 를 직접 부르면 우회된다.
 
 그 빌드가 스토어에 올라간 뒤에는 **이미 게시된 업데이트들이 그대로 적용된다** —
 `production` 채널 `1.2.2` 에 Part A 셸이 올라가 있다.

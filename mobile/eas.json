@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 5.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -32,7 +32,7 @@
       }
     },
     "production": {
-      "autoIncrement": true,
+      "autoIncrement": false,
       "channel": "production",
       "ios": {
         "resourceClass": "m-medium"
@@ -42,7 +42,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production"
-      }
+      },
+      "credentialsSource": "local"
     },
     "diagnostic": {
       "extends": "preview",
@@ -71,14 +72,26 @@
       "env": {
         "EXPO_PUBLIC_ENV": "localtest"
       }
+    },
+    "production-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production-sim": {
+      "extends": "production",
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "YOUR_APPLE_ID",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleId": "FILL_ME_apple_account_email",
+        "ascAppId": "6758072829",
+        "appleTeamId": "F42N2AFRM6"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",

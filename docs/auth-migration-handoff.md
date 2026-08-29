@@ -218,57 +218,71 @@ Android 네이티브가 서로 다른 시그니처를 갖는데, 하나만 보�
 
 **어디에 기록**: `docs/auth-migration-metrics.md` 의 `## 스토어 제출 자격` 표.
 
-### 런북 — 채널을 실은 새 스토어 빌드
+### 런북 — 채널을 실은 새 스토어 빌드 (로컬 서명, 클라우드 크레딧 미사용)
 
-**반드시 EAS 로 빌드한다.** 로컬 `expo prebuild` + Xcode/Gradle 로 만들어 제출하면
-이번 사고가 그대로 재발한다 — prebuild 는 채널을 심지 않는다.
+Expo 유료 구독이 없으므로 **클라우드 빌드를 쓰지 않는다.** `eas build --local` 이
+EAS 빌드 파이프라인을 이 맥에서 돌리며, 크레딧을 쓰지 않으면서 **채널을 심고**
+`credentials.json` 으로 서명한다(2026-08-29 빌드 로그로 확인).
 
-1. **제출 자격을 채운다** (`mobile/eas.json` 의 `submit.production.ios`).
-   `appleId`, `ascAppId`, `appleTeamId` 가 자리표시자 그대로다. Android 는
-   `google-service-account.json` 이 필요하다.
+**절대 하지 말 것**: `expo prebuild` 후 `gradlew`/Xcode 를 직접 불러 제출하는 것.
+그것이 채널 없는 바이너리를 만든 경로다.
 
-2. **버전을 올린다.** iOS 스토어 현재 버전은 `1.2.2` 다(App Store 공개 조회 실측).
-   `mobile/app.json` 의 `expo.version` 을 `1.2.3` 으로 올린다.
-   `runtimeVersion.policy = appVersion` 이므로 **런타임도 1.2.3 이 된다** — 이미 게시된
-   `1.2.2` 업데이트들은 그 빌드에 도달하지 않지만, **같은 코드가 임베디드로 들어가므로**
-   문제되지 않는다. 이후 OTA 는 `1.2.3` 으로 게시한다.
+**선행 도구** (모두 확인됨)
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"   # /usr/bin/java 는 스텁이라 안 된다
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+brew install fastlane        # iOS 로컬 빌드 필수 (eas-cli-local-build-plugin 이 확인한다)
+```
 
-3. **buildNumber/versionCode 충돌을 먼저 확인한다 (BLOCKER).** `appVersionSource: remote`
-   라서 EAS 가 원격 카운터를 쓰는데, 실측값이 **iOS buildNumber 10 / Android versionCode 16**
-   이다. 그런데 로컬 에뮬레이터에 설치돼 있던 앱이 **versionCode 17** 이었다 — 원격 카운터가
-   실제 배포분보다 **낮다**. 그 상태로 빌드하면 Play 가 업로드를 거부한다.
-   App Store Connect / Play Console 에서 현재 값을 확인하고, 낮으면 올린다:
-   ```bash
-   cd mobile
-   npx eas build:version:get --platform android
-   npx eas build:version:set --platform android   # 스토어 현재값보다 크게
-   ```
+**1. 버전** — `app.json` 이 단일 진실이다(`eas.json` 의 `appVersionSource: local`).
+현재 설정값: `version 1.2.3` · iOS `buildNumber 11` · Android `versionCode 20`.
+Android versionCode 는 **전역 단조증가**라 스토어 현재값보다 커야 한다(실기기 관측 17).
+Play Console 값이 20 이상이면 더 올린다.
 
-4. **빌드한다.**
-   ```bash
-   cd mobile
-   npx eas build --profile production --platform ios
-   npx eas build --profile production --platform android
-   ```
-   `eas.json` 의 `production.channel = "production"` 을 EAS 가 바이너리에 심는다.
+**2. 빌드**
+```bash
+cd mobile
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export PATH="$JAVA_HOME/bin:$PATH" ANDROID_HOME="$HOME/Library/Android/sdk"
 
-5. **제출 전에 채널을 검증한다 (이 사고의 재발 차단 지점).**
-   ```bash
-   cd mobile
-   npm run verify:store -- --artifact <다운로드한 .ipa 또는 .aab 경로>
-   ```
-   `OK ... channel "production"` 이어야 한다. `FAIL` 이면 **제출하지 않는다** — 그 빌드는
-   업데이트를 영원히 못 받는다.
+npx eas build --platform android --profile production --local \
+  --non-interactive --output ../dist/maeil1dok-1.2.3.aab
 
-6. **제출한다.** `npx eas submit --profile production --platform <p>`
+npx eas build --platform ios --profile production --local \
+  --non-interactive --output ../dist/maeil1dok-1.2.3.ipa
+```
 
-7. **스토어 반영 후 도달을 확인한다.** 앱을 완전 종료·재시작 2회 후 **계정 설정 하단**을 본다.
-   - `v1.2.3 · <짧은 id>` 또는 `v1.2.3 · embedded` → 새 빌드가 설치됨
-   - `앱 구버전 — 업데이트 미도달` → 아직 옛 빌드. 스토어 업데이트를 받는다.
+**3. 제출 전 채널 검증 (건너뛰지 않는다)**
+```bash
+cd mobile
+npm run verify:store -- --artifact ../dist/maeil1dok-1.2.3.aab
+npm run verify:store -- --artifact ../dist/maeil1dok-1.2.3.ipa
+```
+`OK ... channel "production"` 이어야 한다. `FAIL` 이면 **제출하지 않는다.**
 
-8. **웹의 강제 안내를 켠다 (선택).** 새 빌드가 **양 스토어에 실제로 올라간 뒤에만**
-   `NUXT_PUBLIC_LEGACY_SHELL_ENFORCEMENT=blocking` 으로 바꾼다. 그 전에 켜면 업데이트할
-   대상이 없는 사용자를 앱에서 쫓아낸다. 기본값 `notice` 는 배너로만 안내한다.
+**4. 제출** — 두 방법 중 하나.
+
+- `eas submit` (무료, 빌드 크레딧과 무관):
+  `eas.json` 의 `submit.production.ios.appleId` 에 **애플 계정 이메일**을 넣어야 한다.
+  나머지는 채워져 있다 — `ascAppId: 6758072829`(App Store 공개 조회),
+  `appleTeamId: F42N2AFRM6`(프로비저닝 프로파일에서 확인).
+  ```bash
+  npx eas submit --platform ios --profile production --path ../dist/maeil1dok-1.2.3.ipa
+  npx eas submit --platform android --profile production --path ../dist/maeil1dok-1.2.3.aab
+  ```
+- 수동 업로드: iOS 는 **Transporter** 앱에 `.ipa`, Android 는 **Play Console** 에 `.aab`.
+  자격증명 설정이 필요 없다.
+
+**5. 스토어 반영 후 도달 확인** — 앱 완전 종료·재시작 2회 후 **계정 설정 하단**.
+- `v1.2.3 · <짧은 id>` 또는 `v1.2.3 · embedded` → 새 빌드 설치됨
+- `앱 구버전 — 업데이트 미도달` → 아직 옛 빌드
+
+**6. 웹 강제 안내 승격 (선택)** — 새 빌드가 **양 스토어에 실제로 올라간 뒤에만**
+`NUXT_PUBLIC_LEGACY_SHELL_ENFORCEMENT=blocking`. 그 전에 켜면 업데이트할 대상이 없는
+사용자를 앱에서 쫓아낸다.
+
+**7. 이후 OTA** — 런타임이 `1.2.3` 이 되므로 게시도 그 런타임으로 나간다.
+이미 `1.2.2` 에 게시된 Part A 셸은 새 빌드에 **임베디드로 들어가므로** 다시 게시할 필요 없다.
 
 ---
 
