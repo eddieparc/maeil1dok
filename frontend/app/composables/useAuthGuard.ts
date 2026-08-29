@@ -13,7 +13,7 @@
  * };
  */
 
-import { useAuthService } from '~/composables/useAuthService';
+import { reportInvoluntaryReauthIfMarked, useAuthService } from '~/composables/useAuthService';
 import { useNavigationStore } from '~/stores/navigation';
 import { useRouter, useRoute } from 'vue-router';
 import { useToast } from '~/composables/useToast';
@@ -35,6 +35,10 @@ export function useAuthGuard() {
       toast.info(message);
       // 현재 페이지를 리다이렉트 URL로 저장 (로그인 후 복귀용)
       navigationStore.setRedirectUrl(route.fullPath);
+      // A browser that was authenticated before and is being sent to the login
+      // screen without having asked to sign out is the shape the migration is
+      // trying to eliminate. Secondary signal only (see reauthMarker.ts).
+      reportInvoluntaryReauthIfMarked(true);
       router.push('/login');
       return false;
     }

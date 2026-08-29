@@ -11,6 +11,13 @@ import {
   type RefreshOutcome,
   revalidateAuthSession,
 } from './authSessionPolicy'
+import {
+  REAUTH_MARKER_KEY,
+  classifyAuthRender,
+  createReauthMarker,
+  parseReauthMarker,
+  shouldReportInvoluntaryReauth,
+} from './reauthMarker'
 
 export interface AuthUser {
   id: number
@@ -155,12 +162,53 @@ function saveUserToStorage(user: AuthUser | null): void {
   try {
     if (user) {
       localStorage.setItem('auth', JSON.stringify({ user }))
+      // Every confirmed authentication refreshes the marker. It is deliberately
+      // NOT cleared here: `saveUserToStorage(null)` also runs on involuntary
+      // sign-out, which is exactly the case the marker has to survive.
+      localStorage.setItem(REAUTH_MARKER_KEY, JSON.stringify(createReauthMarker(Date.now())))
     } else {
       localStorage.removeItem('auth')
     }
   } catch (error) {
     console.error('[AuthService] Failed to save to localStorage:', error)
   }
+}
+
+/** Voluntary sign-out only. An involuntary one must leave the marker behind. */
+function clearReauthMarker(): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.removeItem(REAUTH_MARKER_KEY)
+  } catch {
+    // A browser that refuses storage cannot produce a false signal either.
+  }
+}
+
+/**
+ * Secondary signal, NOT the north star. Server counters (`authmetrics`) see every
+ * client; this one only sees browsers that came back, so it under-counts exactly
+ * the users hurt worst. Corroboration only — never a rollback trigger.
+ *
+ * Server-side collection arrives with plan task 4 (Part B). Until then this is a
+ * structured client log line, which is enough to read during a canary.
+ */
+export function reportInvoluntaryReauthIfMarked(landedOnLogin: boolean): boolean {
+  if (typeof localStorage === 'undefined') return false
+
+  const marker = parseReauthMarker(localStorage.getItem(REAUTH_MARKER_KEY))
+  const shouldReport = shouldReportInvoluntaryReauth({
+    marker,
+    landedOnLogin,
+    voluntaryLogout: false,
+    now: Date.now(),
+  })
+
+  if (shouldReport) {
+    console.info(
+      JSON.stringify({ event: 'involuntary_reauth', marker_age_ms: Date.now() - (marker?.at ?? 0) }),
+    )
+  }
+  return shouldReport
 }
 
 function loadUserFromStorage(): AuthUser | null {
@@ -317,6 +365,16 @@ export function useAuthService() {
           fetchUserWithRefresh,
         })
         
+        // Secondary render signal (plan task 6). `hit`/`miss` separates "we had a
+        // credential and it worked" from "we had one and it did not", which is the
+        // shape a broken cookie path makes. Not the north star.
+        console.info(
+          JSON.stringify({
+            event: 'auth_render',
+            outcome: classifyAuthRender({ hadAuthCookie: cachedUser !== null, resolvedUser: user !== null }),
+          }),
+        )
+
         if (user) {
           _user.value = user
           _authState.value = 'authenticated'
@@ -502,6 +560,10 @@ export function useAuthService() {
   }
 
   async function logout(): Promise<void> {
+    // Cleared BEFORE the request: a logout whose response never arrives is still
+    // the user's own instruction, and leaving the marker would report their own
+    // sign-out as involuntary.
+    clearReauthMarker()
     await performLogout()
 
     if (import.meta.client) {
