@@ -115,3 +115,27 @@ class StoreBuildChannelTest(unittest.TestCase):
 
     def test_production_profile_targets_the_production_channel(self) -> None:
         self.assertEqual(self.eas["build"]["production"]["channel"], "production")
+
+
+class StoreArtifactVerifierTest(unittest.TestCase):
+    """The channel check must be a reachable command, not a file nobody runs.
+
+    The 2026-08-29 incident shipped a store binary with no update channel. The
+    verifier exists to refuse exactly that, but a script that is not wired into
+    `package.json` is one an operator never finds at the moment it matters -- the
+    minutes before a submission.
+    """
+
+    def setUp(self) -> None:
+        self.repo_root = Path(__file__).resolve().parents[1]
+
+    def test_the_verifier_ships_with_the_mobile_app(self) -> None:
+        self.assertTrue((self.repo_root / "mobile" / "scripts" / "verify-store-artifact.mjs").exists())
+
+    def test_the_verifier_is_runnable_as_a_named_script(self) -> None:
+        scripts = json.loads(
+            (self.repo_root / "mobile" / "package.json").read_text(encoding="utf-8")
+        )["scripts"]
+
+        self.assertIn("verify:store", scripts)
+        self.assertIn("verify-store-artifact.mjs", scripts["verify:store"])
