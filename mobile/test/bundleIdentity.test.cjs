@@ -124,3 +124,35 @@ test('Given an embedded launch When formatting the on-screen label Then it says 
 
   assert.ok(label.includes(EMBEDDED_UPDATE_ID), label);
 });
+
+test('Given an embedded launch that still carries an update id Then isEmbeddedLaunch wins', () => {
+  // Measured on a real Android launch: expo-updates reports the EMBEDDED bundle's
+  // own uuid in `updateId`, so "id is present" does NOT mean an OTA was applied.
+  // Reading presence as reach is exactly the false-positive H1 exists to prevent.
+  const identity = resolveBundleIdentity({
+    updateId: '251d5f1a-4d2b-4efe-9137-448b7007b851',
+    runtimeVersion: '1.2.2',
+    channel: 'production',
+    isEmbeddedLaunch: true,
+    appVersion: '1.2.2',
+  });
+
+  assert.equal(identity.isEmbedded, true);
+  assert.ok(formatBundleIdentityLabel(identity).includes(EMBEDDED_UPDATE_ID));
+  assert.ok(formatBundleIdentityLine(identity).includes('embedded=true'));
+  // The raw id stays readable — it identifies WHICH embedded bundle is running.
+  assert.equal(identity.updateId, '251d5f1a-4d2b-4efe-9137-448b7007b851');
+});
+
+test('Given an applied OTA When formatting Then the line says it is not embedded', () => {
+  const identity = resolveBundleIdentity({
+    updateId: '9f1c2d34-5678-4abc-9def-0123456789ab',
+    runtimeVersion: '1.2.2',
+    channel: 'production',
+    isEmbeddedLaunch: false,
+    appVersion: '1.2.2',
+  });
+
+  assert.ok(formatBundleIdentityLine(identity).includes('embedded=false'));
+  assert.ok(formatBundleIdentityLabel(identity).includes('9f1c2d34'));
+});

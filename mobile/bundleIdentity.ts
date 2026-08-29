@@ -64,6 +64,10 @@ export function formatBundleIdentityLine(identity: BundleIdentity): string {
   return [
     '[BundleIdentity]',
     `updateId=${identity.updateId}`,
+    // Measured on a real Android launch: an embedded bundle still reports its own
+    // uuid, so the id alone cannot answer "did an OTA reach this device?". This
+    // flag is the answer; the id only says WHICH bundle.
+    `embedded=${identity.isEmbedded}`,
     `runtime=${identity.runtimeVersion}`,
     `channel=${identity.channel}`,
     `appVersion=${identity.appVersion}`,
@@ -76,9 +80,12 @@ export function formatBundleIdentityLine(identity: BundleIdentity): string {
  * segment of a UUID is enough to tell two published updates apart.
  */
 export function formatBundleIdentityLabel(identity: BundleIdentity): string {
-  const shortId =
-    identity.updateId === EMBEDDED_UPDATE_ID || identity.updateId === UNKNOWN_VALUE
-      ? identity.updateId
+  // An embedded launch reads `embedded` even when an id exists — the operator is
+  // asking whether an OTA arrived, and the id would answer a different question.
+  const shortId = identity.isEmbedded
+    ? EMBEDDED_UPDATE_ID
+    : identity.updateId === UNKNOWN_VALUE
+      ? UNKNOWN_VALUE
       : identity.updateId.split('-')[0];
 
   return `v${identity.runtimeVersion} · ${shortId}`;
