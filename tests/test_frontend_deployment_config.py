@@ -47,6 +47,20 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         self.assertNotIn("provider: 'vercel'", nuxt_config)
         self.assertNotIn("Vercel", nuxt_config)
 
+    def test_frontend_receives_public_kakao_runtime_config(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        compose = (repo_root / "docker-compose.oci.yml").read_text(encoding="utf-8")
+        frontend_block = compose[compose.index("  frontend:"):compose.index("  celery-worker:")]
+
+        self.assertIn(
+            "NUXT_PUBLIC_KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID:?KAKAO_CLIENT_ID 필수}",
+            frontend_block,
+        )
+        self.assertIn(
+            "NUXT_PUBLIC_KAKAO_REDIRECT_URI=${KAKAO_REDIRECT_URI:?KAKAO_REDIRECT_URI 필수}",
+            frontend_block,
+        )
+
     def test_frontend_sentry_is_configured_without_committed_dsn(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(

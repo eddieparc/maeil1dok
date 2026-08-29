@@ -309,6 +309,8 @@
           <button class="btn-cancel-full" @click="closeMergeModal" :disabled="mergeLoading">취소</button>
         </div>
       </section>
+
+      <p v-if="shellIdentity.visible" class="shell-identity">{{ shellIdentity.label }}</p>
     </div>
   </PageLayout>
 </template>
@@ -322,6 +324,7 @@ import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
 import { useRuntimeConfig } from 'nuxt/app'
+import { classifyShellIdentity } from '~/composables/shellBundleIdentity'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import {
@@ -340,6 +343,20 @@ const modal = useModal()
 const api = useApi()
 const config = useRuntimeConfig()
 const { goBack } = useNavigation()
+
+/**
+ * Which shell bundle is this running inside. Read on mount rather than during SSR:
+ * the answer lives on `window`, and it must not be baked into a cached server
+ * render where it would report a different device's bundle.
+ */
+const shellIdentity = ref(classifyShellIdentity({ isNativeApp: false, reported: undefined }))
+
+onMounted(() => {
+  shellIdentity.value = classifyShellIdentity({
+    isNativeApp: (window as any).isReactNativeWebView === true,
+    reported: (window as any).__shellBundleIdentity,
+  })
+})
 
 type Provider = 'kakao' | 'google' | 'apple'
 type KeepAccount = 'current' | 'other'
@@ -1438,6 +1455,15 @@ onUnmounted(() => {
   width: 100%;
   padding: 0.75rem;
   margin-top: 0.85rem;
+}
+
+/* Diagnostic, not product copy: readable when looked for, ignorable otherwise.
+   This is the OTA reach surface that works while signed in. */
+.shell-identity {
+  margin: 1.5rem 0 0.5rem;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--color-text-tertiary, #94a3b8);
 }
 
 .merge-warning {

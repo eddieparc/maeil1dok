@@ -209,6 +209,9 @@ async function renderAccountSettings(overrides = {}) {
         showMergeModal: overrides.showMergeModal ?? false,
         showMergeConfirmModal: false,
         mergeInfo: overrides.mergeInfo ?? mergeInfoFixture,
+        // Diagnostic shell-bundle line. Hidden in a browser, which is what this
+        // harness renders as.
+        shellIdentity: overrides.shellIdentity ?? { state: 'not-in-app', visible: false, label: '' },
         mergeLoading: false,
         linkingProvider: overrides.linkingProvider ?? null,
         getProviderDisplayName,

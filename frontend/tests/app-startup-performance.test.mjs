@@ -80,6 +80,15 @@ test('native app WebView keeps warm caches and accelerated rendering enabled', (
   assert.match(mobileAppSource, /cacheEnabled=\{true\}/, 'native WebView should keep HTTP cache enabled for repeat app opens');
   assert.match(mobileAppSource, /cacheMode="LOAD_DEFAULT"/, 'Android WebView should use normal cache heuristics');
   assert.match(mobileAppSource, /androidLayerType="hardware"/, 'Android WebView should use hardware compositing');
-  assert.match(mobileAppSource, /decelerationRate="normal"/, 'iOS WebView should use native-feeling scroll deceleration');
+  // Was `decelerationRate="normal"`. Fabric types this prop Float and casts
+  // straight to Double, so the documented string form crashed the app on launch
+  // (String cannot be cast to Double, observed on the Android emulator). This
+  // assertion used to pin that crash in place; 0.998 is what 'normal' meant.
+  assert.match(
+    mobileAppSource,
+    /decelerationRate=\{DECELERATION_RATE_NORMAL\}/,
+    'WebView scroll deceleration must be numeric under the new architecture',
+  );
+  assert.match(mobileAppSource, /DECELERATION_RATE_NORMAL = 0\.998/, 'deceleration constant should keep the native feel');
   assert.match(mobileAppSource, /pullToRefreshEnabled=\{false\}/, 'WebView should not install extra pull-to-refresh work on the startup path');
 });

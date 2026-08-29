@@ -883,6 +883,11 @@ function AppContent() {
         injectedJavaScript={`
           (function() {
             window.isReactNativeWebView = true;
+            // Which shell bundle the page is running inside. The native login
+            // screen shows the same thing, but only when signed OUT — this is the
+            // copy an operator can read while signed in. Its ABSENCE is also an
+            // answer: an old shell injects isReactNativeWebView and not this.
+            window.__shellBundleIdentity = ${JSON.stringify(bundleIdentity)};
             window.isAndroidApp = ${Platform.OS === 'android'};
             window.nativeInsets = { top: ${insets.top}, bottom: ${insets.bottom}, left: ${insets.left}, right: ${insets.right} };
             window.requestNativePushToken = function() {
