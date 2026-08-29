@@ -355,9 +355,44 @@ HTTP 400
 에 `EXUpdatesRequestHeaders` 가 **없어서** 도달 시험을 하려고 손으로 넣어야 했다.
 (2) 스토어 빌드의 출처인 낡은 로컬 `ios/` 의 `Expo.plist`(런타임 `1.2.1`)에도 **없었다**.
 
-또 `eas build:list` 에 1.2.x 프로덕션 빌드가 **하나도 없다**(마지막이 2026-01 의 `1.0.1`).
-스토어 바이너리는 EAS 가 아니라 **로컬에서 빌드돼 수동 제출**됐다는 뜻이고, 그래서
-채널이 비어 있다.
+**그리고 그 로컬 빌드 경로가 리포에 있다** (2026-08-29 추가 실측 — 처음엔 `eas build:list`
+가 비었다는 간접 추론만 댔는데, 직접 증거가 나왔다).
+
+`mobile/scripts/build.sh` 는 빌드할 때 이렇게 묻는다.
+
+```
+빌드 환경 선택:
+  1) 클라우드 (EAS Build)
+  2) 로컬              <- 이걸 고르면 채널 없는 바이너리가 나온다
+```
+
+`2` 를 고르면 `run_prebuild()` 가 `npx expo prebuild --clean` 을 돌리고 `build_local()` 이
+Android 는 `./gradlew bundleRelease`, iOS 는 `open ios/*.xcworkspace`(Xcode 에서 손으로
+Archive)를 한다. **prebuild·gradlew·Xcode 어느 것도 채널을 심지 않는다.**
+
+보강 증거 둘:
+
+- **리포에 로컬 서명 자격증명이 있다** — `credentials/android/keystore.jks`,
+  `credentials/ios/dist-cert.p12`, `credentials/ios/profile.mobileprovision`.
+  EAS 클라우드 빌드만 썼다면 필요 없는 것들이다(EAS 가 자격을 관리한다).
+- **`build.sh:update_app_json()` 이 `version`·`versionCode`·`buildNumber` 를 `sed` 로 직접
+  박는다.** `app.json` 에 `buildNumber: "3"`, `versionCode: 8` 이 손으로 적혀 있는 이유다.
+
+`eas build:list` 가 2026-01 의 `1.0.1` 에서 멈춘 것은 이 그림의 결과이지 근거가 아니다.
+
+### 버전 소스가 이중화돼 있다 (같은 뿌리의 두 번째 결함)
+
+`build.sh` 는 `app.json` 을 직접 고치는데 `eas.json` 은 `appVersionSource: remote` 라
+**EAS 는 그 값을 무시한다**(`eas build:version:get` 이 경고까지 출력한다). 두 워크플로가
+서로 다른 버전 소스를 본다.
+
+| 소스 | Android versionCode |
+|---|---|
+| `app.json` (build.sh 가 sed 로 갱신) | **8** |
+| EAS 원격 카운터 | **16** |
+| 실기기에 설치돼 있던 앱 | **17** |
+
+세 값이 전부 다르다. 새 스토어 빌드 전에 반드시 맞춰야 한다(인계 H8 런북 3단계).
 
 **결론: 현재 스토어 바이너리는 업데이트 확인 때마다 400 을 받는다. 어떤 런타임으로
 게시해도 도달하지 않는다. OTA 경로는 이 바이너리에 대해 폐기다.**
@@ -369,9 +404,14 @@ HTTP 400
 
 - 권장: `eas build --profile production --platform <p>` — `eas.json` 의
   `production.channel = "production"` 을 EAS 가 바이너리에 심는다.
-- 로컬 빌드로 제출한다면 iOS `Expo.plist` 의 `EXUpdatesRequestHeaders`,
-  Android `expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY` 에
-  `expo-channel-name` 을 **직접 넣어야 한다.** 넣지 않으면 이 사고가 반복된다.
+- 로컬 빌드 경로는 이제 **채널을 자동으로 심는다**. `build.sh` 의 `run_prebuild()` 가
+  prebuild 직후 `scripts/inject-update-channel.mjs` 로 채널을 넣고
+  `scripts/verify-store-artifact.mjs --native` 로 확인하며, Android 산출물은 빌드 직후에도
+  검증한다(채널이 없으면 `exit 1` 로 멎는다). iOS 는 Xcode 로 Archive 하므로 산출물을
+  스크립트가 볼 수 없어, 제출 전에 `npm run verify:store -- --artifact <경로.ipa>` 를
+  직접 돌리라고 안내한다.
+- 그래도 **EAS 빌드를 권장한다.** 자동 주입은 이 리포의 스크립트를 거칠 때만 동작하고,
+  Xcode 나 gradlew 를 직접 부르면 우회된다.
 
 그 빌드가 스토어에 올라간 뒤에는 **이미 게시된 업데이트들이 그대로 적용된다** —
 `production` 채널 `1.2.2` 에 Part A 셸이 올라가 있다.

@@ -183,6 +183,25 @@ eas build --profile development --platform android
 
 ## 6. Production Build
 
+> **먼저 읽을 것 — 로컬 빌드 경로가 따로 있고, 한 번 사고를 냈다.**
+>
+> 이 문서는 EAS 경로만 설명하지만 `scripts/build.sh`(= `npm run build`)는 "빌드 환경 선택:
+> 1) 클라우드(EAS Build) / 2) 로컬" 을 묻는다. `2` 는 `expo prebuild` → `gradlew` 또는 Xcode
+> 로 간다. **prebuild 도 gradlew 도 Xcode 도 업데이트 채널을 심지 않는다 — EAS Build 만 심는다.**
+>
+> 채널 없는 바이너리는 업데이트 확인마다 `HTTP 400 "channel-name": Required` 를 받아
+> **OTA 를 영원히 못 받는다.** 실제로 그렇게 나간 빌드가 몇 달치 OTA 를 통째로 놓쳤다
+> (2026-08-29 실측, `docs/auth-migration-metrics.md` 의 `## H1 판정`).
+>
+> 지금은 `build.sh` 가 prebuild 직후 채널을 자동 주입하고 검증한다. 그래도 **EAS 빌드를
+> 권장한다** — 자동 주입은 이 스크립트를 거칠 때만 동작하고 Xcode/gradlew 직접 호출은
+> 우회한다. iOS 를 Xcode 로 Archive 했다면 제출 전에 반드시:
+>
+> ```bash
+> cd mobile && npm run verify:store -- --artifact <경로.ipa>
+> ```
+
+
 ### 6.1 iOS Production Build
 
 ```bash

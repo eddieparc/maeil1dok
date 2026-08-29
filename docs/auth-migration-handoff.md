@@ -44,9 +44,9 @@ H1 이 끝나야 한다.
 > `eas.json` 의 제출 자격 자리표시자(`YOUR_APPLE_ID` 등)를 채워야 한다.
 >
 > 새 빌드는 **채널을 반드시 실어야 한다.** `eas build --profile production` 이 자동으로
-> 심는다. 로컬 빌드로 제출한다면 iOS `Expo.plist` 의 `EXUpdatesRequestHeaders`,
-> Android 의 `UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY` 에 `expo-channel-name` 을
-> 직접 넣어야 한다 — 이번 사고가 정확히 그것을 빠뜨려 생겼다.
+> 심는다. 로컬 빌드 경로(`npm run build`)도 이제 prebuild 직후 채널을 자동 주입하고
+> 검증한다 — 다만 Xcode 나 gradlew 를 **직접** 부르면 그 자동화를 우회하므로, iOS 는
+> Archive 후 제출 전에 `npm run verify:store -- --artifact <경로.ipa>` 를 반드시 돌린다.
 >
 > 그 빌드가 스토어에 올라가면 **이미 게시된 Part A 셸이 그대로 적용된다.**
 > 서버·웹 변경은 이 판정과 무관하게 이미 배포돼 동작 중이다.
@@ -66,9 +66,15 @@ HTTP 400  "channel-name": Required.
 ```
 
 **원인은 런타임이 아니라 채널 부재다.** `expo prebuild` 는 채널을 심지 않는다 — EAS Build 가
-한다. 스토어 빌드의 출처인 로컬 `ios/Expo.plist` 에 `EXUpdatesRequestHeaders` 가 없었고,
-`eas build:list` 에 1.2.x 프로덕션 빌드가 **0건**이다. 스토어 바이너리는 로컬 prebuild
-산출물로 빌드돼 수동 제출됐다.
+한다. 그리고 **그 로컬 빌드 경로가 리포에 있다**: `scripts/build.sh` 가 "빌드 환경 선택:
+1) 클라우드(EAS Build) / 2) 로컬" 을 묻고, `2` 를 고르면 prebuild → `gradlew bundleRelease`
+또는 Xcode Archive 로 간다. 리포에 로컬 서명 자격증명(`credentials/`)이 있고,
+`build.sh:update_app_json()` 이 app.json 버전을 sed 로 직접 박는 것도 같은 사실을 가리킨다.
+스토어 빌드의 출처인 로컬 `ios/Expo.plist` 에 `EXUpdatesRequestHeaders` 가 없었고
+`eas build:list` 는 2026-01 `1.0.1` 에서 멈춰 있다.
+
+**그 경로는 이제 막혔다**: `build.sh` 가 prebuild 직후 채널을 자동 주입하고 검증하며,
+Android 산출물은 빌드 직후 검증에서 채널이 없으면 `exit 1` 로 멎는다.
 
 **따라서 현재 스토어 앱은 업데이트 확인 때마다 400 을 받는다. 어떤 런타임으로 게시해도
 도달하지 않는다.** 시뮬레이터·에뮬레이터에서 도달했던 것은 **우리가 채널을 직접 심어
