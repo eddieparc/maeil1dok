@@ -382,6 +382,22 @@ HTTP 400
 `versionName 1.0.4` 였다. 2026-08-24 게시분(runtime 1.2.2)이 **Android 실기기에
 도달했다는 증거는 어디에도 없다.** 같은 절차로 확인해야 한다.
 
+### 새 스토어 빌드의 선행 위험 — 버전 카운터가 거꾸로다 (실측)
+
+`eas.json` 이 `appVersionSource: remote` 라서 buildNumber/versionCode 를 EAS 원격 카운터가
+관리하는데, 마지막 EAS 프로덕션 빌드가 2026-01 의 `1.0.1` 이라 카운터가 그 시점에 멈춰 있다.
+
+| 값 | 실측 |
+|---|---|
+| EAS 원격 iOS `buildNumber` | **10** (`eas build:version:get`) |
+| EAS 원격 Android `versionCode` | **16** (`eas build:version:get`) |
+| 로컬 에뮬레이터에 설치돼 있던 앱 | **versionCode 17** (`INSTALL_FAILED_VERSION_DOWNGRADE: Update version code 8 is older than current 17`) |
+| iOS 스토어 공개 버전 | **1.2.2** (App Store 조회) |
+
+**원격 카운터가 실제 배포분보다 낮다.** 그대로 `eas build` 하면 versionCode 17 이 나오는데
+그 값이 이미 쓰였다면 Play 가 업로드를 거부한다. 새 빌드 전에 두 스토어의 현재 값을 확인하고
+`eas build:version:set` 으로 올려야 한다. 절차는 인계 문서 H8 런북 3단계.
+
 ### 참고 — 게시 이력 (모두 도달하지 못했다)
 
 | 플랫폼 | runtime | update ID | 비고 |

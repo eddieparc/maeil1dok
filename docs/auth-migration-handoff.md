@@ -55,32 +55,33 @@ H1 이 끝나야 한다.
 OTA 를 게시해도 **어느 기기에도 도달하지 않을 수 있다.** 게시했는데 도달하지 않은 상태는
 "고쳤다고 믿지만 아무도 안 고쳐진" 최악의 상태다.
 
-**무엇을**: 리허설 업데이트를 게시해 실기기에 실제로 내려오는지 본다. 코드 변경 없는
-no-op 이어야 한다 — 도달 여부만 보는 시험이다.
+**판정: (3-b) 도달 실패. 이 항목은 닫혔다. 아래는 결과이고, 남은 실행은 H8 이 갖는다.**
 
-**현재 코드가 게시할 런타임** (실측): `mobile/app.json` 의
-`runtimeVersion.policy = "appVersion"`, `version = "1.2.2"` → 런타임은 **`1.2.2`**.
-스토어 바이너리가 그 런타임으로 빌드됐는지는 코드로 알 수 없어 이 확인이 필요하다.
+**어떻게 판정했나**: 실기기(iOS, 스토어 설치본)에서 계정 설정 하단이 `앱 구버전 — 업데이트
+미도달` 로 나왔고, 런타임 후보 `1.2.1` 로 다시 게시해도 같았다. 런타임을 계속 바꿔 보는 대신
+업데이트 서버에 **채널 헤더 없이** 물었더니 원인이 나왔다.
 
-**어떤 기기로**: iOS 실기기 1대 + Android 실기기 1대. **스토어에서 설치한 앱**이어야 한다
-(개발 빌드로 하면 런타임이 달라 판정이 무의미해진다).
+```
+HTTP 400  "channel-name": Required.
+```
 
-**절차**
-1. `cd mobile && npx eas update --channel production --platform ios --message "reach rehearsal (no-op)"`
-2. Android 도 같은 방식으로 **따로** 게시한다.
-   - 게이트 스크립트를 쓰면: `npm run publish:ota -- --no-web-dependency "reach rehearsal, no web-dependent change" --platform ios`
-   - 리허설은 웹 의존이 없으므로 `--no-web-dependency` 가 맞다.
-3. 각 기기에서 앱을 **완전 종료 후 재시작**한다(백그라운드 복귀는 업데이트를 받지 않는다).
-4. 업데이트가 적용됐는지 확인한다.
+**원인은 런타임이 아니라 채널 부재다.** `expo prebuild` 는 채널을 심지 않는다 — EAS Build 가
+한다. 스토어 빌드의 출처인 로컬 `ios/Expo.plist` 에 `EXUpdatesRequestHeaders` 가 없었고,
+`eas build:list` 에 1.2.x 프로덕션 빌드가 **0건**이다. 스토어 바이너리는 로컬 prebuild
+산출물로 빌드돼 수동 제출됐다.
 
-**무엇을 확인**
-- (3-a) 두 플랫폼 모두 도달 → OTA 경로 사용 가능. 이후 셸 변경은 OTA 로 나간다.
-- (3-b) 도달하지 않음 → **OTA 경로 폐기**. 셸 변경은 스토어 제출로만 나갈 수 있고,
-  H7(제출 자격)이 선행 조건이 된다.
-- 한쪽만 도달 → 그 플랫폼만 OTA, 다른 쪽은 스토어. 플랫폼별로 다르게 판정해도 된다.
+**따라서 현재 스토어 앱은 업데이트 확인 때마다 400 을 받는다. 어떤 런타임으로 게시해도
+도달하지 않는다.** 시뮬레이터·에뮬레이터에서 도달했던 것은 **우리가 채널을 직접 심어
+빌드했기 때문**이며, 그 실험은 게시 사슬이 정상임을 증명했지 스토어 바이너리가 그 사슬에
+올라타 있음을 증명하지 못했다.
 
-**어디에 기록**: `docs/auth-migration-metrics.md` 의 `## 승격과 도달 확인` 표.
-판정(3-a / 3-b / 부분)을 명시적으로 적는다.
+**이후 순서가 바뀐다**: 셸 변경은 OTA 가 아니라 **새 스토어 빌드**로만 나간다.
+H7·H8 이 선행 조건으로 승격된다. 실행 절차는 **H8 런북**을 본다.
+
+**재발 방지**: `cd mobile && npm run verify:store -- --native` 가 prebuild 직후 채널 부재를
+잡고, `-- --artifact <경로>` 가 제출 직전 산출물을 잡는다. 채널 없는 산출물은 exit 1 이다.
+
+**기록 위치**: `docs/auth-migration-metrics.md` 의 `## H1 판정` 절에 근거가 있다.
 
 ---
 
@@ -194,7 +195,7 @@ Android 네이티브가 서로 다른 시그니처를 갖는데, 하나만 보�
 
 ---
 
-## H8. 스토어 제출 자격 — H1 이 (3-b) 일 때만
+## H8. 새 스토어 빌드 — **지금 최우선**. 셸 수정이 사용자에게 가는 유일한 경로
 
 **무엇을**: iOS·Android 제출 자격이 실제로 유효한지 확인한다.
 
@@ -211,17 +212,71 @@ Android 네이티브가 서로 다른 시그니처를 갖는데, 하나만 보�
 
 **어디에 기록**: `docs/auth-migration-metrics.md` 의 `## 스토어 제출 자격` 표.
 
+### 런북 — 채널을 실은 새 스토어 빌드
+
+**반드시 EAS 로 빌드한다.** 로컬 `expo prebuild` + Xcode/Gradle 로 만들어 제출하면
+이번 사고가 그대로 재발한다 — prebuild 는 채널을 심지 않는다.
+
+1. **제출 자격을 채운다** (`mobile/eas.json` 의 `submit.production.ios`).
+   `appleId`, `ascAppId`, `appleTeamId` 가 자리표시자 그대로다. Android 는
+   `google-service-account.json` 이 필요하다.
+
+2. **버전을 올린다.** iOS 스토어 현재 버전은 `1.2.2` 다(App Store 공개 조회 실측).
+   `mobile/app.json` 의 `expo.version` 을 `1.2.3` 으로 올린다.
+   `runtimeVersion.policy = appVersion` 이므로 **런타임도 1.2.3 이 된다** — 이미 게시된
+   `1.2.2` 업데이트들은 그 빌드에 도달하지 않지만, **같은 코드가 임베디드로 들어가므로**
+   문제되지 않는다. 이후 OTA 는 `1.2.3` 으로 게시한다.
+
+3. **buildNumber/versionCode 충돌을 먼저 확인한다 (BLOCKER).** `appVersionSource: remote`
+   라서 EAS 가 원격 카운터를 쓰는데, 실측값이 **iOS buildNumber 10 / Android versionCode 16**
+   이다. 그런데 로컬 에뮬레이터에 설치돼 있던 앱이 **versionCode 17** 이었다 — 원격 카운터가
+   실제 배포분보다 **낮다**. 그 상태로 빌드하면 Play 가 업로드를 거부한다.
+   App Store Connect / Play Console 에서 현재 값을 확인하고, 낮으면 올린다:
+   ```bash
+   cd mobile
+   npx eas build:version:get --platform android
+   npx eas build:version:set --platform android   # 스토어 현재값보다 크게
+   ```
+
+4. **빌드한다.**
+   ```bash
+   cd mobile
+   npx eas build --profile production --platform ios
+   npx eas build --profile production --platform android
+   ```
+   `eas.json` 의 `production.channel = "production"` 을 EAS 가 바이너리에 심는다.
+
+5. **제출 전에 채널을 검증한다 (이 사고의 재발 차단 지점).**
+   ```bash
+   cd mobile
+   npm run verify:store -- --artifact <다운로드한 .ipa 또는 .aab 경로>
+   ```
+   `OK ... channel "production"` 이어야 한다. `FAIL` 이면 **제출하지 않는다** — 그 빌드는
+   업데이트를 영원히 못 받는다.
+
+6. **제출한다.** `npx eas submit --profile production --platform <p>`
+
+7. **스토어 반영 후 도달을 확인한다.** 앱을 완전 종료·재시작 2회 후 **계정 설정 하단**을 본다.
+   - `v1.2.3 · <짧은 id>` 또는 `v1.2.3 · embedded` → 새 빌드가 설치됨
+   - `앱 구버전 — 업데이트 미도달` → 아직 옛 빌드. 스토어 업데이트를 받는다.
+
+8. **웹의 강제 안내를 켠다 (선택).** 새 빌드가 **양 스토어에 실제로 올라간 뒤에만**
+   `NUXT_PUBLIC_LEGACY_SHELL_ENFORCEMENT=blocking` 으로 바꾼다. 그 전에 켜면 업데이트할
+   대상이 없는 사용자를 앱에서 쫓아낸다. 기본값 `notice` 는 배너로만 안내한다.
+
 ---
 
 ## 순서 요약
 
 ```
-H1 (OTA 도달 판정)  ← 최우선. 이후 전체를 가른다
- ├─ (3-a) OTA 가능 → H2 → 배포 → 7일 베이스라인 → H4·H5·H6
- └─ (3-b) OTA 불가 → H8 (제출 자격) → 스토어 경로로 H4·H5·H6
-H3 (쿠키 영속성)     ← H1 과 병행 가능. diagnostic 빌드 필요
-H7 (애플 예외 승인)  ← 배포 전 아무 때나. 늦으면 되돌려야 한다
+H1 (OTA 도달 판정)  ✔ 완료 — (3-b) 도달 실패. 원인 채널 부재
+ └─ H8 (새 스토어 빌드)  ← 최우선. 셸 수정이 사용자에게 가는 유일한 경로
+     └─ H7 (애플 예외 승인)  ← H8 제출 전에 받아야 한다
+         └─ 스토어 반영 후 → H2 → 7일 베이스라인 → H4·H5·H6
+H3 (쿠키 영속성)     ← 병행 가능. diagnostic 빌드 필요 (이것도 EAS 로 빌드해야 채널이 실린다)
 ```
+
+**H1 이 (3-a) 였다면 갔을 OTA 경로는 존재하지 않는다.** 그 분기를 기다리지 않는다.
 
 ## 에이전트가 셸을 게시하지 않은 이유
 
