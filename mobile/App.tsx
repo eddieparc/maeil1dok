@@ -31,6 +31,7 @@ import CookieManager from '@react-native-cookies/cookies';
 import { resolveWebViewConfig } from './webviewConfig';
 import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
 import { redactSensitiveUrl } from './urlRedaction';
+import { csrfHeadersFrom } from './csrfHeader';
 import * as Updates from 'expo-updates';
 import {
   formatBundleIdentityLabel,
@@ -642,9 +643,15 @@ function AppContent() {
           (async () => {
             try {
               // 1. 백엔드 로그아웃 API 호출
+              // 서버는 refresh 쿠키가 있으면 CSRF 를 요구하는데, 네이티브 fetch 에는
+              // Origin 도 Referer 도 없다. 공유 쿠키 저장소의 토큰을 직접 실어야
+              // 통과한다 — 없이 보내면 403 이라 refresh 토큰이 블랙리스트되지 않고
+              // 로그아웃이 서버에 붙지 않는다.
+              const csrfCookies = await CookieManager.get(API_URL).catch(() => null);
               await fetch(`${API_URL}/api/v1/auth/logout/`, {
                 method: 'POST',
                 credentials: 'include',
+                headers: csrfHeadersFrom(csrfCookies),
               });
             } catch (error) {
               console.error('Logout API error:', error);
