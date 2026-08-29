@@ -201,6 +201,7 @@ def aggregate_pending(limit: int = 1000) -> int:
                 route_bucket=row.route_bucket,
                 cause=row.cause,
                 age_bucket=row.age_bucket,
+                client=row.client,
                 defaults={'count': 1},
             )
             if not created:

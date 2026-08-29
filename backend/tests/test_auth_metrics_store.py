@@ -20,6 +20,7 @@ properties therefore have to hold, and each is asserted here rather than assumed
 from datetime import date, datetime, timedelta, timezone as dt_timezone
 
 from django.core.management import call_command
+from django.db.models import Sum
 from django.test import TestCase
 from django.utils import timezone
 
@@ -435,3 +436,57 @@ class ManagementCommandTest(TestCase):
         )
         call_command('aggregate_auth_metrics')
         self.assertEqual(daily_total(day=date(2026, 8, 20)), 1)
+
+
+class ClientCohortSurvivesAggregationTests(TestCase):
+    """The `legacy-shell` cohort size must be answerable from the counters.
+
+    The outbox is drained and eventually purged, so a dimension that lives only
+    there cannot answer a question asked days later. Plan task 7 makes the cohort
+    size a gate input, which puts `client` in the counter grain rather than
+    leaving it an outbox-only detail.
+    """
+
+    def _record(self, client, moment):
+        record_auth_event(
+            event=EventKind.AUTH,
+            method=AuthMethod.COOKIE_ACCESS_JWT,
+            outcome=Outcome.SUCCESS,
+            status=200,
+            route='/api/v1/auth/user/',
+            client=client,
+            occurred_at=moment,
+        )
+
+    def test_client_is_part_of_the_counter_grain(self):
+        self.assertIn('client', AuthMetricCounter.GRAIN_FIELDS)
+
+    def test_cohort_size_is_readable_after_the_outbox_is_purged(self):
+        moment = utc(2026, 8, 29, 3, 30)
+        for client in ('legacy-shell', 'legacy-shell', 'web'):
+            self._record(client, moment)
+        aggregate_pending()
+        AuthEventOutbox.objects.all().delete()
+
+        day = to_utc_naive(moment).date()
+        shell = AuthMetricCounter.objects.filter(
+            day=day, client='legacy-shell'
+        ).aggregate(total=Sum('count'))['total']
+        web = AuthMetricCounter.objects.filter(day=day, client='web').aggregate(
+            total=Sum('count')
+        )['total']
+
+        self.assertEqual(shell, 2)
+        self.assertEqual(web, 1)
+
+    def test_two_clients_do_not_collapse_into_one_counter_row(self):
+        moment = utc(2026, 8, 29, 4, 0)
+        for client in ('legacy-shell', 'web'):
+            self._record(client, moment)
+        aggregate_pending()
+
+        naive = to_utc_naive(moment)
+        self.assertEqual(
+            AuthMetricCounter.objects.filter(day=naive.date(), hour=naive.hour).count(),
+            2,
+        )

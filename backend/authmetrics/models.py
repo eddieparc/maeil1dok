@@ -127,6 +127,11 @@ COUNTER_GRAIN_FIELDS = (
     'route_bucket',
     'cause',
     'age_bucket',
+    # `client` belongs to the grain, not just the outbox. The cohort size the
+    # release gates read is asked days later, by which time the outbox rows have
+    # been drained and purged -- an outbox-only dimension cannot answer it. It was
+    # also actively lossy: two clients folded into a single counter row.
+    'client',
 )
 
 
@@ -147,6 +152,7 @@ class AuthMetricCounter(models.Model):
     route_bucket = models.CharField(max_length=16, choices=RouteBucket.choices)
     cause = models.CharField(max_length=32, blank=True, default='')
     age_bucket = models.CharField(max_length=8, choices=AgeBucket.choices)
+    client = models.CharField(max_length=32, blank=True, default='')
     count = models.PositiveIntegerField(default=0)
     pinned = models.BooleanField(
         default=False,
