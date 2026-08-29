@@ -51,6 +51,68 @@ celery beat 는 2분 주기로 `authmetrics.aggregate_auth_events` 를 보내고
 
 ---
 
+## refresh 상환이 100% CSRF 403 이었다 (2026-08-30 실측, 수정·배포)
+
+H1 판정 뒤 실기기 시험을 하다 드러났다. 프로덕션 이벤트를 열어 보니 **성공한 refresh
+상환이 한 건도 없었다.**
+
+```
+refresh_401 / refresh-redemption  fail  status=403  cause=csrf   ← 예외 없이 전부
+auth        / cookie-access-jwt   success status=200             ← 바로 뒤에 성공
+```
+
+### 원인
+
+`cookie_views.CookieTokenRefreshView` 는 **refresh 쿠키가 보이면** CSRF 를 검사하고,
+쿠키가 없을 때만 본문 토큰으로 폴백했다. 그런데 셸은 **둘 다** 보낸다 —
+저장 토큰을 본문에 담고, `sharedCookiesEnabled` + `credentials: 'include'` 때문에
+네이티브 `fetch` 가 refresh 쿠키까지 자동 첨부한다.
+
+네이티브 `fetch` 에는 `Origin` 도 `Referer` 도 없다. Django 의 CSRF 검사는 그 요청에
+대해 **절대 통과할 수 없다.** 그래서 본문 토큰은 읽히지도 못한 채 403 이 됐다.
+
+웹은 다르다. `X-CSRFToken` 을 보내고 `CSRF_TRUSTED_ORIGINS` 에 `https://maeil1dok.app`
+이 있어 통과한다. 계약 테스트의 `쿠키단독+유효헤더 → 200` 케이스가 그것을 증명한다.
+
+### 결과
+
+세션이 **1시간짜리 access 쿠키로만** 버텼다. 그 뒤에는 갱신이 불가능하므로 로그아웃된다.
+사용자가 겪던 "로그인이 풀린다" 의 실제 근인으로 보인다 — `clearAll()` 제거는 그 뒤의
+피해(유효한 쿠키까지 파괴)를 줄였을 뿐 갱신 자체는 막혀 있었다.
+
+**같은 날 실기기 재시작 시험(Android 3회, iOS 4회)이 통과한 것도 이것으로 설명된다.**
+로그인 후 1시간 안에 했으므로 access 쿠키가 살아 있었고, **refresh 경로는 한 번도
+실행되지 않았다.** 통과가 아니라 시험이 일어나지 않은 것이다.
+
+### 수정
+
+본문에 토큰을 제시한 요청은 CSRF 대상에서 뺀다. CSRF 가 막는 것은 브라우저의 주변
+권한(쿠키)으로 공격자가 요청을 일으키는 것인데, 공격자는 `HttpOnly` refresh 쿠키를
+읽을 수 없어 그 본문을 만들 수 없다. **쿠키 단독 상환의 보호는 그대로 둔다.**
+
+반대 설계(쿠키 값을 쓰되 본문 토큰으로 CSRF 만 면제)는 거부했다 — 공격자가 자기 소유의
+유효한 토큰으로 검사를 면제시키고 피해자의 쿠키를 회전시킬 수 있다.
+
+우선순위가 쿠키→본문에서 **본문→쿠키**로 뒤집혔다. 두 번째 이유가 있다: 쿠키 우선은
+셸의 낡은 저장 토큰을 쿠키 뒤에 숨겨 **북극성 신호(`refresh_401{cause=blacklisted}`)가
+영원히 뜨지 않게** 했다.
+
+로그아웃도 같은 병이었다(`cookie_logout` 도 쿠키가 있으면 CSRF 검사). 본문이 없어 서버로는
+못 풀고, 셸이 공유 쿠키 저장소의 `csrftoken` 을 헤더로 싣도록 고쳤다 — 다음 스토어 빌드로 간다.
+
+### 시간대 함정 (이번에 나를 속인 것)
+
+`OutstandingToken.created_at` 은 **UTC** 로 저장되는데(simplejwt 내부가 UTC 사용)
+`timezone.now()` 는 **KST** 를 반환한다(`USE_TZ=False`, `TIME_ZONE=Asia/Seoul`).
+같은 DB 의 두 시각이 **9시간 어긋난다.** 임시 질의로 토큰 나이를 계산하다 547분을
+얻어 계정 판정을 잘못할 뻔했다.
+
+**우리 코드는 영향받지 않는다** — `OutstandingToken` 은 simplejwt 내부에서만 쓰이고,
+`refresh_age_seconds` 는 JWT `iat` 와 `time.time()`(둘 다 UTC epoch)으로 계산한다.
+다만 **애드혹 질의를 쓸 때는 반드시 이 차이를 기억할 것.**
+
+---
+
 ## 롤업 쿼리 (작업 7 — 에이전트, 2026-08-29 프로덕션 실행)
 
 게이트가 읽는 네 질의를 여기 고정한다. **요청 비율 기반 게이트는 금지한다** — 한 기기가

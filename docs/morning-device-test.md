@@ -199,6 +199,46 @@ iOS 릴리스 빌드는 JS `console.log` 를 시스템 로그로 넘기지 않�
 게이트보다 나쁘므로**(플래그로 넘기는 습관이 생기고 진짜 실패도 통과합니다) 결함으로
 다뤄 고쳤고, 합성 `.ipa` 왕복 테스트를 붙였습니다. 잘못된 채널은 여전히 거부합니다.
 
+## 1시간 만료 시험 — **가장 중요합니다**
+
+재시작 시험(A-3 / B-3)은 **로그인 후 1시간 안에 하면 아무것도 증명하지 못합니다.**
+그 구간은 access 쿠키(`max_age` 1시간)가 살아 있어 refresh 경로가 실행되지 않습니다.
+2026-08-30 오전의 Android 3회·iOS 4회 통과가 정확히 그 경우였습니다.
+
+**절차**
+
+1. 앱에서 로그인하고 **로그인 시각을 적어 둡니다.**
+2. **1시간 넘게** 앱을 열지 않습니다(백그라운드도 아닌 완전 종료 권장).
+3. 앱을 엽니다.
+4. 로그인이 유지되면 통과입니다.
+
+**서버 쪽 확증** — 느낌이 아니라 카운터로 판정합니다.
+
+```bash
+ssh -i ~/.ssh/oci_a1_deploy ubuntu@168.107.46.120 \
+  "cd /opt/maeil1dok && docker compose -f docker-compose.oci.yml --env-file .env.oci \
+   exec -T web python manage.py shell" <<'PY'
+from datetime import timedelta
+from django.db.models import Sum
+from authmetrics.models import AuthMetricCounter, EventKind
+from authmetrics.recording import aggregate_pending, utc_now_naive
+aggregate_pending()
+today = utc_now_naive().date()
+print(list(AuthMetricCounter.objects
+      .filter(day__gte=today - timedelta(days=1))
+      .values("event", "method", "outcome", "cause")
+      .annotate(t=Sum("count")).order_by("-t")[:15]))
+PY
+```
+
+- `auth / refresh-redemption / success` 가 있으면 **갱신이 실제로 성립한 것**입니다.
+- `refresh_401 cause=csrf` 가 계속 늘면 **수정이 그 기기에 닿지 않은 것**입니다.
+- `refresh_401 cause=blacklisted` 는 회전 경합이며 별개 항목입니다.
+
+> 2026-08-30 이전에는 이 값이 **전부 `cause=csrf`** 였습니다. 그것이 결함이었고
+> 서버 수정으로 풀렸습니다(근거: `docs/auth-migration-metrics.md`
+> `## refresh 상환이 100% CSRF 403`).
+
 ### 남은 한계 — 정직하게 적습니다
 
 에뮬레이터·시뮬레이터로는 **로그인 유지(A-3)를 증명할 수 없습니다.** 그 결함은 실제
