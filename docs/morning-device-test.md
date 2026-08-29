@@ -8,7 +8,8 @@
 |---|---|---|
 | `dist/maeil1dok-1.2.3.aab` | **Play Store 제출용** | 빌드·검증 완료 |
 | `dist/maeil1dok-1.2.3.apk` | **안드로이드 기기 직접 설치용** | 빌드·검증·에뮬레이터 검수 완료 |
-| `dist/maeil1dok-1.2.3.ipa` | **App Store 제출용** | (빌드 결과는 아래 "밤사이 결과" 참조) |
+| `dist/appstore/app.ipa` | **App Store 제출용** | Xcode 아카이브 export |
+| `dist/devsigned/app.ipa` | **iOS 기기 직접 설치용** | 등록된 기기 2대에 설치 가능 |
 
 전부 **로컬에서 서명**했고 **Expo 클라우드 크레딧을 쓰지 않았습니다**(`eas build --local`).
 세 산출물 모두 `expo-channel-name: production` 이 박혀 있어야 하며, 검증 명령은:
@@ -48,37 +49,69 @@ adb install ~/GitHub/maeil1dok/dist/maeil1dok-1.2.3.apk
 
 ---
 
-## B. iOS 실기기 — **직접 설치가 불가능합니다. TestFlight 를 거쳐야 합니다.**
+## B. iOS 실기기 — 두 경로. 직접 설치가 **가능합니다**
 
-이유를 정확히 적습니다. `credentials/ios/profile.mobileprovision` 은 **App Store 배포용**
-프로파일이고 `get-task-allow: false` 입니다. 그런 서명의 `.ipa` 는 기기에 사이드로드할 수
-없습니다 — 애플이 막습니다. 개발/Ad Hoc 프로파일이 있으면 가능하지만, 그것을 만들려면
-Apple Developer 포털 접근이 필요해 제가 할 수 없었습니다.
+> **정정**: 처음엔 "TestFlight 밖에 없다" 고 적었는데 틀렸습니다. 이 맥의 키체인에
+> `Apple Development: JiGeon Park (78872QSM5R)` 인증서가 있고, `iOS Team Provisioning
+> Profile: com.maeil1dok.app`(만료 2027-03-12)에 **기기 2대가 이미 등록**돼 있습니다.
+> 그래서 개발 서명본을 그 기기에 바로 설치할 수 있습니다.
 
-따라서 iOS 실기기 경로는 하나입니다: **App Store Connect 업로드 → TestFlight 설치.**
+### B-1. 빠른 길 — 개발 서명본 직접 설치 (권장, TestFlight 대기 없음)
 
-### B-1. 업로드 (둘 중 하나)
+산출물: `dist/devsigned/*.ipa`
 
-**(a) Transporter 앱** — 자격증명 설정이 필요 없습니다. 가장 빠릅니다.
-Mac App Store 에서 `Transporter` 설치 → 애플 계정 로그인 → `dist/maeil1dok-1.2.3.ipa`
-드래그 → Deliver.
+```bash
+# 아이폰을 USB 로 연결하고 (기기에서 '이 컴퓨터를 신뢰' 승인)
+xcrun devicectl list devices                      # 기기 UDID 확인
+xcrun devicectl device install app --device <UDID> ~/GitHub/maeil1dok/dist/devsigned/app.ipa
+```
+
+Xcode GUI 를 쓰신다면: Xcode → Window → Devices and Simulators → 기기 선택 →
+`Installed Apps` 의 `+` → 그 `.ipa` 선택.
+
+**등록된 기기가 아니면 설치가 거부됩니다.** 그때는 B-2 로 가십시오.
+
+> 개발 서명본도 **채널이 심겨 있습니다**(`expo-channel-name: production`).
+> prebuild 는 채널을 안 심으므로 `inject-update-channel.mjs` 로 넣고 검증했습니다.
+
+### B-2. 배포 경로 — App Store Connect → TestFlight
+
+산출물: `dist/appstore/*.ipa`
+
+**(a) Transporter 앱** — 자격증명 설정 불필요. Mac App Store 에서 설치 → 애플 계정
+로그인 → `.ipa` 드래그 → Deliver.
 
 **(b) `eas submit`** — `mobile/eas.json` 의 `submit.production.ios.appleId` 가
-`FILL_ME_apple_account_email` 로 비어 있습니다. **애플 계정 이메일만 넣으면** 됩니다.
+`FILL_ME_apple_account_email` 입니다. **애플 계정 이메일만 넣으면** 됩니다.
 나머지는 채워 뒀습니다(`ascAppId: 6758072829`, `appleTeamId: F42N2AFRM6`).
 
 ```bash
 cd mobile
-npx eas submit --platform ios --profile production --path ../dist/maeil1dok-1.2.3.ipa
+npx eas submit --platform ios --profile production --path ../dist/appstore/app.ipa
 ```
 
-업로드 후 App Store Connect 에서 처리에 5~15분 걸립니다. TestFlight 탭에 빌드가 뜨면
-기기의 TestFlight 앱에서 설치하십시오.
+업로드 후 App Store Connect 처리에 5~15분. TestFlight 탭에 뜨면 기기에서 설치.
 
-### B-2. 확인할 것
+### B-3. 확인할 것
 A 의 1~4 와 동일합니다.
 
----
+### 참고 — iOS 빌드가 `eas build --local` 로는 안 되는 이유 (실측)
+
+두 번 시도해 두 번 다 자격 문제로 막혔고, 원인이 서로 달랐습니다.
+
+1. 리포의 `credentials/ios/profile.mobileprovision` 은 **2026-01-21** 자인데
+   Apple 로그인은 **2026-01-27**(`bb40dd73`)에 추가됐습니다. 그래서
+   `doesn't include the Sign In with Apple capability` 로 실패했습니다.
+   → 맥에 있던 최신 프로파일로 교체했습니다(옛 파일은 `.bak-20260121` 로 보존).
+2. 교체한 프로파일은 **Xcode 관리(자동 서명)** 인데 `eas build --local` 은
+   **수동 관리** 프로파일을 요구합니다 — `is Xcode managed, but signing settings
+   require a manually managed profile`.
+
+그래서 iOS 는 **Xcode 로 직접 아카이브**하고 거기서 두 형태로 export 했습니다.
+Android 는 `eas build --local` 이 그대로 됩니다(채널까지 심어 줍니다).
+
+수동 관리 프로파일을 Apple Developer 포털에서 새로 만들면 iOS 도 `eas build --local`
+경로로 통일할 수 있습니다. 포털 접근이 필요해 밤사이 하지 못했습니다.
 
 ## C. Play Store 제출 (안드로이드 배포)
 
