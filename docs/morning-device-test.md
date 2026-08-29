@@ -6,10 +6,21 @@
 
 | 파일 | 용도 | 상태 |
 |---|---|---|
-| `dist/maeil1dok-1.2.3.aab` | **Play Store 제출용** | 빌드·검증 완료 |
-| `dist/maeil1dok-1.2.3.apk` | **안드로이드 기기 직접 설치용** | 빌드·검증·에뮬레이터 검수 완료 |
-| `dist/appstore/app.ipa` | **App Store 제출용** | Xcode 아카이브 export |
-| `dist/devsigned/app.ipa` | **iOS 기기 직접 설치용** | 등록된 기기 2대에 설치 가능 |
+| `dist/maeil1dok-1.2.3.apk` | **안드로이드 기기 직접 설치** | 빌드·검증·에뮬레이터 검수 완료 |
+| `dist/maeil1dok-1.2.3.aab` | **Play Store 제출** | 빌드·검증 완료 |
+| `dist/devsigned/app.ipa` | **iOS 기기 직접 설치** | 개발 서명(`get-task-allow=true`), 등록기기 2대 |
+| `dist/appstore/app.ipa` | **App Store 제출** | 배포 서명(`get-task-allow=false`) |
+
+**네 산출물 모두 채널 검증 통과**(2026-08-30 실측):
+
+```
+OK   android (.apk): channel "production"
+OK   android (.aab): channel "production"
+OK   ios (.ipa): channel "production"     ← devsigned
+OK   ios (.ipa): channel "production"     ← appstore
+```
+
+버전은 넷 다 `1.2.3` / Android `versionCode 20` / iOS `build 11` 입니다.
 
 전부 **로컬에서 서명**했고 **Expo 클라우드 크레딧을 쓰지 않았습니다**(`eas build --local`).
 세 산출물 모두 `expo-channel-name: production` 이 박혀 있어야 하며, 검증 명령은:
@@ -170,6 +181,23 @@ NUXT_PUBLIC_LEGACY_SHELL_ENFORCEMENT=blocking
 iOS 릴리스 빌드는 JS `console.log` 를 시스템 로그로 넘기지 않아 `[BundleIdentity]` 줄이
 콘솔에 안 보입니다. 그래서 `Expo.plist` 와 화면으로 판정했습니다. **실기기에서는 계정 설정
 하단 표시로 확인하십시오** — 관측 수단을 두 개 둔 이유가 이것입니다.
+
+### iOS 아카이브 (Xcode 직접) — 통과
+
+| 확인 | 결과 |
+|---|---|
+| 아카이브 | `BUILD SUCCEEDED`, TeamID `F42N2AFRM6` |
+| 버전 | `CFBundleShortVersionString 1.2.3` · `CFBundleVersion 11` |
+| 채널 | `OK ios (.app): channel "production"` |
+| export | app-store · development 두 형태 모두 성공 |
+
+### 밤사이 잡은 검증기 결함 하나
+
+같은 아카이브에서 나온 `.app` 은 통과하는데 `.ipa` 가 FAIL 이었습니다. Xcode 가
+`.ipa` 안의 plist 를 **바이너리(`bplist00`)** 로 넣는데 `.ipa` 분기만 텍스트로 읽고
+있었습니다 — 채널은 멀쩡히 들어 있었습니다. **정상 빌드를 거부하는 게이트는 없는
+게이트보다 나쁘므로**(플래그로 넘기는 습관이 생기고 진짜 실패도 통과합니다) 결함으로
+다뤄 고쳤고, 합성 `.ipa` 왕복 테스트를 붙였습니다. 잘못된 채널은 여전히 거부합니다.
 
 ### 남은 한계 — 정직하게 적습니다
 
