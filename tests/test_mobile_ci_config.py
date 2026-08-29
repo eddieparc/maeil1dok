@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -49,3 +50,34 @@ class MobileCiConfigTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KakaoPluginKotlinVersionTest(unittest.TestCase):
+    """The kakao-login plugin must not pin an ancient Kotlin into the prebuild.
+
+    `@react-native-seoul/kakao-login` writes `android.kotlinVersion` during
+    prebuild and defaults it to `1.5.10`. On Expo 54 / RN 0.81 that value makes
+    `expo prebuild` produce an Android project that cannot build at all:
+
+        Can't find KSP version for Kotlin version '1.5.10'
+
+    Since `mobile/android/` is gitignored, nothing in the repo revealed this --
+    a regenerated native project was simply broken. Pinning a supported version
+    in the plugin props is what keeps prebuild reproducible.
+    """
+
+    def test_app_json_pins_a_supported_kotlin_version_for_the_kakao_plugin(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        config = json.loads((repo_root / "mobile" / "app.json").read_text(encoding="utf-8"))
+
+        plugins = config["expo"]["plugins"]
+        kakao = next(
+            entry
+            for entry in plugins
+            if isinstance(entry, list) and entry[0] == "@react-native-seoul/kakao-login"
+        )
+        props = kakao[1]
+
+        self.assertIn("kotlinVersion", props)
+        major, minor = (int(part) for part in str(props["kotlinVersion"]).split(".")[:2])
+        self.assertGreaterEqual((major, minor), (2, 0), props["kotlinVersion"])
