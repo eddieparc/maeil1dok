@@ -331,7 +331,74 @@ eda9a39ac67644ec9bc4f267d58b7bb2  1       2026-08-29 18:42:25   ← 임베디드
 > 줄이 콘솔에 안 보인다. 그래서 판정을 업데이트 저장소 DB 로 했다. **로그인 화면 하단
 > 표시는 그대로 동작하며 실기기 판정 수단은 그쪽이다** — 두 관측 수단을 둔 이유가 이것이다.
 
-### 아직 미확정 — 스토어 바이너리의 런타임
+### H1 판정 = (3-b) 도달 실패 — 근본원인은 런타임이 아니라 **채널 부재**
+
+실기기(iOS, 스토어 설치본)에서 계정 설정 하단이 **`앱 구버전 — 업데이트 미도달`** 로
+나왔다. 즉 앱 안이지만 새 셸이 아니다. 런타임 후보를 좁히려 `1.2.1` 로도 게시했으나
+결과는 동일했다.
+
+원인은 런타임이 아니었다. 업데이트 서버에 **채널 헤더 없이** 물어보면 이렇게 답한다.
+
+```
+$ curl -H 'expo-protocol-version: 1' -H 'expo-platform: ios' \
+       -H 'expo-runtime-version: 1.2.1' -H 'accept: multipart/mixed' \
+       https://u.expo.dev/<projectId>
+HTTP 400
+"channel-name": Required. The headers "expo-runtime-version",
+"expo-channel-name", and "expo-platform" are required.
+```
+
+그리고 이 프로젝트에 존재하는 채널은 **`production` 하나뿐**이다(`eas channel:list`).
+
+**`expo prebuild` 는 채널을 심지 않는다.** 채널 주입은 EAS Build 가 하는 일이다.
+실측 증거 둘: (1) 2026-08-29 에 새로 돌린 prebuild 의 `ios/app/Supporting/Expo.plist`
+에 `EXUpdatesRequestHeaders` 가 **없어서** 도달 시험을 하려고 손으로 넣어야 했다.
+(2) 스토어 빌드의 출처인 낡은 로컬 `ios/` 의 `Expo.plist`(런타임 `1.2.1`)에도 **없었다**.
+
+또 `eas build:list` 에 1.2.x 프로덕션 빌드가 **하나도 없다**(마지막이 2026-01 의 `1.0.1`).
+스토어 바이너리는 EAS 가 아니라 **로컬에서 빌드돼 수동 제출**됐다는 뜻이고, 그래서
+채널이 비어 있다.
+
+**결론: 현재 스토어 바이너리는 업데이트 확인 때마다 400 을 받는다. 어떤 런타임으로
+게시해도 도달하지 않는다. OTA 경로는 이 바이너리에 대해 폐기다.**
+
+#### 따라서 셸 변경의 배포 경로
+
+셸 수정(작업 9·11·36 셸부분·38, 번들 신원 노출)은 **새 스토어 빌드로만** 나갈 수 있다.
+그 빌드는 **채널을 반드시 실어야** 한다.
+
+- 권장: `eas build --profile production --platform <p>` — `eas.json` 의
+  `production.channel = "production"` 을 EAS 가 바이너리에 심는다.
+- 로컬 빌드로 제출한다면 iOS `Expo.plist` 의 `EXUpdatesRequestHeaders`,
+  Android `expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY` 에
+  `expo-channel-name` 을 **직접 넣어야 한다.** 넣지 않으면 이 사고가 반복된다.
+
+그 빌드가 스토어에 올라간 뒤에는 **이미 게시된 업데이트들이 그대로 적용된다** —
+`production` 채널 `1.2.2` 에 Part A 셸이 올라가 있다.
+
+#### Android 도 같은 상태로 보아야 한다
+
+`eas build:list` 에 Android 1.2.x 프로덕션 빌드도 없고, 낡은 로컬 `android/` 는
+`versionName 1.0.4` 였다. 2026-08-24 게시분(runtime 1.2.2)이 **Android 실기기에
+도달했다는 증거는 어디에도 없다.** 같은 절차로 확인해야 한다.
+
+### 참고 — 게시 이력 (모두 도달하지 못했다)
+
+| 플랫폼 | runtime | update ID | 비고 |
+|---|---|---|---|
+| android | 1.2.2 | `01a04d10-c30e-7eb8-b1a5-7e753f68567f` | Part A 셸 |
+| ios | 1.2.2 | `01a04d11-2155-7b8b-8d63-4154b8e11ad5` | Part A 셸 |
+| ios | 1.2.1 | `01a04d18-6ec5-7b8a-a855-86197b38f0c2` | 런타임 후보 탐색 |
+
+### 시뮬레이터·에뮬레이터에서는 왜 도달했나
+
+우리가 **채널을 직접 심어서** 빌드했기 때문이다. 그 실험이 증명한 것은 "게시→다운로드
+→적용 사슬이 정상"이라는 것이고, **스토어 바이너리가 그 사슬에 올라타 있다는 것은
+증명하지 못했다.** 그 차이가 이번 판정의 전부다.
+
+---
+
+### (이전 절) 스토어 바이너리의 런타임
 
 에뮬레이터·시뮬레이터는 **우리가 런타임을 정해서 빌드**하므로 스토어에 깔린 바이너리의
 런타임을 증명하지 못한다. 로컬 `mobile/ios`·`mobile/android` 는 gitignore 된 prebuild

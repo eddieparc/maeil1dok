@@ -81,3 +81,37 @@ class KakaoPluginKotlinVersionTest(unittest.TestCase):
         self.assertIn("kotlinVersion", props)
         major, minor = (int(part) for part in str(props["kotlinVersion"]).split(".")[:2])
         self.assertGreaterEqual((major, minor), (2, 0), props["kotlinVersion"])
+
+
+class StoreBuildChannelTest(unittest.TestCase):
+    """A store-bound build must carry an update channel.
+
+    Measured 2026-08-29: the shipped iOS binary sends no `expo-channel-name`, so
+    every update check returns
+
+        HTTP 400 "channel-name": Required.
+
+    No runtime version can fix that -- OTA is structurally impossible for such a
+    binary. The cause is that `expo prebuild` does NOT inject a channel (EAS Build
+    does), and the store binary was built locally from a prebuild and submitted by
+    hand: `eas build:list` holds no 1.2.x production build at all.
+
+    These assertions keep the EAS profiles able to supply the channel. They cannot
+    prove a hand-built binary carried one -- that hazard is recorded in
+    `docs/auth-migration-handoff.md` H1 and must stay there.
+    """
+
+    def setUp(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        self.eas = json.loads((repo_root / "mobile" / "eas.json").read_text(encoding="utf-8"))
+
+    def test_every_build_profile_declares_a_channel(self) -> None:
+        for name, profile in self.eas["build"].items():
+            with self.subTest(profile=name):
+                channel = profile.get("channel")
+                if channel is None and "extends" in profile:
+                    channel = self.eas["build"][profile["extends"]].get("channel")
+                self.assertIsNotNone(channel, f"build profile {name} must declare a channel")
+
+    def test_production_profile_targets_the_production_channel(self) -> None:
+        self.assertEqual(self.eas["build"]["production"]["channel"], "production")
