@@ -20,6 +20,7 @@ from .models import SocialAccount, EmailVerificationToken, PasswordResetToken, U
 from .visibility import is_live_user
 from . import handoff
 from .email_utils import send_verification_email, send_password_reset_email, send_welcome_email
+from django.middleware.csrf import get_token
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.db import IntegrityError, transaction
@@ -2118,6 +2119,20 @@ def session_bridge_consume(request):
 </html>'''
         response = HttpResponse(html_content, content_type='text/html')
         set_auth_cookies(response, access_token, refresh_token)
+
+        # 웹에 CSRF 토큰을 함께 넘긴다.
+        #
+        # 브리지로 들어온 웹뷰는 **로그인 응답을 한 번도 받지 못한다** — 셸이
+        # 네이티브로 로그인하고 여기로 세션만 넘기기 때문이다. 그런데
+        # `X-CSRFToken` 을 돌려주는 곳은 로그인과 refresh 성공뿐이라, 웹은 토큰이
+        # 아예 없는 상태로 시작한다. 5분 주기 refresh 타이머가 쿠키 단독 상환을
+        # 보내면 CSRF 헤더가 없어 403 이고, 2026-08-30 까지 그 403 이 사용자를
+        # 로그아웃시켰다.
+        #
+        # `get_token()` 이 CsrfViewMiddleware 로 하여금 이 응답에 쿠키를 싣게 한다.
+        # `CSRF_COOKIE_DOMAIN` 이 `.maeil1dok.app` 이고 `CSRF_COOKIE_HTTPONLY` 가
+        # False 라 웹 앱(maeil1dok.app)의 JS 가 읽을 수 있다.
+        get_token(request)
         
         logger.info(f"세션 브리지 코드 소비: user_id={user.id}, next={next_url}")
         
