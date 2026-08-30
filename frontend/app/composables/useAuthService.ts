@@ -9,6 +9,7 @@ import {
   fetchInitialAuthUser,
   fetchUserWithRefreshPolicy,
   type RefreshOutcome,
+  refreshWithCsrfRecovery,
   revalidateAuthSession,
 } from './authSessionPolicy'
 import {
@@ -99,6 +100,24 @@ function saveCsrfToken(token: string): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem(CSRF_TOKEN_KEY, token)
   }
+}
+
+/**
+ * Fetch a CSRF token and replace whatever was stored.
+ *
+ * Needed because a shell user never receives the login response that carries
+ * `X-CSRFToken` — the shell signs in natively and bridges the session into the
+ * webview — so the web starts with no token and every cookie-only redemption is
+ * answered 403. Overwrites rather than fills a gap: a stale value in
+ * localStorage shadows the real cookie and mismatches forever, since
+ * `getCsrfToken` reads localStorage first.
+ */
+async function fetchCsrfToken(): Promise<string | null> {
+  const result = await apiRequest<{ csrfToken?: string }>('GET', '/api/v1/auth/csrf/')
+  const token = result.data?.csrfToken
+  if (!token) return null
+  saveCsrfToken(token)
+  return token
 }
 
 async function apiRequest<T>(
@@ -281,27 +300,20 @@ export function useAuthService() {
     _refreshState.value.isRefreshing = true
     _refreshState.value.promise = (async () => {
       try {
-        const result = await apiRequest<{ access?: string }>('POST', '/api/v1/auth/token/refresh/')
-
-        if (result.status === 401 || result.status === 403) {
-          if (options.logoutOnFailure ?? true) {
-            await performLogout()
-          }
-          return { ok: false, reason: 'rejected' }
-        }
-
-        // apiRequest reports transport failures (offline, DNS, TLS, timeout) as
-        // status 0. That is a different answer from "the server refused": the
-        // session may still be perfectly valid, we just could not ask.
-        if (result.status === 0) {
-          return { ok: false, reason: 'unreachable' }
-        }
-
-        if (!result.ok || !result.data?.access) {
-          return { ok: false, reason: 'rejected' }
-        }
-
-        return { ok: true }
+        return await refreshWithCsrfRecovery(
+          {
+            attempt: async () => {
+              const result = await apiRequest<{ access?: string }>(
+                'POST',
+                '/api/v1/auth/token/refresh/',
+              )
+              return { status: result.status, ok: result.ok, access: result.data?.access }
+            },
+            recoverCsrfToken: fetchCsrfToken,
+            logout: performLogout,
+          },
+          options,
+        )
       } catch {
         // Reaching here means the failure was not even an HTTP exchange, so it
         // cannot be read as a rejection.

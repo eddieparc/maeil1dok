@@ -102,3 +102,81 @@ export function fetchInitialAuthUser<User>(
     ? dependencies.fetchUserWithRefresh()
     : dependencies.fetchUser()
 }
+
+
+export interface RefreshAttemptResult {
+  status: number
+  ok: boolean
+  access?: string
+}
+
+export interface RefreshRecoveryDependencies {
+  /** Performs one redemption. Reads the current CSRF token itself. */
+  attempt: () => Promise<RefreshAttemptResult>
+  /** Re-fetches and stores a CSRF token. Returns it, or null when unavailable. */
+  recoverCsrfToken: () => Promise<string | null>
+  logout: () => Promise<void>
+}
+
+/**
+ * Redeem the refresh token, treating a CSRF failure as recoverable rather than as
+ * a sign-out.
+ *
+ * Measured in production 2026-08-30: a user was signed out at 10:00 KST and the
+ * server log holds the exact sequence — `refresh_401 403 cause=csrf` followed
+ * immediately by a logout call. The old code branched on
+ * `status === 401 || status === 403` and called `performLogout()` for both.
+ *
+ * Those are different answers:
+ *
+ *   401  the server refused the identity. The session is over. Sign out.
+ *   403  the CSRF handshake failed. This says nothing about the session, and for
+ *        a shell user it is the EXPECTED first result — the shell signs in
+ *        natively and bridges the session into the webview, so the web never
+ *        receives the login response that carries `X-CSRFToken` and starts with
+ *        no token at all.
+ *
+ * So 403 recovers the token from `/auth/csrf/` and retries once. If it still
+ * fails, the session is HELD and reported as `unreachable`, which surfaces the
+ * neutral retry state instead of destroying a session that was never revoked.
+ * `useApi` already recovers this way for ordinary requests; only this path did not.
+ */
+export async function refreshWithCsrfRecovery(
+  dependencies: RefreshRecoveryDependencies,
+  options: AuthRefreshOptions = {},
+): Promise<RefreshOutcome> {
+  let result = await dependencies.attempt()
+
+  if (result.status === 403) {
+    const recovered = await dependencies.recoverCsrfToken()
+    // Retrying with the same missing token would only reproduce the 403 and
+    // spend another round trip to learn nothing.
+    if (recovered) {
+      result = await dependencies.attempt()
+    }
+  }
+
+  if (result.status === 401) {
+    if (options.logoutOnFailure ?? true) {
+      await dependencies.logout()
+    }
+    return { ok: false, reason: 'rejected' }
+  }
+
+  // Still 403 after recovery, or recovery itself unavailable. Not a verdict on
+  // the session — hold it and say so.
+  if (result.status === 403) {
+    return { ok: false, reason: 'unreachable' }
+  }
+
+  // Transport failure (offline, DNS, TLS, timeout) is reported as status 0.
+  if (result.status === 0) {
+    return { ok: false, reason: 'unreachable' }
+  }
+
+  if (!result.ok || !result.access) {
+    return { ok: false, reason: 'rejected' }
+  }
+
+  return { ok: true }
+}

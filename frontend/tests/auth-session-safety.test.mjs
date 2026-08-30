@@ -385,31 +385,57 @@ test('a reasoned refresh outcome is never read as a bare truthy value', async ()
   );
 });
 
-test('transport failures and rejections produce different refresh reasons', async () => {
-  // Pins the mapping at the producer: status 0 (offline/timeout/DNS) is
-  // unreachable, 401/403 is rejected. Without this, a future edit could collapse
-  // them again and the policy layer would have nothing to distinguish.
-  const authServiceSource = await readFile(
-    new URL('../app/composables/useAuthService.ts', import.meta.url),
-    'utf8',
-  );
+test('transport failures, rejections and CSRF failures are three different answers', async () => {
+  // Rewritten 2026-08-30. The previous version scanned the source of
+  // `refreshToken` and REQUIRED the literal
+  // `result.status === 401 || result.status === 403 ... reason: 'rejected'`.
+  //
+  // That line is the defect. It signed a user out at 10:00 KST on 2026-08-30 —
+  // the production log holds `refresh_401 403 cause=csrf` followed immediately by
+  // a logout call. The assertion was pinning the bug in place, the same shape as
+  // a golden that approves a 500 as expected.
+  //
+  // Asserted through the policy now, so the mapping is judged by behaviour rather
+  // than by where the branch happens to live.
+  const { refreshWithCsrfRecovery } = await importTsModule(authSessionPolicySource);
 
-  const refreshBody = authServiceSource.slice(
-    authServiceSource.indexOf('async function refreshToken'),
-    authServiceSource.indexOf('async function fetchUserWithRefresh'),
-  );
+  const spy = (statuses, recovered = 'fresh') => {
+    const calls = { logouts: 0, attempts: 0 };
+    return {
+      calls,
+      deps: {
+        attempt: async () => statuses[Math.min(calls.attempts++, statuses.length - 1)],
+        recoverCsrfToken: async () => recovered,
+        logout: async () => {
+          calls.logouts += 1;
+        },
+      },
+    };
+  };
 
-  assert.ok(refreshBody.length > 0, 'refreshToken body must be locatable');
-  assert.match(
-    refreshBody,
-    /result\.status === 0[\s\S]{0,200}reason: 'unreachable'/,
+  const offline = spy([{ status: 0, ok: false }]);
+  assert.deepEqual(
+    await refreshWithCsrfRecovery(offline.deps, {}),
+    { ok: false, reason: 'unreachable' },
     'a status-0 result must map to unreachable',
   );
-  assert.match(
-    refreshBody,
-    /result\.status === 401 \|\| result\.status === 403[\s\S]{0,300}reason: 'rejected'/,
-    'a 401/403 must map to rejected',
+  assert.equal(offline.calls.logouts, 0);
+
+  const refused = spy([{ status: 401, ok: false }]);
+  assert.deepEqual(
+    await refreshWithCsrfRecovery(refused.deps, {}),
+    { ok: false, reason: 'rejected' },
+    'a 401 must map to rejected',
   );
+  assert.equal(refused.calls.logouts, 1, 'a refused identity still ends the session');
+
+  const csrf = spy([{ status: 403, ok: false }]);
+  assert.deepEqual(
+    await refreshWithCsrfRecovery(csrf.deps, {}),
+    { ok: false, reason: 'unreachable' },
+    'a 403 says nothing about the session and must not be read as a rejection',
+  );
+  assert.equal(csrf.calls.logouts, 0, 'a CSRF failure must never sign the user out');
 });
 
 test('the unknown-session surface is neutral, global, and offers a retry', async () => {
