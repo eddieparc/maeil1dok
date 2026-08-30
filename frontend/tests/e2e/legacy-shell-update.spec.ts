@@ -1,13 +1,10 @@
 import { expect, test } from './fixtures/api';
 
 /**
- * The old store binary can never receive an OTA — it sends no update channel, so
- * every update check is answered HTTP 400. Those users only get the session fixes
- * from a new store build, and this web app is the only surface that can tell them.
- *
- * Driven through a real browser because the decision is pure but the WIRING is
- * not: the pure policy can be perfect while the banner is missing from `app.vue`,
- * and that failure is invisible to a unit test.
+ * The web app must not infer an installed binary's age from missing bundle
+ * identity. That signal cannot distinguish a genuinely old shell from a freshly
+ * installed build whose identity handoff is unavailable, so it produced false
+ * update warnings. Exercise the real client-only mount in a browser.
  */
 
 const OLD_SHELL = () => {
@@ -28,20 +25,21 @@ const NEW_SHELL = () => {
   };
 };
 
-test('the old app shell is told to update, with a working store link', async ({ page }) => {
+test('the old app shell is not shown an update warning', async ({ page }) => {
   await page.addInitScript(OLD_SHELL);
   await page.goto('/');
+  await expect(page.getByRole('main')).toBeVisible();
+  await expect(page.getByRole('region', { name: '알림' })).toBeAttached();
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
 
-  await expect(page.getByTestId('legacy-shell-notice')).toBeVisible();
-  await expect(page.getByTestId('legacy-shell-store-link')).toHaveAttribute(
-    'href',
-    /play\.google\.com\/store\/apps\/details\?id=app\.maeil1dok\.mobile/,
-  );
+  await expect(page.getByTestId('legacy-shell-notice')).toHaveCount(0);
+  await expect(page.getByTestId('legacy-shell-block')).toHaveCount(0);
+  await expect(page.locator('#__nuxt')).toBeVisible();
 });
 
 test('a shell that reports its bundle is left alone', async ({ page }) => {
-  // The most damaging failure would be nagging — or later locking out — users who
-  // already carry the fix.
   await page.addInitScript(NEW_SHELL);
   await page.goto('/');
 
