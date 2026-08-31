@@ -28,30 +28,39 @@ class CSRFCheck(CsrfViewMiddleware):
 
 class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
-        raw_token = request.COOKIES.get(ACCESS_TOKEN_COOKIE)
-        used_cookie = raw_token is not None
+        cookie_token = request.COOKIES.get(ACCESS_TOKEN_COOKIE)
+        raw_token = cookie_token
+        used_cookie = cookie_token is not None
         validated_token = None
         
-        has_cookie = raw_token is not None
+        has_cookie = cookie_token is not None
         auth_header = self.get_header(request)
         has_header = auth_header is not None
         
         logger.debug(f"[AUTH] path={request.path}, has_cookie={has_cookie}, has_header={has_header}")
 
-        if raw_token is None:
-            if auth_header is None:
-                return None
-            raw_token = self.get_raw_token(auth_header)
-            if raw_token is None:
-                return None
-            used_cookie = False
+        if auth_header is not None:
+            header_token = self.get_raw_token(auth_header)
+            if header_token is not None:
+                try:
+                    validated_token = self.get_validated_token(header_token)
+                except (InvalidToken, TokenError) as e:
+                    logger.debug(f"[AUTH] Header token validation failed: {e}")
+                    raise AuthenticationFailed("Invalid bearer token") from e
+                else:
+                    raw_token = header_token
+                    used_cookie = False
 
-        try:
-            validated_token = self.get_validated_token(raw_token)
-        except (InvalidToken, TokenError) as e:
-            logger.debug(f"[AUTH] Token validation failed: {e}")
-            if not used_cookie:
-                return None
+        if raw_token is None:
+            return None
+
+        if validated_token is None:
+            try:
+                validated_token = self.get_validated_token(raw_token)
+            except (InvalidToken, TokenError) as e:
+                logger.debug(f"[AUTH] Token validation failed: {e}")
+                if not used_cookie:
+                    return None
 
         if validated_token is None and used_cookie:
             if auth_header is None:

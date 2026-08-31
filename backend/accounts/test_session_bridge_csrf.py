@@ -21,10 +21,11 @@ so a cookie set here on `api.maeil1dok.app` is readable by the web app's JS on
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import TestCase
+from django.middleware.csrf import get_token
+from django.test import RequestFactory, TestCase
 from rest_framework.test import APIClient
 
-from accounts.authentication import get_tokens_for_user
+from accounts.authentication import ACCESS_TOKEN_COOKIE, get_tokens_for_user
 
 ISSUE_URL = "/api/v1/auth/session/issue/"
 CONSUME_URL = "/api/v1/auth/session/consume/"
@@ -74,3 +75,34 @@ class SessionBridgeCsrfCookieTests(TestCase):
 
         self.assertIn("access_token", response.cookies)
         self.assertIn("refresh_token", response.cookies)
+
+    def test_native_bearer_wins_over_kakao_login_cookie_without_csrf(self):
+        """Kakao return: social login cookie + explicit access token, no CSRF cookie."""
+        client = APIClient(enforce_csrf_checks=True)
+        client.cookies[ACCESS_TOKEN_COOKIE] = self.tokens["access"]
+
+        response = client.post(
+            ISSUE_URL,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {self.tokens['access']}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIn("code", response.data)
+
+    def test_invalid_explicit_bearer_cannot_fall_back_to_cookie_user(self):
+        client = APIClient(enforce_csrf_checks=True)
+        csrf_secret = get_token(RequestFactory().get("/"))
+        client.cookies[ACCESS_TOKEN_COOKIE] = self.tokens["access"]
+        client.cookies[settings.CSRF_COOKIE_NAME] = csrf_secret
+
+        response = client.post(
+            ISSUE_URL,
+            {},
+            format="json",
+            HTTP_AUTHORIZATION="Bearer malformed",
+            HTTP_X_CSRFTOKEN=csrf_secret,
+        )
+
+        self.assertEqual(response.status_code, 401, response.content)
