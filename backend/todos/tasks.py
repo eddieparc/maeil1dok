@@ -162,11 +162,6 @@ def _record_reminder_task_outcome(result):
         'status': status if isinstance(status, str) else 'unknown',
     }
     cache.set(REMINDER_HEARTBEAT_CACHE_KEY, heartbeat, timeout=None)
-    capture_observability_event(
-        'send_due_notification_reminders completed',
-        tags={'journey': 'notifications', 'task': 'send_due_notification_reminders'},
-        extra=result,
-    )
 
 @shared_task(bind=True, max_retries=0)
 def send_due_notification_reminders_task(self):
@@ -188,5 +183,13 @@ def send_due_notification_reminders_task(self):
             extra=result,
             exception=e,
         )
-        logger.error(f"Error in send_due_notification_reminders_task: {str(e)}", exc_info=True)
+        logger.error(
+            'Reminder task failure captured by Sentry',
+            exc_info=True,
+            extra={
+                'event': 'reminder_task_failure',
+                'outcome': 'error',
+                '_skip_sentry_duplicate': True,
+            },
+        )
         return result

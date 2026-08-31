@@ -7,6 +7,7 @@
  */
 
 import { useToast } from '~/composables/useToast';
+import * as Sentry from '@sentry/nuxt';
 
 interface ErrorHandlerOptions {
   /** 사용자에게 피드백을 표시하지 않음 */
@@ -20,6 +21,31 @@ interface ErrorHandlerOptions {
 export function useErrorHandler() {
   const toast = useToast();
   const isDev = process.dev;
+
+  const reportHandledError = (error: unknown, context: string): void => {
+    Sentry.withScope((scope) => {
+      scope.setTag('handled', 'true');
+      scope.setTag('error_context', context);
+
+      const candidate = typeof error === 'object' && error !== null
+        ? error as Record<string, unknown>
+        : null;
+      const status = typeof candidate?.status === 'number'
+        ? candidate.status
+        : undefined;
+      if (status !== undefined) {
+        scope.setExtra('http_status', status);
+      }
+
+      if (error instanceof Error && (status === undefined || status >= 500)) {
+        Sentry.captureException(error);
+        return;
+      }
+      Sentry.captureMessage(`Handled failure: ${context}`, {
+        level: status !== undefined && status < 500 ? 'warning' : 'error',
+      });
+    });
+  };
 
   /**
    * 에러에서 메시지 추출
@@ -61,6 +87,9 @@ export function useErrorHandler() {
     if (logToConsole) {
       console.error(`[API Error] ${context}:`, error);
     }
+    if (!isDev) {
+      reportHandledError(error, context);
+    }
 
     if (!silent && showToast) {
       const serverMessage = getErrorMessage(error);
@@ -90,6 +119,8 @@ export function useErrorHandler() {
 
     if (isDev) {
       console.warn(`[User Action] ${context}:`, error);
+    } else {
+      reportHandledError(error, context);
     }
 
     // 폴백 실행
@@ -106,6 +137,8 @@ export function useErrorHandler() {
   const handleSilentError = (error: unknown, context: string) => {
     if (isDev) {
       console.error(`[Silent Error] ${context}:`, error);
+    } else {
+      reportHandledError(error, context);
     }
   };
 

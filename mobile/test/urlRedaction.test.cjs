@@ -28,12 +28,12 @@ const { redactSensitiveUrl } = loadUrlRedactionModule();
 
 test('Given sensitive query keys with any casing When redacting Then their values are replaced', () => {
   const redacted = redactSensitiveUrl(
-    'https://maeil1dok.app/callback?access=one&CODE=two&Refresh=three&Signup_Token=four&TOKEN=five&ACCESS_TOKEN=six&refresh_TOKEN=seven&Id_Token=eight',
+    'https://maeil1dok.app/callback?access=one&CODE=two&Refresh=three&Signup_Token=four&TOKEN=five&ACCESS_TOKEN=six&refresh_TOKEN=seven&Id_Token=eight&email=person@example.test&provider_id=nine&suggested_nickname=ten&profile_image=eleven',
   );
 
   assert.equal(
     redacted,
-    'https://maeil1dok.app/callback?access=%5Bredacted%5D&CODE=%5Bredacted%5D&Refresh=%5Bredacted%5D&Signup_Token=%5Bredacted%5D&TOKEN=%5Bredacted%5D&ACCESS_TOKEN=%5Bredacted%5D&refresh_TOKEN=%5Bredacted%5D&Id_Token=%5Bredacted%5D',
+    'https://maeil1dok.app/callback?access=%5Bredacted%5D&CODE=%5Bredacted%5D&Refresh=%5Bredacted%5D&Signup_Token=%5Bredacted%5D&TOKEN=%5Bredacted%5D&ACCESS_TOKEN=%5Bredacted%5D&refresh_TOKEN=%5Bredacted%5D&Id_Token=%5Bredacted%5D&email=%5Bredacted%5D&provider_id=%5Bredacted%5D&suggested_nickname=%5Bredacted%5D&profile_image=%5Bredacted%5D',
   );
 });
 
@@ -50,7 +50,7 @@ test('Given an implicit-flow token in a fragment When redacting Then the token i
   );
 
   assert.equal(redacted.includes(fixtureSecret), false);
-  assert.match(redacted, /#ACCESS_TOKEN=\[redacted\]&state=ok$/);
+  assert.match(redacted, /#ACCESS_TOKEN=\[redacted\]&state=\[redacted\]$/);
 });
 
 test('Given an encoded intent browser fallback token When redacting Then the decoded fallback token is removed', () => {
@@ -64,7 +64,10 @@ test('Given an encoded intent browser fallback token When redacting Then the dec
 
   assert.equal(redacted.includes(fixtureSecret), false);
   assert.match(redacted, /#Intent;S\.browser_fallback_url=/);
-  assert.match(decodeURIComponent(redacted), /access_token=\[redacted\]&state=ok;end$/);
+  assert.match(
+    decodeURIComponent(redacted),
+    /access_token=\[redacted\]&state=\[redacted\];end$/,
+  );
 });
 
 test('Given a malformed intent browser fallback token When redacting Then the raw token is still removed', () => {

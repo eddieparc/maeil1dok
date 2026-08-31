@@ -95,6 +95,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'config.logging_config.RequestCorrelationMiddleware',
     # WhiteNoise: gunicorn 등 WSGI 서버에서 정적 파일 직접 서빙 (SecurityMiddleware 바로 뒤)
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -307,6 +308,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_ENABLE_UTC = False
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 
 CACHES = {
     'default': {
@@ -324,19 +326,26 @@ required_env_vars = [
 for var in required_env_vars:
     _required_env(var)
 
-# Logging configuration: output all logs to console for Docker
+# Logging configuration: JSON stdout for queryable Docker/Loki ingestion.
+LOG_ENVIRONMENT = os.environ.get('SENTRY_ENVIRONMENT') or (
+    'test'
+    if os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('.test_settings')
+    else ('development' if DEBUG else 'production')
+)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'verbose': {
-            'format': '%(asctime)s %(levelname)s %(name)s %(message)s'
+        'json': {
+            '()': 'config.logging_config.JsonFormatter',
+            'service': 'backend',
+            'environment': LOG_ENVIRONMENT,
         },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+            'formatter': 'json',
         },
     },
     'root': {

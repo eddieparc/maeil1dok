@@ -64,9 +64,9 @@ class Command(BaseCommand):
                 username = user.username
                 user.delete()
                 deleted_count += 1
-                logger.info(f'삭제 완료: user_id={user_id}, username={username}')
+                logger.info('삭제 완료: user_id=%s', user_id)
             except Exception as e:
-                logger.error(f'삭제 실패: user_id={user.id}, error={str(e)}')
+                logger.exception('삭제 실패: user_id=%s', user.id)
                 self.stdout.write(
                     self.style.ERROR(f'삭제 실패: ID {user.id} - {str(e)}')
                 )

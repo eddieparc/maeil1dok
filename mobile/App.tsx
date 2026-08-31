@@ -37,12 +37,19 @@ import { redactSensitiveUrl } from './urlRedaction';
 import { csrfHeadersFrom } from './csrfHeader';
 import { buildSessionBridgeConsumeUrl } from './sessionBridgeNavigation';
 import * as Updates from 'expo-updates';
+import * as Sentry from '@sentry/react-native';
+import { initMobileTelemetry } from './sentryTelemetry';
 import {
   formatBundleIdentityLabel,
   formatBundleIdentityLine,
   resolveBundleIdentity,
 } from './bundleIdentity';
 import { isFatalWebViewError, shouldAllowWebViewNavigation } from './webviewNavigation';
+import {
+  buildSocialSignupNavigation,
+  type SocialSignupData,
+  type SocialSignupProvider,
+} from './socialSignupNavigation';
 import {
   handleCertificationImageMessage,
   type CertificationImageBridgeDependencies,
@@ -59,6 +66,7 @@ import {
  */
 const DECELERATION_RATE_NORMAL = 0.998;
 
+initMobileTelemetry();
 SplashScreen.preventAutoHideAsync();
 
 Notifications.setNotificationHandler({
@@ -268,6 +276,17 @@ function AppContent() {
     webViewRef.current?.injectJavaScript(`window.location.href = ${JSON.stringify(urlToNavigate)}; true;`);
   };
 
+  const navigateToSocialSignup = (
+    provider: SocialSignupProvider,
+    data: SocialSignupData,
+  ) => {
+    const navigation = buildSocialSignupNavigation(WEB_APP_URL, provider, data);
+    pendingUrlRef.current = null;
+    setPendingUrl(null);
+    setShowLogin(false);
+    webViewRef.current?.injectJavaScript(navigation.script);
+  };
+
   const clearStoredAuth = async () => {
     await CookieManager.clearAll();
     await SecureStore.deleteItemAsync('maeil1dok_access_token');
@@ -396,10 +415,7 @@ function AppContent() {
             setWebViewKey((prev) => prev + 1);
           }
         } else if (data.needsSignup) {
-          const signupUrl = `${WEB_APP_URL}/auth/kakao/setup?provider=kakao&provider_id=${data.provider_id}&email=${data.email || ''}&suggested_nickname=${encodeURIComponent(data.suggested_nickname || '')}&profile_image=${encodeURIComponent(data.profile_image || '')}&signup_token=${encodeURIComponent(data.signup_token || '')}`;
-          pendingUrlRef.current = signupUrl;
-          setPendingUrl(signupUrl);
-          setShowLogin(false);
+          navigateToSocialSignup('kakao', data);
         } else {
           Alert.alert('로그인 실패', data.error || '로그인에 실패했습니다.');
         }
@@ -490,10 +506,7 @@ function AppContent() {
         }
       } else if (data.needsSignup) {
         console.log('[Apple Login] Needs signup');
-        const signupUrl = `${WEB_APP_URL}/auth/apple/setup?provider=apple&provider_id=${data.provider_id}&email=${data.email || ''}&suggested_nickname=${encodeURIComponent(data.suggested_nickname || '')}&profile_image=${encodeURIComponent(data.profile_image || '')}&signup_token=${encodeURIComponent(data.signup_token || '')}`;
-        pendingUrlRef.current = signupUrl;
-        setPendingUrl(signupUrl);
-        setShowLogin(false);
+        navigateToSocialSignup('apple', data);
       } else {
         console.log('[Apple Login] Login failed:', data.error);
         Alert.alert('로그인 실패', data.error || '로그인에 실패했습니다.');
@@ -506,7 +519,11 @@ function AppContent() {
     }
   };
 
-  const handleSocialLoginCode = async (provider: string, code: string, redirectUri: string) => {
+  const handleSocialLoginCode = async (
+    provider: SocialSignupProvider,
+    code: string,
+    redirectUri: string,
+  ) => {
     setIsSubmitting(true);
     try {
       const response = await fetch(`${API_URL}/api/v1/auth/social-login/v2/`, {
@@ -527,10 +544,7 @@ function AppContent() {
           setWebViewKey((prev) => prev + 1);
         }
       } else if (data.needsSignup) {
-        const signupUrl = `${WEB_APP_URL}/auth/${provider}/setup?provider=${provider}&provider_id=${data.provider_id}&email=${data.email || ''}&suggested_nickname=${encodeURIComponent(data.suggested_nickname || '')}&profile_image=${encodeURIComponent(data.profile_image || '')}&signup_token=${encodeURIComponent(data.signup_token || '')}`;
-        pendingUrlRef.current = signupUrl;
-        setPendingUrl(signupUrl);
-        setShowLogin(false);
+        navigateToSocialSignup(provider, data);
       } else {
         Alert.alert('로그인 실패', data.error || '로그인에 실패했습니다.');
       }
@@ -1267,10 +1281,12 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function App() {
+function App() {
   return (
     <SafeAreaProvider>
       <AppContent />
     </SafeAreaProvider>
   );
 }
+
+export default Sentry.wrap(App);

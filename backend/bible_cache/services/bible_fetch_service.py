@@ -126,7 +126,13 @@ class BibleFetchService:
             return content, content_type, False
 
         except Exception as e:
-            logger.warning(f"원본 fetch 실패: {version}:{book}:{chapter} - {e}")
+            logger.warning(
+                "원본 fetch 실패: version=%s book=%s chapter=%s",
+                version,
+                book,
+                chapter,
+                exc_info=True,
+            )
 
             # 3. 원본 실패 시 캐시에서 조회 (stale 허용)
             cached = BibleContentCache.get_cached_content(version, book, chapter)
@@ -184,7 +190,13 @@ class BibleFetchService:
             BibleFetchService._refresh_cache_from_source(version, book, chapter)
             success = True
         except Exception as e:
-            logger.warning(f"백그라운드 캐시 갱신 실패: {version}:{book}:{chapter} - {e}")
+            logger.warning(
+                "백그라운드 캐시 갱신 실패: version=%s book=%s chapter=%s",
+                version,
+                book,
+                chapter,
+                exc_info=True,
+            )
         finally:
             CacheRefreshCoordinator.release(cache_key, success)
             close_old_connections()
@@ -292,7 +304,12 @@ class BibleFetchService:
                 )
                 results['success'].append(chapter)
             except BibleFetchError as e:
-                logger.error(f"Prefetch 실패: {version}:{book}:{chapter} - {e}")
+                logger.exception(
+                    "Prefetch 실패: version=%s book=%s chapter=%s",
+                    version,
+                    book,
+                    chapter,
+                )
                 results['failed'].append({'chapter': chapter, 'error': str(e)})
 
         return results

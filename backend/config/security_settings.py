@@ -44,19 +44,23 @@ CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
     'authorization',
+    'baggage',
     'content-type',
     'dnt',
     'origin',
+    'sentry-trace',
+    'traceparent',
     'user-agent',
     # Migration telemetry: lets the web app and the shell declare which client
     # they are. Allowed before either side starts sending it, because a browser
     # rejects the whole request when a header is not in the preflight allow-list.
     'x-client',
     'x-csrftoken',
+    'x-request-id',
     'x-requested-with',
 ]
 CORS_ALLOW_CREDENTIALS = True
-CORS_EXPOSE_HEADERS = ['x-csrftoken']
+CORS_EXPOSE_HEADERS = ['x-csrftoken', 'x-request-id']
 
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = not DEBUG

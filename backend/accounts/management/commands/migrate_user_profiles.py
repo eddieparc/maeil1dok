@@ -57,7 +57,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.ERROR(f'사용자 {user.nickname} 마이그레이션 실패: {str(e)}')
                 )
-                logger.error(f'마이그레이션 오류 - 사용자: {user.id}, 에러: {str(e)}')
+                logger.exception('마이그레이션 오류: user_id=%s', user.id)
         
         self.stdout.write(
             self.style.SUCCESS(f'마이그레이션 완료! {migrated_count}/{total_users} 사용자 처리됨')

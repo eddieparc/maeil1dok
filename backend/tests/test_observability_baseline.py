@@ -712,7 +712,7 @@ class SentryConfigTest(TestCase):
 
 
 class ReminderTaskObservabilityTest(TestCase):
-    def test_reminder_task_records_heartbeat_and_success_event(self):
+    def test_reminder_task_records_heartbeat_without_success_sentry_noise(self):
         cache.delete(REMINDER_HEARTBEAT_CACHE_KEY)
 
         with (
@@ -723,9 +723,7 @@ class ReminderTaskObservabilityTest(TestCase):
 
         self.assertEqual(result, {'status': 'success', 'created_count': 3})
         self.assertIsNotNone(cache.get(REMINDER_HEARTBEAT_CACHE_KEY))
-        capture_event.assert_called_once()
-        self.assertEqual(capture_event.call_args.args[0], 'send_due_notification_reminders completed')
-        self.assertEqual(capture_event.call_args.kwargs['extra'], result)
+        capture_event.assert_not_called()
         heartbeat = cache.get(REMINDER_HEARTBEAT_CACHE_KEY)
         self.assertEqual(heartbeat['status'], 'success')
         self.assertIsInstance(heartbeat['recorded_at'], datetime)
@@ -740,7 +738,7 @@ class ReminderTaskObservabilityTest(TestCase):
 
         self.assertEqual(result, {'status': 'error', 'reason': 'boom'})
         self.assertIsNotNone(cache.get(REMINDER_HEARTBEAT_CACHE_KEY))
-        self.assertEqual(capture_event.call_count, 2)
+        self.assertEqual(capture_event.call_count, 1)
         self.assertEqual(capture_event.call_args.args[0], 'send_due_notification_reminders failed')
         self.assertEqual(capture_event.call_args.kwargs['level'], 'error')
         heartbeat = cache.get(REMINDER_HEARTBEAT_CACHE_KEY)

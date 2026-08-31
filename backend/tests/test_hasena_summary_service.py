@@ -257,9 +257,11 @@ class HasenaSummaryServiceTest(TestCase):
             result = get_recent_hasena_videos()
 
         self.assertEqual(result, [])
-        logged_message = logger.error.call_args.args[0]
-        self.assertNotIn("youtube-secret", logged_message)
-        self.assertIn("key=[REDACTED]", logged_message)
+        logger.exception.assert_called_once_with("Error fetching playlist")
+        self.assertNotIn(
+            "youtube-secret",
+            repr(logger.exception.call_args),
+        )
 
     def test_get_hasena_summary_uses_gemini_video_when_transcript_is_blocked(self) -> None:
         with (

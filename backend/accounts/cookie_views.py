@@ -238,7 +238,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             return response
 
         except TokenError as e:
-            logger.warning(f"Token refresh failed: {e}")
+            logger.warning("Token refresh failed", exc_info=True)
             # The north-star producer. `RefreshToken(...)` raises before a payload
             # exists, so age is read from the raw token without validating it --
             # an unverified `iat` is fine for bucketing and is the only way to tell
