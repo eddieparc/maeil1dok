@@ -107,6 +107,7 @@ function AppContent() {
   const [webViewKey, setWebViewKey] = useState(0);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const pendingUrlRef = useRef<string | null>(null);
+  const dnsRetryAvailableRef = useRef(true);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -304,7 +305,9 @@ function AppContent() {
       if (data.access) {
         const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
         setShowLogin(false);
-        if (!bridgeSuccess) {
+        if (bridgeSuccess) {
+          navigateToPendingUrl();
+        } else {
           setWebViewKey((prev) => prev + 1);
         }
       } else {
@@ -339,7 +342,9 @@ function AppContent() {
         if (data.access) {
           const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
           setShowLogin(false);
-          if (!bridgeSuccess) {
+          if (bridgeSuccess) {
+            navigateToPendingUrl();
+          } else {
             setWebViewKey((prev) => prev + 1);
           }
         } else if (data.needsSignup) {
@@ -429,7 +434,9 @@ function AppContent() {
         const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
         console.log('[Apple Login] bridgeSuccess:', bridgeSuccess);
         setShowLogin(false);
-        if (!bridgeSuccess) {
+        if (bridgeSuccess) {
+          navigateToPendingUrl();
+        } else {
           console.log('[Apple Login] Bridge failed, reloading WebView');
           setWebViewKey((prev) => prev + 1);
         }
@@ -466,7 +473,9 @@ function AppContent() {
       if (data.access) {
         const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
         setShowLogin(false);
-        if (!bridgeSuccess) {
+        if (bridgeSuccess) {
+          navigateToPendingUrl();
+        } else {
           setWebViewKey((prev) => prev + 1);
         }
       } else if (data.needsSignup) {
@@ -621,6 +630,10 @@ function AppContent() {
     navigateToPendingUrl();
   };
 
+  const handleLoad = () => {
+    dnsRetryAvailableRef.current = true;
+  };
+
   const handleError = (syntheticEvent: WebViewErrorLikeEvent) => {
     const { nativeEvent } = syntheticEvent;
     console.log('[WebView] Error:', nativeEvent?.description || 'unknown', 'code:', nativeEvent?.code, 'url:', redactSensitiveUrl(nativeEvent?.url));
@@ -629,6 +642,18 @@ function AppContent() {
     // (하세나 YouTube 임베드의 광고 프레임 때문에 첫 진입에서 에러 화면이 뜨던 원인)
     if (!isFatalWebViewError(nativeEvent, WEBVIEW_POLICY)) {
       console.log('[WebView] Non-fatal error ignored');
+      return;
+    }
+
+    if (
+      Platform.OS === 'ios'
+      && nativeEvent?.code === -1003
+      && dnsRetryAvailableRef.current
+    ) {
+      dnsRetryAvailableRef.current = false;
+      setIsError(false);
+      setIsLoading(true);
+      setWebViewKey((prev) => prev + 1);
       return;
     }
 
@@ -874,6 +899,7 @@ function AppContent() {
         ref={webViewRef}
         source={{ uri: WEB_APP_URL }}
         style={styles.webView}
+        onLoad={handleLoad}
         onLoadEnd={handleLoadEnd}
         onError={handleError}
         onHttpError={handleHttpError}
