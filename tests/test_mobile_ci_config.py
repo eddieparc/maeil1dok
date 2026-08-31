@@ -235,17 +235,12 @@ class LocalSigningWorkflowTest(unittest.TestCase):
     def test_app_json_is_the_single_version_source(self) -> None:
         self.assertEqual(self.eas["cli"]["appVersionSource"], "local")
 
-    def test_android_native_build_reads_version_from_app_json(self) -> None:
+    def test_local_build_regenerates_native_projects_from_app_json(self) -> None:
         source = (
-            self.repo_root / "mobile" / "android" / "app" / "build.gradle"
+            self.repo_root / "mobile" / "scripts" / "build.sh"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("JsonSlurper", source)
-        self.assertIn("../../app.json", source)
-        self.assertIn("versionCode expoConfig.android.versionCode", source)
-        self.assertIn("versionName expoConfig.version", source)
-        self.assertNotIn("versionCode 8", source)
-        self.assertNotIn('versionName "1.2.2"', source)
+        self.assertIn('npx expo prebuild --platform "$platform" --clean', source)
 
     def test_production_does_not_auto_increment_a_locally_owned_version(self) -> None:
         # With a local source, auto-increment rewrites app.json mid-build, so the
