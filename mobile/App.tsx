@@ -35,6 +35,7 @@ import { resolveWebViewConfig } from './webviewConfig';
 import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
 import { redactSensitiveUrl } from './urlRedaction';
 import { csrfHeadersFrom } from './csrfHeader';
+import { buildSessionBridgeConsumeUrl } from './sessionBridgeNavigation';
 import * as Updates from 'expo-updates';
 import {
   formatBundleIdentityLabel,
@@ -148,6 +149,7 @@ function AppContent() {
   const [webViewKey, setWebViewKey] = useState(0);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const pendingUrlRef = useRef<string | null>(null);
+  const currentWebViewUrlRef = useRef(WEB_APP_URL);
   const dnsRetryAvailableRef = useRef(true);
   
   const [email, setEmail] = useState('');
@@ -238,7 +240,12 @@ function AppContent() {
       const code = issueData.code;
 
       if (code) {
-        const consumeUrl = `${API_URL}/api/v1/auth/session/consume/?code=${code}&next=${encodeURIComponent(WEB_APP_URL + '/')}`;
+        const consumeUrl = buildSessionBridgeConsumeUrl({
+          apiUrl: API_URL,
+          webAppUrl: WEB_APP_URL,
+          code,
+          currentUrl: currentWebViewUrlRef.current,
+        });
         console.log('[SessionBridge] Session code issued');
         pendingUrlRef.current = consumeUrl;
         setPendingUrl(consumeUrl);
@@ -611,6 +618,7 @@ function AppContent() {
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
     console.log('[WebView] NavigationState:', redactSensitiveUrl(navState.url), 'loading:', navState.loading);
+    currentWebViewUrlRef.current = navState.url;
     setCanGoBack(navState.canGoBack);
     if (navState.url.includes('/login') && navState.url.startsWith(WEB_APP_URL)) {
       showNativeLogin();
