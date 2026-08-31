@@ -102,8 +102,10 @@ class StoreBuildChannelTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        repo_root = Path(__file__).resolve().parents[1]
-        self.eas = json.loads((repo_root / "mobile" / "eas.json").read_text(encoding="utf-8"))
+        self.repo_root = Path(__file__).resolve().parents[1]
+        self.eas = json.loads(
+            (self.repo_root / "mobile" / "eas.json").read_text(encoding="utf-8")
+        )
 
     def test_every_build_profile_declares_a_channel(self) -> None:
         for name, profile in self.eas["build"].items():
@@ -139,6 +141,19 @@ class StoreArtifactVerifierTest(unittest.TestCase):
 
         self.assertIn("verify:store", scripts)
         self.assertIn("verify-store-artifact.mjs", scripts["verify:store"])
+
+
+class MobileProductionEndpointTest(unittest.TestCase):
+    """A store build must not embed a disposable QA tunnel."""
+
+    def test_store_config_uses_canonical_production_endpoints(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        config = json.loads((repo_root / "mobile" / "app.json").read_text(encoding="utf-8"))
+        extra = config["expo"]["extra"]
+
+        self.assertEqual(extra["webAppUrl"], "https://maeil1dok.app")
+        self.assertEqual(extra["apiUrl"], "https://api.maeil1dok.app")
+        self.assertEqual(extra["webviewLegacyUrl"], "https://maeil1dok.app")
 
 
 class LocalBuildChannelGuardTest(unittest.TestCase):
@@ -196,11 +211,25 @@ class LocalSigningWorkflowTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        repo_root = Path(__file__).resolve().parents[1]
-        self.eas = json.loads((repo_root / "mobile" / "eas.json").read_text(encoding="utf-8"))
+        self.repo_root = Path(__file__).resolve().parents[1]
+        self.eas = json.loads(
+            (self.repo_root / "mobile" / "eas.json").read_text(encoding="utf-8")
+        )
 
     def test_app_json_is_the_single_version_source(self) -> None:
         self.assertEqual(self.eas["cli"]["appVersionSource"], "local")
+
+    def test_android_native_build_reads_version_from_app_json(self) -> None:
+        source = (
+            self.repo_root / "mobile" / "android" / "app" / "build.gradle"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("JsonSlurper", source)
+        self.assertIn("../../app.json", source)
+        self.assertIn("versionCode expoConfig.android.versionCode", source)
+        self.assertIn("versionName expoConfig.version", source)
+        self.assertNotIn("versionCode 8", source)
+        self.assertNotIn('versionName "1.2.2"', source)
 
     def test_production_does_not_auto_increment_a_locally_owned_version(self) -> None:
         # With a local source, auto-increment rewrites app.json mid-build, so the

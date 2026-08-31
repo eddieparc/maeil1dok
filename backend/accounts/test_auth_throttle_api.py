@@ -79,3 +79,21 @@ class LoginThrottleCoverageTests(TestCase):
 
         self.assertNotEqual(first_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
         self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_social_login_v2_uses_login_throttle(self):
+        client = self._client("10.10.0.4")
+        payload = {"provider": "kakao"}
+
+        first_response = client.post(
+            "/api/v1/auth/social-login/v2/",
+            payload,
+            format="json",
+        )
+        second_response = client.post(
+            "/api/v1/auth/social-login/v2/",
+            payload,
+            format="json",
+        )
+
+        self.assertNotEqual(first_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)

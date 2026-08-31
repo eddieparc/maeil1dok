@@ -36,6 +36,10 @@ class MessageResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
 
 
+class ErrorResponseSerializer(serializers.Serializer):
+    error = serializers.CharField()
+
+
 class AccountSuccessMessageResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     message = serializers.CharField()

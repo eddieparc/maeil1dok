@@ -24,6 +24,7 @@ function loadModule(name) {
 }
 
 const { CSRF_COOKIE_NAME, CSRF_HEADER_NAME, csrfHeadersFrom } = loadModule('csrfHeader.ts');
+const { createRestoreHarness } = require('./helpers/sessionRestoreHarness.cjs');
 
 /**
  * The shell POSTs `/api/v1/auth/logout/` with `credentials: 'include'` and no CSRF
@@ -81,15 +82,98 @@ test('the shell logout call actually carries the header', () => {
   assert.match(block, /CookieManager\.get\(/);
 });
 
-test('the shell refresh call carries the header too', () => {
+test('the shell refresh call carries the header too', async () => {
   // Not required today (the server exempts body-token requests), but the header
   // is what keeps the shell working if that exemption is ever tightened. Without
   // it the failure reappears only after the access cookie expires an hour later,
   // with nothing on screen to explain it.
-  const source = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf8');
-  const start = source.indexOf('auth/token/refresh/');
-  assert.notEqual(start, -1, 'refresh call not found');
-  const block = source.slice(Math.max(0, start - 500), start + 400);
+  const { observations, restoreStoredSession } = createRestoreHarness();
 
-  assert.match(block, /csrfHeadersFrom\(/);
+  assert.equal(await restoreStoredSession(), true);
+  assert.equal(observations.fetchCalls.length, 1);
+  assert.equal(
+    observations.fetchCalls[0].options.headers[CSRF_HEADER_NAME],
+    'csrf-value',
+  );
+});
+
+test('the session bridge issue call carries the header when cookies exist', async () => {
+  // Given: the actual App closure and a shared cookie store populated by the
+  // refresh response that immediately precedes this bridge call.
+  const appPath = path.join(__dirname, '..', 'App.tsx');
+  const source = fs.readFileSync(appPath, 'utf8');
+  const sourceFile = ts.createSourceFile(
+    appPath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let initializer = null;
+  const visit = (node) => {
+    if (
+      ts.isVariableDeclaration(node)
+      && ts.isIdentifier(node.name)
+      && node.name.text === 'initiateSessionBridge'
+    ) {
+      initializer = node.initializer;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  assert.ok(initializer, 'initiateSessionBridge not found');
+
+  const compiled = ts.transpileModule(
+    `const initiateSessionBridge = ${initializer.getText(sourceFile)};
+module.exports = { initiateSessionBridge };`,
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+    },
+  ).outputText;
+  const calls = [];
+  const instance = { exports: {} };
+  new Function(
+    'module',
+    'exports',
+    'SecureStore',
+    'CookieManager',
+    'API_URL',
+    'WEB_APP_URL',
+    'csrfHeadersFrom',
+    'fetch',
+    'pendingUrlRef',
+    'setPendingUrl',
+    'console',
+    compiled,
+  )(
+    instance,
+    instance.exports,
+    { setItemAsync: async () => {} },
+    { get: async () => ({ csrftoken: { value: 'csrf-value' } }) },
+    'https://api.maeil1dok.app',
+    'https://maeil1dok.app',
+    csrfHeadersFrom,
+    async (url, options) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 'bridge-code' }),
+      };
+    },
+    { current: null },
+    () => {},
+    { error: () => {}, log: () => {} },
+  );
+
+  // When: native login/restore issues the one-time WebView session code.
+  assert.equal(await instance.exports.initiateSessionBridge('access', 'refresh'), true);
+
+  // Then: cookie authentication can satisfy Django's CSRF check.
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.headers[CSRF_HEADER_NAME], 'csrf-value');
 });

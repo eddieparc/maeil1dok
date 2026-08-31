@@ -1,16 +1,26 @@
 from datetime import timedelta
+from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.authentication import InactiveUserTokenError, get_tokens_for_user
-from accounts.models import SocialAccount, UserReadingSettings
+from accounts.models import Follow, SocialAccount, UserProfile, UserReadingSettings
 from accounts.views import generate_social_merge_token, generate_oauth_link_state
-from todos.models import NotificationSettings
+from todos.models import (
+    BibleReadingPlan,
+    GroupMembership,
+    Notification,
+    NotificationSettings,
+    PersonalReadingRecord,
+    PlanSubscription,
+    ReadingGroup,
+)
 
 User = get_user_model()
 
@@ -65,6 +75,46 @@ class AccountManagementApiTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("복구 가능 기간", response.data["error"])
+
+    def test_cleanup_deleted_users_respects_grace_period_and_cascades_expired_data(self):
+        future = User.objects.create_user(
+            username="cleanup-future",
+            nickname="정리유예",
+            is_active=False,
+            scheduled_deletion_at=timezone.now() + timedelta(minutes=1),
+        )
+        expired = User.objects.create_user(
+            username="cleanup-expired",
+            nickname="정리만료",
+            is_active=False,
+            scheduled_deletion_at=timezone.now() - timedelta(minutes=1),
+        )
+        expired_record = PersonalReadingRecord.objects.create(
+            user=expired,
+            book="gen",
+            chapter=2,
+            read_date=timezone.now().date(),
+        )
+
+        call_command("cleanup_deleted_users", stdout=StringIO())
+
+        self.assertTrue(User.objects.filter(pk=future.pk).exists())
+        self.assertFalse(User.objects.filter(pk=expired.pk).exists())
+        self.assertFalse(
+            PersonalReadingRecord.objects.filter(pk=expired_record.pk).exists()
+        )
+
+    def test_cleanup_deleted_users_dry_run_preserves_expired_account(self):
+        expired = User.objects.create_user(
+            username="cleanup-dry-run",
+            nickname="정리예행",
+            is_active=False,
+            scheduled_deletion_at=timezone.now() - timedelta(minutes=1),
+        )
+
+        call_command("cleanup_deleted_users", dry_run=True, stdout=StringIO())
+
+        self.assertTrue(User.objects.filter(pk=expired.pk).exists())
 
     def test_email_login_rejects_merged_account_restore(self):
         kept_user = User.objects.create_user(
@@ -432,6 +482,252 @@ class AccountManagementApiTests(TestCase):
                 provider_id="legacy-google-1",
             ).exists()
         )
+
+    def test_merge_moves_user_owned_relations_and_invalidates_source_tokens(self):
+        current = User.objects.create_user(
+            username="merge-owner-current",
+            nickname="병합소유현재",
+            is_social=True,
+        )
+        source = User.objects.create_user(
+            username="merge-owner-source",
+            nickname="병합소유원본",
+            email="merge-owned@example.com",
+            password="source-pass-123",
+            has_usable_password_flag=True,
+        )
+        third = User.objects.create_user(
+            username="merge-owner-third",
+            nickname="병합소유제삼자",
+        )
+        source_tokens = get_tokens_for_user(source)
+        plan = BibleReadingPlan.objects.create(
+            name="병합 소유 플랜",
+            created_by=source,
+        )
+        subscription = PlanSubscription.objects.create(
+            user=source,
+            plan=plan,
+            start_date=timezone.now().date(),
+        )
+        group = ReadingGroup.objects.create(
+            name="병합 소유 그룹",
+            creator=source,
+        )
+        membership = GroupMembership.objects.create(group=group, user=source)
+        notification = Notification.objects.create(
+            recipient=source,
+            actor=source,
+            type="system",
+            title="병합 알림",
+            body="보존되어야 합니다.",
+        )
+        profile, _ = UserProfile.objects.get_or_create(user=source)
+        profile.bio = "병합 프로필"
+        profile.save(update_fields=["bio"])
+        UserReadingSettings.objects.get_or_create(user=source)
+        outgoing = Follow.objects.create(follower=source, following=third)
+        incoming = Follow.objects.create(follower=third, following=source)
+        record = PersonalReadingRecord.objects.create(
+            user=source,
+            book="gen",
+            chapter=1,
+            read_date=timezone.now().date(),
+        )
+        self.client.force_authenticate(user=current)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": source.email,
+                "target_password": "source-pass-123",
+                "keep_account": "current",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        source.refresh_from_db()
+        self.assertFalse(source.is_active)
+        self.assertEqual(source.merged_into_id, current.id)
+        self.assertEqual(source.token_version, 1)
+        self.assertFalse(source.has_usable_password())
+
+        for instance in (
+            plan,
+            subscription,
+            group,
+            membership,
+            notification,
+            outgoing,
+            incoming,
+            record,
+        ):
+            instance.refresh_from_db()
+
+        self.assertEqual(plan.created_by_id, current.id)
+        self.assertEqual(subscription.user_id, current.id)
+        self.assertEqual(group.creator_id, current.id)
+        self.assertEqual(membership.user_id, current.id)
+        self.assertEqual(notification.recipient_id, current.id)
+        self.assertEqual(notification.actor_id, current.id)
+        self.assertEqual(UserProfile.objects.get(user=current).bio, "병합 프로필")
+        self.assertFalse(UserProfile.objects.filter(user=source).exists())
+        self.assertTrue(UserReadingSettings.objects.filter(user=current).exists())
+        self.assertFalse(UserReadingSettings.objects.filter(user=source).exists())
+        self.assertEqual(outgoing.follower_id, current.id)
+        self.assertEqual(incoming.following_id, current.id)
+        self.assertEqual(record.user_id, current.id)
+
+        refresh = APIClient().post(
+            "/api/v1/auth/token/refresh/",
+            {"refresh": source_tokens["refresh"]},
+            format="json",
+        )
+        self.assertIn(refresh.status_code, (400, 401))
+        self.assertNotIn("access", refresh.data)
+
+    def test_merge_relation_collision_rolls_back_every_mutation(self):
+        current = User.objects.create_user(
+            username="merge-collision-current",
+            nickname="병합충돌현재",
+            is_social=True,
+        )
+        source = User.objects.create_user(
+            username="merge-collision-source",
+            nickname="병합충돌원본",
+            email="merge-collision@example.com",
+            password="source-pass-123",
+            has_usable_password_flag=True,
+        )
+        SocialAccount.objects.create(
+            user=source,
+            provider="google",
+            provider_id="merge-collision-google",
+        )
+        plan = BibleReadingPlan.objects.create(
+            name="병합 충돌 플랜",
+            created_by=current,
+        )
+        current_subscription = PlanSubscription.objects.create(
+            user=current,
+            plan=plan,
+            start_date=timezone.now().date(),
+        )
+        source_subscription = PlanSubscription.objects.create(
+            user=source,
+            plan=plan,
+            start_date=timezone.now().date(),
+        )
+        self.client.force_authenticate(user=current)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": source.email,
+                "target_password": "source-pass-123",
+                "keep_account": "current",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        current.refresh_from_db()
+        source.refresh_from_db()
+        current_subscription.refresh_from_db()
+        source_subscription.refresh_from_db()
+        self.assertTrue(current.is_active)
+        self.assertTrue(source.is_active)
+        self.assertIsNone(source.merged_into_id)
+        self.assertEqual(current_subscription.user_id, current.id)
+        self.assertEqual(source_subscription.user_id, source.id)
+        self.assertTrue(
+            SocialAccount.objects.filter(
+                user=source,
+                provider="google",
+                provider_id="merge-collision-google",
+            ).exists()
+        )
+
+    def test_merge_same_provider_collision_rolls_back_without_identity_loss(self):
+        current = User.objects.create_user(
+            username="merge-provider-current",
+            nickname="병합제공자현재",
+            is_social=True,
+        )
+        source = User.objects.create_user(
+            username="merge-provider-source",
+            nickname="병합제공자원본",
+            email="merge-provider@example.com",
+            password="source-pass-123",
+            has_usable_password_flag=True,
+        )
+        current_identity = SocialAccount.objects.create(
+            user=current,
+            provider="google",
+            provider_id="merge-provider-current-id",
+        )
+        source_identity = SocialAccount.objects.create(
+            user=source,
+            provider="google",
+            provider_id="merge-provider-source-id",
+        )
+        self.client.force_authenticate(user=current)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": source.email,
+                "target_password": "source-pass-123",
+                "keep_account": "current",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        source.refresh_from_db()
+        self.assertTrue(source.is_active)
+        self.assertIsNone(source.merged_into_id)
+        self.assertTrue(SocialAccount.objects.filter(pk=current_identity.pk).exists())
+        self.assertTrue(SocialAccount.objects.filter(pk=source_identity.pk).exists())
+
+    def test_merge_rejects_preexisting_merged_ancestry_without_cycle(self):
+        current = User.objects.create_user(
+            username="merge-cycle-current",
+            nickname="병합순환현재",
+            is_social=True,
+        )
+        source = User.objects.create_user(
+            username="merge-cycle-source",
+            nickname="병합순환원본",
+            email="merge-cycle@example.com",
+            password="source-pass-123",
+            has_usable_password_flag=True,
+        )
+        current.merged_into = source
+        current.save(update_fields=["merged_into"])
+        self.client.force_authenticate(user=current)
+
+        response = self.client.post(
+            "/api/v1/auth/merge-accounts/",
+            {
+                "merge_type": "password",
+                "target_identifier": source.email,
+                "target_password": "source-pass-123",
+                "keep_account": "current",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        current.refresh_from_db()
+        source.refresh_from_db()
+        self.assertEqual(current.merged_into_id, source.id)
+        self.assertIsNone(source.merged_into_id)
+        self.assertTrue(source.is_active)
 
     def test_merge_password_account_keep_other_requires_current_password_before_deactivating_current(self):
         current_user = User.objects.create_user(

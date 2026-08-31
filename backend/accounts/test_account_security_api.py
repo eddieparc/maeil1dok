@@ -1,6 +1,8 @@
 from datetime import timedelta
-from unittest.mock import patch
+import threading
+from unittest.mock import Mock, patch
 
+import requests
 from django.contrib.auth import get_user_model
 from django.core import signing
 from django.db import IntegrityError
@@ -16,7 +18,9 @@ from accounts.views import (
     SIGNUP_TOKEN_SALT,
     _consume_session_bridge_user_id,
     generate_signup_token,
+    generate_oauth_link_state,
     get_kakao_user_info,
+    verify_oauth_link_state,
 )
 from todos.models import BibleReadingPlan
 
@@ -49,6 +53,66 @@ class AccountSecurityApiTests(TestCase):
         self.assertEqual(issued_state.status_code, 200)
         self.assertIsInstance(issued_state.data["state"], str)
 
+    def test_oauth_link_state_is_single_use(self):
+        user = User.objects.create_user(
+            username="single-link-state",
+            nickname="일회연결상태",
+        )
+        state = generate_oauth_link_state(user)
+
+        self.assertTrue(verify_oauth_link_state(state, user))
+        self.assertFalse(verify_oauth_link_state(state, user))
+
+    def test_foreign_user_does_not_consume_oauth_link_state(self):
+        owner = User.objects.create_user(
+            username="owned-link-state",
+            nickname="소유연결상태",
+        )
+        other = User.objects.create_user(
+            username="foreign-link-state",
+            nickname="타인연결상태",
+        )
+        state = generate_oauth_link_state(owner)
+
+        self.assertFalse(verify_oauth_link_state(state, other))
+        self.assertTrue(verify_oauth_link_state(state, owner))
+
+    def test_expired_oauth_link_state_fails_closed(self):
+        user = User.objects.create_user(
+            username="expired-link-state",
+            nickname="만료연결상태",
+        )
+        state = generate_oauth_link_state(user)
+
+        with patch(
+            "accounts.views.signing.loads",
+            side_effect=signing.SignatureExpired,
+        ):
+            self.assertFalse(verify_oauth_link_state(state, user))
+
+    def test_concurrent_oauth_link_state_consumption_has_one_winner(self):
+        user = User.objects.create_user(
+            username="racing-link-state",
+            nickname="경합연결상태",
+        )
+        state = generate_oauth_link_state(user)
+        start = threading.Event()
+        results = []
+
+        def consume():
+            start.wait(timeout=2)
+            results.append(verify_oauth_link_state(state, user))
+
+        workers = [threading.Thread(target=consume) for _ in range(2)]
+        for worker in workers:
+            worker.start()
+        start.set()
+        for worker in workers:
+            worker.join(timeout=2)
+
+        self.assertTrue(all(not worker.is_alive() for worker in workers))
+        self.assertEqual(sorted(results), [False, True])
+
     def test_kakao_social_login_v2_rejects_missing_provider_id_without_creating_none_identity(self):
         with (
             patch("accounts.views.requests.get") as requests_get,
@@ -69,6 +133,28 @@ class AccountSecurityApiTests(TestCase):
         self.assertFalse(User.objects.filter(username="kakao_None").exists())
         self.assertNotIn("provider-secret-token", "\n".join(logs.output))
 
+    def test_legacy_social_login_fails_closed_without_provider_call(self):
+        with patch("accounts.views.get_kakao_user_info_by_token") as get_user_info:
+            get_user_info.return_value = {
+                "id": "legacy-disabled",
+                "kakao_account": {"email": "legacy-disabled@example.com"},
+                "properties": {"nickname": "레거시비활성"},
+            }
+            response = self.client.post(
+                "/api/v1/auth/social-login/",
+                {
+                    "provider": "kakao",
+                    "access_token": "legacy-provider-token",
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 410)
+        self.assertEqual(response.data["error"], "지원 종료된 로그인 경로입니다.")
+        get_user_info.assert_not_called()
+        self.assertNotIn(ACCESS_TOKEN_COOKIE, response.cookies)
+        self.assertNotIn(REFRESH_TOKEN_COOKIE, response.cookies)
+
     @override_settings(KAKAO_CLIENT_ID="kakao-client", KAKAO_REDIRECT_URI="https://app.example/callback")
     def test_kakao_code_exchange_fails_closed_without_logging_provider_token_payload(self):
         with patch("accounts.views.requests.post") as requests_post:
@@ -83,6 +169,61 @@ class AccountSecurityApiTests(TestCase):
         self.assertNotIn("provider-secret-token", str(raised.exception))
         requests_post.assert_called_once()
         self.assertEqual(requests_post.call_args.kwargs["timeout"], OAUTH_TIMEOUT)
+
+    def test_native_provider_timeouts_fail_closed_with_bounded_requests(self):
+        for index, provider in enumerate(("kakao", "google"), start=1):
+            with self.subTest(provider=provider):
+                with patch(
+                    "accounts.views.requests.get",
+                    side_effect=requests.Timeout("provider timed out"),
+                ) as requests_get:
+                    response = self.client.post(
+                        "/api/v1/auth/social-login/v2/",
+                        {
+                            "provider": provider,
+                            "access_token": "provider-token",
+                            "auto_signup": True,
+                        },
+                        format="json",
+                        REMOTE_ADDR=f"10.20.0.{index}",
+                    )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.data["error"],
+                    "로그인 처리 중 오류가 발생했습니다.",
+                )
+                self.assertFalse(User.objects.exists())
+                self.assertEqual(requests_get.call_args.kwargs["timeout"], OAUTH_TIMEOUT)
+
+    def test_native_provider_malformed_json_fails_closed(self):
+        malformed = Mock()
+        malformed.status_code = 200
+        malformed.json.side_effect = ValueError("malformed provider JSON")
+
+        for index, provider in enumerate(("kakao", "google"), start=1):
+            with self.subTest(provider=provider):
+                with patch(
+                    "accounts.views.requests.get",
+                    return_value=malformed,
+                ):
+                    response = self.client.post(
+                        "/api/v1/auth/social-login/v2/",
+                        {
+                            "provider": provider,
+                            "access_token": "provider-token",
+                            "auto_signup": True,
+                        },
+                        format="json",
+                        REMOTE_ADDR=f"10.20.1.{index}",
+                    )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.data["error"],
+                    "로그인 처리 중 오류가 발생했습니다.",
+                )
+                self.assertFalse(User.objects.exists())
 
     def test_complete_social_signup_signed_token_ignores_client_supplied_email_claims(self):
         token = generate_signup_token(
@@ -111,6 +252,34 @@ class AccountSecurityApiTests(TestCase):
         self.assertEqual(user.profile_image, "https://provider.example/avatar.png")
         self.assertEqual(social_account.email, "provider@example.com")
         self.assertEqual(social_account.profile_image, "https://provider.example/avatar.png")
+
+    def test_successful_signup_token_cannot_be_replayed_after_identity_deletion(self):
+        token = generate_signup_token(
+            "kakao",
+            "single-use-provider",
+            email="single-use@example.com",
+        )
+
+        first = self.client.post(
+            "/api/v1/auth/complete-social-signup/",
+            {"signup_token": token, "nickname": "일회가입하나"},
+            format="json",
+        )
+        self.assertEqual(first.status_code, 200)
+
+        User.objects.get(username="kakao_single-use-provider").delete()
+        second = self.client.post(
+            "/api/v1/auth/complete-social-signup/",
+            {"signup_token": token, "nickname": "일회가입둘"},
+            format="json",
+        )
+
+        self.assertEqual(second.status_code, 400)
+        self.assertEqual(
+            second.data["error"],
+            "유효하지 않거나 만료된 인증 토큰입니다.",
+        )
+        self.assertFalse(User.objects.filter(nickname="일회가입둘").exists())
 
     def test_complete_social_signup_legacy_signed_token_does_not_trust_client_email(self):
         token = signing.dumps(

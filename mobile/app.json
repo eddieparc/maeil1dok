@@ -41,7 +41,8 @@
           "kakaoplus",
           "kakaotalk"
         ]
-      }
+      },
+      "appleTeamId": "F42N2AFRM6"
     },
     "android": {
       "package": "app.maeil1dok.mobile",

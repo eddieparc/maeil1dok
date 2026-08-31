@@ -843,11 +843,11 @@ paths:
       security:
       - {}
       responses:
-        '200':
+        '410':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialLoginResponse'
+                $ref: '#/components/schemas/ErrorResponse'
           description: ''
       deprecated: true
       description: Deprecated compatibility alias. Use `/api/v1/auth/social-login/`.
@@ -1797,11 +1797,11 @@ paths:
       security:
       - {}
       responses:
-        '200':
+        '410':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialLoginResponse'
+                $ref: '#/components/schemas/ErrorResponse'
           description: ''
   /api/v1/auth/social-login/v2/:
     post:
@@ -6615,6 +6615,13 @@ components:
       - message
       - scheduled_deletion_at
       - success
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+      - error
     Follow:
       type: object
       description: 팔로우 관계 시리얼라이저

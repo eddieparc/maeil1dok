@@ -22,6 +22,11 @@ class BackendCiConfigTest(unittest.TestCase):
             self.workflow,
         )
 
+    def test_backend_ci_runs_real_redis_integration_without_skips(self) -> None:
+        self.assertIn("redis:", self.workflow)
+        self.assertIn("image: redis:7-alpine", self.workflow)
+        self.assertIn("REDIS_TEST_URL: redis://127.0.0.1:6379/15", self.workflow)
+
     def test_stale_backend_test_command_is_absent(self) -> None:
         self.assertNotIn(
             "run: python manage.py test accounts todos tests\n",

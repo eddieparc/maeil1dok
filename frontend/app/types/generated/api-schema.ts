@@ -4306,6 +4306,9 @@ export interface components {
             /** Format: date-time */
             scheduled_deletion_at: string;
         };
+        ErrorResponse: {
+            error: string;
+        };
         /** @description 팔로우 관계 시리얼라이저 */
         Follow: {
             readonly id: number;
@@ -6246,12 +6249,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: {
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SocialLoginResponse"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -7240,12 +7243,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: {
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SocialLoginResponse"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

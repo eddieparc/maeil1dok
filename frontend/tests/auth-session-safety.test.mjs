@@ -562,17 +562,26 @@ test('a failed session restore preserves webview cookies and stored tokens', asy
     'the restore path needs an explicit non-destructive give-up',
   );
 
-  // The destructive helper must still exist and still be used for real logout.
+  // The destructive helper must still exist and still delegate to the
+  // platform-aware cleanup. `CookieManager.clearAll()` was too coarse on iOS:
+  // it did not prove both the native and WebKit stores were cleared.
   assert.match(
     mobileAppSource,
-    /CookieManager\.clearAll\(\)/,
-    'explicit logout must still clear cookies',
+    /const clearStoredAuth = async \(\) => \{[\s\S]*?clearMobileAuth\(\{/,
+    'explicit logout must still clear cookies and stored tokens',
   );
 
   const clearCallSites = mobileAppSource.match(/clearStoredAuth\(\)/g) ?? [];
   assert.equal(
     clearCallSites.length,
+    1,
+    'only the shared explicit-logout finisher may clear stored auth',
+  );
+
+  const finishCallSites = mobileAppSource.match(/finishNativeLogout\(\)/g) ?? [];
+  assert.equal(
+    finishCallSites.length,
     2,
-    'only the two explicit-logout paths may clear stored auth',
+    'both explicit-logout message paths must use the destructive finisher',
   );
 });

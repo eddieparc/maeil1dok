@@ -72,6 +72,7 @@ export interface SocialLoginResult {
 
 // 클라이언트 전용 상태 (토큰 갱신 타이머)
 let _refreshInterval: ReturnType<typeof setInterval> | null = null
+let _initializePromise: Promise<void> | null = null
 
 function getBaseUrl(): string {
   const config = useRuntimeConfig()
@@ -257,7 +258,6 @@ export function useAuthService() {
   const _user = useState<AuthUser | null>('auth:user', () => null)
   const _authState = useState<AuthState>('auth:state', () => 'loading')
   const _isInitialized = useState<boolean>('auth:initialized', () => false)
-  const _initPromise = useState<Promise<void> | null>('auth:initPromise', () => null)
   // The in-flight promise carries the full outcome, not a boolean. If this stayed
   // `Promise<boolean> | null`, a concurrent caller awaiting the shared promise
   // would receive a coerced value and `unreachable` would arrive at the policy
@@ -355,16 +355,23 @@ export function useAuthService() {
   }
 
   async function initialize(): Promise<void> {
-    if (_isInitialized.value) {
+    if (import.meta.server) return
+    if (_isInitialized.value && _authState.value !== 'loading') {
       return
     }
+    _isInitialized.value = false
 
-    if (_initPromise.value) {
-      return _initPromise.value
+    if (_initializePromise) {
+      return _initializePromise
     }
 
-    _initPromise.value = (async () => {
+    _initializePromise = (async () => {
       _authState.value = 'loading'
+      // fetchUserWithRefresh() can change this ref through its onUnreachable
+      // callback. Reading through a function prevents TypeScript from freezing
+      // the property at the earlier `loading` assignment across that async call.
+      const sessionVerificationIsUnknown = (): boolean =>
+        _authState.value === 'unknown-offline'
 
       try {
         const cachedUser = loadUserFromStorage()
@@ -392,7 +399,7 @@ export function useAuthService() {
           _authState.value = 'authenticated'
           saveUserToStorage(user)
           startRefreshTimer()
-        } else {
+        } else if (!sessionVerificationIsUnknown()) {
           _user.value = null
           _authState.value = 'unauthenticated'
           saveUserToStorage(null)
@@ -404,7 +411,7 @@ export function useAuthService() {
         saveUserToStorage(null)
       } finally {
         _isInitialized.value = true
-        _initPromise.value = null
+        _initializePromise = null
       }
 
       if (import.meta.client) {
@@ -429,7 +436,7 @@ export function useAuthService() {
       }
     })()
 
-    return _initPromise.value
+    return _initializePromise
   }
 
   async function login(username: string, password: string): Promise<LoginResult> {
@@ -482,6 +489,7 @@ export function useAuthService() {
         access?: string
         user?: AuthUser
         needsSignup?: boolean
+        provider_id?: string
         social_id?: string
         kakao_id?: string | number  // 레거시 카카오 응답 호환
         suggested_nickname?: string
@@ -490,7 +498,7 @@ export function useAuthService() {
         signup_token?: string
       }>(
         'POST',
-        '/api/v1/auth/social-login/',
+        '/api/v1/auth/social-login/v2/',
         { provider, ...payload }
       )
 
@@ -502,7 +510,7 @@ export function useAuthService() {
 
       if (data.needsSignup) {
         // 레거시 카카오 응답(kakao_id)과 통합 응답(social_id) 모두 처리
-        const socialId = data.social_id || (data.kakao_id ? String(data.kakao_id) : '')
+        const socialId = data.provider_id || data.social_id || (data.kakao_id ? String(data.kakao_id) : '')
         return {
           success: false,
           needsSignup: true,

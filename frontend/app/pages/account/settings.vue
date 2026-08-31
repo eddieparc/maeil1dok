@@ -920,6 +920,7 @@ const formatDate = (dateString: string) => {
 }
 
 onMounted(async () => {
+  await auth.initialize()
   if (!auth.isAuthenticated.value) {
     navigateTo('/login')
     return

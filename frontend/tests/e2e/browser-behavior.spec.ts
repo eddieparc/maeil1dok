@@ -105,10 +105,17 @@ test('BookSelector submit button navigates to the entered chapter', async ({ api
 test('account deletion action opens the project confirm modal', async ({ api, page }) => {
   await api.authenticate();
   api.get('/api/v1/auth/linked-accounts/', linkedAccounts);
+  await page.context().addCookies([{
+    name: 'access_token',
+    value: 'playwright-access-token',
+    url: 'http://127.0.0.1:3019',
+  }]);
 
-  await page.goto('/');
-  await expect(page.getByText('브라우저 독자님, 안녕하세요')).toBeVisible();
+  const linkedAccountsResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === '/api/v1/auth/linked-accounts/');
   await page.goto('/account/settings');
+  expect((await linkedAccountsResponse).status()).toBe(200);
+  await expect(page.getByRole('heading', { name: '계정 설정' })).toBeVisible();
   await expect(page.getByRole('button', { name: '해제' })).toBeVisible();
 
   await page.getByRole('button', { name: '계정 삭제', exact: true }).click();

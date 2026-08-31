@@ -49,8 +49,11 @@ def mark_logged_out(cache, user_id, *, now=None) -> float:
     the generation section below.
     """
     instant = now if now is not None else time.time()
-    cache.set(logout_marker_key(user_id), instant, timeout=LOGOUT_MARKER_TTL_SECONDS)
+    # Generation moves first. If the marker were written first, an issue that
+    # already captured the old generation could publish in that gap with a later
+    # timestamp and survive both invalidation checks.
     advance_generation(cache, user_id)
+    cache.set(logout_marker_key(user_id), instant, timeout=LOGOUT_MARKER_TTL_SECONDS)
     return instant
 
 

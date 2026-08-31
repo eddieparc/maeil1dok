@@ -130,10 +130,18 @@ export const useApi = () => {
         // refreshToken() returns a reasoned outcome, not a boolean: an object is
         // always truthy, so testing it directly would read a failed refresh as a
         // success and retry the request with the same dead credentials.
-        const refreshOutcome = await auth.refreshToken()
+        const refreshOutcome = await auth.refreshToken({ logoutOnFailure: false })
         const refreshSuccess =
           refreshOutcome === true ||
           (typeof refreshOutcome === 'object' && refreshOutcome !== null && refreshOutcome.ok)
+        const refreshRejected =
+          refreshOutcome === false ||
+          (
+            typeof refreshOutcome === 'object' &&
+            refreshOutcome !== null &&
+            !refreshOutcome.ok &&
+            refreshOutcome.reason === 'rejected'
+          )
 
         if (refreshSuccess) {
           const isMutatingMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(
@@ -161,7 +169,7 @@ export const useApi = () => {
             saveCsrfToken(retryTokenFromHeader)
           }
         } else {
-          if (auth.isAuthenticated.value) {
+          if (refreshRejected && auth.isAuthenticated.value) {
             auth.logout()
           }
           throw new ApiError('Authentication failed', 401)

@@ -42,6 +42,7 @@ from unittest.mock import patch
 import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
@@ -139,6 +140,7 @@ def make_apple_id_token(
     issuer=APPLE_ISSUER,
     lifetime=3600,
     key=None,
+    kid=None,
 ):
     """Produce a real RS256 Apple-shaped id_token signed by the throwaway key."""
     now = int(time.time())
@@ -152,7 +154,13 @@ def make_apple_id_token(
     if email is not None:
         claims["email"] = email
         claims["email_verified"] = email_verified
-    return jwt.encode(claims, key or _apple_private_key(), algorithm="RS256")
+    headers = {"kid": kid} if kid else None
+    return jwt.encode(
+        claims,
+        key or _apple_private_key(),
+        algorithm="RS256",
+        headers=headers,
+    )
 
 
 class _StubSigningKey:
@@ -225,6 +233,10 @@ class SocialLoginV2ContractTestCase(APITestCase):
     }
     # name -> Max-Age in seconds
     AUTH_COOKIES = {"access_token": 3600, "refresh_token": 60 * 60 * 24 * 30}
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
 
     def post_social_login(self, payload):
         return self.client.post(SOCIAL_LOGIN_V2_URL, payload, format="json")
@@ -510,6 +522,30 @@ class GoogleSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
         self.assert_error_contract(response, 400, "소셜 계정 정보를 가져올 수 없습니다.")
         self.assertFalse(User.objects.exists())
 
+    def test_unverified_google_email_is_rejected(self):
+        userinfo = self.google_userinfo()
+        userinfo["email_verified"] = False
+
+        with mocked_provider_http(get_map={GOOGLE_USERINFO_URL: userinfo}):
+            response = self.post_social_login(
+                {"provider": "google", "access_token": "google-native-token", "auto_signup": True}
+            )
+
+        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assertFalse(User.objects.exists())
+
+    def test_missing_google_email_verification_claim_is_rejected(self):
+        userinfo = self.google_userinfo()
+        userinfo.pop("email_verified")
+
+        with mocked_provider_http(get_map={GOOGLE_USERINFO_URL: userinfo}):
+            response = self.post_social_login(
+                {"provider": "google", "access_token": "google-native-token", "auto_signup": True}
+            )
+
+        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assertFalse(User.objects.exists())
+
 
 # ---------------------------------------------------------------------------
 # Apple — mobile/App.tsx:351 sends {provider, id_token, full_name, auto_signup}
@@ -555,6 +591,53 @@ class AppleSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
             )
 
         self.assert_token_success_contract(response)
+
+    def test_jwks_key_rotation_selects_the_matching_kid(self):
+        old_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        new_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        id_token = make_apple_id_token(
+            "apple-rotated-key",
+            email="apple-rotated@example.com",
+            key=new_key,
+            kid="new-key",
+        )
+        selected = []
+
+        class MultiKeyJWKClient:
+            def __init__(self, url):
+                self.url = url
+
+            def get_signing_key_from_jwt(self, token):
+                kid = jwt.get_unverified_header(token)["kid"]
+                selected.append(kid)
+                keys = {
+                    "old-key": old_key.public_key(),
+                    "new-key": new_key.public_key(),
+                }
+                return _StubSigningKey(keys[kid])
+
+        with patch("jwt.PyJWKClient", new=MultiKeyJWKClient):
+            response = self.post_social_login(
+                {"provider": "apple", "id_token": id_token, "auto_signup": True}
+            )
+
+        self.assert_token_success_contract(response)
+        self.assertEqual(selected, ["new-key"])
+
+    def test_foreign_audience_is_rejected(self):
+        id_token = make_apple_id_token(
+            "apple-foreign-audience",
+            email="apple-foreign@example.com",
+            audience="com.attacker.app",
+        )
+
+        with mocked_apple_jwks():
+            response = self.post_social_login(
+                {"provider": "apple", "id_token": id_token, "auto_signup": True}
+            )
+
+        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assertFalse(User.objects.exists())
 
     def test_existing_user_login_returns_same_shape_as_signup(self):
         self.create_linked_user(

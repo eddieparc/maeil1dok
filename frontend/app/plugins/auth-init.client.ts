@@ -8,17 +8,19 @@ export default defineNuxtPlugin({
     const auth = useAuthService()
     const readingSettingsStore = useReadingSettingsStore()
 
-    void auth.initialize().then(() => {
-      if (auth.isAuthenticated.value) {
-        return readingSettingsStore.onLogin()
-      }
-      return undefined
-    }).catch((error) => {
-      console.error('[auth-init] Failed to initialize auth:', error)
-    })
+    onNuxtReady(() => {
+      void auth.initialize().then(() => {
+        if (auth.isAuthenticated.value) {
+          return readingSettingsStore.onLogin()
+        }
+        return undefined
+      }).catch((error) => {
+        console.error('[auth-init] Failed to initialize auth:', error)
+      })
 
-    void readingSettingsStore.initialize().catch((error) => {
-      console.error('[auth-init] Failed to initialize reading settings:', error)
+      void readingSettingsStore.initialize().catch((error) => {
+        console.error('[auth-init] Failed to initialize reading settings:', error)
+      })
     })
   }
 })

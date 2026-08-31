@@ -325,6 +325,44 @@ class HandoffGenerationRaceTest(TestCase):
             'and the code must not be left behind in the cache',
         )
 
+    def test_issue_between_logout_marker_and_generation_cannot_survive(self):
+        """A request already in flight cannot publish inside logout itself.
+
+        The issue captures its generation before logout begins. The cache hook
+        pauses logout immediately after its marker write, placing publication in
+        the exact marker/generation gap without timing sleeps.
+        """
+        observed_generation = handoff.current_generation(cache, self.user.id)
+        code = str(uuid.uuid4())
+        publication = {}
+        real_set = cache.set
+
+        def set_marker_then_publish(key, value, *args, **kwargs):
+            result = real_set(key, value, *args, **kwargs)
+            if key == handoff.logout_marker_key(self.user.id):
+                publication['attempted'] = True
+                publication['published'] = handoff.publish_code(
+                    cache,
+                    user_id=self.user.id,
+                    code=code,
+                    observed_generation=observed_generation,
+                    ttl_seconds=60,
+                )
+            return result
+
+        cache.set = set_marker_then_publish
+        try:
+            handoff.mark_logged_out(cache, self.user.id)
+        finally:
+            cache.set = real_set
+
+        self.assertTrue(publication.get('attempted'), 'the marker/generation gap must be exercised')
+        self.assertFalse(
+            publication.get('published'),
+            'an issue that started before logout must not publish inside its invalidation gap',
+        )
+        self.assertIsNone(_consume_session_bridge_user_id(cache, code))
+
     def test_generation_is_per_user(self):
         other = User.objects.create_user(
             username='race-other', password='pw-other-1234', nickname='other'

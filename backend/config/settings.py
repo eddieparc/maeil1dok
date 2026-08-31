@@ -186,6 +186,7 @@ USE_TZ = False
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.environ.get('STATIC_ROOT', os.path.join(BASE_DIR, 'staticfiles'))
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://maeil1dok.app').rstrip('/')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

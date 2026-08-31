@@ -44,7 +44,12 @@ const makeResponse = ({ status, body = {}, csrf = null }) => ({
 // Installs window/localStorage/fetch stubs, records every fetch invocation with
 // a snapshot of the headers as they existed at call time (headers are mutated in
 // place across the retry), and restores globals afterwards.
-const withEnvironment = async ({ storedCsrf, onRefresh, responses }, run) => {
+const withEnvironment = async ({
+  storedCsrf,
+  onRefresh,
+  refreshOutcome = true,
+  responses,
+}, run) => {
   const saved = {};
   for (const key of ['window', 'document', 'localStorage', 'fetch']) {
     saved[key] = Object.getOwnPropertyDescriptor(globalThis, key);
@@ -69,17 +74,25 @@ const withEnvironment = async ({ storedCsrf, onRefresh, responses }, run) => {
     return queue.shift();
   };
 
+  const authObservations = {
+    logoutCount: 0,
+    refreshOptions: [],
+  };
   globalThis.__authServiceStub = {
     isAuthenticated: { value: true },
-    refreshToken: async () => {
+    refreshToken: async (options) => {
+      authObservations.refreshOptions.push(options);
       if (onRefresh) onRefresh(store);
-      return true;
+      return refreshOutcome;
     },
-    logout: () => {},
+    logout: () => {
+      authObservations.logoutCount += 1;
+      globalThis.__authServiceStub.isAuthenticated.value = false;
+    },
   };
 
   try {
-    return await run({ calls, store });
+    return await run({ authObservations, calls, store });
   } finally {
     for (const key of Object.keys(saved)) {
       if (saved[key]) Object.defineProperty(globalThis, key, saved[key]);
@@ -88,6 +101,68 @@ const withEnvironment = async ({ storedCsrf, onRefresh, responses }, run) => {
     delete globalThis.__authServiceStub;
   }
 };
+
+test('401 with an unreachable refresh preserves the authenticated session', async () => {
+  const { useApi } = await importApiModule();
+
+  await withEnvironment(
+    {
+      storedCsrf: 'csrf-old',
+      refreshOutcome: { ok: false, reason: 'unreachable' },
+      responses: [makeResponse({ status: 401 })],
+    },
+    async ({ authObservations, calls, store }) => {
+      const api = useApi();
+
+      await assert.rejects(
+        api.get('/api/v1/todos/'),
+        (error) => error?.status === 401 && error?.message === 'Authentication failed',
+      );
+
+      assert.equal(calls.length, 1, 'an unreachable refresh must not replay the failed request');
+      assert.equal(
+        authObservations.logoutCount,
+        0,
+        'network reachability says nothing about identity and must not sign the user out',
+      );
+      assert.deepEqual(
+        authObservations.refreshOptions,
+        [{ logoutOnFailure: false }],
+        'the API layer must inspect the reasoned refresh outcome before deciding logout',
+      );
+      assert.equal(store.get('csrfToken'), 'csrf-old', 'offline handling must preserve client auth state');
+      assert.equal(globalThis.__authServiceStub.isAuthenticated.value, true);
+    },
+  );
+});
+
+test('401 with a rejected refresh signs out exactly once', async () => {
+  const { useApi } = await importApiModule();
+
+  await withEnvironment(
+    {
+      refreshOutcome: { ok: false, reason: 'rejected' },
+      responses: [makeResponse({ status: 401 })],
+    },
+    async ({ authObservations, calls }) => {
+      const api = useApi();
+
+      await assert.rejects(
+        api.get('/api/v1/todos/'),
+        (error) => error?.status === 401 && error?.message === 'Authentication failed',
+      );
+
+      assert.equal(calls.length, 1);
+      assert.equal(
+        authObservations.logoutCount,
+        1,
+        'a server identity rejection must retain the existing sign-out defense',
+      );
+      assert.deepEqual(authObservations.refreshOptions, [{ logoutOnFailure: false }]);
+      assert.equal(globalThis.__authServiceStub.isAuthenticated.value, false);
+    },
+  );
+});
 
 test('multipart upload retry after 401 refresh does NOT re-add a JSON Content-Type', async () => {
   const { useApi } = await importApiModule();

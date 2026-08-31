@@ -32,6 +32,8 @@ import { resolveWebViewConfig } from './webviewConfig';
 import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
 import { redactSensitiveUrl } from './urlRedaction';
 import { csrfHeadersFrom } from './csrfHeader';
+import { hasAuthCookies, runStoredSessionRestore } from './sessionRestore';
+import { clearMobileAuth } from './authCleanup';
 import * as Updates from 'expo-updates';
 import {
   formatBundleIdentityLabel,
@@ -107,6 +109,9 @@ function AppContent() {
   const [webViewKey, setWebViewKey] = useState(0);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const pendingUrlRef = useRef<string | null>(null);
+  const dnsRetryAvailableRef = useRef(true);
+  const restoreGenerationRef = useRef(0);
+  const restorePromiseRef = useRef<Promise<boolean> | null>(null);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -176,11 +181,13 @@ function AppContent() {
       console.log('[SessionBridge] SecureStore save success');
 
       console.log('[SessionBridge] Calling session/issue...');
+      const csrfCookies = await CookieManager.get(API_URL).catch(() => null);
       const issueResponse = await fetch(`${API_URL}/api/v1/auth/session/issue/`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${accessToken}`,
+          ...csrfHeadersFrom(csrfCookies),
         },
       });
 
@@ -196,7 +203,7 @@ function AppContent() {
       const code = issueData.code;
 
       if (code) {
-        const consumeUrl = `${API_URL}/api/v1/auth/session/consume/?code=${code}&next=${encodeURIComponent(WEB_APP_URL + '/')}`;
+        const consumeUrl = `${API_URL}/api/v1/auth/session/consume/?code=${code}&next=${encodeURIComponent('/')}`;
         console.log('[SessionBridge] Session code issued');
         pendingUrlRef.current = consumeUrl;
         setPendingUrl(consumeUrl);
@@ -212,17 +219,39 @@ function AppContent() {
 
   const navigateToPendingUrl = () => {
     const urlToNavigate = pendingUrlRef.current;
-    if (!urlToNavigate) return;
+    const webView = webViewRef.current;
+    if (!urlToNavigate || !webView) return;
 
     pendingUrlRef.current = null;
     setPendingUrl(null);
-    webViewRef.current?.injectJavaScript(`window.location.href = ${JSON.stringify(urlToNavigate)}; true;`);
+    webView.injectJavaScript(`window.location.href = ${JSON.stringify(urlToNavigate)}; true;`);
   };
 
   const clearStoredAuth = async () => {
-    await CookieManager.clearAll();
-    await SecureStore.deleteItemAsync('maeil1dok_access_token');
-    await SecureStore.deleteItemAsync('maeil1dok_refresh_token');
+    await clearMobileAuth({
+      platform: Platform.OS === 'ios' ? 'ios' : 'android',
+      apiUrl: API_URL,
+      cookieDomain: WEB_APP_URL === 'https://maeil1dok.app' ? '.maeil1dok.app' : undefined,
+      clearCookieByName: (url, name, useWebKit) =>
+        CookieManager.clearByName(url, name, useWebKit),
+      setCookie: (url, cookie) => CookieManager.set(url, cookie),
+      setCookieFromResponse: (url, cookie) => CookieManager.setFromResponse(url, cookie),
+      flushCookies: () => CookieManager.flush(),
+      deleteSecureValue: (key) => SecureStore.deleteItemAsync(key),
+    });
+  };
+
+  const invalidateStoredSessionRestore = () => {
+    restoreGenerationRef.current += 1;
+    restorePromiseRef.current = null;
+  };
+
+  const finishNativeLogout = async () => {
+    await clearStoredAuth().catch((error) => {
+      console.error('[Logout] Clear storage error:', error);
+    });
+    setWebViewKey((previous) => previous + 1);
+    showNativeLogin();
   };
 
   /**
@@ -243,45 +272,43 @@ function AppContent() {
     return false;
   };
 
-  const restoreStoredSession = async (): Promise<boolean> => {
-    try {
-      const storedRefreshToken = await SecureStore.getItemAsync('maeil1dok_refresh_token');
-      if (!storedRefreshToken) {
+  const restoreStoredSession = (): Promise<boolean> => {
+    if (restorePromiseRef.current) return restorePromiseRef.current;
+
+    const generation = restoreGenerationRef.current;
+    let restorePromise: Promise<boolean>;
+    restorePromise = (async () => {
+      const cookies = await CookieManager.get(API_URL).catch(() => null);
+      if (
+        restoreGenerationRef.current !== generation
+        || hasAuthCookies(cookies)
+      ) {
         return false;
       }
 
-      // 본문 토큰을 제시하므로 서버는 이 요청에 CSRF 를 요구하지 않는다. 그래도
-      // 헤더를 싣는다 — 서버 정책이 다시 조여지면 셸이 조용히 403 으로 죽는데,
-      // 그 실패는 1시간 뒤에야 드러나고 원인도 보이지 않는다.
-      const refreshCsrfCookies = await CookieManager.get(API_URL).catch(() => null);
-      const response = await fetch(`${API_URL}/api/v1/auth/token/refresh/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...csrfHeadersFrom(refreshCsrfCookies),
+      return runStoredSessionRestore({
+        apiUrl: API_URL,
+        readRefreshToken: () => SecureStore.getItemAsync('maeil1dok_refresh_token'),
+        readCsrfHeaders: async () => {
+          // 본문 토큰을 제시하므로 서버는 이 요청에 CSRF 를 요구하지 않는다. 그래도
+          // 헤더를 싣는다 — 서버 정책이 다시 조여지면 셸이 조용히 403 으로 죽는다.
+          const refreshCookies = await CookieManager.get(API_URL).catch(() => null);
+          return csrfHeadersFrom(refreshCookies);
         },
-        body: JSON.stringify({ refresh: storedRefreshToken }),
-        credentials: 'include',
+        fetchRefresh: (url, init) => fetch(url, init),
+        initiateSessionBridge,
+        navigateToPendingUrl,
+        abandonRestore,
+        reportError: (error) => console.error('[SessionRestore] Error:', error),
+        isRestoreCurrent: () => restoreGenerationRef.current === generation,
       });
-
-      if (!response.ok) {
-        return abandonRestore(`refresh rejected with ${response.status}`);
+    })().finally(() => {
+      if (restorePromiseRef.current === restorePromise) {
+        restorePromiseRef.current = null;
       }
-
-      const data = await response.json();
-      if (!data.access || !data.refresh) {
-        return abandonRestore('refresh response missing tokens');
-      }
-
-      const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
-      if (bridgeSuccess) {
-        navigateToPendingUrl();
-      }
-      return bridgeSuccess;
-    } catch (error) {
-      console.error('[SessionRestore] Error:', error);
-      return false;
-    }
+    });
+    restorePromiseRef.current = restorePromise;
+    return restorePromise;
   };
 
   const handleEmailLogin = async () => {
@@ -304,7 +331,9 @@ function AppContent() {
       if (data.access) {
         const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
         setShowLogin(false);
-        if (!bridgeSuccess) {
+        if (bridgeSuccess) {
+          navigateToPendingUrl();
+        } else {
           setWebViewKey((prev) => prev + 1);
         }
       } else {
@@ -339,7 +368,9 @@ function AppContent() {
         if (data.access) {
           const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
           setShowLogin(false);
-          if (!bridgeSuccess) {
+          if (bridgeSuccess) {
+            navigateToPendingUrl();
+          } else {
             setWebViewKey((prev) => prev + 1);
           }
         } else if (data.needsSignup) {
@@ -429,7 +460,9 @@ function AppContent() {
         const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
         console.log('[Apple Login] bridgeSuccess:', bridgeSuccess);
         setShowLogin(false);
-        if (!bridgeSuccess) {
+        if (bridgeSuccess) {
+          navigateToPendingUrl();
+        } else {
           console.log('[Apple Login] Bridge failed, reloading WebView');
           setWebViewKey((prev) => prev + 1);
         }
@@ -466,7 +499,9 @@ function AppContent() {
       if (data.access) {
         const bridgeSuccess = await initiateSessionBridge(data.access, data.refresh);
         setShowLogin(false);
-        if (!bridgeSuccess) {
+        if (bridgeSuccess) {
+          navigateToPendingUrl();
+        } else {
           setWebViewKey((prev) => prev + 1);
         }
       } else if (data.needsSignup) {
@@ -621,6 +656,10 @@ function AppContent() {
     navigateToPendingUrl();
   };
 
+  const handleLoad = () => {
+    dnsRetryAvailableRef.current = true;
+  };
+
   const handleError = (syntheticEvent: WebViewErrorLikeEvent) => {
     const { nativeEvent } = syntheticEvent;
     console.log('[WebView] Error:', nativeEvent?.description || 'unknown', 'code:', nativeEvent?.code, 'url:', redactSensitiveUrl(nativeEvent?.url));
@@ -629,6 +668,18 @@ function AppContent() {
     // (하세나 YouTube 임베드의 광고 프레임 때문에 첫 진입에서 에러 화면이 뜨던 원인)
     if (!isFatalWebViewError(nativeEvent, WEBVIEW_POLICY)) {
       console.log('[WebView] Non-fatal error ignored');
+      return;
+    }
+
+    if (
+      Platform.OS === 'ios'
+      && nativeEvent?.code === -1003
+      && dnsRetryAvailableRef.current
+    ) {
+      dnsRetryAvailableRef.current = false;
+      setIsError(false);
+      setIsLoading(true);
+      setWebViewKey((prev) => prev + 1);
       return;
     }
 
@@ -647,6 +698,7 @@ function AppContent() {
       const message = JSON.parse(event.nativeEvent.data);
       switch (message.type) {
         case 'requestLogout':
+          invalidateStoredSessionRestore();
           (async () => {
             try {
               // 1. 백엔드 로그아웃 API 호출
@@ -664,12 +716,7 @@ function AppContent() {
               console.error('Logout API error:', error);
             }
             
-            await clearStoredAuth().catch((error) => {
-              console.error('[Logout] Clear storage error:', error);
-            });
-            
-            setWebViewKey(prev => prev + 1);
-            showNativeLogin();
+            await finishNativeLogout();
           })();
           break;
         case 'auth:request':
@@ -680,11 +727,8 @@ function AppContent() {
         case 'auth:logout':
         case 'auth:expired':
         case 'logout':
-          clearStoredAuth().catch((error) => {
-            console.error('[Logout] Clear storage error:', error);
-          });
-          setWebViewKey(prev => prev + 1);
-          showNativeLogin();
+          invalidateStoredSessionRestore();
+          void finishNativeLogout();
           break;
         case 'navigate':
           if (message.url) {
@@ -874,6 +918,7 @@ function AppContent() {
         ref={webViewRef}
         source={{ uri: WEB_APP_URL }}
         style={styles.webView}
+        onLoad={handleLoad}
         onLoadEnd={handleLoadEnd}
         onError={handleError}
         onHttpError={handleHttpError}

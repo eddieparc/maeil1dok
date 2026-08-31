@@ -30,6 +30,8 @@ import requests
 # 외부 OAuth/소셜 API 호출 타임아웃(초): 무한 대기 방지
 OAUTH_TIMEOUT = 10
 from django.conf import settings
+from django.apps import apps
+from django.core.cache import cache
 from django.core import signing
 from django.utils import timezone
 from datetime import timedelta
@@ -38,6 +40,7 @@ from authz import can, subject_from_request
 from authz.policies.notification import NotificationSettingsCurrent
 from todos.services.notifications import get_notification_settings
 import logging
+import hashlib
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -154,6 +157,12 @@ def _require_oauth_field(data, field, provider):
     return value
 
 
+def _require_google_verified_email(data):
+    email = data.get('email') if isinstance(data, dict) else None
+    if email and data.get('email_verified') is not True:
+        _raise_oauth_provider_error('Google', 'email is not verified')
+
+
 def generate_signup_token(provider, provider_id, email=None, profile_image=None):
     """소셜 로그인 검증 완료 후 회원가입용 서명 토큰 생성"""
     return signing.dumps(
@@ -172,6 +181,17 @@ def verify_signup_token(token):
         return signing.loads(token, salt=SIGNUP_TOKEN_SALT, max_age=SIGNUP_TOKEN_MAX_AGE)
     except (signing.BadSignature, signing.SignatureExpired):
         return None
+
+
+def consume_signup_token(token):
+    if not isinstance(token, str) or not token:
+        return False
+    digest = hashlib.sha256(token.encode('utf-8')).hexdigest()
+    return cache.add(
+        f'social_signup_token_consumed:{digest}',
+        True,
+        timeout=SIGNUP_TOKEN_MAX_AGE,
+    )
 
 
 def _social_signup_claims(provider, social_info):
@@ -204,7 +224,16 @@ def verify_oauth_link_state(state, user):
         )
     except (signing.BadSignature, signing.SignatureExpired):
         return False
-    return data.get('action') == 'link' and data.get('user_id') == user.id
+    if data.get('action') != 'link' or data.get('user_id') != user.id:
+        return False
+    nonce = data.get('nonce')
+    if not isinstance(nonce, str) or not nonce:
+        return False
+    return cache.add(
+        f'oauth_link_state_consumed:{nonce}',
+        True,
+        timeout=OAUTH_LINK_STATE_MAX_AGE,
+    )
 
 
 def generate_social_merge_token(user, provider, provider_id, email, profile_image, extra_data):
@@ -280,11 +309,16 @@ def get_user(request):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
-@extend_schema(responses={200: openapi.SOCIAL_LOGIN_RESPONSE})
+@extend_schema(responses={410: openapi.ErrorResponseSerializer})
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
 def social_login(request):
+    return Response(
+        {'error': '지원 종료된 로그인 경로입니다.'},
+        status=status.HTTP_410_GONE,
+    )
+
     try:
         serializer = SocialLoginSerializer(data=request.data)
         if not serializer.is_valid():
@@ -447,7 +481,7 @@ def get_google_user_info(code, redirect_uri=None):
         headers={'Authorization': f'Bearer {access_token}'},
         timeout=OAUTH_TIMEOUT,
     ).json()
-    
+    _require_google_verified_email(user_info)
     return user_info
 
 
@@ -711,6 +745,7 @@ def email_login(request):
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
+@throttle_classes([LoginThrottle])
 def social_login_v2(request):
     """
     통합 소셜 로그인 (v2)
@@ -990,6 +1025,8 @@ def complete_social_signup(request):
         # 이미 연동된 계정인지 확인
         if SocialAccount.objects.filter(provider=provider, provider_id=provider_id).exists():
             return Response({'error': '이미 가입된 소셜 계정입니다.'}, status=400)
+        if signup_token and not consume_signup_token(signup_token):
+            return Response({'error': '유효하지 않거나 만료된 인증 토큰입니다.'}, status=400)
         
         with transaction.atomic():
             # 사용자 생성 (소셜 로그인은 이메일 인증 완료 처리)
@@ -1386,6 +1423,17 @@ def logout_all_devices(request):
 # 계정 병합
 # ========================================
 
+def _merge_user_records_at_http_boundary(*args, **kwargs):
+    try:
+        return _merge_user_records(*args, **kwargs), None
+    except Exception as error:  # noqa: BROAD_EXCEPT_OK — fail closed at HTTP boundary
+        logger.error('계정 병합 오류: %s', error, exc_info=True)
+        return None, Response(
+            {'error': '계정 병합 중 오류가 발생했습니다.'},
+            status=400,
+        )
+
+
 @extend_schema(responses={200: openapi.AccountMergeResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -1439,7 +1487,7 @@ def merge_accounts(request):
 
         keep_user = user if keep_account == 'current' else other_user
         delete_user = other_user if keep_account == 'current' else user
-        result = _merge_user_records(
+        result, merge_error = _merge_user_records_at_http_boundary(
             keep_user,
             delete_user,
             provider=provider,
@@ -1448,6 +1496,8 @@ def merge_accounts(request):
             profile_image=profile_image,
             extra_data=social_info,
         )
+        if merge_error:
+            return merge_error
         if keep_account == 'other':
             tokens = get_tokens_for_user(keep_user)
             result['access'] = tokens['access']
@@ -1477,7 +1527,12 @@ def merge_accounts(request):
 
         keep_user = user if keep_account == 'current' else other_user
         delete_user = other_user if keep_account == 'current' else user
-        result = _merge_user_records(keep_user, delete_user)
+        result, merge_error = _merge_user_records_at_http_boundary(
+            keep_user,
+            delete_user,
+        )
+        if merge_error:
+            return merge_error
         if keep_account == 'other':
             tokens = get_tokens_for_user(keep_user)
             result['access'] = tokens['access']
@@ -1536,7 +1591,7 @@ def merge_accounts(request):
         
         keep_user = user if keep_account == 'current' else other_user
         delete_user = other_user if keep_account == 'current' else user
-        result = _merge_user_records(
+        result, merge_error = _merge_user_records_at_http_boundary(
             keep_user,
             delete_user,
             provider=provider,
@@ -1545,6 +1600,8 @@ def merge_accounts(request):
             profile_image=profile_image,
             extra_data=social_info,
         )
+        if merge_error:
+            return merge_error
         
         if keep_account == 'other':
             # 다른 계정을 선택한 경우 새 토큰 발급
@@ -1580,7 +1637,9 @@ def get_google_user_info_by_token(access_token):
         headers={'Authorization': f'Bearer {access_token}'},
         timeout=OAUTH_TIMEOUT,
     )
-    return response.json()
+    data = response.json()
+    _require_google_verified_email(data)
+    return data
 
 
 def _create_default_subscription(user):
@@ -1619,10 +1678,30 @@ def _current_account_proof_error(user, current_password):
 
 def _merge_user_records(keep_user, delete_user, provider=None, provider_id=None, email=None, profile_image=None, extra_data=None):
     with transaction.atomic():
+        locked_users = User.objects.select_for_update().in_bulk(
+            [keep_user.id, delete_user.id]
+        )
+        keep_user = locked_users[keep_user.id]
+        delete_user = locked_users[delete_user.id]
+        if (
+            keep_user.id == delete_user.id
+            or keep_user.merged_into_id is not None
+            or delete_user.merged_into_id is not None
+        ):
+            raise ValueError('account merge ancestry is not clean')
+
+        delete_user.is_active = False
+        delete_user.scheduled_deletion_at = timezone.now() + timedelta(days=30)
+        delete_user.merged_into = keep_user
+        delete_user.token_version += 1
+        delete_user.set_unusable_password()
+        delete_user.username = f"merged_{delete_user.id}_{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        delete_user.nickname = f"삭제예정_{delete_user.id}"
+        delete_user.save()
+
         for social_account in SocialAccount.objects.select_for_update().filter(user=delete_user):
             if SocialAccount.objects.filter(user=keep_user, provider=social_account.provider).exists():
-                social_account.delete()
-                continue
+                raise ValueError('social provider collision')
             social_account.user = keep_user
             social_account.save(update_fields=['user', 'updated_at'])
 
@@ -1641,13 +1720,85 @@ def _merge_user_records(keep_user, delete_user, provider=None, provider_id=None,
             keep_user.email_verified = delete_user.email_verified
             keep_user.save(update_fields=['email', 'email_verified'])
 
-        delete_user.is_active = False
-        delete_user.scheduled_deletion_at = timezone.now() + timedelta(days=30)
-        delete_user.merged_into = keep_user
-        delete_user.token_version += 1
-        delete_user.username = f"merged_{delete_user.id}_{timezone.now().strftime('%Y%m%d%H%M%S')}"
-        delete_user.nickname = f"삭제예정_{delete_user.id}"
-        delete_user.save()
+        Follow = apps.get_model('accounts', 'Follow')
+        Follow.objects.filter(
+            Q(follower=keep_user, following=delete_user)
+            | Q(follower=delete_user, following=keep_user)
+        ).delete()
+
+        one_to_one_relations = (
+            ('todos', 'NotificationSettings', 'user'),
+            ('todos', 'UserReadingPosition', 'user'),
+            ('accounts', 'UserProfile', 'user'),
+            ('accounts', 'UserReadingSettings', 'user'),
+        )
+        for app_label, model_name, field_name in one_to_one_relations:
+            model = apps.get_model(app_label, model_name)
+            source = model.objects.select_for_update().filter(
+                **{field_name: delete_user}
+            ).first()
+            if source is None:
+                continue
+            destination = model.objects.select_for_update().filter(
+                **{field_name: keep_user}
+            ).first()
+            if destination is None:
+                model.objects.filter(pk=source.pk).update(**{field_name: keep_user})
+                continue
+
+            update_fields = []
+            for field in model._meta.concrete_fields:
+                if (
+                    field.primary_key
+                    or field.name == field_name
+                    or getattr(field, 'auto_now', False)
+                    or getattr(field, 'auto_now_add', False)
+                ):
+                    continue
+                source_value = getattr(source, field.attname)
+                destination_value = getattr(destination, field.attname)
+                default_value = field.get_default() if field.has_default() else None
+                if (
+                    source_value == destination_value
+                    or source_value == default_value
+                    or source_value in (None, '')
+                ):
+                    continue
+                if destination_value == default_value or destination_value in (None, ''):
+                    setattr(destination, field.attname, source_value)
+                    update_fields.append(field.name)
+                    continue
+                raise IntegrityError(f'{model._meta.label} merge collision')
+            if update_fields:
+                destination.save(update_fields=update_fields)
+            source.delete()
+
+        user_relations = (
+            ('todos', 'BibleReadingPlan', 'created_by'),
+            ('todos', 'PlanSubscription', 'user'),
+            ('todos', 'UserVideoIntroProgress', 'user'),
+            ('todos', 'HasenaRecord', 'user'),
+            ('todos', 'NotificationPushSubscription', 'user'),
+            ('todos', 'Notification', 'recipient'),
+            ('todos', 'Notification', 'actor'),
+            ('todos', 'ReadingGroup', 'creator'),
+            ('todos', 'GroupMembership', 'user'),
+            ('todos', 'GroupInvitation', 'inviter'),
+            ('todos', 'GroupInvitation', 'invitee'),
+            ('todos', 'BibleBookmark', 'user'),
+            ('todos', 'ReflectionNote', 'user'),
+            ('todos', 'BibleHighlight', 'user'),
+            ('todos', 'PersonalReadingRecord', 'user'),
+            ('accounts', 'Follow', 'follower'),
+            ('accounts', 'Follow', 'following'),
+            ('accounts', 'UserAchievement', 'user'),
+            ('accounts', 'User', 'merged_into'),
+        )
+        for app_label, model_name, field_name in user_relations:
+            model = apps.get_model(app_label, model_name)
+            model.objects.filter(**{field_name: delete_user}).update(
+                **{field_name: keep_user}
+            )
 
         logger.info(f"계정 병합 완료: 유지={keep_user.id}, 삭제예정={delete_user.id}")
 
@@ -2063,7 +2214,7 @@ def session_bridge_consume(request):
     from django.core.cache import cache
     from django.http import HttpResponseRedirect
     
-    frontend_url = 'https://maeil1dok.app'
+    frontend_url = settings.FRONTEND_URL
     code = request.GET.get('code')
     raw_next = request.GET.get('next', '/')
 

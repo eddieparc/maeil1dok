@@ -28,9 +28,14 @@ export function useAuthGuard() {
   /**
    * 인증이 필요한 작업 전에 호출
    * @param message - 커스텀 메시지 (기본값: '로그인이 필요합니다')
-   * @returns true if authenticated, false if redirected to login
-   */
+  * @returns true if authenticated, false if redirected to login
+  */
   const requireAuth = (message: string = '로그인이 필요합니다'): boolean => {
+    if (auth.isSessionUnknown.value) {
+      toast.warning('네트워크 연결을 확인한 후 다시 시도해주세요');
+      return false;
+    }
+
     if (!auth.isAuthenticated.value) {
       toast.info(message);
       // 현재 페이지를 리다이렉트 URL로 저장 (로그인 후 복귀용)
