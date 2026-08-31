@@ -877,6 +877,7 @@ function AppContent() {
         onLoadEnd={handleLoadEnd}
         onError={handleError}
         onHttpError={handleHttpError}
+        onContentProcessDidTerminate={handleRetry}
         onNavigationStateChange={handleNavigationStateChange}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onMessage={handleMessage}
