@@ -72,6 +72,7 @@ test('mobile Sentry scrubber removes secrets and direct identifiers', async () =
     },
     extra: {
       api_key: secret,
+      refresh: secret,
       serialized: `{"client_secret":"${secret}"}`,
       jwt: 'eyJheader.eyJpayload.signature',
     },
