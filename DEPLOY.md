@@ -7,6 +7,8 @@ Railway 는 완전히 퇴역했다(프로젝트 삭제됨). 과거 이전 기록
 - `maeil1dok.app` / `www.maeil1dok.app` — Nuxt 4 SSR (frontend 컨테이너)
 - `api.maeil1dok.app` — Django API (web 컨테이너)
 - 헬스: `api.maeil1dok.app/health/` (DB), `api.maeil1dok.app/ready/` (beat/하세나 하트비트 포함)
+- 관측성: Loki 30일 보존 + Alloy 수집 + Resend health/backup alert. 운영 명령과 대응은
+  [docs/production-observability.md](docs/production-observability.md).
 
 ---
 
@@ -75,9 +77,9 @@ git revert <bad-sha> && git push   # 자동 배포가 이전 상태를 다시 �
 - ⚠️ **`$` 이스케이프**: compose 의 env_file 보간이 값 안의 `$` 를 잘라먹는다. 값에 `$` 가
   있으면 반드시 `$$` 로 (예: SECRET_KEY). 과거 이걸로 JWT 서명키가 손상된 이력 있음.
 - `SECRET_KEY` 는 세션/JWT 서명 호환을 위해 변경 금지.
-- `APPLE_PRIVATE_KEY`(멀티라인 PEM)는 env_file 로 못 넣는다 — 현재 미주입 상태(Apple 웹 로그인
-  서버 교환만 영향, Kakao/Google 정상). 주입하려면 VM 에 PEM 파일을 두고 compose override 의
-  `environment:` 블록으로 넣을 것.
+- `APPLE_TEAM_ID` / `APPLE_KEY_ID` / `APPLE_PRIVATE_KEY`는 settings에 과거 흔적만 있고 현재
+  서버 교환 consumer가 없다. compose runtime에는 주입하지 않는다. 네이티브 Apple 로그인은
+  모바일 SDK가 identity token을 발급하고 백엔드는 `APPLE_CLIENT_ID` 기반 검증만 수행한다.
 
 터널 자격증명/ingress: `/mnt/data/maeil1dok/cloudflared/{config.yml, 60dbaac7-….json}` (600).
 호스트명 추가·변경은 `config.yml` ingress 수정 후 `docker restart maeil1dok-cloudflared-1`.
@@ -85,7 +87,8 @@ DNS 는 `cloudflared tunnel route dns maeil1dok <hostname>` 또는 CF 대시보�
 
 ## 4. DB 백업 / 복원
 
-- 매일 03:20 KST cron(ubuntu): `scripts/oci_mysql_backup.sh`
+- `CRON_TZ=Asia/Seoul`을 명시한 매일 03:20 KST cron(ubuntu):
+  `scripts/oci_mysql_backup.sh`
   → `/mnt/data/maeil1dok/backups/` (mysqldump --single-transaction … gzip, 14일 보존)
 - 복원:
   ```bash
@@ -95,12 +98,35 @@ DNS 는 `cloudflared tunnel route dns maeil1dok <hostname>` 또는 CF 대시보�
   ```
 - Railway 퇴역 시점 최종 스냅샷: VM `backups/railway_FINAL_preDelete_*.sql.gz` + 로컬 오프호스트 사본.
 
-## 5. 트러블슈팅
+현재 일일 백업은 DB와 같은 VM 디스크의 장애에는 독립적이지 않다. `OCI_BUCKET`을 설정하면
+스크립트가 Object Storage 업로드까지 성공한 뒤에만 receipt를 갱신하지만, OCI CLI 설치와
+새 bucket 생성은 별도 운영 승인(무료 한도 확인 포함) 전에는 수행하지 않는다.
+
+백업 성공 시 `backups/last-success.json`이 원자적으로 갱신된다. `alert-probe`는 이 receipt의
+나이·파일 존재·크기를 60초마다 검사하며 30시간을 넘기면 운영 메일을 보낸다.
+
+## 5. 로그 / 알림
+
+- Docker 로컬 로그: 컨테이너당 10MB × 3.
+- 중앙 로그: Loki filesystem TSDB 30일, Alloy가 이 compose project만 수집.
+- 외부 포트 없음. Loki/Alloy/Docker API proxy는 내부 전용
+  `maeil1dok_observability`에 격리하고 alert-probe만 public health 조회를 위해 앱망에도 연결한다.
+- 알림: Django `/health/`, `/ready/`, Nuxt `/api/health`, Loki, Alloy, DB 백업.
+- VM 전체 장애: GitHub Actions `Production uptime`이 15분마다 public route를 외부에서 검사.
+- 배포 후 canary:
+  ```bash
+  docker compose -f docker-compose.oci.yml --env-file .env.oci \
+    run --rm --entrypoint /app/run.sh alert-probe --canary
+  ```
+- 전체 운영·조회·장애 대응: [docs/production-observability.md](docs/production-observability.md).
+
+## 6. 트러블슈팅
 
 | 증상 | 확인 |
 |---|---|
-| 5xx / 접속 불가 | `docker ps` (7컨테이너), `docker logs maeil1dok-cloudflared-1` 에 "Registered tunnel connection" 4개 |
+| 5xx / 접속 불가 | `docker compose ps` (11서비스), `docker logs maeil1dok-cloudflared-1` 에 "Registered tunnel connection" 4개 |
 | 마이그레이션 실패로 web 재시작 루프 | `docker logs maeil1dok-web-1` — 무결성 마이그레이션은 fail-closed. 데이터 정합 조치 후 재기동 |
 | 로그인 전부 풀림 | `.env.oci` SECRET_KEY 손상 의심 (`$` 이스케이프 §3) |
 | beat 미동작 | `/ready/` 의 하트비트 확인. beat 는 1개만 떠야 함 |
 | urban-blanks 영향 의심 | `curl -s https://api.ublanks.com/api/v1/health/` — maeil1dok 작업은 urban 과 어떤 리소스도 공유하지 않아야 정상 |
+| 운영 메일 미수신 | `alert-probe --canary`의 Resend receipt id, `.env.oci`의 `OPS_ALERT_*`, 실제 수신함을 함께 확인 |

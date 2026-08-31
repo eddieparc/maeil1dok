@@ -9,12 +9,20 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'mobile/**'
+      - 'ops/**'
+      - 'scripts/oci_mysql_backup.sh'
+      - 'docker-compose.oci.yml'
+      - '.env.oci.example'
       - 'docs/**'
       - '*.md'
       - 'tests/test_frontend_deployment_config.py'
       - 'tests/test_backend_ci_config.py'
       - 'tests/test_mobile_ci_config.py'
+      - 'tests/test_observability_deployment_config.py'
+      - 'tests/test_ops_alert_probe.py'
       - '.github/workflows/ci.yml'
+      - '.github/workflows/uptime.yml'
+      - '.github/known_hosts.oci'
   pull_request:
     # draft PR은 앱 CI를 skip하고 ready_for_review 전환 시 실행 (중간 푸시 비용 제거).
     types: [opened, synchronize, reopened, ready_for_review]
@@ -23,12 +31,20 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'mobile/**'
+      - 'ops/**'
+      - 'scripts/oci_mysql_backup.sh'
+      - 'docker-compose.oci.yml'
+      - '.env.oci.example'
       - 'docs/**'
       - '*.md'
       - 'tests/test_frontend_deployment_config.py'
       - 'tests/test_backend_ci_config.py'
       - 'tests/test_mobile_ci_config.py'
+      - 'tests/test_observability_deployment_config.py'
+      - 'tests/test_ops_alert_probe.py'
       - '.github/workflows/ci.yml'
+      - '.github/workflows/uptime.yml'
+      - '.github/known_hosts.oci'
 
 jobs:
   changes:
@@ -38,6 +54,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       deployment: ${{ steps.filter.outputs.deployment }}
       mobile: ${{ steps.filter.outputs.mobile }}
+      operations: ${{ steps.filter.outputs.operations }}
 
     steps:
       - uses: actions/checkout@v4
@@ -55,18 +72,30 @@ jobs:
             mobile:
               - 'mobile/**'
               - '.github/workflows/ci.yml'
+            operations:
+              - 'ops/**'
+              - 'scripts/oci_mysql_backup.sh'
+              - 'docker-compose.oci.yml'
+              - '.env.oci.example'
+              - 'tests/test_observability_deployment_config.py'
+              - 'tests/test_ops_alert_probe.py'
+              - '.github/workflows/ci.yml'
             deployment:
               - 'docs/**'
               - '*.md'
               - 'tests/test_frontend_deployment_config.py'
               - 'tests/test_backend_ci_config.py'
               - 'tests/test_mobile_ci_config.py'
+              - 'tests/test_observability_deployment_config.py'
+              - 'tests/test_ops_alert_probe.py'
               - 'tests/test_documentation_integrity.py'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/uptime.yml'
+              - '.github/known_hosts.oci'
 
   backend-ci:
     needs: changes
-    if: needs.changes.outputs.backend == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    if: (github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -135,9 +164,8 @@ jobs:
 
   deployment-config-ci:
     needs: changes
-    if: (needs.changes.outputs.deployment == 'true' || needs.changes.outputs.frontend == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    if: (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deployment == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.operations == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -151,11 +179,24 @@ jobs:
           tests.test_frontend_deployment_config
           tests.test_backend_ci_config
           tests.test_mobile_ci_config
+          tests.test_observability_deployment_config
+          tests.test_ops_alert_probe
           tests.test_documentation_integrity
+
+      - name: Validate compose and observability configs
+        run: |
+          docker compose -f docker-compose.oci.yml config --no-interpolate -q
+          docker run --rm -v "$PWD/ops/loki/config.yml:/etc/loki/config.yml:ro" \
+            grafana/loki:3.5.5 -config.file=/etc/loki/config.yml -verify-config=true
+          docker run --rm -v "$PWD/ops/alloy/config.alloy:/etc/alloy/config.alloy:ro" \
+            grafana/alloy:v1.10.2 validate /etc/alloy/config.alloy
+          docker build -q -t maeil1dok-alert-probe-ci ops/probes
+          docker run --rm --entrypoint bash maeil1dok-alert-probe-ci --version
+          docker build -q -t maeil1dok-docker-proxy-ci ops/docker-proxy
 
   mobile-ci:
     needs: changes
-    if: needs.changes.outputs.mobile == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    if: (github.event_name == 'workflow_dispatch' || needs.changes.outputs.mobile == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -181,7 +222,7 @@ jobs:
 
   frontend-ci:
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    if: (github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -213,7 +254,7 @@ jobs:
 
   frontend-e2e:
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    if: (github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -245,12 +286,17 @@ jobs:
     if: >-
       !cancelled() && !failure() &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main' &&
-        (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true')) ||
-       github.event_name == 'workflow_dispatch')
+        (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' ||
+         needs.changes.outputs.operations == 'true')) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     concurrency:
       group: deploy-oci
       cancel-in-progress: false
     runs-on: ubuntu-latest
+    env:
+      OCI_HOST: ${{ secrets.OCI_HOST }}
+      OCI_SSH_USER: ${{ secrets.OCI_SSH_USER }}
+      OCI_SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -258,44 +304,42 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$OCI_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # ssh-keyscan 기본 타임아웃은 5초이고, 실패하면 `bash -e` 로 배포 전체가
-          # 조용히 죽는다. 호스트 키 검증은 유지한 채 타임아웃을 늘리고 재시도하며,
-          # 끝내 실패하면 원인을 로그에 남기고 끝낸다(OCI_HOST 가 옛 IP 를 가리키면
-          # 여기서 걸린다 — 2026-07-30 배포 실패 원인).
-          for attempt in 1 2 3; do
-            if ssh-keyscan -T 20 -H "${{ secrets.OCI_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null; then
-              if [ -s ~/.ssh/known_hosts ]; then
-                echo "ssh-keyscan ok (attempt $attempt)"
-                exit 0
-              fi
-            fi
-            echo "ssh-keyscan failed (attempt $attempt), retrying..."
-            sleep 5
-          done
-          echo "ssh-keyscan failed after 3 attempts" >&2
-          exit 1
+          install -m 600 .github/known_hosts.oci ~/.ssh/known_hosts
+          ssh-keygen -F "$OCI_HOST" -f ~/.ssh/known_hosts >/dev/null
 
       - name: Sync code to VM
         run: |
           RSYNC_RSH="ssh -i ~/.ssh/deploy_key" rsync -az --delete \
             --exclude='.venv' --exclude='node_modules' --exclude='.nuxt' --exclude='.output' \
             --exclude='__pycache__' --exclude='*.pyc' --exclude='.env*' \
-            backend frontend scripts docker-compose.oci.yml \
-            "${{ secrets.OCI_SSH_USER }}@${{ secrets.OCI_HOST }}:/opt/maeil1dok/"
+            backend frontend scripts ops docker-compose.oci.yml \
+            "$OCI_SSH_USER@$OCI_HOST:/opt/maeil1dok/"
 
       - name: Build and roll out
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.OCI_SSH_USER }}@${{ secrets.OCI_HOST }}" '
+          ssh -i ~/.ssh/deploy_key "$OCI_SSH_USER@$OCI_HOST" '
             set -e
             cd /opt/maeil1dok
+            test -f .env.oci
+            test -f .env.frontend.oci
+            chmod 600 .env.oci .env.frontend.oci
+            (crontab -l 2>/dev/null | grep -v oci_mysql_backup || true) | crontab -
+            printf "%s\n" \
+              "CRON_TZ=Asia/Seoul" \
+              "20 3 * * * ubuntu cd /opt/maeil1dok && /opt/maeil1dok/scripts/oci_mysql_backup.sh >> /var/log/maeil1dok_mysql_backup.log 2>&1" \
+              | sudo tee /etc/cron.d/maeil1dok-backup >/dev/null
+            sudo chmod 644 /etc/cron.d/maeil1dok-backup
             # 웹 빌드 마커가 실제 커밋을 싣게 한다. rsync 는 .git 을 올리지 않고 빌드는
             # VM 안 도커에서 도니, 이 값을 넘기지 않으면 마커가 unknown 이 되고 셸 OTA
             # 게이트가 순서를 검증할 수 없다.
             export COMMIT_SHA='"${{ github.sha }}"'
-            docker compose -f docker-compose.oci.yml --env-file .env.oci build web celery-worker celery-beat frontend
-            docker compose -f docker-compose.oci.yml --env-file .env.oci up -d web celery-worker celery-beat frontend cloudflared
+            install -d -m 0750 -o 10001 -g 10001 /mnt/data/maeil1dok/loki
+            install -d -m 0750 /mnt/data/maeil1dok/alloy
+            install -d -m 0700 -o 10001 -g 10001 /mnt/data/maeil1dok/alerts
+            docker compose -f docker-compose.oci.yml --env-file .env.oci build web celery-worker celery-beat frontend docker-proxy alert-probe
+            docker compose -f docker-compose.oci.yml --env-file .env.oci up -d web celery-worker celery-beat frontend cloudflared loki docker-proxy alloy alert-probe
             docker image prune -f >/dev/null
           '
 
@@ -311,3 +355,13 @@ jobs:
             sleep 10
           done
           echo "SMOKE FAILED"; exit 1
+
+      - name: Alert delivery canary
+        run: |
+          ssh -i ~/.ssh/deploy_key "$OCI_SSH_USER@$OCI_HOST" '
+            set -e
+            cd /opt/maeil1dok
+            export COMMIT_SHA='"${{ github.sha }}"'
+            docker compose -f docker-compose.oci.yml --env-file .env.oci \
+              run --rm --no-deps --entrypoint /app/run.sh alert-probe --canary
+          '

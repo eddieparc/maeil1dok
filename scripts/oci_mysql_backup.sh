@@ -2,6 +2,7 @@
 # maeil1dok OCI MySQL 일일 백업 — mysqldump → gzip → 로컬 보존 (+ 선택 OCI Object Storage 업로드).
 #
 # cron 예 (매일 03:20 KST):
+#   CRON_TZ=Asia/Seoul
 #   20 3 * * * /opt/maeil1dok/scripts/oci_mysql_backup.sh >> /var/log/maeil1dok_mysql_backup.log 2>&1
 #
 # 필요 env (.env.oci 에서 로드하거나 cron 환경에 지정):
@@ -54,8 +55,8 @@ chmod 700 "$BACKUP_DIR" || true
 
 echo "[$(date -Is)] mysqldump 시작 → ${OUT}"
 # --single-transaction: InnoDB 일관 스냅샷(락 최소). 트리거/루틴/이벤트 포함, utf8mb4.
-docker compose -f "$COMPOSE_FILE" exec -T mysql \
-  mysqldump -u"${DUMP_USER}" -p"${DUMP_PW}" \
+docker compose -f "$COMPOSE_FILE" exec -T -e MYSQL_PWD="$DUMP_PW" mysql \
+  mysqldump -u"${DUMP_USER}" \
     --single-transaction --routines --triggers --events \
     --default-character-set=utf8mb4 --no-tablespaces \
     "$DB_NAME" | gzip -9 > "$OUT"
@@ -78,6 +79,13 @@ if [ -n "${OCI_BUCKET:-}" ]; then
     --file "$OUT" --name "maeil1dok/$(basename "$OUT")" --force >/dev/null
   echo "[$(date -Is)] 업로드 완료"
 fi
+
+# 로컬 무결성 검사와 설정된 오프호스트 업로드까지 모두 성공한 뒤에만 receipt를 갱신한다.
+RECEIPT_TMP="${BACKUP_DIR}/.last-success.json.tmp"
+SIZE_BYTES="$(wc -c < "$OUT")"
+printf '{"completed_at_epoch":%s,"path":"%s","size_bytes":%s}\n' \
+  "$(date +%s)" "$OUT" "$SIZE_BYTES" > "$RECEIPT_TMP"
+mv "$RECEIPT_TMP" "${BACKUP_DIR}/last-success.json"
 
 # 로컬 보존 정책
 find "$BACKUP_DIR" -name "${DB_NAME}_*.sql.gz" -mtime +"$RETENTION_DAYS" -delete

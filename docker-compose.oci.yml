@@ -1,18 +1,14 @@
 # maeil1dok OCI 프로덕션 스택 — 단일 Ampere A1 VM (urban-blanks 와 공존).
 #
-# Railway 대체: web(gunicorn) + celery-worker + celery-beat(단일) + mysql8 + redis.
-# - TLS/라우팅은 공유 nginx(urban-blanks-nginx-1)가 종단: api.maeil1dok.app server block 이
-#   http://maeil1dok-web:8000 으로 프록시(resolver 변수 upstream). 이 스택은 nginx 미포함.
-# - 격리: 전용 외부 network `edge` 에 공유 nginx 와 maeil1dok web 만 연결(urban 의 db/redis 등에
-#   측면 접근 차단). web 은 내부 network(maeil1dok_default)로 mysql/redis/celery 와 통신.
-#   → 사전 준비(1회): `docker network create edge` + `docker network connect edge urban-blanks-nginx-1`
-#     (urban nginx 재생성 없이 런타임 attach). urban compose 에 edge 를 tracked 로 선언해 CI 일관성 유지.
+# web(gunicorn) + Celery + MySQL/Redis + frontend + Cloudflare Tunnel + 관측성.
+# - TLS/라우팅은 이 스택의 cloudflared가 아웃바운드 터널로 종단한다. 인바운드 포트와 nginx는 없다.
+# - 앱은 maeil1dok_default, 로그 저장소는 maeil1dok_observability 격리망만 사용한다.
+#   어느 쪽도 urban-blanks의 network/port/nginx를 공유하지 않는다.
 # - 데이터(mysql/redis)는 ${OCI_DATA_ROOT:-/mnt/data/maeil1dok} 하위에 바인드 마운트.
 # - 정적파일은 whitenoise 가 서빙. 사용자 업로드 미디어 없음(R2 불필요).
 #
 # 실행:
 #   sudo mkdir -p ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/{mysql,redis,backups}
-#   docker network create edge 2>/dev/null || true
 #   docker compose -f docker-compose.oci.yml --env-file .env.oci up -d --build
 name: maeil1dok
 
@@ -21,6 +17,47 @@ x-logging: &default-logging
   options:
     max-size: "10m"
     max-file: "3"
+
+x-backend-environment: &backend-environment
+  DEBUG: "False"
+  DJANGO_SETTINGS_MODULE: config.settings
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY 필수}
+  DB_NAME: ${DB_NAME:?DB_NAME 필수}
+  DB_USER: ${DB_USER:?DB_USER 필수}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필수}
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  REDIS_URL: redis://redis:6379/1
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-api.maeil1dok.app}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+  COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.maeil1dok.app}
+  COOKIE_SAMESITE: ${COOKIE_SAMESITE:-Lax}
+  SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-True}
+  FRONTEND_URL: ${FRONTEND_URL:-https://maeil1dok.app}
+  KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:?KAKAO_CLIENT_ID 필수}
+  KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI:?KAKAO_REDIRECT_URI 필수}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+  APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+  API_BIBLE_KEY: ${API_BIBLE_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+  WEB_PUSH_VAPID_PUBLIC_KEY: ${WEB_PUSH_VAPID_PUBLIC_KEY:-}
+  WEB_PUSH_VAPID_PRIVATE_KEY: ${WEB_PUSH_VAPID_PRIVATE_KEY:-}
+  WEB_PUSH_VAPID_SUBJECT: ${WEB_PUSH_VAPID_SUBJECT:-}
+  CRON_SECRET: ${CRON_SECRET:-}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  FROM_EMAIL: ${FROM_EMAIL:-noreply@maeil1dok.app}
+  FROM_NAME: ${FROM_NAME:-매일일독}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+  SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+  SENTRY_SEND_DEFAULT_PII: "false"
+  SENTRY_RELEASE: ${COMMIT_SHA:?COMMIT_SHA is required}
 
 services:
   mysql:
@@ -65,15 +102,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    env_file: .env.oci
     environment:
-      - DEBUG=False
-      - DJANGO_SETTINGS_MODULE=config.settings
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - REDIS_URL=redis://redis:6379/1
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      <<: *backend-environment
     depends_on:
       mysql:
         condition: service_healthy
@@ -100,15 +130,22 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.oci
+      secrets:
+        - sentry_auth_token
       args:
         # 배포 워크플로가 COMMIT_SHA 를 넘긴다. 없으면 unknown 으로 떨어지고
         # 셸 OTA 게이트가 그 빌드를 거부한다 — 조용히 통과시키는 것보다 낫다.
         COMMIT_SHA: ${COMMIT_SHA:-unknown}
+        SENTRY_RELEASE: ${COMMIT_SHA:?COMMIT_SHA is required}
+        SENTRY_ORG: ${SENTRY_ORG:?SENTRY_ORG is required}
+        SENTRY_PROJECT: ${SENTRY_PROJECT:?SENTRY_PROJECT is required}
     env_file: .env.frontend.oci
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
       - PORT=3000
+      - SENTRY_RELEASE=${COMMIT_SHA:?COMMIT_SHA is required}
+      - NUXT_PUBLIC_SENTRY_RELEASE=${COMMIT_SHA:?COMMIT_SHA is required}
       # Nuxt public runtimeConfig는 실행 시 NUXT_PUBLIC_* 이름으로만 override된다.
       # 백엔드와 공유하는 OAuth 값(.env.oci)을 공개 런타임 이름으로 명시적으로 전달한다.
       - NUXT_PUBLIC_KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID:?KAKAO_CLIENT_ID 필수}
@@ -127,21 +164,21 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    env_file: .env.oci
     environment:
-      - DEBUG=False
-      - DJANGO_SETTINGS_MODULE=config.settings
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - REDIS_URL=redis://redis:6379/1
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      <<: *backend-environment
     depends_on:
       # web 가 마이그레이션을 끝내고 healthy 해진 뒤에만 태스크 소비(구스키마 실행 방지)
       web:
         condition: service_healthy
     entrypoint: []
-    command: sh -c "celery -A config worker -l info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}"
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - info
+      - --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
     mem_limit: 600m
     cpus: 0.75
     logging: *default-logging
@@ -151,15 +188,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    env_file: .env.oci
     environment:
-      - DEBUG=False
-      - DJANGO_SETTINGS_MODULE=config.settings
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - REDIS_URL=redis://redis:6379/1
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      <<: *backend-environment
     depends_on:
       web:
         condition: service_healthy
@@ -193,6 +223,108 @@ services:
     cpus: 0.3
     logging: *default-logging
     restart: unless-stopped
+
+  # 중앙 로그 저장소. 호스트 포트 없이 격리된 observability 내부망에서만 접근하며,
+  # 단일 노드 filesystem TSDB를 30일 보존한다.
+  loki:
+    image: grafana/loki:3.5.5
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./ops/loki/config.yml:/etc/loki/config.yml:ro
+      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/loki:/loki
+    networks:
+      - observability
+    mem_limit: 350m
+    cpus: 0.35
+    logging: *default-logging
+    restart: unless-stopped
+
+  # Docker API를 read-only endpoint allowlist로 제한한다. Alloy에는 socket을 직접 주지 않는다.
+  docker-proxy:
+    build:
+      context: ./ops/docker-proxy
+      dockerfile: Dockerfile
+    user: "0:0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - observability
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /run
+    mem_limit: 32m
+    cpus: 0.05
+    logging: *default-logging
+    restart: unless-stopped
+
+  # Docker API에서 이 compose project의 로그만 읽어 Loki로 전달한다.
+  alloy:
+    image: grafana/alloy:v1.10.2
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./ops/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/alloy:/var/lib/alloy/data
+    depends_on:
+      - loki
+      - docker-proxy
+    networks:
+      - observability
+    mem_limit: 200m
+    cpus: 0.2
+    logging: *default-logging
+    restart: unless-stopped
+
+  alert-probe:
+    build:
+      context: ./ops/probes
+      dockerfile: Dockerfile
+    environment:
+      DJANGO_HEALTH_URL: https://api.maeil1dok.app/health/
+      DJANGO_READY_URL: https://api.maeil1dok.app/ready/
+      FRONTEND_HEALTH_URL: https://maeil1dok.app/api/health
+      LOKI_READY_URL: http://loki:3100/ready
+      ALLOY_READY_URL: http://alloy:12345/-/ready
+      BACKUP_RECEIPT_PATH: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/backups/last-success.json
+      ALERT_STATE_PATH: /state/status
+      RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY 필수}
+      OPS_ALERT_EMAIL: ${OPS_ALERT_EMAIL:?OPS_ALERT_EMAIL 필수}
+      OPS_ALERT_FROM: ${OPS_ALERT_FROM:?OPS_ALERT_FROM 필수}
+      OPS_PROBE_INTERVAL_SECONDS: ${OPS_PROBE_INTERVAL_SECONDS:-60}
+      OPS_PROBE_STARTUP_GRACE_SECONDS: ${OPS_PROBE_STARTUP_GRACE_SECONDS:-120}
+      BACKUP_MAX_AGE_SECONDS: ${BACKUP_MAX_AGE_SECONDS:-108000}
+      LOKI_DATA_PATH: /loki-data
+      DISK_MIN_FREE_PERCENT: ${DISK_MIN_FREE_PERCENT:-15}
+    volumes:
+      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/backups:${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/backups:ro
+      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/loki:/loki-data:ro
+      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/alerts:/state
+    networks:
+      - default
+      - observability
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /state/status && test $$(( $$(date +%s) - $$(stat -c %Y /state/status) )) -lt 180"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 180s
+    mem_limit: 64m
+    cpus: 0.1
+    logging: *default-logging
+    restart: unless-stopped
 networks:
   default:
     name: maeil1dok_default
+  observability:
+    name: maeil1dok_observability
+    internal: true
+secrets:
+  sentry_auth_token:
+    environment: SENTRY_AUTH_TOKEN

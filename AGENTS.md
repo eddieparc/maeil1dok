@@ -18,6 +18,8 @@ v2 이전 시도(`maeil1dok-next/` Next.js+Supabase 및 계획 문서 `docs/migr
 
 OCI 단일 VM + **Cloudflare Tunnel** (인바운드 포트 없음). urban-blanks 와 VM 공존 —
 **네트워크·포트·nginx 절대 공유 금지** (과거 장애 이력).
+로그는 Alloy→Loki로 30일 보존하고 health/readiness/backup은 `alert-probe`가 Resend로 알린다.
+조회·canary·대응은 **docs/production-observability.md**.
 `main` push → GitHub Actions 품질 게이트(백엔드는 실제 MySQL 8) → `deploy-oci` 자동 배포 → 라이브 스모크.
 시크릿(`.env.oci` 등)은 VM에만 존재. `$` 값은 `$$` 이스케이프 필수. 전부 **DEPLOY.md** 참조.
 
@@ -43,6 +45,8 @@ python3 -m unittest \
   tests.test_frontend_deployment_config \
   tests.test_backend_ci_config \
   tests.test_mobile_ci_config \
+  tests.test_observability_deployment_config \
+  tests.test_ops_alert_probe \
   tests.test_documentation_integrity
 ```
 
