@@ -90,13 +90,14 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         self.assertIn("org: process.env.SENTRY_ORG", nuxt_config)
         self.assertIn("project: process.env.SENTRY_PROJECT", nuxt_config)
         self.assertIn("authToken: process.env.SENTRY_AUTH_TOKEN", nuxt_config)
-        self.assertIn("filesToDeleteAfterUpload", nuxt_config)
+        self.assertIn("disable: true", nuxt_config)
         self.assertIn("dsn: process.env.NUXT_PUBLIC_SENTRY_DSN || ''", nuxt_config)
         self.assertIn("environment: process.env.NUXT_PUBLIC_SENTRY_ENVIRONMENT", nuxt_config)
         self.assertIn(
-            "release: process.env.NUXT_PUBLIC_SENTRY_RELEASE || process.env.SENTRY_RELEASE || process.env.RAILWAY_GIT_COMMIT_SHA",
+            "release: process.env.NUXT_PUBLIC_SENTRY_RELEASE || process.env.SENTRY_RELEASE",
             nuxt_config,
         )
+        self.assertNotIn("RAILWAY_GIT_COMMIT_SHA", nuxt_config)
         self.assertIn("tracesSampleRate: parseNuxtPublicSentryTracesSampleRate()", nuxt_config)
         for config_source in (nuxt_config, sentry_client, sentry_server):
             self.assertNotIn("sentry.io", config_source)
