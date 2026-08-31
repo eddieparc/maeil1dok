@@ -10,6 +10,8 @@ let objectUrls;
 let revokeObjectUrls;
 let sharedPayloads;
 let canvasBlobFactory;
+let scheduleCanvasBlob;
+let nativeMessages;
 
 const originalCreateObjectUrl = URL.createObjectURL;
 const originalRevokeObjectUrl = URL.revokeObjectURL;
@@ -21,6 +23,8 @@ const installBrowserStubs = () => {
   revokeObjectUrls = [];
   sharedPayloads = [];
   canvasBlobFactory = () => new Blob(['certification-png'], { type: 'image/png' });
+  scheduleCanvasBlob = (callback) => callback(canvasBlobFactory());
+  nativeMessages = [];
 
   globalThis.window = {
     location: {
@@ -59,7 +63,10 @@ const installBrowserStubs = () => {
             };
           },
           toBlob(callback) {
-            callback(canvasBlobFactory());
+            scheduleCanvasBlob(callback);
+          },
+          toDataURL() {
+            return 'data:image/png;base64,Y2VydGlmaWNhdGlvbi1wbmc=';
           },
         };
       }
@@ -197,4 +204,139 @@ test('shareCertification falls back to a certification history link when PNG gen
   assert.match(copiedLinks[0], /plan_id=7/);
   assert.match(copiedLinks[0], /schedule_id=13/);
   assert.match(copiedLinks[0], /date=2026-01-02/);
+});
+
+test('shareCertification preserves iOS WebView activation and shares only the PNG file', async () => {
+  // Given: iOS WebKit expires the click activation before an asynchronous
+  // canvas.toBlob callback completes.
+  window.isReactNativeWebView = true;
+  window.isAndroidApp = false;
+  let hasTransientActivation = true;
+  scheduleCanvasBlob = (callback) => {
+    queueMicrotask(() => {
+      hasTransientActivation = false;
+      callback(canvasBlobFactory());
+    });
+  };
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      clipboard: navigator.clipboard,
+      canShare: ({ files }) => files?.length === 1,
+      async share(payload) {
+        if (!hasTransientActivation) {
+          throw new DOMException('share requires user activation', 'NotAllowedError');
+        }
+        sharedPayloads.push(payload);
+      },
+    },
+  });
+
+  // When: the certification share action starts directly from the tap.
+  const { shareCertification } = shareModule.useCertificationShare();
+  const result = await shareCertification({ planId: 7, scheduleId: 13 });
+
+  // Then: the native share sheet receives the PNG before activation expires,
+  // without a mixed text/URL payload or a silent blob-download fallback.
+  assert.equal(result, 'shared');
+  assert.equal(sharedPayloads.length, 1);
+  assert.deepEqual(Object.keys(sharedPayloads[0]), ['files']);
+  assert.equal(sharedPayloads[0].files[0].type, 'image/png');
+  assert.equal(clickedDownloads, 0);
+});
+
+test('downloadCertificationImage opens the iOS WebView share sheet instead of a blob download', async () => {
+  // Given: the image-save action runs inside the iOS app WebView.
+  window.isReactNativeWebView = true;
+  window.isAndroidApp = false;
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      clipboard: navigator.clipboard,
+      canShare: ({ files }) => files?.length === 1,
+      async share(payload) {
+        sharedPayloads.push(payload);
+      },
+    },
+  });
+
+  // When: the user taps the dedicated image-save action.
+  const { downloadCertificationImage } = shareModule.useCertificationShare();
+  await downloadCertificationImage(undefined, { planId: 7, scheduleId: 13 });
+
+  // Then: iOS receives a real PNG through its share sheet, where Save Image is
+  // available, rather than a blob anchor that WKWebView cannot persist.
+  assert.equal(sharedPayloads.length, 1);
+  assert.deepEqual(Object.keys(sharedPayloads[0]), ['files']);
+  assert.equal(sharedPayloads[0].files[0].type, 'image/png');
+  assert.equal(clickedDownloads, 0);
+});
+
+test('shareCertification copies the history link when iOS cannot share PNG files', async () => {
+  // Given: the iOS app WebView exposes Web Share but rejects PNG file payloads.
+  window.isReactNativeWebView = true;
+  window.isAndroidApp = false;
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      clipboard: navigator.clipboard,
+      canShare: () => false,
+      async share(payload) {
+        sharedPayloads.push(payload);
+      },
+    },
+  });
+
+  // When: the user attempts to share a completed certification card.
+  const { shareCertification } = shareModule.useCertificationShare();
+  const result = await shareCertification({ planId: 7, scheduleId: 13 });
+
+  // Then: the action has an observable link fallback instead of reporting a
+  // blob download that iOS WebView did not persist.
+  assert.equal(result, 'copied');
+  assert.equal(sharedPayloads.length, 0);
+  assert.equal(clickedDownloads, 0);
+  assert.equal(copiedLinks.length, 1);
+  assert.match(copiedLinks[0], /certification=tongdok/);
+  assert.match(copiedLinks[0], /plan_id=7/);
+  assert.match(copiedLinks[0], /schedule_id=13/);
+});
+
+test('Android app routes certification sharing and saving through the native image bridge', async () => {
+  // Given: the page runs inside the Android app WebView.
+  window.isReactNativeWebView = true;
+  window.isAndroidApp = true;
+  window.ReactNativeWebView = {
+    postMessage(value) {
+      nativeMessages.push(JSON.parse(value));
+    },
+  };
+
+  // When: the user shares and then saves the generated certification image.
+  const { downloadCertificationImage, shareCertification } = shareModule.useCertificationShare();
+  const shareResult = await shareCertification({ planId: 7, scheduleId: 13 });
+  await downloadCertificationImage(undefined, { planId: 7, scheduleId: 13 });
+
+  // Then: both actions carry the PNG through the native bridge instead of a
+  // WebView blob download that does not create a user-visible file.
+  assert.equal(shareResult, 'shared');
+  assert.equal(clickedDownloads, 0);
+  assert.deepEqual(
+    nativeMessages.map(({ type, action, fileName }) => ({ type, action, fileName })),
+    [
+      {
+        type: 'certification:image',
+        action: 'share',
+        fileName: 'maeil1dok-tongdok-certification.png',
+      },
+      {
+        type: 'certification:image',
+        action: 'save',
+        fileName: 'maeil1dok-tongdok-certification.png',
+      },
+    ],
+  );
+  for (const message of nativeMessages) {
+    assert.match(message.dataUrl, /^data:image\/png;base64,/);
+  }
 });

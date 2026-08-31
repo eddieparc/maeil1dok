@@ -84,7 +84,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
-        logger.info(f"일반 로그인 성공: user_id={self.user.id}, username={self.user.username}")
+        logger.info("일반 로그인 성공: user_id=%s", self.user.id)
         return data 
 
 

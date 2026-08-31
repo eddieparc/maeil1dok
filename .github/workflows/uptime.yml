@@ -1,0 +1,32 @@
+name: Production uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-uptime
+  cancel-in-progress: true
+
+jobs:
+  public-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public health routes
+        run: |
+          set -euo pipefail
+          for url in \
+            https://api.maeil1dok.app/health/ \
+            https://api.maeil1dok.app/ready/ \
+            https://maeil1dok.app/api/health
+          do
+            echo "checking $url"
+            curl --fail --silent --show-error \
+              --max-time 15 --retry 2 --retry-all-errors --retry-delay 2 \
+              "$url" >/dev/null
+          done

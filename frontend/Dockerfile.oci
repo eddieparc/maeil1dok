@@ -1,6 +1,12 @@
+# syntax=docker/dockerfile:1.7
 # maeil1dok 프론트엔드 (Nuxt 4 SSR) — OCI 컨테이너용. Cloudflare Tunnel 뒤에서 :3000 서빙.
 # runtimeConfig.public 은 런타임 NUXT_PUBLIC_* 로 주입(빌드에 시크릿 불필요).
-FROM node:20-slim AS build
+FROM node:20-slim AS base
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -10,10 +16,38 @@ COPY . .
 # 전혀 없어 마커가 `unknown` 으로 나간다. 그러면 셸 OTA 게이트(--requires-web)가 순서를
 # 검증하지 못해 게이트 자체가 무력해진다.
 ARG COMMIT_SHA=unknown
+ARG SENTRY_RELEASE=unknown
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
 ENV COMMIT_SHA=$COMMIT_SHA
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
+ENV SENTRY_ORG=$SENTRY_ORG
+ENV SENTRY_PROJECT=$SENTRY_PROJECT
 RUN npm run build
+RUN --mount=type=secret,id=sentry_auth_token,required=true \
+    export SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token)" && \
+    npx sentry-cli sourcemaps upload \
+      --org "$SENTRY_ORG" \
+      --project "$SENTRY_PROJECT" \
+      --release "$SENTRY_RELEASE" \
+      --url-prefix "~/_nuxt" \
+      --validate \
+      --wait \
+      --strict \
+      .output/public/_nuxt && \
+    npx sentry-cli sourcemaps upload \
+      --org "$SENTRY_ORG" \
+      --project "$SENTRY_PROJECT" \
+      --release "$SENTRY_RELEASE" \
+      --url-prefix "~/server" \
+      --validate \
+      --wait \
+      --strict \
+      .output/server && \
+    node scripts/write-sentry-upload-receipt.mjs && \
+    find .output -type f -name '*.map' -delete
 
-FROM node:20-slim AS runtime
+FROM base AS runtime
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 NITRO_PORT=3000
 COPY --from=build /app/.output ./.output

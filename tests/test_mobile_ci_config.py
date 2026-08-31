@@ -83,6 +83,22 @@ class KakaoPluginKotlinVersionTest(unittest.TestCase):
         self.assertGreaterEqual((major, minor), (2, 0), props["kotlinVersion"])
 
 
+class CertificationImageMediaPermissionTest(unittest.TestCase):
+    """Saving an app-created PNG must not request broad photo-library read access."""
+
+    def test_media_library_plugin_does_not_request_granular_read_permissions(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        config = json.loads((repo_root / "mobile" / "app.json").read_text(encoding="utf-8"))
+
+        media_library = next(
+            entry
+            for entry in config["expo"]["plugins"]
+            if isinstance(entry, list) and entry[0] == "expo-media-library"
+        )
+
+        self.assertEqual(media_library[1]["granularPermissions"], [])
+
+
 class StoreBuildChannelTest(unittest.TestCase):
     """A store-bound build must carry an update channel.
 

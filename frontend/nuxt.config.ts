@@ -19,7 +19,10 @@ export default defineNuxtConfig({
     project: process.env.SENTRY_PROJECT,
     authToken: process.env.SENTRY_AUTH_TOKEN,
     sourcemaps: {
-      filesToDeleteAfterUpload: ['.output/**/public/**/*.map'],
+      // OCI uploads explicitly in Dockerfile. The BuildKit secret is unavailable
+      // during `npm run build`, so automatic upload would either skip silently or
+      // delete maps before the fail-closed upload step can verify them.
+      disable: true,
     },
   },
   modules: [
@@ -100,7 +103,7 @@ export default defineNuxtConfig({
       sentry: {
         dsn: process.env.NUXT_PUBLIC_SENTRY_DSN || '',
         environment: process.env.NUXT_PUBLIC_SENTRY_ENVIRONMENT,
-        release: process.env.NUXT_PUBLIC_SENTRY_RELEASE || process.env.SENTRY_RELEASE || process.env.RAILWAY_GIT_COMMIT_SHA,
+        release: process.env.NUXT_PUBLIC_SENTRY_RELEASE || process.env.SENTRY_RELEASE,
         tracesSampleRate: parseNuxtPublicSentryTracesSampleRate(),
       },
     }

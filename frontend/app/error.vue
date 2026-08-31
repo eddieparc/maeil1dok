@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { NuxtError } from '#app'
 import { ref, onMounted } from 'vue'
+import * as Sentry from '@sentry/nuxt'
 
 const props = defineProps({
   error: Object as () => NuxtError
@@ -35,6 +36,9 @@ const showError = ref(false)
 onMounted(() => {
   if (statusCode === 500) {
     isAutoRecovering.value = true
+    Sentry.captureException(props.error, {
+      tags: { handled: 'true', error_surface: 'nuxt_error_page' }
+    })
     console.error('[error.vue] SSR 500 error detected, auto-recovering...', props.error?.message)
     setTimeout(() => {
       clearError({ redirect: '/' })

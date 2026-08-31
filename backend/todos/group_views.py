@@ -450,7 +450,7 @@ def create_group(request):
             'group': ReadingGroupSerializer.to_dict(group, request)
         }, status=status.HTTP_201_CREATED)
     except Exception:
-        logger.error("Error creating group")
+        logger.exception("Error creating group")
         return Response({
             'success': False,
             'error': '그룹 생성 중 오류가 발생했습니다.'
@@ -553,8 +553,8 @@ def get_groups(request):
             'groups': groups_data,
             'total': len(groups_data)
         })
-    except Exception as e:
-        logger.error(f"Error getting groups: {str(e)}")
+    except Exception:
+        logger.exception("Error getting groups")
         return _group_read_error_response()
 
 
@@ -577,8 +577,8 @@ def get_group_detail(request, group_id):
             'success': True,
             'group': ReadingGroupSerializer.to_dict(group, request)
         })
-    except Exception as e:
-        logger.error(f"Error getting group detail: {str(e)}")
+    except Exception:
+        logger.exception("Error getting group detail")
         return _group_read_error_response()
 
 
@@ -636,8 +636,8 @@ def join_group(request, group_id):
                 'message': '그룹에 가입했습니다.',
                 'group': ReadingGroupSerializer.to_dict(group, request)
             }, status=status.HTTP_201_CREATED)
-    except Exception as e:
-        logger.error(f"Error joining group: {str(e)}")
+    except Exception:
+        logger.exception("Error joining group")
         return _group_mutation_error_response()
 
 
@@ -663,8 +663,8 @@ def leave_group(request, group_id):
             'success': True,
             'message': '그룹을 탈퇴했습니다.'
         })
-    except Exception as e:
-        logger.error(f"Error leaving group: {str(e)}")
+    except Exception:
+        logger.exception("Error leaving group")
         return _group_mutation_error_response()
 
 
@@ -778,8 +778,8 @@ def get_group_members(request, group_id):
                 'has_more': offset + len(members) < total_members
             }
         })
-    except Exception as e:
-        logger.error(f"Error getting group members: {str(e)}")
+    except Exception:
+        logger.exception("Error getting group members")
         return _group_read_error_response()
 
 
@@ -851,8 +851,8 @@ def invite_to_group(request, group_id):
         }, status=status.HTTP_201_CREATED)
     except Http404:
         return _group_not_found_response()
-    except Exception as e:
-        logger.error(f"Error inviting to group: {str(e)}")
+    except Exception:
+        logger.exception("Error inviting to group")
         return _group_mutation_error_response()
 
 
@@ -885,8 +885,8 @@ def get_my_invitations(request):
             'success': True,
             'invitations': invitations_data
         })
-    except Exception as e:
-        logger.error(f"Error getting invitations: {str(e)}")
+    except Exception:
+        logger.exception("Error getting invitations")
         return _group_read_error_response()
 
 
@@ -964,8 +964,8 @@ def respond_to_invitation(request, invitation_id):
             })
     except Http404:
         return _group_not_found_response()
-    except Exception as e:
-        logger.error(f"Error responding to invitation: {str(e)}")
+    except Exception:
+        logger.exception("Error responding to invitation")
         return _group_mutation_error_response()
 
 
@@ -1019,8 +1019,8 @@ def get_user_public_groups(request, user_id):
             'groups': groups_data,
             'total': len(groups_data)
         })
-    except Exception as e:
-        logger.error(f"Error getting user public groups: {str(e)}")
+    except Exception:
+        logger.exception("Error getting user public groups")
         return _group_read_error_response()
 
 
@@ -1312,6 +1312,6 @@ def get_group_member_progress(request, group_id):
             },
             'calendar': calendar_data
         })
-    except Exception as e:
-        logger.error(f"Error getting group member progress: {str(e)}")
+    except Exception:
+        logger.exception("Error getting group member progress")
         return _group_read_error_response()

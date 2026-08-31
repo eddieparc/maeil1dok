@@ -345,7 +345,7 @@ def social_login(request):
                 if not user.is_active:
                     return Response({'error': '비활성화된 계정입니다.'}, status=400)
                 tokens = get_tokens_for_user(user)
-                logger.info(f"카카오 소셜 로그인 성공: user_id={user.id}, username={user.username}")
+                logger.info("카카오 소셜 로그인 성공: user_id=%s", user.id)
 
                 # 응답 생성 (하위 호환을 위해 토큰도 본문에 포함)
                 response = Response({
@@ -378,7 +378,7 @@ def social_login(request):
 
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic OAuth error
         # 보안: 내부 에러 상세를 클라이언트에 노출하지 않음
-        logger.error(f"소셜 로그인 중 오류 발생: {str(e)}", exc_info=True)
+        logger.exception("소셜 로그인 중 오류 발생")
         return Response({'error': '로그인 처리 중 오류가 발생했습니다.'}, status=400)
 
 def get_kakao_user_info(code, redirect_uri=None):
@@ -552,22 +552,22 @@ def get_apple_user_info(id_token):
         }
         
     except jwt.ExpiredSignatureError:
-        logger.error("Apple ID Token이 만료되었습니다.")
+        logger.info("Apple ID Token이 만료되었습니다.")
         raise Exception("Apple ID Token이 만료되었습니다.")
     except jwt.InvalidAudienceError:
-        logger.error("Apple ID Token의 audience가 일치하지 않습니다.")
+        logger.warning("Apple ID Token의 audience가 일치하지 않습니다.")
         raise Exception("Apple ID Token 검증 실패: audience 불일치")
     except jwt.InvalidIssuerError:
-        logger.error("Apple ID Token의 issuer가 일치하지 않습니다.")
+        logger.warning("Apple ID Token의 issuer가 일치하지 않습니다.")
         raise Exception("Apple ID Token 검증 실패: issuer 불일치")
-    except jwt.PyJWKClientError as e:
-        logger.error(f"Apple public key 가져오기 실패: {str(e)}")
-        raise Exception(f"Apple 인증 서버 연결 실패: {str(e)}")
-    except jwt.DecodeError as e:
-        logger.error(f"Apple ID Token 디코딩 실패: {str(e)}")
-        raise Exception(f"Apple ID Token 형식이 올바르지 않습니다.")
-    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — preserves legacy Apple token verification logging
-        logger.error(f"Apple ID Token 검증 오류: {str(e)}")
+    except jwt.PyJWKClientError:
+        logger.exception("Apple public key 가져오기 실패")
+        raise Exception("Apple 인증 서버 연결 실패")
+    except jwt.DecodeError:
+        logger.warning("Apple ID Token 디코딩 실패", exc_info=True)
+        raise Exception("Apple ID Token 형식이 올바르지 않습니다.")
+    except Exception:  # noqa: BROAD_EXCEPT_OK  — preserves legacy Apple token verification logging
+        logger.exception("Apple ID Token 검증 오류")
         raise
 
 
@@ -630,7 +630,7 @@ def complete_kakao_signup(request):
             _create_default_subscription(user)
         
         tokens = get_tokens_for_user(user)
-        logger.info(f"카카오 회원가입 및 토큰 발급 성공: user_id={user.id}, username={user.username}")
+        logger.info("카카오 회원가입 및 토큰 발급 성공: user_id=%s", user.id)
 
         # 응답 생성 (하위 호환을 위해 토큰도 본문에 포함)
         response = Response({
@@ -644,7 +644,7 @@ def complete_kakao_signup(request):
         return response
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic signup error
         # 보안: 내부 에러 상세를 클라이언트에 노출하지 않음
-        logger.error(f"카카오 회원가입 중 오류 발생: {str(e)}", exc_info=True)
+        logger.exception("카카오 회원가입 중 오류 발생")
         return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
 
 
@@ -688,7 +688,7 @@ def email_register(request):
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic signup error
         if isinstance(e, IntegrityError) and _is_active_email_identity_conflict(e):
             return Response({'error': '이미 사용 중인 이메일입니다.'}, status=400)
-        logger.error(f"이메일 회원가입 중 오류: {str(e)}", exc_info=True)
+        logger.exception("이메일 회원가입 중 오류")
         return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
 
 
@@ -729,11 +729,11 @@ def email_login(request):
         })
         set_auth_cookies(response, tokens['access'], tokens['refresh'])
         
-        logger.info(f"로그인 성공: user_id={user.id}, identifier={identifier}")
+        logger.info("로그인 성공: user_id=%s", user.id)
         return response
         
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic login error
-        logger.error(f"로그인 중 오류: {str(e)}", exc_info=True)
+        logger.exception("로그인 중 오류")
         return Response({'error': '로그인 처리 중 오류가 발생했습니다.'}, status=400)
 
 
@@ -819,7 +819,7 @@ def social_login_v2(request):
             
             # Apple relay email인 경우 로그에 기록
             if social_info.get('is_private_email'):
-                logger.info(f"Apple 로그인: relay email 사용 - {email}")
+                logger.info("Apple 로그인: relay email 사용")
         else:
             return Response({'error': '지원하지 않는 소셜 제공자입니다.'}, status=400)
         
@@ -945,7 +945,11 @@ def social_login_v2(request):
             })
             set_auth_cookies(response, tokens['access'], tokens['refresh'])
             
-            logger.info(f"소셜 자동 가입 완료: provider={provider}, user_id={user.id}, nickname={nickname}")
+            logger.info(
+                "소셜 자동 가입 완료: provider=%s, user_id=%s",
+                provider,
+                user.id,
+            )
             return response
         
         # 기존 동작: 회원가입 필요 응답
@@ -966,7 +970,7 @@ def social_login_v2(request):
         }, status=200)
         
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic social-login error
-        logger.error(f"소셜 로그인 v2 오류: {str(e)}", exc_info=True)
+        logger.exception("소셜 로그인 v2 오류")
         return Response({'error': '로그인 처리 중 오류가 발생했습니다.'}, status=400)
 
 
@@ -1065,7 +1069,7 @@ def complete_social_signup(request):
         return response
         
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic signup error
-        logger.error(f"소셜 회원가입 오류: {str(e)}", exc_info=True)
+        logger.exception("소셜 회원가입 오류")
         return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
 
 
@@ -1327,7 +1331,7 @@ def link_social_account(request):
         return Response({'success': True, 'message': f'{provider} 계정이 연동되었습니다.'})
         
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic account-link error
-        logger.error(f"소셜 계정 연동 오류: {str(e)}", exc_info=True)
+        logger.exception("소셜 계정 연동 오류")
         return Response({'error': '계정 연동 중 오류가 발생했습니다.'}, status=400)
 
 
@@ -1357,7 +1361,7 @@ def unlink_social_account(request):
             return Response({'error': '연동된 계정을 찾을 수 없습니다.'}, status=404)
             
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic unlink error
-        logger.error(f"소셜 계정 연동 해제 오류: {str(e)}", exc_info=True)
+        logger.exception("소셜 계정 연동 해제 오류")
         return Response({'error': '연동 해제 중 오류가 발생했습니다.'}, status=400)
 
 
@@ -1622,7 +1626,7 @@ def merge_accounts(request):
         return Response(result)
         
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic merge error
-        logger.error(f"계정 병합 오류: {str(e)}", exc_info=True)
+        logger.exception("계정 병합 오류")
         return Response({'error': '계정 병합 중 오류가 발생했습니다.'}, status=400)
 
 
@@ -1652,7 +1656,7 @@ def _create_default_subscription(user):
             start_date=timezone.now().date(),
             is_active=True
         )
-        logger.info(f"사용자 {user.nickname}의 기본 플랜 구독 생성됨")
+        logger.info("기본 플랜 구독 생성됨: user_id=%s", user.id)
     else:
         logger.warning("기본 플랜이 설정되어 있지 않음")
 
@@ -2108,7 +2112,7 @@ def delete_account(request):
         return response
         
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic deletion error
-        logger.error(f"계정 삭제 요청 오류: user_id={user.id}, error={str(e)}", exc_info=True)
+        logger.exception("계정 삭제 요청 오류: user_id=%s", user.id)
         return Response({'error': '계정 삭제 요청 중 오류가 발생했습니다.'}, status=500)
 
 
@@ -2175,7 +2179,7 @@ def session_bridge_issue(request):
             status=409,
         )
     
-    logger.info(f"세션 브리지 코드 발급: user_id={user.id}, code={code[:8]}...")
+    logger.info("세션 브리지 코드 발급: user_id=%s", user.id)
     
     return Response({'code': code})
 
@@ -2238,7 +2242,7 @@ def session_bridge_consume(request):
         
         user_id = _consume_session_bridge_user_id(cache, code)
         if user_id is None:
-            logger.warning(f"세션 브리지: 유효하지 않거나 만료된 코드 code={code[:8]}...")
+            logger.warning("세션 브리지: 유효하지 않거나 만료된 코드")
             return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=invalid_code")
         
         try:
@@ -2290,5 +2294,5 @@ def session_bridge_consume(request):
         return response
         
     except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic bridge error
-        logger.error(f"세션 브리지 오류: {str(e)}", exc_info=True)
+        logger.exception("세션 브리지 오류")
         return HttpResponseRedirect(f"{frontend_url}/auth/error?reason=server_error")
