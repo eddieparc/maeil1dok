@@ -222,6 +222,14 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
         self.assertIn(".deploy-commit", self.workflow)
         self.assertIn("chgrp 10001", self.workflow)
         self.assertIn("/var/log/maeil1dok_mysql_backup.log", self.workflow)
+        for owned_directory in (
+            "/mnt/data/maeil1dok/loki",
+            "/mnt/data/maeil1dok/alloy",
+            "/mnt/data/maeil1dok/alerts",
+        ):
+            for line in self.workflow.splitlines():
+                if line.strip().startswith("install -d") and owned_directory in line:
+                    self.fail(f"{owned_directory} must be provisioned with sudo")
 
     def test_deployment_and_backup_safety_gates_cannot_silently_regress(self) -> None:
         backup_script = (self.root / "scripts" / "oci_mysql_backup.sh").read_text(
