@@ -1,4 +1,5 @@
 type CertificationShareResult = 'shared' | 'downloaded' | 'copied';
+type CertificationImageAction = 'share' | 'save';
 
 export interface CertificationSharePayload {
   title?: string;
@@ -209,12 +210,47 @@ const createCertificationPngBlob = (payload?: CertificationSharePayload): Promis
 const createCertificationPngFile = (payload?: CertificationSharePayload): File =>
   canvasToPngFile(createCertificationCanvas(payload));
 
+const isAndroidNativeWebView = (): boolean => (
+  typeof window !== 'undefined'
+  && 'isReactNativeWebView' in window
+  && window.isReactNativeWebView === true
+  && 'isAndroidApp' in window
+  && window.isAndroidApp === true
+);
+
 const isIosNativeWebView = (): boolean => (
   typeof window !== 'undefined'
   && 'isReactNativeWebView' in window
   && window.isReactNativeWebView === true
   && (!('isAndroidApp' in window) || window.isAndroidApp !== true)
 );
+
+const postAndroidCertificationImage = (
+  action: CertificationImageAction,
+  payload?: CertificationSharePayload,
+): boolean => {
+  if (!isAndroidNativeWebView()) {
+    return false;
+  }
+
+  const bridge = Reflect.get(window, 'ReactNativeWebView');
+  if (typeof bridge !== 'object' || bridge === null) {
+    throw new CertificationImageError('Android 앱 이미지 브리지를 찾을 수 없습니다.');
+  }
+  const postMessage = Reflect.get(bridge, 'postMessage');
+  if (typeof postMessage !== 'function') {
+    throw new CertificationImageError('Android 앱 이미지 브리지를 사용할 수 없습니다.');
+  }
+
+  const dataUrl = createCertificationCanvas(payload).toDataURL('image/png');
+  Reflect.apply(postMessage, bridge, [JSON.stringify({
+    type: 'certification:image',
+    action,
+    fileName: FILE_NAME,
+    dataUrl,
+  })]);
+  return true;
+};
 
 const shareCertificationFile = async (file: File): Promise<void> => {
   if (!navigator.share || (navigator.canShare && !navigator.canShare({ files: [file] }))) {
@@ -226,6 +262,18 @@ const shareCertificationFile = async (file: File): Promise<void> => {
 export const useCertificationShare = () => {
   const shareCertification = async (payload?: CertificationSharePayload): Promise<CertificationShareResult> => {
     const link = getCertificationLink(payload);
+
+    try {
+      if (postAndroidCertificationImage('share', payload)) {
+        return 'shared';
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        await copyCertificationLink(link);
+        return 'copied';
+      }
+      throw error;
+    }
 
     if (isIosNativeWebView()) {
       try {
@@ -291,6 +339,10 @@ export const useCertificationShare = () => {
     existingBlob?: Blob,
     payload?: CertificationSharePayload,
   ): Promise<void> => {
+    if (postAndroidCertificationImage('save', payload)) {
+      return;
+    }
+
     if (isIosNativeWebView()) {
       try {
         await shareCertificationFile(createCertificationPngFile(payload));

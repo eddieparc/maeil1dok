@@ -11,6 +11,7 @@ let revokeObjectUrls;
 let sharedPayloads;
 let canvasBlobFactory;
 let scheduleCanvasBlob;
+let nativeMessages;
 
 const originalCreateObjectUrl = URL.createObjectURL;
 const originalRevokeObjectUrl = URL.revokeObjectURL;
@@ -23,6 +24,7 @@ const installBrowserStubs = () => {
   sharedPayloads = [];
   canvasBlobFactory = () => new Blob(['certification-png'], { type: 'image/png' });
   scheduleCanvasBlob = (callback) => callback(canvasBlobFactory());
+  nativeMessages = [];
 
   globalThis.window = {
     location: {
@@ -298,4 +300,43 @@ test('shareCertification copies the history link when iOS cannot share PNG files
   assert.match(copiedLinks[0], /certification=tongdok/);
   assert.match(copiedLinks[0], /plan_id=7/);
   assert.match(copiedLinks[0], /schedule_id=13/);
+});
+
+test('Android app routes certification sharing and saving through the native image bridge', async () => {
+  // Given: the page runs inside the Android app WebView.
+  window.isReactNativeWebView = true;
+  window.isAndroidApp = true;
+  window.ReactNativeWebView = {
+    postMessage(value) {
+      nativeMessages.push(JSON.parse(value));
+    },
+  };
+
+  // When: the user shares and then saves the generated certification image.
+  const { downloadCertificationImage, shareCertification } = shareModule.useCertificationShare();
+  const shareResult = await shareCertification({ planId: 7, scheduleId: 13 });
+  await downloadCertificationImage(undefined, { planId: 7, scheduleId: 13 });
+
+  // Then: both actions carry the PNG through the native bridge instead of a
+  // WebView blob download that does not create a user-visible file.
+  assert.equal(shareResult, 'shared');
+  assert.equal(clickedDownloads, 0);
+  assert.deepEqual(
+    nativeMessages.map(({ type, action, fileName }) => ({ type, action, fileName })),
+    [
+      {
+        type: 'certification:image',
+        action: 'share',
+        fileName: 'maeil1dok-tongdok-certification.png',
+      },
+      {
+        type: 'certification:image',
+        action: 'save',
+        fileName: 'maeil1dok-tongdok-certification.png',
+      },
+    ],
+  );
+  for (const message of nativeMessages) {
+    assert.match(message.dataUrl, /^data:image\/png;base64,/);
+  }
 });
