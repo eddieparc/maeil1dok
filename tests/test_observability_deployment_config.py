@@ -215,6 +215,8 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
         self.assertIn("/etc/cron.d/maeil1dok-backup", self.workflow)
         self.assertIn("install -d -m 2750 -o ubuntu -g 10001", self.workflow)
         self.assertIn(".deploy-commit", self.workflow)
+        self.assertIn("chgrp 10001", self.workflow)
+        self.assertIn("/var/log/maeil1dok_mysql_backup.log", self.workflow)
 
     def test_deployment_and_backup_safety_gates_cannot_silently_regress(self) -> None:
         backup_script = (self.root / "scripts" / "oci_mysql_backup.sh").read_text(
@@ -230,6 +232,21 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
         self.assertIn("Migration drift check", self.workflow)
         self.assertIn("--single-transaction", backup_script)
         self.assertIn('gzip -t "$OUT"', backup_script)
+
+    def test_compose_wrapper_always_loads_deployed_commit(self) -> None:
+        wrapper_path = self.root / "scripts" / "oci_compose.sh"
+        self.assertTrue(wrapper_path.is_file())
+        wrapper = wrapper_path.read_text(encoding="utf-8")
+        deploy_doc = (self.root / "DEPLOY.md").read_text(encoding="utf-8")
+        observability_doc = (
+            self.root / "docs" / "production-observability.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(".deploy-commit", wrapper)
+        self.assertIn("export COMMIT_SHA", wrapper)
+        self.assertIn("exec docker compose", wrapper)
+        self.assertIn("./scripts/oci_compose.sh", deploy_doc)
+        self.assertIn("./scripts/oci_compose.sh", observability_doc)
 
 
 if __name__ == "__main__":

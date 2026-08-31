@@ -334,7 +334,11 @@ jobs:
             fi
             sudo usermod -aG "$OBS_GROUP" ubuntu
             sudo install -d -m 2750 -o ubuntu -g 10001 /mnt/data/maeil1dok/backups
+            sudo find /mnt/data/maeil1dok/backups -type f -exec chgrp 10001 {} +
             sudo find /mnt/data/maeil1dok/backups -type f -exec chmod 640 {} +
+            sudo touch /var/log/maeil1dok_mysql_backup.log
+            sudo chown ubuntu:10001 /var/log/maeil1dok_mysql_backup.log
+            sudo chmod 640 /var/log/maeil1dok_mysql_backup.log
             (crontab -l 2>/dev/null | grep -v oci_mysql_backup || true) | crontab -
             printf "%s\n" \
               "CRON_TZ=Asia/Seoul" \
@@ -348,8 +352,8 @@ jobs:
             install -d -m 0750 -o 10001 -g 10001 /mnt/data/maeil1dok/loki
             install -d -m 0750 /mnt/data/maeil1dok/alloy
             install -d -m 0700 -o 10001 -g 10001 /mnt/data/maeil1dok/alerts
-            docker compose -f docker-compose.oci.yml --env-file .env.oci build web celery-worker celery-beat frontend docker-proxy alert-probe
-            docker compose -f docker-compose.oci.yml --env-file .env.oci up -d web celery-worker celery-beat frontend cloudflared loki docker-proxy alloy alert-probe
+            ./scripts/oci_compose.sh build web celery-worker celery-beat frontend docker-proxy alert-probe
+            ./scripts/oci_compose.sh up -d web celery-worker celery-beat frontend cloudflared loki docker-proxy alloy alert-probe
             docker image prune -f >/dev/null
           '
 
@@ -371,7 +375,6 @@ jobs:
           ssh -i ~/.ssh/deploy_key "$OCI_SSH_USER@$OCI_HOST" '
             set -e
             cd /opt/maeil1dok
-            export COMMIT_SHA='"${{ github.sha }}"'
-            docker compose -f docker-compose.oci.yml --env-file .env.oci \
+            ./scripts/oci_compose.sh \
               run --rm --no-deps --entrypoint /app/run.sh alert-probe --canary
           '

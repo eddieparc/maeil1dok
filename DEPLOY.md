@@ -52,8 +52,8 @@ maeil1dok 은 `maeil1dok_default` 네트워크만 사용하고, 외부 노출은
 ```bash
 ssh -i ~/.ssh/oci_a1_deploy ubuntu@168.107.46.120
 cd /opt/maeil1dok
-docker compose -f docker-compose.oci.yml --env-file .env.oci build web celery-worker celery-beat frontend
-docker compose -f docker-compose.oci.yml --env-file .env.oci up -d
+./scripts/oci_compose.sh build web celery-worker celery-beat frontend
+./scripts/oci_compose.sh up -d
 curl -fsS https://api.maeil1dok.app/health/
 curl -fsS https://api.maeil1dok.app/ready/
 ```
@@ -115,8 +115,7 @@ DNS 는 `cloudflared tunnel route dns maeil1dok <hostname>` 또는 CF 대시보�
 - VM 전체 장애: GitHub Actions `Production uptime`이 15분마다 public route를 외부에서 검사.
 - 배포 후 canary:
   ```bash
-  docker compose -f docker-compose.oci.yml --env-file .env.oci \
-    run --rm --entrypoint /app/run.sh alert-probe --canary
+  ./scripts/oci_compose.sh run --rm --entrypoint /app/run.sh alert-probe --canary
   ```
 - 전체 운영·조회·장애 대응: [docs/production-observability.md](docs/production-observability.md).
 

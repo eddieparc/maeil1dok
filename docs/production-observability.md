@@ -52,7 +52,7 @@ structured metadata다. request id를 인덱스 label로 만들지 않아 cardin
 
 ```bash
 cd /opt/maeil1dok
-COMPOSE='docker compose -f docker-compose.oci.yml --env-file .env.oci'
+COMPOSE='./scripts/oci_compose.sh'
 
 # 서비스 상태
 $COMPOSE ps
@@ -71,7 +71,7 @@ Loki는 앱 컨테이너와 외부에 노출하지 않는다. 두 관측성 netw
 `alert-probe` 컨테이너에서 query API를 호출한다.
 
 ```bash
-docker compose -f docker-compose.oci.yml --env-file .env.oci exec alert-probe \
+./scripts/oci_compose.sh exec alert-probe \
   curl -fsSG http://loki:3100/loki/api/v1/query_range \
   --data-urlencode 'query={service="web"} | json | request_id="REQUEST_ID"' \
   --data-urlencode 'limit=20' | jq .
