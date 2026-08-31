@@ -77,8 +77,14 @@ class StandardResponse:
         # None 값 제거
         response_data = {k: v for k, v in response_data.items() if v is not None}
         
-        # 에러 로깅
-        logger.error(f"API Error: {error}, Details: {errors}")
+        log = logger.error if status_code >= 500 else logger.warning
+        log(
+            "api_error",
+            extra={
+                "event": "api_error",
+                "status": status_code,
+            },
+        )
         
         return Response(response_data, status=status_code)
     

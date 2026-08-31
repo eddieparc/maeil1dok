@@ -36,9 +36,8 @@ if [ "$DEBUG" = "True" ] || [ "$DEBUG" = "true" ] || [ "$DEBUG" = "1" ]; then
 else
   echo "Starting gunicorn..."
   exec gunicorn config.wsgi:application \
+    --config config/gunicorn.py \
     --bind "0.0.0.0:${APP_PORT}" \
     --workers "${GUNICORN_WORKERS:-3}" \
-    --timeout "${GUNICORN_TIMEOUT:-60}" \
-    --access-logfile - \
-    --error-logfile -
+    --timeout "${GUNICORN_TIMEOUT:-60}"
 fi

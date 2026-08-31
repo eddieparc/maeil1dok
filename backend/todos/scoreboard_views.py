@@ -271,8 +271,8 @@ def calculate_progress_rate(user, plan_id=None):
         ).count()
 
         return round((completed_schedules / total_schedules * 100), 2)
-    except Exception as e:
-        logger.error(f"Error calculating progress rate for user {user.id}: {str(e)}")
+    except Exception:
+        logger.exception("Error calculating progress rate: user_id=%s", user.id)
         return 0
 
 

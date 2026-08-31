@@ -1,6 +1,8 @@
 import logging
 import os
 
+from config.logging_config import redact_log_text
+
 logger = logging.getLogger(__name__)
 
 
@@ -12,6 +14,76 @@ HASENA_SUMMARY_HEARTBEAT_CACHE_KEY = 'observability:generate_hasena_summary:last
 HASENA_SUMMARY_UNKNOWN_SINCE_CACHE_KEY = 'observability:generate_hasena_summary:unknown_since'
 HASENA_SUMMARY_DEADMAN_TIMEOUT_SECONDS = REMINDER_DEADMAN_TIMEOUT_SECONDS
 HASENA_SUMMARY_UNKNOWN_GRACE_SECONDS = HASENA_SUMMARY_DEADMAN_TIMEOUT_SECONDS
+_SENSITIVE_SENTRY_KEYS = {
+    'access',
+    'accesstoken',
+    'apikey',
+    'authorization',
+    'clientsecret',
+    'code',
+    'cookie',
+    'csrftoken',
+    'email',
+    'idtoken',
+    'ipaddress',
+    'password',
+    'phonenumber',
+    'proxyauthorization',
+    'refreshtoken',
+    'secret',
+    'sessionid',
+    'setcookie',
+    'signuptoken',
+    'state',
+    'token',
+    'username',
+    'xapikey',
+}
+
+
+def _normalise_sentry_key(key):
+    return ''.join(character for character in str(key).lower() if character.isalnum())
+
+
+def _scrub_sentry_value(value, seen):
+    if isinstance(value, str):
+        return redact_log_text(value)
+    if isinstance(value, list):
+        return [_scrub_sentry_value(item, seen) for item in value]
+    if not isinstance(value, dict) or id(value) in seen:
+        return value
+
+    seen.add(id(value))
+    for key, nested in list(value.items()):
+        if _normalise_sentry_key(key) in _SENSITIVE_SENTRY_KEYS:
+            value[key] = '[redacted]'
+        else:
+            value[key] = _scrub_sentry_value(nested, seen)
+    return value
+
+
+def scrub_sentry_event(event, _hint=None):
+    if not isinstance(event, dict):
+        return event
+
+    extra = event.get('extra')
+    if isinstance(extra, dict) and extra.pop('_skip_sentry_duplicate', False) is True:
+        return None
+
+    _scrub_sentry_value(event, set())
+    user = event.get('user')
+    if isinstance(user, dict):
+        for key in ('email', 'ip_address', 'username'):
+            user.pop(key, None)
+
+    request = event.get('request')
+    if isinstance(request, dict):
+        headers = request.get('headers')
+        if isinstance(headers, dict):
+            for key in list(headers):
+                if _normalise_sentry_key(key) in _SENSITIVE_SENTRY_KEYS:
+                    headers.pop(key, None)
+    return event
 
 
 def parse_sample_rate(value, default=0.0):
@@ -42,9 +114,11 @@ def init_sentry_from_env():
     sentry_sdk.init(
         dsn=dsn,
         environment=os.environ.get('SENTRY_ENVIRONMENT'),
-        release=os.environ.get('SENTRY_RELEASE') or os.environ.get('RAILWAY_GIT_COMMIT_SHA'),
+        release=os.environ.get('SENTRY_RELEASE'),
         traces_sample_rate=parse_sample_rate(os.environ.get('SENTRY_TRACES_SAMPLE_RATE')),
         send_default_pii=env_bool('SENTRY_SEND_DEFAULT_PII'),
+        before_send=scrub_sentry_event,
+        before_send_transaction=scrub_sentry_event,
         integrations=[
             DjangoIntegration(),
             CeleryIntegration(),

@@ -1003,7 +1003,10 @@ class DailyBibleScheduleViewSet(viewsets.ModelViewSet):
                 try:
                     pending_rows.append(_parse_excel_schedule_row(row, self._validate_url))
                 except Exception as e:
-                    logger.warning(f"Invalid upload_excel row {index + 2}: {str(e)}")
+                    logger.warning(
+                        "Invalid upload_excel row: row=%s",
+                        index + 2,
+                    )
                     errors.append(_build_excel_row_error(index))
 
             if errors:
@@ -2519,7 +2522,10 @@ def upload_schedules_excel(request):
                 try:
                     pending_rows.append(_parse_excel_schedule_row(row, _clean_function_upload_url))
                 except Exception as e:
-                    logger.warning(f"Invalid upload_schedules_excel row {index + 2}: {str(e)}")
+                    logger.warning(
+                        "Invalid upload_schedules_excel row: row=%s",
+                        index + 2,
+                    )
                     errors.append(_build_excel_row_error(index))
 
             if errors:

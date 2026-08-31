@@ -72,10 +72,10 @@ def _get_recent_hasena_videos_from_feed(max_results: int = 10) -> list[dict]:
             logger.warning("No public videos found in playlist feed")
         return videos
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Error fetching playlist feed: {str(e)}")
+        logger.warning("Error fetching playlist feed", exc_info=True)
         return []
     except ET.ParseError as e:
-        logger.warning(f"Error parsing playlist feed: {str(e)}")
+        logger.warning("Error parsing playlist feed", exc_info=True)
         return []
 
 
@@ -113,7 +113,7 @@ def _get_recent_hasena_videos_from_playlist_page(max_results: int = 10) -> list[
             logger.warning("No public videos found in playlist page")
         return videos
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Error fetching playlist page: {str(e)}")
+        logger.warning("Error fetching playlist page", exc_info=True)
         return []
 
 
@@ -183,10 +183,10 @@ def _get_recent_hasena_videos_from_api(max_results: int = 10) -> list[dict]:
         return videos
         
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching playlist: {_redact_api_keys(str(e))}")
+        logger.exception("Error fetching playlist")
         return []
     except Exception as e:
-        logger.error(f"Unexpected error fetching playlist: {str(e)}")
+        logger.exception("Unexpected error fetching playlist")
         return []
 
 
@@ -273,7 +273,7 @@ def get_youtube_transcript(video_id: str, languages: list = None) -> str | None:
         logger.warning(f"Video unavailable: {video_id}")
         return None
     except Exception as e:
-        logger.error(f"Error fetching transcript for {video_id}: {str(e)}")
+        logger.exception("Error fetching transcript: video_id=%s", video_id)
         return None
 
 
@@ -330,7 +330,7 @@ def summarize_with_gemini(transcript: str) -> dict | None:
         
     except Exception as e:
         error_str = str(e)
-        logger.error(f"Error calling Gemini API: {error_str}")
+        logger.exception("Error calling Gemini API")
         
         # 할당량 초과 에러인 경우 특별 처리
         if '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
@@ -441,7 +441,7 @@ def summarize_youtube_video_with_gemini(video_id: str) -> dict | None:
         }
     except Exception as e:
         error_str = str(e)
-        logger.error(f"Error calling Gemini video API: {error_str}")
+        logger.exception("Error calling Gemini video API")
 
         if _is_quota_exceeded_gemini_error(error_str):
             return {'error': 'quota_exceeded', 'message': 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.'}
@@ -472,7 +472,7 @@ def get_existing_summary(video_id: str) -> dict:
             'video_id': video_id
         }
     except Exception as e:
-        logger.error(f"Error fetching existing summary: {str(e)}")
+        logger.exception("Error fetching existing summary")
         return {
             'success': False,
             'error': '요약 조회 중 오류가 발생했습니다.',
@@ -518,7 +518,7 @@ def get_hasena_summary(video_id: str, video_date: date = None, title: str = None
                 'cacheable': True,
             }
     except Exception as e:
-        logger.error(f"Error checking existing summary: {str(e)}")
+        logger.exception("Error checking existing summary")
     
     transcript = get_youtube_transcript(video_id)
     summary_result = summarize_with_gemini(transcript) if transcript else summarize_youtube_video_with_gemini(video_id)
@@ -565,7 +565,7 @@ def get_hasena_summary(video_id: str, video_date: date = None, title: str = None
         }
         
     except Exception as e:
-        logger.error(f"Error saving summary: {str(e)}")
+        logger.exception("Error saving summary")
         return {
             'success': False,
             'video_id': video_id,
@@ -620,7 +620,7 @@ def regenerate_summary_for_video(video_id: str) -> dict:
         }
         
     except Exception as e:
-        logger.error(f"Error regenerating summary: {str(e)}")
+        logger.exception("Error regenerating summary")
         return {
             'success': False,
             'error': str(e),
@@ -656,7 +656,7 @@ def update_summary(video_id: str, summary: str, title: str = None) -> dict:
         }
         
     except Exception as e:
-        logger.error(f"Error updating summary: {str(e)}")
+        logger.exception("Error updating summary")
         return {
             'success': False,
             'error': str(e),
@@ -694,7 +694,7 @@ def list_summaries(page: int = 1, page_size: int = 20) -> dict:
         }
         
     except Exception as e:
-        logger.error(f"Error listing summaries: {str(e)}")
+        logger.exception("Error listing summaries")
         return {
             'success': False,
             'error': str(e)

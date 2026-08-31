@@ -133,8 +133,15 @@ def get_bible_content(request, version: str, book: str, chapter: int):
             }
         })
 
-    except BibleFetchError as e:
-        logger.error(f"성경 본문 조회 실패: {version}:{book}:{chapter} - {e}")
+    except BibleFetchError:
+        logger.error(
+            "성경 본문 조회 실패",
+            extra={
+                "event": "bible_fetch_failed",
+                "reason": f"{version}:{book}:{chapter}",
+            },
+            exc_info=True,
+        )
         return Response(
             {
                 'success': False,
