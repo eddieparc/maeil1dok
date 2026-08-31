@@ -56,6 +56,11 @@ import {
   handleCertificationImageMessage,
   type CertificationImageBridgeDependencies,
 } from './certificationImageBridge';
+import {
+  buildAppleNativeLinkFailure,
+  buildAppleNativeLinkSuccess,
+  parseAppleNativeLinkRequest,
+} from './appleNativeLink';
 
 /**
  * `decelerationRate` is typed Float by Fabric codegen. The documented `'normal'`
@@ -479,14 +484,17 @@ function AppContent() {
     }
   };
 
+  const requestAppleCredential = () =>
+    AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
   const handleAppleLogin = async () => {
     try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
+      const credential = await requestAppleCredential();
       
       if (credential.identityToken) {
         await handleAppleLoginWithToken(credential.identityToken, credential.fullName);
@@ -495,6 +503,24 @@ function AppContent() {
       if (!isErrorWithCode(error, 'ERR_REQUEST_CANCELED')) {
         Alert.alert('오류', 'Apple 로그인 중 오류가 발생했습니다.');
       }
+    }
+  };
+
+  const handleAppleLinkRequest = async (state: string) => {
+    try {
+      const credential = await requestAppleCredential();
+      webViewRef.current?.postMessage(JSON.stringify(buildAppleNativeLinkSuccess({
+        state,
+        identityToken: credential.identityToken,
+        authorizationCode: credential.authorizationCode,
+      })));
+    } catch (error: unknown) {
+      const cancelled = typeof error === 'object'
+        && error !== null
+        && Reflect.get(error, 'code') === 'ERR_REQUEST_CANCELED';
+      webViewRef.current?.postMessage(JSON.stringify(
+        buildAppleNativeLinkFailure(state, cancelled),
+      ));
     }
   };
 
@@ -787,6 +813,13 @@ function AppContent() {
             console.error('[SessionRestore] Failed:', error);
           });
           break;
+        case 'auth:apple:link': {
+          const state = parseAppleNativeLinkRequest(message);
+          if (state) {
+            void handleAppleLinkRequest(state);
+          }
+          break;
+        }
         case 'auth:logout':
         case 'auth:expired':
         case 'logout':

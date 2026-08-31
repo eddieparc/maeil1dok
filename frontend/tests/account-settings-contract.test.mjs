@@ -8,12 +8,15 @@ import { createSSRApp, defineComponent, h } from 'vue';
 import { renderToString } from '@vue/server-renderer';
 import {
   buildDeleteAccountPayload,
+  buildNativeAppleLinkRequest,
   buildNotificationSettingsPayload,
   buildOAuthLinkUrl,
   buildPasswordMergePayload,
   buildSocialMergePayload,
   getProviderDisplayName,
   mergeEmailUpdateIntoAuthUser,
+  parseNativeAppleLinkResult,
+  shouldUseNativeAppleLink,
 } from '../app/utils/accountSettingsRuntime.js';
 
 const settingsSource = await readFile(
@@ -531,6 +534,36 @@ test('OAuth and social merge helpers preserve link state and backend-issued merg
   assert.equal(getMergeToken({ merge_token: 'signed-merge-token' }), 'signed-merge-token');
   assert.equal(getMergeToken({ merge_token: 123 }), undefined);
   assert.equal(getMergeToken({ merge_token: '' }), undefined);
+});
+
+test('iOS shells route Apple linking through the native bridge', () => {
+  assert.equal(shouldUseNativeAppleLink('apple', true), true);
+  assert.equal(shouldUseNativeAppleLink('apple', false), false);
+  assert.equal(shouldUseNativeAppleLink('google', true), false);
+  assert.deepEqual(buildNativeAppleLinkRequest('one-time-state'), {
+    type: 'auth:apple:link',
+    data: { state: 'one-time-state' },
+  });
+});
+
+test('native Apple link results accept credentials but reject malformed messages', () => {
+  assert.deepEqual(parseNativeAppleLinkResult({
+    type: 'auth:apple:link:result',
+    data: {
+      state: 'one-time-state',
+      idToken: 'signed-id-token',
+      code: 'authorization-code',
+    },
+  }), {
+    state: 'one-time-state',
+    idToken: 'signed-id-token',
+    code: 'authorization-code',
+  });
+
+  assert.equal(parseNativeAppleLinkResult({
+    type: 'auth:apple:link:result',
+    data: { state: 'one-time-state', code: 'missing-token' },
+  }), null);
 });
 
 test('profile page exposes account settings entry beside profile edit for own profile', async () => {

@@ -329,9 +329,12 @@ import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import {
   buildDeleteAccountPayload,
+  buildNativeAppleLinkRequest,
   buildOAuthLinkUrl,
   buildSocialMergePayload,
   getProviderDisplayName,
+  parseNativeAppleLinkResult,
+  shouldUseNativeAppleLink,
 } from '~/utils/accountSettingsRuntime.js'
 
 useHead({
@@ -408,6 +411,7 @@ interface MergeInfo {
 }
 
 interface NativeWindow extends Window {
+  isReactNativeWebView?: boolean
   ReactNativeWebView?: {
     postMessage(message: string): void
   }
@@ -437,6 +441,7 @@ const showMergeConfirmModal = ref(false)
 const mergeInfo = ref<MergeInfo | null>(null)
 const mergeLoading = ref(false)
 const linkingProvider = ref<Provider | null>(null)
+let pendingNativeAppleState: string | null = null
 
 const emailButtonText = computed(() => {
   if (resendingEmail.value) return '전송 중...'
@@ -497,6 +502,11 @@ const getErrorMessage = (error: unknown, fallback: string) => {
     return getString(data, 'error') || getString(data, 'detail') || getString(data, 'message') || fallback
   }
   return getString(error, 'message') || fallback
+}
+
+const getErrorPayload = (error: unknown): Record<string, unknown> | null => {
+  if (!isRecord(error)) return null
+  return isRecord(error.data) ? error.data : error
 }
 
 const normalizeLinkedAccounts = (payload: unknown): LinkedAccountsResponse => {
@@ -567,14 +577,16 @@ const normalizeMergeInfo = (payload: unknown): MergeInfo | null => {
   if (!isRecord(payload)) return null
   const provider = parseProvider(payload.provider)
   const code = getString(payload, 'code')
+  const idToken = getString(payload, 'id_token')
   const currentAccount = normalizeMergeAccountSummary(payload.current_account)
   const otherAccount = normalizeMergeAccountSummary(payload.other_account)
-  if (!provider || !code || !currentAccount || !otherAccount) return null
+  const hasCredential = Boolean(code) || (provider === 'apple' && Boolean(idToken))
+  if (!provider || !hasCredential || !currentAccount || !otherAccount) return null
   return {
     provider,
-    code,
+    code: code || '',
     merge_token: getString(payload, 'merge_token') || undefined,
-    id_token: getString(payload, 'id_token') || undefined,
+    id_token: idToken || undefined,
     current_account: currentAccount,
     other_account: otherAccount,
   }
@@ -633,31 +645,118 @@ const handleLinkGoogle = () => handleLinkProvider('google')
 const handleLinkProvider = async (provider: Provider) => {
   if (linkingProvider.value) return
 
-  const providerConfig = getOAuthProviderConfig(provider)
-  const { clientId, redirectUri } = providerConfig
-  if (!clientId || !redirectUri) {
-    await modal.alert({
-      title: '연결 설정이 필요합니다',
-      description: `${getProviderDisplayName(provider)} 로그인 설정을 확인해주세요.`,
-      icon: 'error',
-    })
-    return
+  const nativeWindow = window as NativeWindow
+  const useNativeAppleLink = shouldUseNativeAppleLink(
+    provider,
+    nativeWindow.isReactNativeWebView === true,
+  )
+  if (!useNativeAppleLink) {
+    const { clientId, redirectUri } = getOAuthProviderConfig(provider)
+    if (!clientId || !redirectUri) {
+      await modal.alert({
+        title: '연결 설정이 필요합니다',
+        description: `${getProviderDisplayName(provider)} 로그인 설정을 확인해주세요.`,
+        icon: 'error',
+      })
+      return
+    }
   }
 
   linkingProvider.value = provider
   try {
     const state = await getOAuthLinkState()
+    if (useNativeAppleLink) {
+      if (!nativeWindow.ReactNativeWebView) {
+        throw new Error('Native Apple authentication bridge is unavailable.')
+      }
+      pendingNativeAppleState = state
+      nativeWindow.ReactNativeWebView.postMessage(JSON.stringify(
+        buildNativeAppleLinkRequest(state),
+      ))
+      return
+    }
+    const providerConfig = getOAuthProviderConfig(provider)
     const authUrl = buildOAuthLinkUrl(provider, providerConfig, state)
     window.location.assign(authUrl)
   } catch (error: unknown) {
+    pendingNativeAppleState = null
+    linkingProvider.value = null
     await modal.alert({
       title: '계정 연결 실패',
       description: getErrorMessage(error, '소셜 계정 연결을 시작하지 못했습니다.'),
       icon: 'error',
     })
+  }
+}
+
+const completeNativeAppleLink = async (result: {
+  state: string
+  idToken: string
+  code: string
+}) => {
+  try {
+    await api.POST('/api/v1/auth/link-social/', {
+      provider: 'apple',
+      code: result.code,
+      state: result.state,
+      id_token: result.idToken,
+    })
+    await fetchLinkedAccounts()
+    await modal.alert({
+      title: '연결 완료',
+      description: 'Apple 계정이 연결되었습니다.',
+      icon: 'success'
+    })
+  } catch (error: unknown) {
+    const payload = getErrorPayload(error)
+    if (payload && getBoolean(payload, 'can_merge')) {
+      const normalized = normalizeMergeInfo({
+        ...payload,
+        provider: 'apple',
+        code: result.code,
+        id_token: result.idToken,
+      })
+      if (normalized) {
+        mergeInfo.value = normalized
+        showMergeModal.value = true
+        showMergeConfirmModal.value = false
+        return
+      }
+    }
+    await modal.alert({
+      title: '연결 실패',
+      description: getErrorMessage(error, 'Apple 계정 연결에 실패했습니다.'),
+      icon: 'error'
+    })
   } finally {
     linkingProvider.value = null
   }
+}
+
+const handleNativeAppleLinkMessage = (event: MessageEvent<unknown>) => {
+  let payload = event.data
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload)
+    } catch {
+      return
+    }
+  }
+  const result = parseNativeAppleLinkResult(payload)
+  if (!result || result.state !== pendingNativeAppleState) return
+  pendingNativeAppleState = null
+  if ('error' in result) {
+    linkingProvider.value = null
+    if (result.error !== 'cancelled') {
+      void modal.alert({
+        title: '연결 실패',
+        description: 'Apple 시스템 로그인을 시작하지 못했습니다.',
+        icon: 'error'
+      })
+    }
+    return
+  }
+  void completeNativeAppleLink(result)
 }
 
 const handleUnlink = async (provider: Provider) => {
@@ -920,6 +1019,7 @@ const formatDate = (dateString: string) => {
 }
 
 onMounted(async () => {
+  window.addEventListener('message', handleNativeAppleLinkMessage)
   await auth.initialize()
   if (!auth.isAuthenticated.value) {
     navigateTo('/login')
@@ -963,6 +1063,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('message', handleNativeAppleLinkMessage)
   if (emailCooldownTimer) {
     clearInterval(emailCooldownTimer)
   }

@@ -70,3 +70,33 @@ export const buildSocialMergePayload = (mergeInfo, keepAccount) => ({
   ...(mergeInfo.merge_token ? { merge_token: mergeInfo.merge_token } : {}),
   ...(mergeInfo.id_token ? { id_token: mergeInfo.id_token } : {}),
 })
+
+export const shouldUseNativeAppleLink = (provider, isNativeApp) =>
+  provider === 'apple' && isNativeApp === true
+
+export const buildNativeAppleLinkRequest = state => {
+  if (typeof state !== 'string' || !state || state.length > 4096) {
+    throw new Error('Invalid native Apple link state.')
+  }
+  return {
+    type: 'auth:apple:link',
+    data: { state },
+  }
+}
+
+export const parseNativeAppleLinkResult = message => {
+  if (typeof message !== 'object' || message === null) return null
+  if (message.type !== 'auth:apple:link:result') return null
+  const data = message.data
+  if (typeof data !== 'object' || data === null) return null
+  if (typeof data.state !== 'string' || !data.state || data.state.length > 4096) return null
+  if (data.error === 'cancelled' || data.error === 'unavailable') {
+    return { state: data.state, error: data.error }
+  }
+  if (typeof data.idToken !== 'string' || !data.idToken) return null
+  return {
+    state: data.state,
+    idToken: data.idToken,
+    code: typeof data.code === 'string' ? data.code : '',
+  }
+}

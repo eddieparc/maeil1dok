@@ -27,12 +27,22 @@ export type WebViewToNativeMessage =
   | { type: 'auth:logout' }
   | { type: 'auth:expired' }
   | { type: 'auth:request' }
+  | { type: 'auth:apple:link'; data: { state: string } }
   | { type: 'navigate'; url: string }
 
 // Native → WebView 이벤트 타입
 export type NativeToWebViewEvent =
   | { type: 'token'; data: AuthCredentials }
   | { type: 'logout' }
+  | {
+      type: 'auth:apple:link:result'
+      data: {
+        state: string
+        idToken?: string
+        code?: string
+        error?: 'cancelled' | 'unavailable'
+      }
+    }
 
 declare global {
   interface Window {
