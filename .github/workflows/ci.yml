@@ -325,6 +325,16 @@ jobs:
             test -f .env.oci
             test -f .env.frontend.oci
             chmod 600 .env.oci .env.frontend.oci
+            printf "%s\n" '"${{ github.sha }}"' > .deploy-commit
+            chmod 644 .deploy-commit
+            OBS_GROUP="$(getent group 10001 | cut -d: -f1 || true)"
+            if [ -z "$OBS_GROUP" ]; then
+              sudo groupadd -g 10001 maeil1dok-observability
+              OBS_GROUP=maeil1dok-observability
+            fi
+            sudo usermod -aG "$OBS_GROUP" ubuntu
+            sudo install -d -m 2750 -o ubuntu -g 10001 /mnt/data/maeil1dok/backups
+            sudo find /mnt/data/maeil1dok/backups -type f -exec chmod 640 {} +
             (crontab -l 2>/dev/null | grep -v oci_mysql_backup || true) | crontab -
             printf "%s\n" \
               "CRON_TZ=Asia/Seoul" \

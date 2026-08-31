@@ -7,10 +7,10 @@
 #
 # 필요 env (.env.oci 에서 로드하거나 cron 환경에 지정):
 #   DB_NAME, DB_ROOT_PASSWORD(권장) 또는 DB_USER+DB_PASSWORD
-#   COMPOSE_FILE(기본 docker-compose.oci.yml), BACKUP_DIR, RETENTION_DAYS(기본 14)
+#   COMPOSE_FILE/COMPOSE_ENV_FILE, BACKUP_DIR, RETENTION_DAYS(기본 14)
 #   OCI_BUCKET / OCI_NAMESPACE (설정 시 oci CLI 로 오프호스트 업로드; oci 없으면 실패로 처리)
 set -euo pipefail
-umask 077   # 민감한 전체 DB 덤프가 world-readable 로 생성되지 않도록
+umask 027   # owner + alert-probe 전용 group만 백업을 읽도록
 
 cd "$(dirname "$0")/.."
 
@@ -22,7 +22,7 @@ if [ -f .env.oci ]; then
     key="${line%%=*}"
     val="${line#*=}"
     case "$key" in
-      OCI_DATA_ROOT|DB_NAME|DB_USER|DB_PASSWORD|DB_ROOT_PASSWORD|OCI_BUCKET|OCI_NAMESPACE|RETENTION_DAYS|BACKUP_DIR|COMPOSE_FILE)
+      OCI_DATA_ROOT|DB_NAME|DB_USER|DB_PASSWORD|DB_ROOT_PASSWORD|OCI_BUCKET|OCI_NAMESPACE|RETENTION_DAYS|BACKUP_DIR|COMPOSE_FILE|COMPOSE_ENV_FILE)
         val="${val%$'\r'}"                       # CR 제거
         case "$val" in
           \"*|\'*) : ;;                          # 따옴표로 시작: 인라인 주석/트림 미적용
@@ -35,6 +35,16 @@ if [ -f .env.oci ]; then
 fi
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.oci.yml}"
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-.env.oci}"
+DEPLOY_COMMIT_FILE="${DEPLOY_COMMIT_FILE:-.deploy-commit}"
+if [ -z "${COMMIT_SHA:-}" ] && [ -f "$DEPLOY_COMMIT_FILE" ]; then
+  COMMIT_SHA="$(tr -d '\r\n' < "$DEPLOY_COMMIT_FILE")"
+fi
+if ! [[ "${COMMIT_SHA:-}" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "[$(date -Is)] ERROR: 유효한 deploy COMMIT_SHA가 필요합니다." >&2
+  exit 1
+fi
+export COMMIT_SHA
 DB_NAME="${DB_NAME:-maeil1dok}"
 # 크리덴셜은 반드시 짝으로: root+DB_ROOT_PASSWORD (권장) 또는 DB_USER+DB_PASSWORD.
 if [ -n "${DB_ROOT_PASSWORD:-}" ]; then
@@ -51,16 +61,17 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 OUT="${BACKUP_DIR}/${DB_NAME}_${STAMP}.sql.gz"
 
 mkdir -p "$BACKUP_DIR"
-chmod 700 "$BACKUP_DIR" || true
+chmod 2750 "$BACKUP_DIR"
 
 echo "[$(date -Is)] mysqldump 시작 → ${OUT}"
 # --single-transaction: InnoDB 일관 스냅샷(락 최소). 트리거/루틴/이벤트 포함, utf8mb4.
-docker compose -f "$COMPOSE_FILE" exec -T mysql \
+docker compose -f "$COMPOSE_FILE" --env-file "$COMPOSE_ENV_FILE" exec -T mysql \
   sh -c 'export MYSQL_PWD="$(printenv "$1")"; shift; exec mysqldump "$@"' \
   sh "$DUMP_PASSWORD_ENV" -u"${DUMP_USER}" \
     --single-transaction --routines --triggers --events \
     --default-character-set=utf8mb4 --no-tablespaces \
     "$DB_NAME" | gzip -9 > "$OUT"
+chmod 640 "$OUT"
 
 SIZE="$(du -h "$OUT" | cut -f1)"
 echo "[$(date -Is)] 백업 완료 (${SIZE})"
@@ -87,6 +98,7 @@ SIZE_BYTES="$(wc -c < "$OUT")"
 printf '{"completed_at_epoch":%s,"path":"%s","size_bytes":%s}\n' \
   "$(date +%s)" "$OUT" "$SIZE_BYTES" > "$RECEIPT_TMP"
 mv "$RECEIPT_TMP" "${BACKUP_DIR}/last-success.json"
+chmod 640 "${BACKUP_DIR}/last-success.json"
 
 # 로컬 보존 정책
 find "$BACKUP_DIR" -name "${DB_NAME}_*.sql.gz" -mtime +"$RETENTION_DAYS" -delete

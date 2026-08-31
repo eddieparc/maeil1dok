@@ -131,6 +131,11 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
         self.assertNotIn('-p"${DUMP_PW}"', backup_script)
         self.assertNotIn('-e MYSQL_PWD="$DUMP_PW"', backup_script)
         self.assertIn('printenv "$1"', backup_script)
+        self.assertIn("--env-file", backup_script)
+        self.assertIn(".deploy-commit", backup_script)
+        self.assertIn("umask 027", backup_script)
+        self.assertIn('chmod 2750 "$BACKUP_DIR"', backup_script)
+        self.assertIn('chmod 640 "$OUT"', backup_script)
 
     def test_observability_services_are_least_privilege_and_network_isolated(self) -> None:
         probe_dockerfile = (self.root / "ops" / "probes" / "Dockerfile").read_text(
@@ -208,6 +213,8 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
         self.assertIn("chmod 600 .env.oci .env.frontend.oci", self.workflow)
         self.assertIn("CRON_TZ=Asia/Seoul", self.workflow)
         self.assertIn("/etc/cron.d/maeil1dok-backup", self.workflow)
+        self.assertIn("install -d -m 2750 -o ubuntu -g 10001", self.workflow)
+        self.assertIn(".deploy-commit", self.workflow)
 
     def test_deployment_and_backup_safety_gates_cannot_silently_regress(self) -> None:
         backup_script = (self.root / "scripts" / "oci_mysql_backup.sh").read_text(
