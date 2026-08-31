@@ -16,7 +16,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from utils.response import StandardResponse
-from config import observability
+from config import observability, security_settings
 from config.logging_config import (
     JsonFormatter,
     bind_correlation_context,
@@ -175,6 +175,17 @@ class ProductionJsonLoggingTests(SimpleTestCase):
 
 
 class RequestCorrelationTests(TestCase):
+    def test_cors_allows_trace_headers_and_exposes_request_id(self) -> None:
+        self.assertTrue(
+            {
+                "baggage",
+                "sentry-trace",
+                "traceparent",
+                "x-request-id",
+            }.issubset(security_settings.CORS_ALLOW_HEADERS)
+        )
+        self.assertIn("x-request-id", security_settings.CORS_EXPOSE_HEADERS)
+
     def test_request_id_is_preserved_in_response_and_completion_log(self) -> None:
         request_id = "01a056-production-request"
 
@@ -333,6 +344,7 @@ class BackendSentryPrivacyTests(SimpleTestCase):
                 "credentials": {
                     "api_key": secret,
                     "client_secret": secret,
+                    "refresh": secret,
                     "phone_number": "+821012345678",
                     "safe": "keep",
                 }

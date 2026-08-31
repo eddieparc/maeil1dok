@@ -29,6 +29,7 @@ _SENSITIVE_SENTRY_KEYS = {
     'password',
     'phonenumber',
     'proxyauthorization',
+    'refresh',
     'refreshtoken',
     'secret',
     'sessionid',

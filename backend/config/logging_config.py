@@ -71,6 +71,7 @@ _SENSITIVE_FIELD_KEYS = {
     "password",
     "phonenumber",
     "proxyauthorization",
+    "refresh",
     "refreshtoken",
     "secret",
     "sessionid",
