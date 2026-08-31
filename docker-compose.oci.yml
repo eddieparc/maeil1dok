@@ -113,6 +113,10 @@ services:
       # 백엔드와 공유하는 OAuth 값(.env.oci)을 공개 런타임 이름으로 명시적으로 전달한다.
       - NUXT_PUBLIC_KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID:?KAKAO_CLIENT_ID 필수}
       - NUXT_PUBLIC_KAKAO_REDIRECT_URI=${KAKAO_REDIRECT_URI:?KAKAO_REDIRECT_URI 필수}
+      - NUXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID 필수}
+      - NUXT_PUBLIC_GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:?GOOGLE_REDIRECT_URI 필수}
+      - NUXT_PUBLIC_APPLE_CLIENT_ID=${APPLE_CLIENT_ID:?APPLE_CLIENT_ID 필수}
+      - NUXT_PUBLIC_APPLE_REDIRECT_URI=${APPLE_REDIRECT_URI:-https://maeil1dok.app/auth/apple/callback}
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
       interval: 15s

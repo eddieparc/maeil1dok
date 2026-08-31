@@ -61,6 +61,20 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
             frontend_block,
         )
 
+    def test_frontend_receives_public_google_and_apple_runtime_config(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        compose = (repo_root / "docker-compose.oci.yml").read_text(encoding="utf-8")
+        frontend_block = compose[compose.index("  frontend:"):compose.index("  celery-worker:")]
+
+        expected = (
+            "NUXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID 필수}",
+            "NUXT_PUBLIC_GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:?GOOGLE_REDIRECT_URI 필수}",
+            "NUXT_PUBLIC_APPLE_CLIENT_ID=${APPLE_CLIENT_ID:?APPLE_CLIENT_ID 필수}",
+            "NUXT_PUBLIC_APPLE_REDIRECT_URI=${APPLE_REDIRECT_URI:-https://maeil1dok.app/auth/apple/callback}",
+        )
+        for value in expected:
+            self.assertIn(value, frontend_block)
+
     def test_frontend_sentry_is_configured_without_committed_dsn(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(
