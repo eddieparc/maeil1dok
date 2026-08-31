@@ -81,6 +81,9 @@ test('session bridge requests a frontend-relative redirect path', async () => {
     }),
     csrfHeadersFrom: () => ({}),
     WEB_APP_URL: 'https://web.example.test',
+    buildSessionBridgeConsumeUrl: ({ apiUrl, code }) =>
+      `${apiUrl}/api/v1/auth/session/consume/?code=${code}&next=%2F`,
+    currentWebViewUrlRef: { current: 'https://web.example.test/' },
     pendingUrlRef,
     setPendingUrl: (value) => pendingStates.push(value),
   });

@@ -148,6 +148,8 @@ module.exports = { initiateSessionBridge };`,
     'pendingUrlRef',
     'setPendingUrl',
     'console',
+    'buildSessionBridgeConsumeUrl',
+    'currentWebViewUrlRef',
     compiled,
   )(
     instance,
@@ -168,6 +170,8 @@ module.exports = { initiateSessionBridge };`,
     { current: null },
     () => {},
     { error: () => {}, log: () => {} },
+    ({ apiUrl, code }) => `${apiUrl}/api/v1/auth/session/consume/?code=${code}&next=%2F`,
+    { current: 'https://maeil1dok.app/' },
   );
 
   // When: native login/restore issues the one-time WebView session code.
