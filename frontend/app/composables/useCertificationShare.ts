@@ -1,4 +1,5 @@
 type CertificationShareResult = 'shared' | 'downloaded' | 'copied';
+type CertificationImageAction = 'share' | 'save';
 
 export interface CertificationSharePayload {
   title?: string;
@@ -84,6 +85,21 @@ const canvasToPngBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
     }, 'image/png');
   });
 
+const canvasToPngFile = (canvas: HTMLCanvasElement): File => {
+  const dataUrl = canvas.toDataURL('image/png');
+  const encoded = dataUrl.split(',', 2)[1];
+  if (!encoded) {
+    throw new CertificationImageError('인증 카드 이미지 데이터를 만들 수 없습니다.');
+  }
+
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new File([bytes], FILE_NAME, { type: 'image/png' });
+};
+
 const drawCenteredText = (
   context: CanvasRenderingContext2D,
   text: string,
@@ -121,7 +137,7 @@ const drawRoundedRect = (
   context.quadraticCurveTo(x, y, x + radius, y);
 };
 
-const createCertificationPngBlob = async (payload?: CertificationSharePayload): Promise<Blob> => {
+const createCertificationCanvas = (payload?: CertificationSharePayload): HTMLCanvasElement => {
   if (typeof document === 'undefined') {
     throw new CertificationImageError('브라우저에서만 인증 카드를 만들 수 있습니다.');
   }
@@ -185,12 +201,97 @@ const createCertificationPngBlob = async (payload?: CertificationSharePayload): 
   }
   drawCenteredText(context, footer, 1090, '500 34px Pretendard, system-ui, sans-serif', textSecondary);
 
-  return canvasToPngBlob(canvas);
+  return canvas;
+};
+
+const createCertificationPngBlob = (payload?: CertificationSharePayload): Promise<Blob> =>
+  canvasToPngBlob(createCertificationCanvas(payload));
+
+const createCertificationPngFile = (payload?: CertificationSharePayload): File =>
+  canvasToPngFile(createCertificationCanvas(payload));
+
+const isAndroidNativeWebView = (): boolean => (
+  typeof window !== 'undefined'
+  && 'isReactNativeWebView' in window
+  && window.isReactNativeWebView === true
+  && 'isAndroidApp' in window
+  && window.isAndroidApp === true
+);
+
+const isIosNativeWebView = (): boolean => (
+  typeof window !== 'undefined'
+  && 'isReactNativeWebView' in window
+  && window.isReactNativeWebView === true
+  && (!('isAndroidApp' in window) || window.isAndroidApp !== true)
+);
+
+const postAndroidCertificationImage = (
+  action: CertificationImageAction,
+  payload?: CertificationSharePayload,
+): boolean => {
+  if (!isAndroidNativeWebView()) {
+    return false;
+  }
+
+  const bridge = Reflect.get(window, 'ReactNativeWebView');
+  if (typeof bridge !== 'object' || bridge === null) {
+    throw new CertificationImageError('Android 앱 이미지 브리지를 찾을 수 없습니다.');
+  }
+  const postMessage = Reflect.get(bridge, 'postMessage');
+  if (typeof postMessage !== 'function') {
+    throw new CertificationImageError('Android 앱 이미지 브리지를 사용할 수 없습니다.');
+  }
+
+  const dataUrl = createCertificationCanvas(payload).toDataURL('image/png');
+  Reflect.apply(postMessage, bridge, [JSON.stringify({
+    type: 'certification:image',
+    action,
+    fileName: FILE_NAME,
+    dataUrl,
+  })]);
+  return true;
+};
+
+const shareCertificationFile = async (file: File): Promise<void> => {
+  if (!navigator.share || (navigator.canShare && !navigator.canShare({ files: [file] }))) {
+    throw new CertificationImageError('이 기기에서는 인증 카드 이미지를 공유할 수 없습니다.');
+  }
+  await navigator.share({ files: [file] });
 };
 
 export const useCertificationShare = () => {
   const shareCertification = async (payload?: CertificationSharePayload): Promise<CertificationShareResult> => {
     const link = getCertificationLink(payload);
+
+    try {
+      if (postAndroidCertificationImage('share', payload)) {
+        return 'shared';
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        await copyCertificationLink(link);
+        return 'copied';
+      }
+      throw error;
+    }
+
+    if (isIosNativeWebView()) {
+      try {
+        const file = createCertificationPngFile(payload);
+        await shareCertificationFile(file);
+        return 'shared';
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return 'shared';
+        }
+        if (error instanceof Error) {
+          await copyCertificationLink(link);
+          return 'copied';
+        }
+        throw error;
+      }
+    }
+
     let blob: Blob;
 
     try {
@@ -238,6 +339,21 @@ export const useCertificationShare = () => {
     existingBlob?: Blob,
     payload?: CertificationSharePayload,
   ): Promise<void> => {
+    if (postAndroidCertificationImage('save', payload)) {
+      return;
+    }
+
+    if (isIosNativeWebView()) {
+      try {
+        await shareCertificationFile(createCertificationPngFile(payload));
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          throw error;
+        }
+      }
+      return;
+    }
+
     const blob = existingBlob ?? await createCertificationPngBlob(payload);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');

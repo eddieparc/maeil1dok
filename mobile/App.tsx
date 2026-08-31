@@ -14,6 +14,9 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import { WebView } from 'react-native-webview';
 import type { WebViewNavigation } from 'react-native-webview';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +35,7 @@ import { resolveWebViewConfig } from './webviewConfig';
 import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
 import { redactSensitiveUrl } from './urlRedaction';
 import { csrfHeadersFrom } from './csrfHeader';
+import { buildSessionBridgeConsumeUrl } from './sessionBridgeNavigation';
 import * as Updates from 'expo-updates';
 import * as Sentry from '@sentry/react-native';
 import { initMobileTelemetry } from './sentryTelemetry';
@@ -46,6 +50,10 @@ import {
   type SocialSignupData,
   type SocialSignupProvider,
 } from './socialSignupNavigation';
+import {
+  handleCertificationImageMessage,
+  type CertificationImageBridgeDependencies,
+} from './certificationImageBridge';
 
 /**
  * `decelerationRate` is typed Float by Fabric codegen. The documented `'normal'`
@@ -75,6 +83,40 @@ const WEBVIEW_CONFIG = resolveWebViewConfig(Constants.expoConfig?.extra ?? {});
 const WEB_APP_URL = WEBVIEW_CONFIG.webAppUrl;
 const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://api.maeil1dok.app';
 const APP_SCHEME = 'maeil1dok';
+const CERTIFICATION_IMAGE_MIME_TYPE = 'image/png';
+
+class CertificationImageNativeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CertificationImageNativeError';
+  }
+}
+
+const certificationImageDependencies: CertificationImageBridgeDependencies = {
+  writeImage: async (fileName, base64) => {
+    if (!FileSystem.cacheDirectory) {
+      throw new CertificationImageNativeError('인증 이미지 캐시를 열 수 없습니다.');
+    }
+    const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return fileUri;
+  },
+  shareImage: async (fileUri) => {
+    if (!await Sharing.isAvailableAsync()) {
+      throw new CertificationImageNativeError('이 기기에서는 이미지 공유를 사용할 수 없습니다.');
+    }
+    await Sharing.shareAsync(fileUri, {
+      dialogTitle: '매일일독 통독 인증 카드',
+      mimeType: CERTIFICATION_IMAGE_MIME_TYPE,
+    });
+  },
+  saveImage: async (fileUri) => {
+    await MediaLibrary.saveToLibraryAsync(fileUri);
+    Alert.alert('이미지 저장 완료', '통독 인증 카드를 갤러리에 저장했습니다.');
+  },
+};
 
 type WebViewUrlEvent = {
   readonly nativeEvent: {
@@ -115,6 +157,7 @@ function AppContent() {
   const [webViewKey, setWebViewKey] = useState(0);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const pendingUrlRef = useRef<string | null>(null);
+  const currentWebViewUrlRef = useRef(WEB_APP_URL);
   const dnsRetryAvailableRef = useRef(true);
   
   const [email, setEmail] = useState('');
@@ -205,7 +248,12 @@ function AppContent() {
       const code = issueData.code;
 
       if (code) {
-        const consumeUrl = `${API_URL}/api/v1/auth/session/consume/?code=${code}&next=${encodeURIComponent(WEB_APP_URL + '/')}`;
+        const consumeUrl = buildSessionBridgeConsumeUrl({
+          apiUrl: API_URL,
+          webAppUrl: WEB_APP_URL,
+          code,
+          currentUrl: currentWebViewUrlRef.current,
+        });
         console.log('[SessionBridge] Session code issued');
         pendingUrlRef.current = consumeUrl;
         setPendingUrl(consumeUrl);
@@ -584,6 +632,7 @@ function AppContent() {
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
     console.log('[WebView] NavigationState:', redactSensitiveUrl(navState.url), 'loading:', navState.loading);
+    currentWebViewUrlRef.current = navState.url;
     setCanGoBack(navState.canGoBack);
     if (navState.url.includes('/login') && navState.url.startsWith(WEB_APP_URL)) {
       showNativeLogin();
@@ -739,6 +788,19 @@ function AppContent() {
           break;
         case 'requestPushToken':
           injectPushToken();
+          break;
+        case 'certification:image':
+          handleCertificationImageMessage(message, certificationImageDependencies)
+            .then((handled) => {
+              if (!handled) {
+                throw new CertificationImageNativeError('올바르지 않은 인증 이미지 요청입니다.');
+              }
+            })
+            .catch((error) => {
+              const detail = error instanceof Error ? error.message : '알 수 없는 오류';
+              console.error('[CertificationImage] Native action failed:', detail);
+              Alert.alert('이미지 작업 실패', detail);
+            });
           break;
       }
     } catch (error) {

@@ -26,7 +26,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.maeil1dok.app",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "icon": "./assets/icon-ios.png",
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -96,6 +96,14 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "프로필 사진 선택에 사용됩니다",
+          "savePhotosPermission": "통독 인증 이미지를 사진 보관함에 저장합니다",
+          "granularPermissions": []
+        }
+      ],
       "expo-updates",
       "./plugins/withGradleMemory",
       [
