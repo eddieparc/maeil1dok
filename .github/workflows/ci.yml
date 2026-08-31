@@ -11,6 +11,7 @@ on:
       - 'mobile/**'
       - 'ops/**'
       - 'scripts/oci_mysql_backup.sh'
+      - 'scripts/oci_compose.sh'
       - 'docker-compose.oci.yml'
       - '.env.oci.example'
       - 'docs/**'
@@ -33,6 +34,7 @@ on:
       - 'mobile/**'
       - 'ops/**'
       - 'scripts/oci_mysql_backup.sh'
+      - 'scripts/oci_compose.sh'
       - 'docker-compose.oci.yml'
       - '.env.oci.example'
       - 'docs/**'
@@ -75,6 +77,7 @@ jobs:
             operations:
               - 'ops/**'
               - 'scripts/oci_mysql_backup.sh'
+              - 'scripts/oci_compose.sh'
               - 'docker-compose.oci.yml'
               - '.env.oci.example'
               - 'tests/test_observability_deployment_config.py'

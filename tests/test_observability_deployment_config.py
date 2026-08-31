@@ -110,6 +110,7 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
         for required_path in (
             "docker-compose.oci.yml",
             "ops/**",
+            "scripts/oci_compose.sh",
             "scripts/oci_mysql_backup.sh",
             ".env.oci.example",
         ):
