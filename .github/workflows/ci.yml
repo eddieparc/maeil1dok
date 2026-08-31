@@ -373,6 +373,28 @@ jobs:
           done
           echo "SMOKE FAILED"; exit 1
 
+      - name: Seed backup and wait for logging readiness
+        run: |
+          ssh -i ~/.ssh/deploy_key "$OCI_SSH_USER@$OCI_HOST" '
+            set -e
+            cd /opt/maeil1dok
+            # Loki 는 기동 직후 ingester ring 이 설 때까지 /ready 에 503 을 준다.
+            # canary 는 fail-closed 라 준비 전에 돌리면 첫 배포가 항상 붉게 끝난다.
+            for attempt in $(seq 1 40); do
+              if ./scripts/oci_compose.sh exec -T alert-probe \
+                   curl -fsS http://loki:3100/ready >/dev/null 2>&1; then
+                echo "LOGGING READY (attempt $attempt)"
+                break
+              fi
+              sleep 5
+            done
+            ./scripts/oci_compose.sh exec -T alert-probe \
+              curl -fsS http://loki:3100/ready >/dev/null
+            # 백업 receipt 는 cron 이 처음 돌기 전까지 없다. 배포마다 실제 백업을 한 번
+            # 돌려 seed 하면 alert-probe 의 백업 신선도 검사가 첫 배포부터 진짜 산출물을 본다.
+            ./scripts/oci_mysql_backup.sh
+          '
+
       - name: Alert delivery canary
         run: |
           ssh -i ~/.ssh/deploy_key "$OCI_SSH_USER@$OCI_HOST" '

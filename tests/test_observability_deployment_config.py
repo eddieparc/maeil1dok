@@ -231,6 +231,19 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
                 if line.strip().startswith("install -d") and owned_directory in line:
                     self.fail(f"{owned_directory} must be provisioned with sudo")
 
+    def test_deployment_seeds_backup_and_waits_for_logging_before_canary(self) -> None:
+        marker = "Seed backup and wait for logging readiness"
+        canary = "--entrypoint /app/run.sh alert-probe --canary"
+
+        self.assertIn(marker, self.workflow)
+        self.assertIn("http://loki:3100/ready", self.workflow)
+        self.assertIn("./scripts/oci_mysql_backup.sh", self.workflow)
+        self.assertLess(self.workflow.index(marker), self.workflow.index(canary))
+        self.assertLess(
+            self.workflow.index("./scripts/oci_mysql_backup.sh"),
+            self.workflow.index(canary),
+        )
+
     def test_deployment_and_backup_safety_gates_cannot_silently_regress(self) -> None:
         backup_script = (self.root / "scripts" / "oci_mysql_backup.sh").read_text(
             encoding="utf-8"
