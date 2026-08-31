@@ -28,66 +28,23 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createProjectHashAsync } from '@expo/fingerprint'
+import {
+  evaluateMarker,
+  evaluateServedUpdate,
+  resolveUpdateTarget,
+} from './ota-target.mjs'
+
+export {
+  evaluateMarker,
+  evaluateServedUpdate,
+  resolveUpdateTarget,
+} from './ota-target.mjs'
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'https://maeil1dok.app'
 const MARKER_PATH = '/_build-marker.json'
 const PLATFORMS = new Set(['ios', 'android'])
 const MOBILE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-
-/**
- * What runtime and project does a published update belong to?
- *
- * Derived from app config rather than assumed, because guessing the runtime makes
- * the reach check worthless: it would query a runtime no installed app asks for
- * and report the answer as proof.
- */
-export function resolveUpdateTarget(appConfig) {
-  const expo = appConfig?.expo
-  const projectId = expo?.extra?.eas?.projectId
-  if (typeof projectId !== 'string' || !projectId) {
-    return { ok: false, reason: 'app.json has no expo.extra.eas.projectId' }
-  }
-  const policy = expo?.runtimeVersion?.policy
-  if (policy !== 'appVersion') {
-    return {
-      ok: false,
-      reason:
-        `runtimeVersion.policy is ${policy ?? 'unset'}; this gate can only derive ` +
-        'the runtime when the policy is appVersion. Update the gate together with the policy.',
-    }
-  }
-  const runtimeVersion = expo?.version
-  if (typeof runtimeVersion !== 'string' || !runtimeVersion) {
-    return { ok: false, reason: 'app.json has no expo.version to use as the runtime' }
-  }
-  return { ok: true, projectId, runtimeVersion }
-}
-
-/**
- * Did the publish become the update the server actually serves?
- *
- * `eas update` printing "Published!" says a record was created, not that any
- * client will be offered it. Comparing the served update id across the publish is
- * the cheapest honest check: it fails when the runtime/channel pair serves nothing
- * and when the new update did not take effect.
- */
-export function evaluateServedUpdate({ before, after }) {
-  if (after === null || after === undefined) {
-    return {
-      ok: false,
-      reason:
-        'the update server serves nothing for this runtime and channel after publishing; ' +
-        'no client asking for them will ever receive this update',
-    }
-  }
-  if (before === after) {
-    return {
-      ok: false,
-      reason: `the served update is unchanged (${after}); the publish did not take effect`,
-    }
-  }
-  return { ok: true, updateId: after }
-}
 
 /** Thin HTTP layer; the decision above is what carries the coverage. */
 async function fetchServedUpdateId({ projectId, platform, runtimeVersion, channel }) {
@@ -179,46 +136,6 @@ function assertPlatform(args) {
   if (!PLATFORMS.has(args.platform)) fail(`--platform must be ios or android, got ${args.platform}`)
 }
 
-/**
- * Decide whether a fetched marker satisfies the requested SHA.
- *
- * Pure on purpose: exported so tests can drive every verdict without standing up an
- * HTTP server. An earlier version of the test suite did spin one up per case and
- * hung -- the gate's `fetch` runs in a child process and leaves a keep-alive socket,
- * so `server.close()` never completed. That cost a 25-minute CI failure. The HTTP
- * layer below is now thin enough to need no coverage of its own; what matters is
- * this decision, and it is directly testable.
- *
- * Returns `{ ok: true, marker }` or `{ ok: false, reason }`.
- */
-export function evaluateMarker(marker, expectedSha) {
-  if (marker === null || typeof marker !== 'object') {
-    return { ok: false, reason: 'marker is not an object' }
-  }
-  if (typeof marker.commit !== 'string' || !marker.commit) {
-    return { ok: false, reason: 'marker has no commit field' }
-  }
-  if (marker.commit === 'unknown') {
-    return {
-      ok: false,
-      reason: 'the deployed web build has an unknown commit marker; rebuild and redeploy',
-    }
-  }
-  // Prefix comparison so a short SHA works, but only in that direction: a truncated
-  // deployed marker must not be allowed to satisfy an unrelated longer SHA.
-  const matches =
-    marker.commit === expectedSha || marker.commit.startsWith(expectedSha)
-  if (!matches) {
-    return {
-      ok: false,
-      reason:
-        `deployed web commit ${marker.commit} does not match --requires-web ${expectedSha}; ` +
-        'deploy the web build before publishing the shell',
-    }
-  }
-  return { ok: true, marker }
-}
-
 async function fetchDeployedMarker() {
   const url = `${WEB_ORIGIN}${MARKER_PATH}`
   let response
@@ -284,7 +201,14 @@ async function main() {
   )
 
   const appConfig = JSON.parse(readFileSync(resolve(MOBILE_ROOT, 'app.json'), 'utf8'))
-  const target = resolveUpdateTarget(appConfig)
+  const fingerprint =
+    appConfig?.expo?.runtimeVersion?.policy === 'fingerprint'
+      ? await createProjectHashAsync(MOBILE_ROOT, {
+          platforms: [args.platform],
+          silent: true,
+        })
+      : null
+  const target = resolveUpdateTarget(appConfig, { fingerprint })
   if (!target.ok) fail(target.reason)
 
   if (args.checkOnly) {

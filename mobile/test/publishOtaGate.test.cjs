@@ -1,9 +1,11 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
 const SCRIPT = path.join(__dirname, '..', 'scripts', 'publish-ota.mjs');
+const APP_CONFIG = path.join(__dirname, '..', 'app.json');
 
 /**
  * The gate decides whether a shell OTA may be published. Two halves, tested the way
@@ -182,17 +184,29 @@ test('the update target is derived from app config, never guessed', async () => 
   assert.equal(target.runtimeVersion, '1.2.2');
   assert.equal(target.projectId, 'abc-123');
 
-  // A different policy means the runtime cannot be read off `version`. Guessing
-  // here would query a runtime no device uses and call the answer proof.
+  // A fingerprint runtime is platform-specific. The caller must supply the
+  // fingerprint it computed from this exact native source; falling back to the
+  // app version would recreate the build-11 ExpoMediaLibrary crash.
   const fingerprint = resolveUpdateTarget({
     expo: { version: '1.2.2', runtimeVersion: { policy: 'fingerprint' }, extra: { eas: { projectId: 'a' } } },
+  }, { fingerprint: 'ios-native-fingerprint' });
+  assert.equal(fingerprint.ok, true);
+  assert.equal(fingerprint.runtimeVersion, 'ios-native-fingerprint');
+
+  const missingFingerprint = resolveUpdateTarget({
+    expo: { version: '1.2.2', runtimeVersion: { policy: 'fingerprint' }, extra: { eas: { projectId: 'a' } } },
   });
-  assert.equal(fingerprint.ok, false);
+  assert.equal(missingFingerprint.ok, false);
 
   const noProject = resolveUpdateTarget({
     expo: { version: '1.2.2', runtimeVersion: { policy: 'appVersion' }, extra: {} },
   });
   assert.equal(noProject.ok, false);
+});
+
+test('native ABI changes produce a new runtime instead of reusing appVersion', () => {
+  const appConfig = JSON.parse(readFileSync(APP_CONFIG, 'utf8'));
+  assert.equal(appConfig.expo.runtimeVersion.policy, 'fingerprint');
 });
 
 test('every run states that publishing does not prove reach', () => {

@@ -235,9 +235,15 @@ brew install fastlane        # iOS 로컬 빌드 필수 (eas-cli-local-build-plu
 ```
 
 **1. 버전** — `app.json` 이 단일 진실이다(`eas.json` 의 `appVersionSource: local`).
-현재 설정값: `version 1.2.3` · iOS `buildNumber 11` · Android `versionCode 20`.
-Android versionCode 는 **전역 단조증가**라 스토어 현재값보다 커야 한다(실기기 관측 17).
-Play Console 값이 20 이상이면 더 올린다.
+현재 설정값: `version 1.2.3` · iOS `buildNumber 13` · Android `versionCode 21`.
+Android versionCode 는 **전역 단조증가**라 스토어 현재값보다 커야 한다(실기기 관측 20).
+Play Console 값이 21 이상이면 더 올린다.
+
+`runtimeVersion`은 더 이상 앱 버전이 아니다. `policy: fingerprint`가 플랫폼별 native
+fingerprint를 런타임으로 사용한다. 2026-08-31에 build 11과 build 12가 모두
+`runtimeVersion=1.2.3`이었지만 build 12 JS가 새 native module `ExpoMediaLibrary`를
+요구해 build 11에서 startup fatal 후 자동 롤백됐다. 앱 버전 문자열만으로 native ABI
+호환성을 주장하지 않는다.
 
 **2. 빌드**
 ```bash
@@ -281,8 +287,9 @@ npm run verify:store -- --artifact ../dist/maeil1dok-1.2.3.ipa
 `NUXT_PUBLIC_LEGACY_SHELL_ENFORCEMENT=blocking`. 그 전에 켜면 업데이트할 대상이 없는
 사용자를 앱에서 쫓아낸다.
 
-**7. 이후 OTA** — 런타임이 `1.2.3` 이 되므로 게시도 그 런타임으로 나간다.
-이미 `1.2.2` 에 게시된 Part A 셸은 새 빌드에 **임베디드로 들어가므로** 다시 게시할 필요 없다.
+**7. 이후 OTA** — `npm run publish:ota`가 대상 플랫폼의 native fingerprint를 계산해
+그 값을 런타임으로 조회·검증한다. iOS와 Android fingerprint는 서로 다를 수 있다.
+앱 버전 `1.2.3`을 런타임으로 수동 입력하지 않는다.
 
 ---
 

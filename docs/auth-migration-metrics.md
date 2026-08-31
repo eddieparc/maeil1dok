@@ -687,3 +687,55 @@ Archive)를 한다. **prebuild·gradlew·Xcode 어느 것도 채널을 심지 �
 | 창(UTC) | 로그인 시도 | 성공률 | Δ | 인증 요청 | 401률 | Δ | 분모 충족 | 판정 |
 |---|---|---|---|---|---|---|---|---|
 | (없음) | | | | | | | | |
+
+---
+
+## 2026-08-31 frozen iOS OTA native-runtime rollback
+
+고정 SHA `8ffddd4b68b0ce168b1d31a222ce7a1d93ba9869`의 iOS OTA
+`01a0578c-e9e5-74ab-ad12-c7423d114c16`을 i17pm의 앱 `1.2.3 (11)`이
+다운로드했다. 두 번째 cold launch에서 Expo가 다음 fatal을 기록하고 이전 update로
+자동 롤백했다.
+
+```text
+Unhandled JS Exception: [runtime not ready]:
+Error: Cannot find native module 'ExpoMediaLibrary'
+```
+
+DB 판정:
+
+| update | successful launch | failed launch | 판정 |
+|---|---:|---:|---|
+| `01a0578c-e9e5-74ab-ad12-c7423d114c16` | 0 | 1 | FAIL, 자동 롤백 |
+| `01a0561a-b8eb-7b73-8afe-f30dbeb10dde` | 6 | 0 | 호환 update로 재기동 |
+
+원인은 native dependency `expo-media-library`를 추가한 커밋 `2fb2c2dc`가 앱 버전
+`1.2.3`과 `runtimeVersion.policy=appVersion`을 그대로 둔 것이다. 실제 native
+fingerprint는 그 직전과 이후에 달랐다.
+
+| 플랫폼 | dependency 추가 전 | frozen source |
+|---|---|---|
+| iOS | `4f09038a252f2d94f59668dbc1900bb655f69290` | 변경됨 |
+| Android | `bb1e0e7b02e733cbadd2d4430931a99497008972` | 변경됨 |
+
+즉 동일 런타임에 서로 다른 native ABI가 섞였다. 모든 8개 자산은 성공적으로
+다운로드됐고 `checkError`·`downloadError`는 없었으므로 네트워크·자산 손상이 아니다.
+
+즉시 조치:
+
+- production iOS runtime `1.2.3`은 검증된 호환 그룹
+  `d812132c-88c0-4b7d-8ae4-d0bafc97a275`에서 재게시했다.
+- 새 그룹 `60ece530-4e24-45e5-ba09-e9229beff13f`
+- 현재 served iOS update `01a057d6-f6b5-7395-90dd-c1a9d6d7f850`
+- Android final OTA는 해당 native module을 가진 build에서 검증됐으므로 별도 유지한다.
+
+재발 방지:
+
+- `runtimeVersion.policy=fingerprint`
+- 게시 gate가 플랫폼 fingerprint를 직접 계산해 served runtime을 검증
+- appVersion 정책으로 되돌리는 mutation은 `mobile/test/publishOtaGate.test.cjs`가 실패
+- isolated EAS probe에서 로컬 iOS fingerprint와 EAS Runtime version이
+  `4ee26c8bab502c366cc3d9fa51c17ab2c998ef94`로 정확히 일치
+
+이 사고로 `8ffddd4b`의 C9는 FAIL이며 C10 7일 시계도 폐기한다. 새 SHA·새 signed
+artifact·새 physical QA가 통과한 뒤 기준선과 7일 시계를 다시 시작한다.
