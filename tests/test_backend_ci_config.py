@@ -55,13 +55,12 @@ class BackendCiConfigTest(unittest.TestCase):
         self.assertIn("tests.test_backend_ci_config", self.workflow)
 
     def test_deploy_rebuilds_and_recreates_celery_services(self) -> None:
-        compose = "docker compose -f docker-compose.oci.yml --env-file .env.oci"
         self.assertIn(
-            f"{compose} build web celery-worker celery-beat frontend",
+            "./scripts/oci_compose.sh build web celery-worker celery-beat frontend",
             self.workflow,
         )
         self.assertIn(
-            f"{compose} up -d web celery-worker celery-beat frontend cloudflared",
+            "./scripts/oci_compose.sh up -d web celery-worker celery-beat frontend cloudflared",
             self.workflow,
         )
 
