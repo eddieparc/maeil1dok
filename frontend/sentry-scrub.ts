@@ -13,6 +13,7 @@ const SENSITIVE_KEYS = new Set([
   'password',
   'phonenumber',
   'proxyauthorization',
+  'refresh',
   'refreshtoken',
   'secret',
   'sessionid',
@@ -28,9 +29,9 @@ const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi
 const BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi
 const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g
 const JSON_STRING_PATTERN =
-  /(["'](?:access|access_token|refresh|refresh_token|id_token|signup_token|token|code|state|password|authorization|csrftoken|api_key|client_secret|secret|sessionid)["']\s*:\s*["'])[^"']*(["'])/gi
+  /(["'](?:access|access_token|refresh|refresh_token|id_token|signup_token|token|code|state|password|authorization|csrftoken|api_key|client_secret|secret|sessionid|provider_id|suggested_nickname|profile_image)["']\s*:\s*["'])[^"']*(["'])/gi
 const ASSIGNMENT_PATTERN =
-  /\b(access|access_token|refresh|refresh_token|id_token|signup_token|token|code|state|password|authorization|csrftoken|api_key|client_secret|secret|sessionid)(\s*[=:]\s*)[^&\s,;"']+/gi
+  /\b(access|access_token|refresh|refresh_token|id_token|signup_token|token|code|state|password|authorization|csrftoken|api_key|client_secret|secret|sessionid|provider_id|suggested_nickname|profile_image)(\s*[=:]\s*)[^&\s,;"']+/gi
 
 const normalizedKey = (key: string): string =>
   key.toLowerCase().replace(/[^a-z0-9]/g, '')

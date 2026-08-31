@@ -88,6 +88,7 @@ test('Sentry scrubber removes secrets and direct identifiers recursively', async
     extra: {
       callback: '/done?code=access-secret',
       api_key: 'api-secret',
+      refresh: 'refresh-secret',
     },
   };
 
