@@ -1,6 +1,6 @@
 <template>
   <section class="quick-access">
-    <h3 class="section-title">Explore</h3>
+    <h3 class="section-title">빠른 이동</h3>
 
     <div class="grid-2">
       <NuxtLink to="/hasena" class="sub-card" data-testid="card-hasena">
