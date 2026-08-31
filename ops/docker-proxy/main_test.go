@@ -76,3 +76,37 @@ func Test_DockerProxy_denies_mutation_and_other_projects(t *testing.T) {
 		}
 	}
 }
+
+func Test_DockerProxy_networks_exclude_other_projects_and_endpoint_details(t *testing.T) {
+	upstream := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/containers/json":
+			writer.Write([]byte(`[{"Id":"1234567890abcdef","NetworkSettings":{"Networks":{"allowed":{"NetworkID":"allowed-network"}}}}]`))
+		case "/networks":
+			writer.Write([]byte(`[
+				{"Id":"allowed-network","Name":"maeil1dok_default","Driver":"bridge","Scope":"local","Internal":false,"Ingress":false,"Containers":{"123":{"IPv4Address":"172.20.0.2/16"}}},
+				{"Id":"other-network","Name":"urban-private","Driver":"bridge","Scope":"local","Internal":false,"Ingress":false,"Labels":{"secret":"other-project"}}
+			]`))
+		default:
+			http.NotFound(writer, request)
+		}
+	})
+	proxy := testProxy(t, upstream)
+	request := httptest.NewRequest(http.MethodGet, "/networks", nil)
+	response := httptest.NewRecorder()
+
+	proxy.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, "maeil1dok_default") {
+		t.Fatalf("allowed network missing: %s", body)
+	}
+	for _, forbidden := range []string{"urban-private", "172.20.0.2", "other-project", "Containers"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("network response leaked %q: %s", forbidden, body)
+		}
+	}
+}

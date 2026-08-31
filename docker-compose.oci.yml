@@ -18,7 +18,7 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
-x-backend-environment: &backend-environment
+x-backend-core-environment: &backend-core-environment
   DEBUG: "False"
   DJANGO_SETTINGS_MODULE: config.settings
   SECRET_KEY: ${SECRET_KEY:?SECRET_KEY 필수}
@@ -39,6 +39,14 @@ x-backend-environment: &backend-environment
   FRONTEND_URL: ${FRONTEND_URL:-https://maeil1dok.app}
   KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:?KAKAO_CLIENT_ID 필수}
   KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI:?KAKAO_REDIRECT_URI 필수}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+  SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+  SENTRY_SEND_DEFAULT_PII: "false"
+  SENTRY_RELEASE: ${COMMIT_SHA:?COMMIT_SHA is required}
+
+x-web-environment: &web-environment
+  <<: *backend-core-environment
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
@@ -53,11 +61,18 @@ x-backend-environment: &backend-environment
   RESEND_API_KEY: ${RESEND_API_KEY:-}
   FROM_EMAIL: ${FROM_EMAIL:-noreply@maeil1dok.app}
   FROM_NAME: ${FROM_NAME:-매일일독}
-  SENTRY_DSN: ${SENTRY_DSN:-}
-  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
-  SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
-  SENTRY_SEND_DEFAULT_PII: "false"
-  SENTRY_RELEASE: ${COMMIT_SHA:?COMMIT_SHA is required}
+
+x-worker-environment: &worker-environment
+  <<: *backend-core-environment
+  API_BIBLE_KEY: ${API_BIBLE_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+  WEB_PUSH_VAPID_PUBLIC_KEY: ${WEB_PUSH_VAPID_PUBLIC_KEY:-}
+  WEB_PUSH_VAPID_PRIVATE_KEY: ${WEB_PUSH_VAPID_PRIVATE_KEY:-}
+  WEB_PUSH_VAPID_SUBJECT: ${WEB_PUSH_VAPID_SUBJECT:-}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  FROM_EMAIL: ${FROM_EMAIL:-noreply@maeil1dok.app}
+  FROM_NAME: ${FROM_NAME:-매일일독}
 
 services:
   mysql:
@@ -103,7 +118,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      <<: *backend-environment
+      <<: *web-environment
     depends_on:
       mysql:
         condition: service_healthy
@@ -165,7 +180,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      <<: *backend-environment
+      <<: *worker-environment
     depends_on:
       # web 가 마이그레이션을 끝내고 healthy 해진 뒤에만 태스크 소비(구스키마 실행 방지)
       web:
@@ -189,7 +204,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      <<: *backend-environment
+      <<: *backend-core-environment
     depends_on:
       web:
         condition: service_healthy

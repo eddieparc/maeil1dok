@@ -29,7 +29,12 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
     def test_deployed_commit_is_the_single_sentry_release(self) -> None:
         self.assertIn("export COMMIT_SHA=", self.workflow)
         self.assertGreaterEqual(self.compose.count("SENTRY_RELEASE: ${COMMIT_SHA:?"), 2)
-        self.assertEqual(self.compose.count("<<: *backend-environment"), 3)
+        self.assertIn("<<: *web-environment", self.compose)
+        self.assertIn("<<: *worker-environment", self.compose)
+        self.assertGreaterEqual(
+            self.compose.count("<<: *backend-core-environment"),
+            3,
+        )
         self.assertIn(
             "NUXT_PUBLIC_SENTRY_RELEASE=${COMMIT_SHA:?",
             self.compose,
@@ -124,6 +129,8 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
             backup_script.index('mv "$RECEIPT_TMP"'),
         )
         self.assertNotIn('-p"${DUMP_PW}"', backup_script)
+        self.assertNotIn('-e MYSQL_PWD="$DUMP_PW"', backup_script)
+        self.assertIn('printenv "$1"', backup_script)
 
     def test_observability_services_are_least_privilege_and_network_isolated(self) -> None:
         probe_dockerfile = (self.root / "ops" / "probes" / "Dockerfile").read_text(
@@ -146,6 +153,18 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
         self.assertIn("internal: true", self.compose)
         self.assertNotIn("env_file: .env.oci", self.compose)
         self.assertIn("healthcheck:", self.compose[self.compose.index("alert-probe:") :])
+        core_environment = self.compose[
+            self.compose.index("x-backend-core-environment:")
+            : self.compose.index("x-web-environment:")
+        ]
+        for unrelated_secret in (
+            "GEMINI_API_KEY",
+            "YOUTUBE_API_KEY",
+            "WEB_PUSH_VAPID_PRIVATE_KEY",
+            "RESEND_API_KEY",
+            "GOOGLE_CLIENT_SECRET",
+        ):
+            self.assertNotIn(unrelated_secret, core_environment)
 
     def test_build_contexts_exclude_environment_secrets(self) -> None:
         for directory in ("backend", "frontend"):

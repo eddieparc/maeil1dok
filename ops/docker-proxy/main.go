@@ -30,7 +30,12 @@ type dockerProxy struct {
 }
 
 type containerSummary struct {
-	ID string `json:"Id"`
+	ID              string `json:"Id"`
+	NetworkSettings struct {
+		Networks map[string]struct {
+			NetworkID string `json:"NetworkID"`
+		} `json:"Networks"`
+	} `json:"NetworkSettings"`
 }
 
 type safeInspect struct {
@@ -42,6 +47,15 @@ type safeInspect struct {
 		Running    bool   `json:"Running"`
 		FinishedAt string `json:"FinishedAt"`
 	} `json:"State"`
+}
+
+type safeNetwork struct {
+	ID       string `json:"Id"`
+	Name     string `json:"Name"`
+	Driver   string `json:"Driver"`
+	Scope    string `json:"Scope"`
+	Internal bool   `json:"Internal"`
+	Ingress  bool   `json:"Ingress"`
 }
 
 func newDockerProxy(socketPath string) *dockerProxy {
@@ -74,8 +88,10 @@ func (proxy *dockerProxy) ServeHTTP(writer http.ResponseWriter, request *http.Re
 	request.URL.RawPath = ""
 
 	switch {
-	case path == "/_ping" || path == "/version" || path == "/networks":
+	case path == "/_ping" || path == "/version":
 		proxy.reverse.ServeHTTP(writer, request)
+	case path == "/networks":
+		proxy.forwardProjectNetworks(writer, request)
 	case path == "/containers/json":
 		proxy.forwardProjectContainers(writer, request)
 	case strings.HasPrefix(path, "/containers/") && strings.HasSuffix(path, "/logs"):
@@ -141,6 +157,59 @@ func (proxy *dockerProxy) forwardProjectContainers(
 		"filters": {`{"label":["` + projectLabel + `"]}`},
 	}.Encode()
 	proxy.reverse.ServeHTTP(writer, request)
+}
+
+func (proxy *dockerProxy) forwardProjectNetworks(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	containers, err := proxy.projectContainers(request.Context())
+	if err != nil {
+		http.Error(writer, "network authorization unavailable", http.StatusBadGateway)
+		return
+	}
+	allowedIDs := make(map[string]struct{})
+	for _, container := range containers {
+		for _, network := range container.NetworkSettings.Networks {
+			allowedIDs[network.NetworkID] = struct{}{}
+		}
+	}
+
+	upstreamRequest, err := http.NewRequestWithContext(
+		request.Context(),
+		http.MethodGet,
+		proxy.target.String()+"/networks",
+		nil,
+	)
+	if err != nil {
+		http.Error(writer, "network discovery unavailable", http.StatusBadGateway)
+		return
+	}
+	response, err := proxy.client.Do(upstreamRequest)
+	if err != nil {
+		http.Error(writer, "network discovery unavailable", http.StatusBadGateway)
+		return
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		http.Error(writer, "network discovery unavailable", response.StatusCode)
+		return
+	}
+	var networks []safeNetwork
+	if err := json.NewDecoder(io.LimitReader(response.Body, 4<<20)).Decode(&networks); err != nil {
+		http.Error(writer, "invalid network discovery response", http.StatusBadGateway)
+		return
+	}
+	filtered := make([]safeNetwork, 0, len(networks))
+	for _, network := range networks {
+		if _, allowed := allowedIDs[network.ID]; allowed {
+			filtered = append(filtered, network)
+		}
+	}
+	writer.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(writer).Encode(filtered); err != nil {
+		slog.Error("encode project networks", "error", err)
+	}
 }
 
 func containerID(path, suffix string) string {

@@ -38,9 +38,9 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.oci.yml}"
 DB_NAME="${DB_NAME:-maeil1dok}"
 # 크리덴셜은 반드시 짝으로: root+DB_ROOT_PASSWORD (권장) 또는 DB_USER+DB_PASSWORD.
 if [ -n "${DB_ROOT_PASSWORD:-}" ]; then
-  DUMP_USER="root"; DUMP_PW="$DB_ROOT_PASSWORD"
+  DUMP_USER="root"; DUMP_PASSWORD_ENV="MYSQL_ROOT_PASSWORD"
 elif [ -n "${DB_USER:-}" ] && [ -n "${DB_PASSWORD:-}" ]; then
-  DUMP_USER="$DB_USER"; DUMP_PW="$DB_PASSWORD"
+  DUMP_USER="$DB_USER"; DUMP_PASSWORD_ENV="MYSQL_PASSWORD"
 else
   echo "[$(date -Is)] ERROR: DB_ROOT_PASSWORD 또는 DB_USER+DB_PASSWORD 가 필요합니다." >&2
   exit 1
@@ -55,8 +55,9 @@ chmod 700 "$BACKUP_DIR" || true
 
 echo "[$(date -Is)] mysqldump 시작 → ${OUT}"
 # --single-transaction: InnoDB 일관 스냅샷(락 최소). 트리거/루틴/이벤트 포함, utf8mb4.
-docker compose -f "$COMPOSE_FILE" exec -T -e MYSQL_PWD="$DUMP_PW" mysql \
-  mysqldump -u"${DUMP_USER}" \
+docker compose -f "$COMPOSE_FILE" exec -T mysql \
+  sh -c 'export MYSQL_PWD="$(printenv "$1")"; shift; exec mysqldump "$@"' \
+  sh "$DUMP_PASSWORD_ENV" -u"${DUMP_USER}" \
     --single-transaction --routines --triggers --events \
     --default-character-set=utf8mb4 --no-tablespaces \
     "$DB_NAME" | gzip -9 > "$OUT"
