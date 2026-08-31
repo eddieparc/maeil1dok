@@ -48,6 +48,18 @@ print_error() {
     echo -e "${RED}[오류] $1${NC}"
 }
 
+require_sentry_release_env() {
+    local missing=""
+    for name in EXPO_PUBLIC_SENTRY_DSN SENTRY_AUTH_TOKEN SENTRY_ORG SENTRY_PROJECT; do
+        eval "value=\${$name:-}"
+        [ -z "$value" ] && missing="$missing $name"
+    done
+    if [ -n "$missing" ]; then
+        print_error "Sentry 출시 환경변수 누락:$missing"
+        return 1
+    fi
+}
+
 get_version() {
     grep -o '"version": "[^"]*"' "$APP_JSON" | cut -d'"' -f4
 }
@@ -133,6 +145,10 @@ run_prebuild() {
 build_eas() {
     local platform=$1
     local profile=$2
+
+    if [ "$profile" = "production" ]; then
+        require_sentry_release_env
+    fi
     
     print_step "EAS 클라우드 빌드 시작 ($platform - $profile)..."
     cd "$PROJECT_DIR"
@@ -144,6 +160,8 @@ build_local() {
     local type=$2
     local gradle_cmd="./gradlew"
     local gradle_opts=""
+
+    require_sentry_release_env
     
     if [ "$LOW_PRIORITY" = true ]; then
         gradle_cmd="nice -n 10 ./gradlew"

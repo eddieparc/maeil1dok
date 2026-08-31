@@ -97,7 +97,14 @@
       ],
       "expo-secure-store",
       "expo-updates",
-      "./plugins/withGradleMemory"
+      "./plugins/withGradleMemory",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "jgplabs",
+          "project": "maeil1dok-mobile"
+        }
+      ]
     ],
     "extra": {
       "webAppUrl": "https://maeil1dok.app",

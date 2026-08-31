@@ -33,6 +33,8 @@ import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './dee
 import { redactSensitiveUrl } from './urlRedaction';
 import { csrfHeadersFrom } from './csrfHeader';
 import * as Updates from 'expo-updates';
+import * as Sentry from '@sentry/react-native';
+import { initMobileTelemetry } from './sentryTelemetry';
 import {
   formatBundleIdentityLabel,
   formatBundleIdentityLine,
@@ -51,6 +53,7 @@ import { isFatalWebViewError, shouldAllowWebViewNavigation } from './webviewNavi
  */
 const DECELERATION_RATE_NORMAL = 0.998;
 
+initMobileTelemetry();
 SplashScreen.preventAutoHideAsync();
 
 Notifications.setNotificationHandler({
@@ -1205,10 +1208,12 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function App() {
+function App() {
   return (
     <SafeAreaProvider>
       <AppContent />
     </SafeAreaProvider>
   );
 }
+
+export default Sentry.wrap(App);

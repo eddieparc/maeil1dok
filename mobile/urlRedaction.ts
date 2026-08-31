@@ -2,15 +2,20 @@ const SENSITIVE_QUERY_KEYS = new Set([
   'access',
   'access_token',
   'code',
+  'email',
   'refresh',
   'refresh_token',
   'id_token',
+  'profile_image',
+  'provider_id',
   'signup_token',
+  'state',
+  'suggested_nickname',
   'token',
 ]);
 
 const SENSITIVE_PARAMETER_PATTERN =
-  /([?&#;](?:access|access_token|code|refresh|refresh_token|id_token|signup_token|token)=)[^&#;]*/gi;
+  /([?&#;](?:access|access_token|code|email|refresh|refresh_token|id_token|profile_image|provider_id|signup_token|state|suggested_nickname|token)=)[^&#;]*/gi;
 
 const redactSensitiveParameters = (value: string): string =>
   value.replace(SENSITIVE_PARAMETER_PATTERN, '$1[redacted]');
