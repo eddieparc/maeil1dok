@@ -87,7 +87,9 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 필수}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD 필수}
     volumes:
-      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/mysql:/var/lib/mysql
+      - type: bind
+        source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/mysql
+        target: /var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 10s
@@ -102,7 +104,9 @@ services:
     image: redis:7-alpine
     command: redis-server --appendonly yes
     volumes:
-      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/redis:/data
+      - type: bind
+        source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/redis
+        target: /data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -232,7 +236,10 @@ services:
     # 마운트된 secret(600, ubuntu 소유)을 읽기 위해 컨테이너 root(=호스트 root)로 실행.
     user: "0:0"
     volumes:
-      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/cloudflared:/etc/cloudflared:ro
+      - type: bind
+        source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/cloudflared
+        target: /etc/cloudflared
+        read_only: true
     depends_on:
       web:
         condition: service_healthy
@@ -250,7 +257,9 @@ services:
     command: -config.file=/etc/loki/config.yml
     volumes:
       - ./ops/loki/config.yml:/etc/loki/config.yml:ro
-      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/loki:/loki
+      - type: bind
+        source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/loki
+        target: /loki
     networks:
       - observability
     mem_limit: 350m
@@ -290,7 +299,9 @@ services:
       - /etc/alloy/config.alloy
     volumes:
       - ./ops/alloy/config.alloy:/etc/alloy/config.alloy:ro
-      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/alloy:/var/lib/alloy/data
+      - type: bind
+        source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/alloy
+        target: /var/lib/alloy/data
     depends_on:
       - loki
       - docker-proxy
@@ -326,8 +337,13 @@ services:
         source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/backups
         target: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/backups
         read_only: true
-      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/loki:/loki-data:ro
-      - ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/alerts:/state
+      - type: bind
+        source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/loki
+        target: /loki-data
+        read_only: true
+      - type: bind
+        source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/alerts
+        target: /state
     networks:
       - default
       - observability

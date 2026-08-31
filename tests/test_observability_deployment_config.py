@@ -76,7 +76,11 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
 
         self.assertIn("grafana/loki:3.5.5", self.compose)
         self.assertIn("grafana/alloy:v1.10.2", self.compose)
-        self.assertIn("/loki:/loki", self.compose)
+        self.assertIn(
+            "source: ${OCI_DATA_ROOT:-/mnt/data/maeil1dok}/loki",
+            self.compose,
+        )
+        self.assertIn("target: /loki", self.compose)
         self.assertIn("/var/run/docker.sock:/var/run/docker.sock:ro", self.compose)
         self.assertIn("retention_period: 720h", loki)
         self.assertIn("retention_enabled: true", loki)
