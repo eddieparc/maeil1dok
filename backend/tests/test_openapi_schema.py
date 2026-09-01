@@ -118,3 +118,58 @@ class OpenApiSchemaTest(SimpleTestCase):
                     bool(auth_operation.get("deprecated")),
                     f"Expected exactly one deprecated alias for {method.upper()} {suffix}",
                 )
+
+    def test_social_signup_requests_and_detailed_errors_are_typed(self):
+        schema = yaml.safe_load(SCHEMA_PATH.read_text(encoding="utf-8"))
+        components = schema["components"]["schemas"]
+
+        social_login = components["SocialLogin"]
+        self.assertEqual(
+            {
+                "access_token",
+                "auto_signup",
+                "code",
+                "full_name",
+                "id_token",
+                "provider",
+                "redirect_uri",
+                "user_name",
+            },
+            set(social_login["properties"]),
+        )
+        self.assertEqual(
+            ["apple", "google", "kakao"],
+            components[
+                social_login["properties"]["provider"]["$ref"].rsplit("/", 1)[-1]
+            ]["enum"],
+        )
+
+        completion = components["CompleteSocialSignup"]
+        self.assertTrue(
+            {
+                "access_token",
+                "nickname",
+                "profile_image",
+                "provider",
+                "provider_id",
+                "signup_token",
+            }.issubset(completion["properties"])
+        )
+        self.assertIn("nickname", completion["required"])
+
+        detailed_error = components["SocialAuthError"]
+        self.assertTrue(
+            {
+                "action",
+                "error",
+                "error_code",
+                "field",
+                "request_id",
+            }.issubset(detailed_error["properties"])
+        )
+        completion_responses = schema["paths"][
+            "/api/v1/auth/complete-social-signup/"
+        ]["post"]["responses"]
+        self.assertIn("400", completion_responses)
+        self.assertIn("409", completion_responses)
+        self.assertIn("500", completion_responses)

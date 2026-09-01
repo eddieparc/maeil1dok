@@ -202,6 +202,44 @@ class RequestCorrelationTests(TestCase):
         self.assertEqual(record.status, 200)
         self.assertGreaterEqual(record.duration_ms, 0)
 
+    def test_mobile_client_platform_and_version_reach_completion_log(self) -> None:
+        self.assertTrue(
+            {
+                "x-app-platform",
+                "x-app-version",
+                "x-client",
+            }.issubset(security_settings.CORS_ALLOW_HEADERS)
+        )
+
+        with self.assertLogs("http.request", level="INFO") as captured:
+            response = self.client.get(
+                "/health/",
+                HTTP_X_CLIENT="shell",
+                HTTP_X_APP_PLATFORM="android",
+                HTTP_X_APP_VERSION="1.2.3",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        record = captured.records[-1]
+        self.assertEqual(record.client, "shell")
+        self.assertEqual(record.platform, "android")
+        self.assertEqual(record.app_version, "1.2.3")
+
+    def test_untrusted_client_observation_headers_are_not_logged(self) -> None:
+        with self.assertLogs("http.request", level="INFO") as captured:
+            response = self.client.get(
+                "/health/",
+                HTTP_X_CLIENT="invented-client",
+                HTTP_X_APP_PLATFORM="android-forged",
+                HTTP_X_APP_VERSION="v" * 100,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        record = captured.records[-1]
+        self.assertFalse(hasattr(record, "client"))
+        self.assertFalse(hasattr(record, "platform"))
+        self.assertFalse(hasattr(record, "app_version"))
+
     def test_untrusted_request_id_is_replaced(self) -> None:
         response = self.client.get(
             "/health/",

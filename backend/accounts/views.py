@@ -12,9 +12,17 @@ from .serializers import (
     RegisterSerializer, UserSerializer, CustomTokenObtainPairSerializer, 
     SocialLoginSerializer, EmailRegisterSerializer, LinkedAccountsSerializer,
     SetPasswordSerializer, PasswordResetConfirmSerializer,
-    AccountEmailSerializer, NotificationSettingsSerializer
+    AccountEmailSerializer, CompleteSocialSignupSerializer,
+    NotificationSettingsSerializer
 )
-from .authentication import clear_auth_cookies, get_tokens_for_user, set_auth_cookies
+from .authentication import (
+    SOCIAL_SIGNUP_COOKIE,
+    clear_auth_cookies,
+    clear_social_signup_cookie,
+    get_tokens_for_user,
+    set_auth_cookies,
+    set_social_signup_cookie,
+)
 from .email_identity import normalize_email_identity
 from .models import SocialAccount, EmailVerificationToken, PasswordResetToken, UserReadingSettings
 from .visibility import is_live_user
@@ -42,6 +50,9 @@ from todos.services.notifications import get_notification_settings
 import logging
 import hashlib
 import uuid
+from urllib.parse import urlsplit
+
+from config.logging_config import current_correlation_context
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -53,10 +64,85 @@ OAUTH_LINK_STATE_MAX_AGE = 600
 SOCIAL_MERGE_TOKEN_SALT = 'social-merge-token'
 SOCIAL_MERGE_TOKEN_MAX_AGE = 600
 SESSION_BRIDGE_TTL_SECONDS = 60
+MAX_PROFILE_IMAGE_URL_LENGTH = 2048
 
 
 class OAuthProviderError(Exception):
     """Sanitized provider failure safe to include in server logs."""
+
+
+class OAuthProviderUnavailableError(Exception):
+    """Provider transport failure that the user can safely retry."""
+
+
+def _social_error(
+    message,
+    *,
+    error_code,
+    status_code,
+    field=None,
+    action=None,
+    field_errors=None,
+):
+    request_id, _trace_id = current_correlation_context()
+    payload = {
+        'error': message,
+        'error_code': error_code,
+        'request_id': request_id,
+    }
+    if field:
+        payload['field'] = field
+    if action:
+        payload['action'] = action
+    if field_errors:
+        payload['field_errors'] = field_errors
+    return Response(payload, status=status_code)
+
+
+def _social_validation_error(errors):
+    field = next(iter(errors), None)
+    messages = errors.get(field, []) if field else []
+    message = str(messages[0]) if messages else '입력 정보를 확인해 주세요.'
+    normalized_errors = {
+        key: [str(item) for item in value]
+        for key, value in errors.items()
+    }
+    return _social_error(
+        message,
+        error_code='invalid_input',
+        status_code=400,
+        field=field,
+        action='correct_input',
+        field_errors=normalized_errors,
+    )
+
+
+def _normalise_profile_image(profile_image, *, provider):
+    if not isinstance(profile_image, str):
+        return ''
+    value = profile_image.strip()
+    if not value:
+        return ''
+
+    parsed = urlsplit(value)
+    reason = None
+    if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
+        reason = 'invalid_url'
+    elif len(value) > MAX_PROFILE_IMAGE_URL_LENGTH:
+        reason = 'too_long'
+
+    if reason:
+        logger.warning(
+            "소셜 프로필 이미지 제외",
+            extra={
+                "event": "social_profile_image_dropped",
+                "provider": provider,
+                "reason": reason,
+                "length": len(value),
+            },
+        )
+        return ''
+    return value
 
 
 def _valid_session_bridge_code(code):
@@ -107,6 +193,12 @@ def _is_session_bridge_user_eligible(user):
 
 def _raise_oauth_provider_error(provider, reason):
     raise OAuthProviderError(f"{provider} OAuth failed: {reason}")
+
+
+def _raise_oauth_provider_unavailable(provider, reason):
+    raise OAuthProviderUnavailableError(
+        f"{provider} OAuth unavailable: {reason}"
+    )
 
 
 def _is_active_email_identity_conflict(error):
@@ -192,6 +284,13 @@ def consume_signup_token(token):
         True,
         timeout=SIGNUP_TOKEN_MAX_AGE,
     )
+
+
+def release_signup_token(token):
+    if not isinstance(token, str) or not token:
+        return
+    digest = hashlib.sha256(token.encode('utf-8')).hexdigest()
+    cache.delete(f'social_signup_token_consumed:{digest}')
 
 
 def _social_signup_claims(provider, social_info):
@@ -473,7 +572,7 @@ def get_google_user_info(code, redirect_uri=None):
     
     access_token = token_data.get('access_token')
     if not access_token:
-        raise Exception("No access_token in Google response")
+        _raise_oauth_provider_error('Google', 'missing access_token')
     
     # 사용자 정보 받기
     user_info = requests.get(
@@ -534,7 +633,7 @@ def get_apple_user_info(id_token):
         # 필수 클레임 확인
         sub = decoded.get('sub')
         if not sub:
-            raise Exception("Apple ID Token에 sub 클레임이 없습니다.")
+            _raise_oauth_provider_error('Apple', 'missing sub')
         
         email = decoded.get('email')
         email_verified = decoded.get('email_verified', False)
@@ -553,19 +652,21 @@ def get_apple_user_info(id_token):
         
     except jwt.ExpiredSignatureError:
         logger.info("Apple ID Token이 만료되었습니다.")
-        raise Exception("Apple ID Token이 만료되었습니다.")
+        _raise_oauth_provider_error('Apple', 'expired identity token')
     except jwt.InvalidAudienceError:
         logger.warning("Apple ID Token의 audience가 일치하지 않습니다.")
-        raise Exception("Apple ID Token 검증 실패: audience 불일치")
+        _raise_oauth_provider_error('Apple', 'invalid audience')
     except jwt.InvalidIssuerError:
         logger.warning("Apple ID Token의 issuer가 일치하지 않습니다.")
-        raise Exception("Apple ID Token 검증 실패: issuer 불일치")
+        _raise_oauth_provider_error('Apple', 'invalid issuer')
     except jwt.PyJWKClientError:
         logger.exception("Apple public key 가져오기 실패")
-        raise Exception("Apple 인증 서버 연결 실패")
+        _raise_oauth_provider_unavailable('Apple', 'public key unavailable')
     except jwt.DecodeError:
         logger.warning("Apple ID Token 디코딩 실패", exc_info=True)
-        raise Exception("Apple ID Token 형식이 올바르지 않습니다.")
+        _raise_oauth_provider_error('Apple', 'invalid identity token')
+    except (OAuthProviderError, OAuthProviderUnavailableError):
+        raise
     except Exception:  # noqa: BROAD_EXCEPT_OK  — preserves legacy Apple token verification logging
         logger.exception("Apple ID Token 검증 오류")
         raise
@@ -741,7 +842,14 @@ def email_login(request):
 # 소셜 계정 연동 (신규)
 # ========================================
 
-@extend_schema(responses={200: openapi.SOCIAL_LOGIN_RESPONSE})
+@extend_schema(
+    request=SocialLoginSerializer,
+    responses={
+        200: openapi.SOCIAL_LOGIN_RESPONSE,
+        400: openapi.SocialAuthErrorSerializer,
+        500: openapi.SocialAuthErrorSerializer,
+    },
+)
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -759,13 +867,13 @@ def social_login_v2(request):
     """
     serializer = SocialLoginSerializer(data=request.data)
     if not serializer.is_valid():
-        return Response(serializer.errors, status=400)
+        return _social_validation_error(serializer.errors)
     
     provider = serializer.validated_data.get('provider')
     code = serializer.validated_data.get('code')
     access_token = serializer.validated_data.get('access_token')
     # 앱에서 사용한 redirect_uri (웹과 다를 수 있음)
-    redirect_uri = request.data.get('redirect_uri')
+    redirect_uri = serializer.validated_data.get('redirect_uri')
     
     try:
         # 소셜 제공자별 사용자 정보 가져오기
@@ -775,7 +883,13 @@ def social_login_v2(request):
             elif code:
                 social_info = get_kakao_user_info(code, redirect_uri)
             else:
-                return Response({'error': 'code 또는 access_token이 필요합니다.'}, status=400)
+                return _social_error(
+                    '카카오 로그인 인증 정보가 없습니다. 카카오 로그인부터 다시 진행해 주세요.',
+                    error_code='provider_credential_missing',
+                    status_code=400,
+                    field='access_token',
+                    action='restart_social_login',
+                )
             
             provider_id = str(social_info.get('id'))
             email = social_info.get('kakao_account', {}).get('email')
@@ -788,7 +902,13 @@ def social_login_v2(request):
             elif code:
                 social_info = get_google_user_info(code, redirect_uri)
             else:
-                return Response({'error': 'code 또는 access_token이 필요합니다.'}, status=400)
+                return _social_error(
+                    'Google 로그인 인증 정보가 없습니다. Google 로그인부터 다시 진행해 주세요.',
+                    error_code='provider_credential_missing',
+                    status_code=400,
+                    field='code',
+                    action='restart_social_login',
+                )
             
             provider_id = social_info.get('sub')
             email = social_info.get('email')
@@ -797,9 +917,15 @@ def social_login_v2(request):
             
         elif provider == 'apple':
             # Apple Sign In: id_token (JWT) 직접 검증
-            id_token = request.data.get('id_token')
+            id_token = serializer.validated_data.get('id_token')
             if not id_token:
-                return Response({'error': 'Apple 로그인에는 id_token이 필요합니다.'}, status=400)
+                return _social_error(
+                    'Apple 로그인 인증 정보가 없습니다. Apple 로그인부터 다시 진행해 주세요.',
+                    error_code='provider_credential_missing',
+                    status_code=400,
+                    field='id_token',
+                    action='restart_social_login',
+                )
             
             social_info = get_apple_user_info(id_token)
             
@@ -812,8 +938,8 @@ def social_login_v2(request):
             # 웹/문서는 `user_name`을 쓴다. 한쪽만 읽으면 애플 가입자의 닉네임이
             # 항상 기본값이 되므로 **둘 다 수용**한다. 구버전 셸도 그대로 동작한다.
             nickname_suggestion = (
-                request.data.get('user_name')
-                or request.data.get('full_name')
+                serializer.validated_data.get('user_name')
+                or serializer.validated_data.get('full_name')
                 or ''
             ).strip()
             
@@ -821,10 +947,27 @@ def social_login_v2(request):
             if social_info.get('is_private_email'):
                 logger.info("Apple 로그인: relay email 사용")
         else:
-            return Response({'error': '지원하지 않는 소셜 제공자입니다.'}, status=400)
+            return _social_error(
+                '지원하지 않는 소셜 로그인 방식입니다.',
+                error_code='unsupported_social_provider',
+                status_code=400,
+                field='provider',
+                action='choose_supported_provider',
+            )
         
         if not provider_id:
-            return Response({'error': '소셜 계정 정보를 가져올 수 없습니다.'}, status=400)
+            return _social_error(
+                '소셜 계정 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.',
+                error_code='provider_identity_missing',
+                status_code=400,
+                action='restart_social_login',
+            )
+
+        provider_profile_image = profile_image
+        profile_image = _normalise_profile_image(
+            profile_image,
+            provider=provider,
+        )
         
         # 기존 SocialAccount 확인
         social_account = SocialAccount.objects.filter(
@@ -838,7 +981,12 @@ def social_login_v2(request):
             if not user.is_active:
                 restored, error_message = _restore_scheduled_deletion_account(user, nickname_suggestion)
                 if not restored:
-                    return Response({'error': error_message}, status=400)
+                    return _social_error(
+                        error_message,
+                        error_code='account_restore_failed',
+                        status_code=400,
+                        action='contact_support',
+                    )
                 logger.info(f"계정 복구: provider={provider}, user_id={user.id}")
             
             tokens = get_tokens_for_user(user)
@@ -861,7 +1009,12 @@ def social_login_v2(request):
             if not legacy_user.is_active:
                 restored, error_message = _restore_scheduled_deletion_account(legacy_user, nickname_suggestion)
                 if not restored:
-                    return Response({'error': error_message}, status=400)
+                    return _social_error(
+                        error_message,
+                        error_code='account_restore_failed',
+                        status_code=400,
+                        action='contact_support',
+                    )
             SocialAccount.objects.get_or_create(
                 user=legacy_user,
                 provider=provider,
@@ -891,7 +1044,7 @@ def social_login_v2(request):
             return response
         
         # 신규 사용자 - 자동 가입 처리 (앱에서 auto_signup=true인 경우)
-        auto_signup = request.data.get('auto_signup', False)
+        auto_signup = serializer.validated_data.get('auto_signup', False)
         
         if auto_signup:
             import random
@@ -959,41 +1112,100 @@ def social_login_v2(request):
             email=email,
             profile_image=profile_image,
         )
-        return Response({
+        response = Response({
             'needsSignup': True,
             'provider': provider,
             'provider_id': provider_id,
             'email': email,
             'suggested_nickname': nickname_suggestion,
-            'profile_image': profile_image,
+            'profile_image': (
+                None if provider_profile_image is None else profile_image
+            ),
             'signup_token': signup_token
         }, status=200)
+        set_social_signup_cookie(response, signup_token)
+        return response
         
-    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic social-login error
+    except OAuthProviderError:
+        logger.warning(
+            "소셜 로그인 제공자 인증 실패",
+            extra={
+                "event": "social_provider_auth_failed",
+                "provider": request.data.get('provider'),
+            },
+        )
+        return _social_error(
+            '소셜 계정 인증 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.',
+            error_code='provider_auth_failed',
+            status_code=400,
+            action='restart_social_login',
+        )
+    except (OAuthProviderUnavailableError, requests.RequestException, ValueError):
+        logger.warning(
+            "소셜 로그인 제공자 연결 실패",
+            extra={
+                "event": "social_provider_unavailable",
+                "provider": request.data.get('provider'),
+            },
+            exc_info=True,
+        )
+        return _social_error(
+            '소셜 로그인 제공자 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+            error_code='provider_temporarily_unavailable',
+            status_code=502,
+            action='retry',
+        )
+    except Exception:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a safe server error
         logger.exception("소셜 로그인 v2 오류")
-        return Response({'error': '로그인 처리 중 오류가 발생했습니다.'}, status=400)
+        return _social_error(
+            '로그인 서버에서 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+            error_code='social_login_temporarily_unavailable',
+            status_code=500,
+            action='retry',
+        )
 
 
-@extend_schema(responses={200: openapi.TokenPairResponseSerializer})
+@extend_schema(
+    request=CompleteSocialSignupSerializer,
+    responses={
+        200: openapi.TokenPairResponseSerializer,
+        400: openapi.SocialAuthErrorSerializer,
+        409: openapi.SocialAuthErrorSerializer,
+        500: openapi.SocialAuthErrorSerializer,
+    },
+)
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
 def complete_social_signup(request):
     """소셜 회원가입 완료 (통합)"""
     try:
-        nickname = request.data.get('nickname')
-        email = request.data.get('email')
-        profile_image = request.data.get('profile_image')
-        signup_token = request.data.get('signup_token')
-        access_token = request.data.get('access_token')
-        provider = request.data.get('provider')
-        provider_id = request.data.get('provider_id')
+        serializer = CompleteSocialSignupSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _social_validation_error(serializer.errors)
+        data = serializer.validated_data
+        nickname = data['nickname']
+        email = data.get('email')
+        profile_image = data.get('profile_image')
+        body_signup_token = data.get('signup_token')
+        cookie_signup_token = request.COOKIES.get(SOCIAL_SIGNUP_COOKIE)
+        signup_token = body_signup_token or cookie_signup_token
+        access_token = data.get('access_token')
+        provider = data.get('provider')
+        provider_id = data.get('provider_id') or data.get('social_id')
         
         # signup_token 방식 (권장): 서명 토큰으로 소셜 인증 검증
         if signup_token:
             token_data = verify_signup_token(signup_token)
             if not token_data:
-                return Response({'error': '유효하지 않거나 만료된 인증 토큰입니다.'}, status=400)
+                response = _social_error(
+                    '가입 인증 시간이 만료되었거나 올바르지 않습니다. 소셜 로그인부터 다시 진행해 주세요.',
+                    error_code='signup_session_expired',
+                    status_code=400,
+                    action='restart_social_login',
+                )
+                clear_social_signup_cookie(response)
+                return response
             provider = token_data['provider']
             provider_id = token_data['provider_id']
             email = token_data.get('email') or ''
@@ -1017,45 +1229,82 @@ def complete_social_signup(request):
             email = provider_claims['email']
             profile_image = provider_claims['profile_image']
         else:
-            return Response({'error': '필수 정보가 누락되었습니다.'}, status=400)
+            return _social_error(
+                '가입 인증 정보를 찾을 수 없습니다. 소셜 로그인부터 다시 진행해 주세요.',
+                error_code='signup_session_missing',
+                status_code=400,
+                action='restart_social_login',
+            )
         
         if not nickname:
-            return Response({'error': '닉네임은 필수입니다.'}, status=400)
+            return _social_error(
+                '닉네임을 입력해 주세요.',
+                error_code='nickname_required',
+                status_code=400,
+                field='nickname',
+                action='enter_nickname',
+            )
         
         # 닉네임 중복 확인
         if User.objects.filter(nickname=nickname).exists():
-            return Response({'error': '이미 사용 중인 닉네임입니다.'}, status=400)
+            return _social_error(
+                '이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해 주세요.',
+                error_code='nickname_taken',
+                status_code=409,
+                field='nickname',
+                action='choose_another_nickname',
+            )
         
         # 이미 연동된 계정인지 확인
         if SocialAccount.objects.filter(provider=provider, provider_id=provider_id).exists():
-            return Response({'error': '이미 가입된 소셜 계정입니다.'}, status=400)
+            return _social_error(
+                '이미 가입된 소셜 계정입니다. 가입이 아니라 로그인을 진행해 주세요.',
+                error_code='social_account_exists',
+                status_code=409,
+                action='restart_social_login',
+            )
         if signup_token and not consume_signup_token(signup_token):
-            return Response({'error': '유효하지 않거나 만료된 인증 토큰입니다.'}, status=400)
+            return _social_error(
+                '가입 인증 시간이 만료되었거나 이미 사용되었습니다. 소셜 로그인부터 다시 진행해 주세요.',
+                error_code='signup_session_expired',
+                status_code=400,
+                action='restart_social_login',
+            )
+
+        profile_image = _normalise_profile_image(
+            profile_image,
+            provider=provider,
+        )
         
-        with transaction.atomic():
-            # 사용자 생성 (소셜 로그인은 이메일 인증 완료 처리)
-            user = User.objects.create(
-                username=f"{provider}_{provider_id}",
-                nickname=nickname,
-                email=email,
-                email_verified=bool(email),
-                profile_image=profile_image,
-                is_social=True,
-                social_provider=provider,
-                social_id=f"{provider}_{provider_id}"
-            )
-            
-            # SocialAccount 생성
-            SocialAccount.objects.create(
-                user=user,
-                provider=provider,
-                provider_id=provider_id,
-                email=email,
-                profile_image=profile_image
-            )
-            
-            # 기본 플랜 구독 생성
-            _create_default_subscription(user)
+        try:
+            with transaction.atomic():
+                # 사용자 생성 (소셜 로그인은 이메일 인증 완료 처리)
+                user = User.objects.create(
+                    username=f"{provider}_{provider_id}",
+                    nickname=nickname,
+                    email=email,
+                    email_verified=bool(email),
+                    profile_image=profile_image,
+                    is_social=True,
+                    social_provider=provider,
+                    social_id=f"{provider}_{provider_id}"
+                )
+                
+                # SocialAccount 생성
+                SocialAccount.objects.create(
+                    user=user,
+                    provider=provider,
+                    provider_id=provider_id,
+                    email=email,
+                    profile_image=profile_image
+                )
+                
+                # 기본 플랜 구독 생성
+                _create_default_subscription(user)
+        except Exception:
+            if signup_token:
+                release_signup_token(signup_token)
+            raise
         
         tokens = get_tokens_for_user(user)
         response = Response({
@@ -1064,13 +1313,45 @@ def complete_social_signup(request):
             'user': UserSerializer(user).data
         })
         set_auth_cookies(response, tokens['access'], tokens['refresh'])
+        clear_social_signup_cookie(response)
         
         logger.info(f"소셜 회원가입 완료: provider={provider}, user_id={user.id}")
         return response
         
-    except Exception as e:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a generic signup error
+    except IntegrityError:
+        if User.objects.filter(nickname=nickname).exists():
+            return _social_error(
+                '이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해 주세요.',
+                error_code='nickname_taken',
+                status_code=409,
+                field='nickname',
+                action='choose_another_nickname',
+            )
+        if SocialAccount.objects.filter(
+            provider=provider,
+            provider_id=provider_id,
+        ).exists():
+            return _social_error(
+                '이미 가입된 소셜 계정입니다. 가입이 아니라 로그인을 진행해 주세요.',
+                error_code='social_account_exists',
+                status_code=409,
+                action='restart_social_login',
+            )
+        logger.exception("소셜 회원가입 데이터 저장 실패")
+        return _social_error(
+            '회원가입 서버에서 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+            error_code='signup_temporarily_unavailable',
+            status_code=500,
+            action='retry',
+        )
+    except Exception:  # noqa: BROAD_EXCEPT_OK  — HTTP boundary returns a safe server error
         logger.exception("소셜 회원가입 오류")
-        return Response({'error': '회원가입 처리 중 오류가 발생했습니다.'}, status=400)
+        return _social_error(
+            '회원가입 서버에서 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+            error_code='signup_temporarily_unavailable',
+            status_code=500,
+            action='retry',
+        )
 
 
 # ========================================

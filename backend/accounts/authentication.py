@@ -18,6 +18,8 @@ class InactiveUserTokenError(Exception):
 
 ACCESS_TOKEN_COOKIE = 'access_token'
 REFRESH_TOKEN_COOKIE = 'refresh_token'
+SOCIAL_SIGNUP_COOKIE = 'social_signup'
+SOCIAL_SIGNUP_COOKIE_MAX_AGE = 10 * 60
 TOKEN_VERSION_CLAIM = 'token_version'
 
 
@@ -179,6 +181,28 @@ def set_auth_cookies(response, access_token, refresh_token=None):
             **cookie_settings
         )
 
+    return response
+
+
+def set_social_signup_cookie(response, signup_token):
+    response.set_cookie(
+        key=SOCIAL_SIGNUP_COOKIE,
+        value=str(signup_token),
+        max_age=SOCIAL_SIGNUP_COOKIE_MAX_AGE,
+        **get_cookie_settings(),
+    )
+    return response
+
+
+def clear_social_signup_cookie(response):
+    cookie_settings = get_cookie_settings()
+    delete_kwargs = {
+        'path': cookie_settings['path'],
+        'samesite': cookie_settings['samesite'],
+    }
+    if 'domain' in cookie_settings:
+        delete_kwargs['domain'] = cookie_settings['domain']
+    response.delete_cookie(key=SOCIAL_SIGNUP_COOKIE, **delete_kwargs)
     return response
 
 

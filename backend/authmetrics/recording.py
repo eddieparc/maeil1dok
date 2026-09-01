@@ -54,6 +54,8 @@ _ROUTE_PREFIXES = (
     ('/api/v1/accounts/login/', RouteBucket.AUTH_LOGIN),
     ('/api/v1/auth/social-login', RouteBucket.AUTH_LOGIN),
     ('/api/v1/accounts/social-login', RouteBucket.AUTH_LOGIN),
+    ('/api/v1/auth/complete-social-signup/', RouteBucket.AUTH_LOGIN),
+    ('/api/v1/accounts/complete-social-signup/', RouteBucket.AUTH_LOGIN),
     ('/api/v1/auth/email-login/', RouteBucket.AUTH_LOGIN),
     ('/api/v1/accounts/email-login/', RouteBucket.AUTH_LOGIN),
     ('/api/v1/auth/session/', RouteBucket.AUTH_LOGIN),
