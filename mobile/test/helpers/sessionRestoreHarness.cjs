@@ -138,6 +138,7 @@ module.exports = { restoreStoredSession };`,
     'abandonRestore',
     'restoreGenerationRef',
     'restorePromiseRef',
+    'NATIVE_CLIENT_OBSERVATION_HEADERS',
     compiled,
   );
   instantiate(
@@ -156,6 +157,11 @@ module.exports = { restoreStoredSession };`,
     abandonRestore,
     restoreGenerationRef,
     restorePromiseRef,
+    {
+      'X-Client': 'shell',
+      'X-App-Platform': 'android',
+      'X-App-Version': '1.2.3',
+    },
   );
 
   return {

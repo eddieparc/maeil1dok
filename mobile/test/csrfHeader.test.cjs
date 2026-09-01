@@ -150,6 +150,7 @@ module.exports = { initiateSessionBridge };`,
     'console',
     'buildSessionBridgeConsumeUrl',
     'currentWebViewUrlRef',
+    'NATIVE_CLIENT_OBSERVATION_HEADERS',
     compiled,
   )(
     instance,
@@ -172,6 +173,11 @@ module.exports = { initiateSessionBridge };`,
     { error: () => {}, log: () => {} },
     ({ apiUrl, code }) => `${apiUrl}/api/v1/auth/session/consume/?code=${code}&next=%2F`,
     { current: 'https://maeil1dok.app/' },
+    {
+      'X-Client': 'shell',
+      'X-App-Platform': 'android',
+      'X-App-Version': '1.2.3',
+    },
   );
 
   // When: native login/restore issues the one-time WebView session code.
@@ -180,4 +186,6 @@ module.exports = { initiateSessionBridge };`,
   // Then: cookie authentication can satisfy Django's CSRF check.
   assert.equal(calls.length, 1);
   assert.equal(calls[0].options.headers[CSRF_HEADER_NAME], 'csrf-value');
+  assert.equal(calls[0].options.headers['X-Client'], 'shell');
+  assert.equal(calls[0].options.headers['X-App-Platform'], 'android');
 });

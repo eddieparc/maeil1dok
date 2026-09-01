@@ -44,7 +44,8 @@ export function useModal(): UseModalReturn {
           title: options.title,
           description: options.description,
           confirmText: options.confirmText || '확인',
-          icon: options.icon
+          icon: options.icon,
+          copyText: options.copyText
         }
       })
     } catch {

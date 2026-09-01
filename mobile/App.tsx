@@ -37,6 +37,8 @@ import { redactSensitiveUrl } from './urlRedaction';
 import { csrfHeadersFrom } from './csrfHeader';
 import { hasAuthCookies, runStoredSessionRestore } from './sessionRestore';
 import { clearMobileAuth } from './authCleanup';
+import { buildNativeClientObservationHeaders } from './clientObservationHeaders';
+import { formatNativeAuthError } from './nativeAuthError';
 import { buildSessionBridgeConsumeUrl } from './sessionBridgeNavigation';
 import * as Updates from 'expo-updates';
 import * as Sentry from '@sentry/react-native';
@@ -143,6 +145,10 @@ type WebViewErrorLikeEvent = {
 const WEBVIEW_POLICY = { webAppUrl: WEB_APP_URL, apiUrl: API_URL };
 
 const GOOGLE_CLIENT_ID = Constants.expoConfig?.extra?.googleClientId || '';
+const NATIVE_CLIENT_OBSERVATION_HEADERS = buildNativeClientObservationHeaders({
+  platform: Platform.OS === 'android' ? 'android' : 'ios',
+  appVersion: Constants.expoConfig?.version,
+});
 
 const isErrorWithCode = (error: unknown, code: string): boolean => (
   typeof error === 'object'
@@ -243,6 +249,7 @@ function AppContent() {
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,
+          ...NATIVE_CLIENT_OBSERVATION_HEADERS,
           ...csrfHeadersFrom(csrfCookies),
         },
       });
@@ -365,7 +372,10 @@ function AppContent() {
           // 본문 토큰을 제시하므로 서버는 이 요청에 CSRF 를 요구하지 않는다. 그래도
           // 헤더를 싣는다 — 서버 정책이 다시 조여지면 셸이 조용히 403 으로 죽는다.
           const refreshCookies = await CookieManager.get(API_URL).catch(() => null);
-          return csrfHeadersFrom(refreshCookies);
+          return {
+            ...NATIVE_CLIENT_OBSERVATION_HEADERS,
+            ...csrfHeadersFrom(refreshCookies),
+          };
         },
         fetchRefresh: (url, init) => fetch(url, init),
         initiateSessionBridge,
@@ -393,7 +403,10 @@ function AppContent() {
     try {
       const response = await fetch(`${API_URL}/api/v1/auth/email-login/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...NATIVE_CLIENT_OBSERVATION_HEADERS,
+        },
         body: JSON.stringify({ email: email.trim(), password }),
         credentials: 'include',
       });
@@ -409,7 +422,10 @@ function AppContent() {
           setWebViewKey((prev) => prev + 1);
         }
       } else {
-        Alert.alert('로그인 실패', data.error || '이메일 또는 비밀번호를 확인해주세요.');
+        Alert.alert(
+          '로그인 실패',
+          formatNativeAuthError(data, '이메일 또는 비밀번호를 확인해 주세요.'),
+        );
       }
     } catch (error) {
       Alert.alert('오류', '로그인 중 오류가 발생했습니다.');
@@ -426,7 +442,10 @@ function AppContent() {
         setIsSubmitting(true);
         const response = await fetch(`${API_URL}/api/v1/auth/social-login/v2/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...NATIVE_CLIENT_OBSERVATION_HEADERS,
+          },
           body: JSON.stringify({ 
             provider: 'kakao', 
             access_token: kakaoToken.accessToken,
@@ -448,7 +467,10 @@ function AppContent() {
         } else if (data.needsSignup) {
           navigateToSocialSignup('kakao', data);
         } else {
-          Alert.alert('로그인 실패', data.error || '로그인에 실패했습니다.');
+          Alert.alert(
+            '로그인 실패',
+            formatNativeAuthError(data, '카카오 로그인에 실패했습니다.'),
+          );
         }
         setIsSubmitting(false);
       }
@@ -473,6 +495,21 @@ function AppContent() {
       
       if (result.type === 'success' && result.url) {
         const url = new URL(result.url);
+        const oauthError = url.searchParams.get('error');
+        if (oauthError) {
+          Alert.alert(
+            'Google 로그인 실패',
+            formatNativeAuthError(
+              {
+                error: oauthError,
+                error_code: url.searchParams.get('error_code'),
+                request_id: url.searchParams.get('request_id'),
+              },
+              'Google 로그인에 실패했습니다.',
+            ),
+          );
+          return;
+        }
         const code = url.searchParams.get('code');
         
         if (code) {
@@ -532,7 +569,10 @@ function AppContent() {
     try {
       const response = await fetch(`${API_URL}/api/v1/auth/social-login/v2/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...NATIVE_CLIENT_OBSERVATION_HEADERS,
+        },
         body: JSON.stringify({ 
           provider: 'apple', 
           id_token: identityToken,
@@ -561,7 +601,10 @@ function AppContent() {
         navigateToSocialSignup('apple', data);
       } else {
         console.log('[Apple Login] Login failed:', data.error);
-        Alert.alert('로그인 실패', data.error || '로그인에 실패했습니다.');
+        Alert.alert(
+          '로그인 실패',
+          formatNativeAuthError(data, 'Apple 로그인에 실패했습니다.'),
+        );
       }
     } catch (error) {
       console.error('[Apple Login] Error:', error);
@@ -580,7 +623,10 @@ function AppContent() {
     try {
       const response = await fetch(`${API_URL}/api/v1/auth/social-login/v2/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...NATIVE_CLIENT_OBSERVATION_HEADERS,
+        },
         body: JSON.stringify({ provider, code, redirect_uri: redirectUri }),
         credentials: 'include',
       });
@@ -598,7 +644,10 @@ function AppContent() {
       } else if (data.needsSignup) {
         navigateToSocialSignup(provider, data);
       } else {
-        Alert.alert('로그인 실패', data.error || '로그인에 실패했습니다.');
+        Alert.alert(
+          '로그인 실패',
+          formatNativeAuthError(data, `${provider === 'google' ? 'Google' : provider} 로그인에 실패했습니다.`),
+        );
       }
     } catch (error) {
       Alert.alert('오류', '로그인 중 오류가 발생했습니다.');
@@ -799,7 +848,10 @@ function AppContent() {
               await fetch(`${API_URL}/api/v1/auth/logout/`, {
                 method: 'POST',
                 credentials: 'include',
-                headers: csrfHeadersFrom(csrfCookies),
+                headers: {
+                  ...NATIVE_CLIENT_OBSERVATION_HEADERS,
+                  ...csrfHeadersFrom(csrfCookies),
+                },
               });
             } catch (error) {
               console.error('Logout API error:', error);

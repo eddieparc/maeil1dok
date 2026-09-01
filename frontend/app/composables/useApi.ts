@@ -1,5 +1,6 @@
 import { useRuntimeConfig } from '#app'
 import { useAuthService } from '~/composables/useAuthService'
+import { buildClientObservationHeaders } from '~/composables/clientObservationHeaders'
 import type {
   ApiPath,
   ApiPathFor,
@@ -80,8 +81,19 @@ export const useApi = () => {
   }
 
   const getHeaders = (includeCsrf: boolean = false): Record<string, string> => {
+    const shellWindow = typeof window === 'undefined'
+      ? undefined
+      : window as typeof window & {
+          isAndroidApp?: boolean
+          __shellBundleIdentity?: { appVersion?: unknown }
+        }
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      ...buildClientObservationHeaders({
+        isNativeApp: shellWindow?.isReactNativeWebView === true,
+        isAndroidApp: shellWindow?.isAndroidApp === true,
+        shellIdentity: shellWindow?.__shellBundleIdentity,
+      }),
     }
 
     if (includeCsrf) {

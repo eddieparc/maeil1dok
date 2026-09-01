@@ -58,3 +58,37 @@ test('social signup moves PII through sessionStorage, never the URL', () => {
   assert.equal(window.location.href, navigation.url);
   assert.equal(globalThis.hacked, undefined);
 });
+
+test('every supported provider reaches its matching setup route with the signed token', () => {
+  const { buildSocialSignupNavigation } = loadModule();
+
+  for (const provider of ['apple', 'google', 'kakao']) {
+    const data = {
+      provider_id: `${provider}-provider`,
+      signup_token: `${provider}-signed-token`,
+    };
+    const navigation = buildSocialSignupNavigation(
+      'https://maeil1dok.app',
+      provider,
+      data,
+    );
+    const stored = new Map();
+    const window = { location: { href: '' } };
+
+    Function('sessionStorage', 'window', navigation.script)(
+      {
+        setItem(key, value) {
+          stored.set(key, value);
+        },
+      },
+      window,
+    );
+
+    assert.equal(new URL(navigation.url).pathname, `/auth/${provider}/setup`);
+    assert.equal(new URL(navigation.url).search, '');
+    assert.equal(
+      JSON.parse(stored.get('social_signup_data')).signup_token,
+      data.signup_token,
+    );
+  }
+});

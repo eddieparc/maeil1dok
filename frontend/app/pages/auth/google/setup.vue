@@ -41,9 +41,15 @@
                 'border-red-500 focus:ring-red-500 focus:border-red-500': nicknameError,
                 'border-[var(--color-accent-primary)] focus:ring-[var(--color-accent-primary)] focus:border-[var(--color-accent-primary)]': isNicknameChecked && !nicknameError
               }"
+              :aria-invalid="Boolean(nicknameError)"
+              aria-describedby="google-nickname-status"
               placeholder="2자 이상의 닉네임을 입력해주세요"
             >
-            <div class="mt-2 min-h-[20px] flex items-center">
+            <div
+              id="google-nickname-status"
+              class="mt-2 min-h-[20px] flex items-center"
+              aria-live="polite"
+            >
               <template v-if="nicknameError">
                 <svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
@@ -90,11 +96,14 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthService } from '~/composables/useAuthService'
 import { useApi } from '~/composables/useApi'
+import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
+import { resolveSocialSignupError } from '~/utils/socialSignupError'
 
 const route = useRoute()
 const auth = useAuthService()
 const api = useApi()
+const modal = useModal()
 const { consumeRedirectUrl } = useNavigation()
 
 const nickname = ref('')
@@ -211,9 +220,25 @@ const handleSubmit = async () => {
       const redirectUrl = consumeRedirectUrl() || '/'
       navigateTo(redirectUrl)
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Signup failed:', error)
-    alert(error.message || '회원가입에 실패했습니다. 다시 시도해주세요.')
+    const signupError = resolveSocialSignupError(error)
+    if (signupError.field === 'nickname') {
+      nicknameError.value = signupError.message
+      isNicknameChecked.value = false
+    }
+    await modal.alert({
+      title: signupError.title,
+      description: signupError.message,
+      icon: 'warning',
+      copyText: signupError.requestId,
+      confirmText: signupError.action === 'restart_social_login'
+        ? '소셜 로그인 다시 하기'
+        : '확인',
+    })
+    if (signupError.action === 'restart_social_login') {
+      await navigateTo('/login')
+    }
   } finally {
     loading.value = false
   }

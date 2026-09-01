@@ -20,6 +20,10 @@ const importApiModule = async () => {
     .replace(
       "import { useAuthService } from '~/composables/useAuthService'",
       'const useAuthService = () => globalThis.__authServiceStub;',
+    )
+    .replace(
+      "import { buildClientObservationHeaders } from '~/composables/clientObservationHeaders'",
+      "const buildClientObservationHeaders = () => ({ 'X-Client': 'web', 'X-App-Platform': 'web' });",
     );
 
   const { code } = await transform(runnableSource, {

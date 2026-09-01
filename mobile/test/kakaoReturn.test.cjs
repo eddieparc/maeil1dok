@@ -12,6 +12,11 @@ test('successful Kakao return navigates the issued session bridge immediately', 
     kakaoLogin: async () => ({ accessToken: 'kakao-access' }),
     setIsSubmitting: () => {},
     API_URL: 'https://api.maeil1dok.app',
+    NATIVE_CLIENT_OBSERVATION_HEADERS: {
+      'X-Client': 'shell',
+      'X-App-Platform': 'android',
+      'X-App-Version': '1.2.3',
+    },
     fetch: async () => ({
       json: async () => ({
         access: 'maeil-access',
@@ -74,6 +79,11 @@ test('session bridge requests a frontend-relative redirect path', async () => {
     SecureStore: { setItemAsync: async () => {} },
     CookieManager: { get: async () => ({}) },
     API_URL: 'https://api.example.test',
+    NATIVE_CLIENT_OBSERVATION_HEADERS: {
+      'X-Client': 'shell',
+      'X-App-Platform': 'android',
+      'X-App-Version': '1.2.3',
+    },
     fetch: async () => ({
       ok: true,
       status: 200,

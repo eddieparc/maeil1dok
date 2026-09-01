@@ -11,6 +11,8 @@
 import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
+import { useModal } from '~/composables/useModal'
+import { resolveSocialAuthError } from '~/utils/socialAuthError'
 import {
   buildLinkSocialPayload,
   firstQueryValue,
@@ -22,6 +24,7 @@ import {
 
 const route = useRoute()
 const auth = useAuthService()
+const modal = useModal()
 const { consumeRedirectUrl } = useNavigation()
 
 const statusMessage = ref('처리 중입니다...')
@@ -40,6 +43,35 @@ const redirectToApp = (scheme: string, provider: string, params: Record<string, 
   const queryString = new URLSearchParams(params).toString()
   const deepLink = `${scheme}://auth/${provider}/callback?${queryString}`
   window.location.href = deepLink
+}
+
+const handleLoginError = async (
+  provider: string,
+  error: unknown,
+  isFromApp: boolean,
+  appScheme?: string,
+) => {
+  const authError = resolveSocialAuthError(error)
+  if (isFromApp && appScheme) {
+    redirectToApp(appScheme, provider, {
+      error: authError.message,
+      error_code: authError.errorCode,
+      request_id: authError.requestId,
+      action: authError.action,
+    })
+    return
+  }
+
+  await modal.alert({
+    title: authError.title,
+    description: authError.message,
+    icon: 'warning',
+    copyText: authError.requestId,
+    confirmText: authError.action === 'restart_social_login'
+      ? '소셜 로그인 다시 하기'
+      : '확인',
+  })
+  await navigateTo('/login')
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -196,11 +228,7 @@ const handleKakaoCallback = async (code: string, isFromApp = false, appScheme?: 
     }
   } catch (error) {
     console.error('[Kakao Callback] Error during login:', error)
-    if (isFromApp && appScheme) {
-      redirectToApp(appScheme, 'kakao', { error: 'login_failed' })
-    } else {
-      navigateTo('/login')
-    }
+    await handleLoginError('kakao', error, isFromApp, appScheme)
   }
 }
 
@@ -258,11 +286,7 @@ const handleGoogleCallback = async (code: string, isFromApp = false, appScheme?:
     }
   } catch (error) {
     console.error('[Google Callback] Error during login:', error)
-    if (isFromApp && appScheme) {
-      redirectToApp(appScheme, 'google', { error: 'login_failed' })
-    } else {
-      navigateTo('/login')
-    }
+    await handleLoginError('google', error, isFromApp, appScheme)
   }
 }
 
@@ -336,11 +360,7 @@ const handleAppleCallback = async (code: string, idToken: string, userInfo: stri
     }
   } catch (error) {
     console.error('[Apple Callback] Error during login:', error)
-    if (isFromApp && appScheme) {
-      redirectToApp(appScheme, 'apple', { error: 'login_failed' })
-    } else {
-      navigateTo('/login')
-    }
+    await handleLoginError('apple', error, isFromApp, appScheme)
   }
 }
 </script>

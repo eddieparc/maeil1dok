@@ -4268,6 +4268,16 @@ export interface components {
             date: string;
             is_complete: boolean;
         };
+        CompleteSocialSignup: {
+            nickname: string;
+            signup_token?: string;
+            access_token?: string;
+            provider?: components["schemas"]["ProviderEnum"];
+            provider_id?: string;
+            social_id?: string;
+            email?: (string) | null;
+            profile_image?: (string) | null;
+        };
         CsrfTokenResponse: {
             csrfToken: string;
         };
@@ -5003,6 +5013,13 @@ export interface components {
             schedule_ids: string[];
             is_completed: boolean;
         };
+        /**
+         * @description * `apple` - apple
+         *     * `google` - google
+         *     * `kakao` - kakao
+         * @enum {string}
+         */
+        ProviderEnum: "apple" | "google" | "kakao";
         PublicPlanSubscription: {
             plan_id: number;
             plan_name: string;
@@ -5166,6 +5183,27 @@ export interface components {
         SessionBridgeIssueResponse: {
             /** Format: uuid */
             code: string;
+        };
+        SocialAuthError: {
+            error: string;
+            error_code: string;
+            request_id: string;
+            field?: string;
+            action?: string;
+            field_errors?: {
+                [key: string]: string[];
+            };
+        };
+        SocialLogin: {
+            provider: components["schemas"]["ProviderEnum"];
+            code?: string;
+            access_token?: string;
+            id_token?: string;
+            redirect_uri?: string;
+            /** @default false */
+            auto_signup: boolean;
+            full_name?: string;
+            user_name?: string;
         };
         SocialLoginResponse: components["schemas"]["TokenPairResponse"] | components["schemas"]["SocialSignupRequiredResponse"];
         SocialSignupRequiredResponse: {
@@ -5552,7 +5590,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteSocialSignup"];
+                "application/x-www-form-urlencoded": components["schemas"]["CompleteSocialSignup"];
+                "multipart/form-data": components["schemas"]["CompleteSocialSignup"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -5560,6 +5604,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenPairResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
                 };
             };
         };
@@ -6266,7 +6334,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialLogin"];
+                "application/x-www-form-urlencoded": components["schemas"]["SocialLogin"];
+                "multipart/form-data": components["schemas"]["SocialLogin"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -6274,6 +6348,22 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SocialLoginResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
                 };
             };
         };
@@ -6546,7 +6636,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteSocialSignup"];
+                "application/x-www-form-urlencoded": components["schemas"]["CompleteSocialSignup"];
+                "multipart/form-data": components["schemas"]["CompleteSocialSignup"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -6554,6 +6650,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenPairResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
                 };
             };
         };
@@ -7260,7 +7380,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialLogin"];
+                "application/x-www-form-urlencoded": components["schemas"]["SocialLogin"];
+                "multipart/form-data": components["schemas"]["SocialLogin"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -7268,6 +7394,22 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SocialLoginResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialAuthError"];
                 };
             };
         };
