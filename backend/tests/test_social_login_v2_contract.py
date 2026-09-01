@@ -311,9 +311,27 @@ class SocialLoginV2ContractTestCase(APITestCase):
         """Failure body the shell surfaces through ``data.error``."""
         self.assertEqual(response.status_code, status_code)
         body = response.json()
-        self.assertEqual(set(body), {"error"})
+        self.assertTrue(
+            {"error", "error_code", "request_id"}.issubset(body),
+            body,
+        )
+        self.assertTrue(
+            set(body).issubset(
+                {
+                    "action",
+                    "error",
+                    "error_code",
+                    "field",
+                    "field_errors",
+                    "request_id",
+                }
+            ),
+            body,
+        )
         self.assertIsInstance(body["error"], str)
         self.assertTrue(body["error"])
+        self.assertIsInstance(body["error_code"], str)
+        self.assertIsInstance(body["request_id"], str)
         if message is not None:
             self.assertEqual(body["error"], message)
         self.assert_no_auth_cookies(response)
@@ -422,12 +440,22 @@ class KakaoSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
                 {"provider": "kakao", "access_token": "expired-token", "auto_signup": True}
             )
 
-        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "소셜 계정 인증 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_auth_failed")
         self.assertFalse(User.objects.exists())
 
     def test_missing_code_and_access_token_returns_error(self):
         response = self.post_social_login({"provider": "kakao"})
-        self.assert_error_contract(response, 400, "code 또는 access_token이 필요합니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "카카오 로그인 인증 정보가 없습니다. 카카오 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_credential_missing")
 
     def test_cookie_domain_is_propagated_when_configured(self):
         with override_settings(COOKIE_DOMAIN=".maeil1dok.app"):
@@ -519,7 +547,12 @@ class GoogleSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
                 {"provider": "google", "access_token": "expired-token", "auto_signup": True}
             )
 
-        self.assert_error_contract(response, 400, "소셜 계정 정보를 가져올 수 없습니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "소셜 계정 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_identity_missing")
         self.assertFalse(User.objects.exists())
 
     def test_unverified_google_email_is_rejected(self):
@@ -531,7 +564,12 @@ class GoogleSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
                 {"provider": "google", "access_token": "google-native-token", "auto_signup": True}
             )
 
-        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "소셜 계정 인증 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_auth_failed")
         self.assertFalse(User.objects.exists())
 
     def test_missing_google_email_verification_claim_is_rejected(self):
@@ -543,7 +581,12 @@ class GoogleSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
                 {"provider": "google", "access_token": "google-native-token", "auto_signup": True}
             )
 
-        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "소셜 계정 인증 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_auth_failed")
         self.assertFalse(User.objects.exists())
 
 
@@ -636,7 +679,12 @@ class AppleSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
                 {"provider": "apple", "id_token": id_token, "auto_signup": True}
             )
 
-        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "소셜 계정 인증 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_auth_failed")
         self.assertFalse(User.objects.exists())
 
     def test_existing_user_login_returns_same_shape_as_signup(self):
@@ -721,7 +769,12 @@ class AppleSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
                 {"provider": "apple", "id_token": id_token, "auto_signup": True}
             )
 
-        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "소셜 계정 인증 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_auth_failed")
         self.assertFalse(User.objects.exists())
 
     def test_foreign_signing_key_returns_generic_error(self):
@@ -736,12 +789,22 @@ class AppleSocialLoginV2ContractTests(SocialLoginV2ContractTestCase):
                 {"provider": "apple", "id_token": forged, "auto_signup": True}
             )
 
-        self.assert_error_contract(response, 400, "로그인 처리 중 오류가 발생했습니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "소셜 계정 인증 정보를 확인하지 못했습니다. 소셜 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_auth_failed")
         self.assertFalse(User.objects.exists())
 
     def test_missing_identity_token_returns_specific_error(self):
         response = self.post_social_login({"provider": "apple", "auto_signup": True})
-        self.assert_error_contract(response, 400, "Apple 로그인에는 id_token이 필요합니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "Apple 로그인 인증 정보가 없습니다. Apple 로그인부터 다시 진행해 주세요.",
+        )
+        self.assertEqual(response.json()["error_code"], "provider_credential_missing")
 
 
 # ---------------------------------------------------------------------------
@@ -754,15 +817,21 @@ class SocialLoginV2SharedContractTests(SocialLoginV2ContractTestCase):
         response = self.post_social_login(
             {"provider": "naver", "access_token": "whatever", "auto_signup": True}
         )
-        self.assert_error_contract(response, 400, "지원하지 않는 소셜 제공자입니다.")
+        self.assert_error_contract(
+            response,
+            400,
+            "지원하지 않는 소셜 로그인 방식입니다.",
+        )
+        self.assertEqual(response.json()["error_code"], "invalid_input")
+        self.assertEqual(response.json()["field"], "provider")
 
     def test_missing_provider_returns_field_validation_errors(self):
-        # Serializer-level rejection has a different body shape (field -> messages),
-        # so `data.error` is undefined and the shell shows its fallback message.
         response = self.post_social_login({"access_token": "whatever"})
 
         self.assertEqual(response.status_code, 400)
         body = response.json()
-        self.assertEqual(set(body), {"provider"})
-        self.assertIsInstance(body["provider"], list)
+        self.assertEqual(body["error_code"], "invalid_input")
+        self.assertEqual(body["field"], "provider")
+        self.assertEqual(body["action"], "correct_input")
+        self.assertIn("provider", body["field_errors"])
         self.assert_no_auth_cookies(response)

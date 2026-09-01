@@ -215,6 +215,26 @@ class LoginEventTest(TestCase):
             events(event=EventKind.AUTH, route_bucket=RouteBucket.AUTH_LOGIN)
         )
 
+    def test_social_signup_completion_is_recorded_as_login_attempt(self):
+        response = APIClient().post(
+            '/api/v1/auth/complete-social-signup/',
+            {
+                'provider': 'google',
+                'provider_id': 'unverified-provider',
+                'nickname': '메트릭가입독자',
+            },
+            format='json',
+            HTTP_X_CLIENT='legacy-shell',
+            HTTP_X_APP_PLATFORM='android',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        event = events(event=EventKind.LOGIN)[-1]
+        self.assertEqual(event.route_bucket, RouteBucket.AUTH_LOGIN)
+        self.assertEqual(event.client, CLIENT_LEGACY_SHELL)
+        self.assertEqual(event.outcome, Outcome.FAIL)
+        self.assertEqual(event.status, 400)
+
 
 class RefreshRejectionCauseTest(TestCase):
     def setUp(self):

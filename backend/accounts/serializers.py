@@ -69,9 +69,39 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class SocialLoginSerializer(serializers.Serializer):
-    provider = serializers.CharField()  # 'kakao' or 'google'
-    code = serializers.CharField(required=False, allow_blank=True)  # OAuth 인증 코드
-    access_token = serializers.CharField(required=False, allow_blank=True)  # Native Kakao access token
+    provider = serializers.ChoiceField(
+        choices=("apple", "google", "kakao"),
+        error_messages={
+            "required": "소셜 로그인 방식을 확인할 수 없습니다.",
+            "invalid_choice": "지원하지 않는 소셜 로그인 방식입니다.",
+        },
+    )
+    code = serializers.CharField(required=False, allow_blank=True)
+    access_token = serializers.CharField(required=False, allow_blank=True)
+    id_token = serializers.CharField(required=False, allow_blank=True)
+    redirect_uri = serializers.URLField(required=False, allow_blank=True)
+    auto_signup = serializers.BooleanField(required=False, default=False)
+    full_name = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    user_name = serializers.CharField(required=False, allow_blank=True, max_length=200)
+
+
+class CompleteSocialSignupSerializer(serializers.Serializer):
+    nickname = serializers.CharField(min_length=2, max_length=20)
+    signup_token = serializers.CharField(required=False, allow_blank=True)
+    access_token = serializers.CharField(required=False, allow_blank=True)
+    provider = serializers.ChoiceField(
+        choices=("apple", "google", "kakao"),
+        required=False,
+    )
+    provider_id = serializers.CharField(required=False, allow_blank=True)
+    social_id = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    profile_image = serializers.URLField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=2048,
+    )
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod

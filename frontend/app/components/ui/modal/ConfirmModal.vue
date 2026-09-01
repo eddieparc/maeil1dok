@@ -14,7 +14,11 @@
     </h3>
 
     <!-- Description -->
-    <p v-if="description" class="confirm-description">
+    <p
+      v-if="description"
+      :id="`modal-description-${modalId}`"
+      class="confirm-description"
+    >
       {{ description }}
     </p>
 

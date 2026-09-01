@@ -548,37 +548,6 @@ export function useAuthService() {
     }
   }
 
-  async function completeSocialSignup(data: {
-    provider: string
-    social_id: string
-    nickname: string
-    email?: string
-    gender?: string
-    birth_date?: string
-  }): Promise<LoginResult> {
-    try {
-      const result = await apiRequest<{ access?: string; user?: AuthUser }>(
-        'POST',
-        '/api/v1/auth/complete-social-signup/',
-        data
-      )
-
-      if (!result.ok || !result.data?.user) {
-        return { success: false, error: '회원가입에 실패했습니다.' }
-      }
-
-      _user.value = result.data.user
-      _authState.value = 'authenticated'
-      saveUserToStorage(result.data.user)
-      startRefreshTimer()
-
-      return { success: true }
-    } catch (error) {
-      console.error('[AuthService] Social signup failed:', error)
-      return { success: false, error: '회원가입 중 오류가 발생했습니다.' }
-    }
-  }
-
   async function logout(): Promise<void> {
     // Cleared BEFORE the request: a logout whose response never arrives is still
     // the user's own instruction, and leaving the marker would report their own
@@ -700,7 +669,6 @@ export function useAuthService() {
     initialize,
     login,
     loginWithSocial,
-    completeSocialSignup,
     logout,
     refreshUser,
     refreshToken,

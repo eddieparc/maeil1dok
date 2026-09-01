@@ -14,7 +14,7 @@ class User(AbstractUser):
     is_social = models.BooleanField(default=False)
     social_provider = models.CharField(max_length=20, null=True, blank=True)
     social_id = models.CharField(max_length=100, null=True, blank=True)
-    profile_image = models.URLField(max_length=500, null=True, blank=True)
+    profile_image = models.URLField(max_length=2048, null=True, blank=True)
     
     email = models.EmailField(null=True, blank=True)
     active_email_identity = models.GeneratedField(
@@ -105,7 +105,7 @@ class SocialAccount(models.Model):
     provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
     provider_id = models.CharField(max_length=100, help_text="소셜 제공자의 고유 ID")
     email = models.EmailField(null=True, blank=True, help_text="소셜 계정 이메일")
-    profile_image = models.URLField(max_length=500, null=True, blank=True)
+    profile_image = models.URLField(max_length=2048, null=True, blank=True)
     access_token = models.TextField(null=True, blank=True, help_text="액세스 토큰 (암호화 저장)")
     refresh_token = models.TextField(null=True, blank=True, help_text="리프레시 토큰 (암호화 저장)")
     token_expires_at = models.DateTimeField(null=True, blank=True)

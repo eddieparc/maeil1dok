@@ -55,6 +55,7 @@ export interface AlertOptions {
   description?: string
   confirmText?: string
   icon?: ConfirmIcon
+  copyText?: string
 }
 
 export interface UseModalReturn {

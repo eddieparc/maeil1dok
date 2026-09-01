@@ -98,6 +98,18 @@ paths:
         소셜 회원가입 완료 (통합)
       tags:
       - accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteSocialSignup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompleteSocialSignup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompleteSocialSignup'
+        required: true
       security:
       - {}
       responses:
@@ -106,6 +118,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenPairResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
           description: ''
       deprecated: true
   /api/v1/accounts/csrf/:
@@ -867,6 +897,18 @@ paths:
         - user_name (선택): 첫 로그인 시 Apple에서 제공하는 사용자 이름
       tags:
       - accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialLogin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SocialLogin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SocialLogin'
+        required: true
       security:
       - {}
       responses:
@@ -875,6 +917,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SocialLoginResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
           description: ''
       deprecated: true
   /api/v1/accounts/token/:
@@ -1139,6 +1193,18 @@ paths:
       description: 소셜 회원가입 완료 (통합)
       tags:
       - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteSocialSignup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompleteSocialSignup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompleteSocialSignup'
+        required: true
       security:
       - {}
       responses:
@@ -1147,6 +1213,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenPairResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
           description: ''
   /api/v1/auth/csrf/:
     get:
@@ -1817,6 +1901,18 @@ paths:
         - user_name (선택): 첫 로그인 시 Apple에서 제공하는 사용자 이름
       tags:
       - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialLogin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SocialLogin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SocialLogin'
+        required: true
       security:
       - {}
       responses:
@@ -1825,6 +1921,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SocialLoginResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialAuthError'
           description: ''
   /api/v1/auth/token/:
     post:
@@ -6490,6 +6598,40 @@ components:
       - is_complete
       - schedule_id
       - start_chapter
+    CompleteSocialSignup:
+      type: object
+      properties:
+        nickname:
+          type: string
+          maxLength: 20
+          minLength: 2
+        signup_token:
+          type: string
+        access_token:
+          type: string
+        provider:
+          $ref: '#/components/schemas/ProviderEnum'
+        provider_id:
+          type: string
+        social_id:
+          type: string
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        profile_image:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 2048
+          - type: string
+            maxLength: 0
+      required:
+      - nickname
     CsrfTokenResponse:
       type: object
       properties:
@@ -8355,6 +8497,16 @@ components:
       - plan_id
       - schedule_ids
       - success
+    ProviderEnum:
+      enum:
+      - apple
+      - google
+      - kakao
+      type: string
+      description: |-
+        * `apple` - apple
+        * `google` - google
+        * `kakao` - kakao
     PublicPlanSubscription:
       type: object
       properties:
@@ -8388,7 +8540,7 @@ components:
           oneOf:
           - type: string
             format: uri
-            maxLength: 500
+            maxLength: 2048
           - type: string
             maxLength: 0
       required:
@@ -8734,6 +8886,57 @@ components:
           format: uuid
       required:
       - code
+    SocialAuthError:
+      type: object
+      properties:
+        error:
+          type: string
+        error_code:
+          type: string
+        request_id:
+          type: string
+        field:
+          type: string
+        action:
+          type: string
+        field_errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - error
+      - error_code
+      - request_id
+    SocialLogin:
+      type: object
+      properties:
+        provider:
+          $ref: '#/components/schemas/ProviderEnum'
+        code:
+          type: string
+        access_token:
+          type: string
+        id_token:
+          type: string
+        redirect_uri:
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
+        auto_signup:
+          type: boolean
+          default: false
+        full_name:
+          type: string
+          maxLength: 200
+        user_name:
+          type: string
+          maxLength: 200
+      required:
+      - provider
     SocialLoginResponse:
       oneOf:
       - $ref: '#/components/schemas/TokenPairResponse'
@@ -9085,7 +9288,7 @@ components:
           oneOf:
           - type: string
             format: uri
-            maxLength: 500
+            maxLength: 2048
           - type: string
             maxLength: 0
         is_staff:
@@ -9281,7 +9484,7 @@ components:
           oneOf:
           - type: string
             format: uri
-            maxLength: 500
+            maxLength: 2048
           - type: string
             maxLength: 0
         is_following:

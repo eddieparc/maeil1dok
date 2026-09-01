@@ -116,7 +116,7 @@ class AccountSecurityApiTests(TestCase):
     def test_kakao_social_login_v2_rejects_missing_provider_id_without_creating_none_identity(self):
         with (
             patch("accounts.views.requests.get") as requests_get,
-            self.assertLogs("accounts.views", level="ERROR") as logs,
+            self.assertLogs("accounts.views", level="WARNING") as logs,
         ):
             requests_get.return_value = JsonResponseStub(
                 {"error": "invalid_token", "access_token": "provider-secret-token"}
@@ -129,7 +129,9 @@ class AccountSecurityApiTests(TestCase):
             )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data["error"], "로그인 처리 중 오류가 발생했습니다.")
+        self.assertEqual(response.data["error_code"], "provider_auth_failed")
+        self.assertEqual(response.data["action"], "restart_social_login")
+        self.assertIn("소셜 로그인부터 다시", response.data["error"])
         self.assertFalse(User.objects.filter(username="kakao_None").exists())
         self.assertNotIn("provider-secret-token", "\n".join(logs.output))
 
@@ -188,11 +190,12 @@ class AccountSecurityApiTests(TestCase):
                         REMOTE_ADDR=f"10.20.0.{index}",
                     )
 
-                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.status_code, 502)
                 self.assertEqual(
-                    response.data["error"],
-                    "로그인 처리 중 오류가 발생했습니다.",
+                    response.data["error_code"],
+                    "provider_temporarily_unavailable",
                 )
+                self.assertEqual(response.data["action"], "retry")
                 self.assertFalse(User.objects.exists())
                 self.assertEqual(requests_get.call_args.kwargs["timeout"], OAUTH_TIMEOUT)
 
@@ -218,11 +221,12 @@ class AccountSecurityApiTests(TestCase):
                         REMOTE_ADDR=f"10.20.1.{index}",
                     )
 
-                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.status_code, 502)
                 self.assertEqual(
-                    response.data["error"],
-                    "로그인 처리 중 오류가 발생했습니다.",
+                    response.data["error_code"],
+                    "provider_temporarily_unavailable",
                 )
+                self.assertEqual(response.data["action"], "retry")
                 self.assertFalse(User.objects.exists())
 
     def test_complete_social_signup_signed_token_ignores_client_supplied_email_claims(self):
@@ -253,6 +257,212 @@ class AccountSecurityApiTests(TestCase):
         self.assertEqual(social_account.email, "provider@example.com")
         self.assertEqual(social_account.profile_image, "https://provider.example/avatar.png")
 
+    def test_complete_social_signup_drops_oversized_optional_profile_image(self):
+        oversized_profile_image = (
+            "https://provider.example/avatar.png?signature=" + ("x" * 3000)
+        )
+        token = generate_signup_token(
+            "google",
+            "oversized-avatar-provider",
+            email="oversized-avatar@example.com",
+            profile_image=oversized_profile_image,
+        )
+
+        response = self.client.post(
+            "/api/v1/auth/complete-social-signup/",
+            {
+                "signup_token": token,
+                "nickname": "긴사진주소독자",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        user = User.objects.get(username="google_oversized-avatar-provider")
+        social_account = user.social_accounts.get(provider="google")
+        self.assertEqual(user.profile_image, "")
+        self.assertEqual(social_account.profile_image, "")
+
+    def test_complete_social_signup_explains_missing_signup_session(self):
+        response = self.client.post(
+            "/api/v1/auth/complete-social-signup/",
+            {
+                "provider": "google",
+                "provider_id": "unverified-provider",
+                "nickname": "인증없는독자",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["error_code"], "signup_session_missing")
+        self.assertEqual(response.data["action"], "restart_social_login")
+        self.assertIn("소셜 로그인부터 다시", response.data["error"])
+        self.assertEqual(response.data["request_id"], response.headers["X-Request-ID"])
+
+    def test_complete_social_signup_reports_nickname_conflict(self):
+        User.objects.create_user(
+            username="nickname-owner",
+            nickname="이미있는닉네임",
+        )
+        token = generate_signup_token(
+            "kakao",
+            "nickname-conflict-provider",
+        )
+
+        response = self.client.post(
+            "/api/v1/auth/complete-social-signup/",
+            {
+                "signup_token": token,
+                "nickname": "이미있는닉네임",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["error_code"], "nickname_taken")
+        self.assertEqual(response.data["field"], "nickname")
+        self.assertEqual(response.data["action"], "choose_another_nickname")
+        self.assertIn("이미 사용 중", response.data["error"])
+
+    def test_complete_social_signup_releases_token_after_database_failure(self):
+        token = generate_signup_token(
+            "google",
+            "retryable-provider",
+            email="retryable@example.com",
+        )
+
+        with patch(
+            "accounts.views._create_default_subscription",
+            side_effect=IntegrityError("subscription write failed"),
+        ):
+            failed = self.client.post(
+                "/api/v1/auth/complete-social-signup/",
+                {
+                    "signup_token": token,
+                    "nickname": "재시도가입독자",
+                },
+                format="json",
+            )
+
+        self.assertEqual(failed.status_code, 500)
+        self.assertEqual(failed.data["error_code"], "signup_temporarily_unavailable")
+        self.assertEqual(failed.data["action"], "retry")
+        self.assertEqual(failed.data["request_id"], failed.headers["X-Request-ID"])
+        self.assertNotIn("subscription write failed", str(failed.data))
+        self.assertFalse(User.objects.filter(username="google_retryable-provider").exists())
+
+        retried = self.client.post(
+            "/api/v1/auth/complete-social-signup/",
+            {
+                "signup_token": token,
+                "nickname": "재시도가입독자",
+            },
+            format="json",
+        )
+
+        self.assertEqual(retried.status_code, 200, retried.data)
+        self.assertTrue(User.objects.filter(username="google_retryable-provider").exists())
+
+    def test_legacy_shell_completes_signup_with_secure_pending_cookie(self):
+        with patch("accounts.views.get_google_user_info_by_token") as get_user_info:
+            get_user_info.return_value = {
+                "sub": "legacy-shell-provider",
+                "email": "legacy-shell@example.com",
+                "email_verified": True,
+                "name": "구버전독자",
+                "picture": "https://provider.example/legacy-shell.png",
+            }
+            started = self.client.post(
+                "/api/v1/auth/social-login/v2/",
+                {
+                    "provider": "google",
+                    "access_token": "provider-token",
+                },
+                format="json",
+                HTTP_X_CLIENT="legacy-shell",
+                HTTP_X_APP_PLATFORM="android",
+                REMOTE_ADDR="10.98.0.1",
+            )
+
+        self.assertEqual(started.status_code, 200, started.data)
+        self.assertTrue(started.data["needsSignup"])
+        pending_cookie = started.cookies["social_signup"]
+        self.assertTrue(pending_cookie["httponly"])
+        self.assertEqual(pending_cookie["samesite"], "Lax")
+        self.assertLessEqual(int(pending_cookie["max-age"]), 600)
+
+        completed = self.client.post(
+            "/api/v1/auth/complete-social-signup/",
+            {
+                "provider": "google",
+                "provider_id": "legacy-shell-provider",
+                "nickname": "구버전가입독자",
+                "email": "attacker@example.com",
+                "profile_image": "https://attacker.example/avatar.png",
+            },
+            format="json",
+            HTTP_X_CLIENT="legacy-shell",
+            HTTP_X_APP_PLATFORM="android",
+        )
+
+        self.assertEqual(completed.status_code, 200, completed.data)
+        user = User.objects.get(username="google_legacy-shell-provider")
+        self.assertEqual(user.email, "legacy-shell@example.com")
+        self.assertEqual(user.profile_image, "https://provider.example/legacy-shell.png")
+        self.assertEqual(completed.cookies["social_signup"]["max-age"], 0)
+
+    def test_tampered_legacy_signup_cookie_is_rejected_with_recovery_action(self):
+        self.client.cookies["social_signup"] = "tampered-cookie"
+
+        response = self.client.post(
+            "/api/v1/auth/complete-social-signup/",
+            {
+                "provider": "google",
+                "provider_id": "attacker-provider",
+                "nickname": "조작가입독자",
+            },
+            format="json",
+            HTTP_X_CLIENT="legacy-shell",
+            HTTP_X_APP_PLATFORM="android",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["error_code"], "signup_session_expired")
+        self.assertEqual(response.data["action"], "restart_social_login")
+        self.assertFalse(User.objects.filter(nickname="조작가입독자").exists())
+
+    @override_settings(
+        DEBUG=False,
+        COOKIE_DOMAIN=".maeil1dok.app",
+        COOKIE_SAMESITE="Lax",
+    )
+    def test_pending_signup_cookie_is_secure_and_shared_across_app_subdomains(self):
+        with patch("accounts.views.get_kakao_user_info_by_token") as get_user_info:
+            get_user_info.return_value = {
+                "id": "production-cookie-provider",
+                "kakao_account": {"email": "production-cookie@example.com"},
+                "properties": {"nickname": "운영쿠키독자"},
+            }
+            response = self.client.post(
+                "/api/v1/auth/social-login/v2/",
+                {
+                    "provider": "kakao",
+                    "access_token": "provider-token",
+                },
+                format="json",
+                HTTP_X_CLIENT="legacy-shell",
+                HTTP_X_APP_PLATFORM="android",
+                REMOTE_ADDR="10.98.0.2",
+            )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        cookie = response.cookies["social_signup"]
+        self.assertTrue(cookie["secure"])
+        self.assertTrue(cookie["httponly"])
+        self.assertEqual(cookie["domain"], ".maeil1dok.app")
+        self.assertEqual(cookie["samesite"], "Lax")
+
     def test_successful_signup_token_cannot_be_replayed_after_identity_deletion(self):
         token = generate_signup_token(
             "kakao",
@@ -275,10 +485,8 @@ class AccountSecurityApiTests(TestCase):
         )
 
         self.assertEqual(second.status_code, 400)
-        self.assertEqual(
-            second.data["error"],
-            "유효하지 않거나 만료된 인증 토큰입니다.",
-        )
+        self.assertEqual(second.data["error_code"], "signup_session_expired")
+        self.assertEqual(second.data["action"], "restart_social_login")
         self.assertFalse(User.objects.filter(nickname="일회가입둘").exists())
 
     def test_complete_social_signup_legacy_signed_token_does_not_trust_client_email(self):
@@ -421,9 +629,15 @@ class AccountSecurityApiTests(TestCase):
                     "auto_signup": True,
                 },
                 format="json",
+                REMOTE_ADDR="10.98.0.3",
             )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.data["error_code"],
+            "social_login_temporarily_unavailable",
+        )
+        self.assertEqual(response.data["action"], "retry")
         self.assertNotIn("subscription write failed", str(response.data))
         self.assertFalse(User.objects.filter(username="kakao_auto-rollback-123").exists())
         self.assertFalse(

@@ -16,6 +16,9 @@ _REQUEST_ID = ContextVar("request_id", default="")
 _TRACE_ID = ContextVar("trace_id", default="")
 _TASK_ID = ContextVar("task_id", default="")
 _SAFE_CORRELATION_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+_SAFE_APP_VERSION = re.compile(r"^[A-Za-z0-9._+-]{1,32}$")
+_SAFE_CLIENTS = frozenset({"legacy-shell", "shell", "web"})
+_SAFE_PLATFORMS = frozenset({"android", "ios", "web"})
 _SENTRY_TRACE_ID = re.compile(r"^([0-9a-fA-F]{32})-")
 _TRACEPARENT_ID = re.compile(r"^[0-9a-fA-F]{2}-([0-9a-fA-F]{32})-")
 _SENSITIVE_ASSIGNMENT = re.compile(
@@ -55,6 +58,9 @@ _EXTRA_FIELDS = (
     "task_id",
     "outcome",
     "reason",
+    "client",
+    "platform",
+    "app_version",
 )
 _SENSITIVE_FIELD_KEYS = {
     "access",
@@ -88,6 +94,20 @@ def _clean_correlation_id(value: str | None) -> str:
     if value and _SAFE_CORRELATION_ID.fullmatch(value):
         return value
     return uuid.uuid4().hex
+
+
+def _request_observation_metadata(request: HttpRequest) -> dict[str, str]:
+    metadata = {}
+    client = request.headers.get("X-Client", "").strip().lower()
+    platform = request.headers.get("X-App-Platform", "").strip().lower()
+    app_version = request.headers.get("X-App-Version", "").strip()
+    if client in _SAFE_CLIENTS:
+        metadata["client"] = client
+    if platform in _SAFE_PLATFORMS:
+        metadata["platform"] = platform
+    if _SAFE_APP_VERSION.fullmatch(app_version):
+        metadata["app_version"] = app_version
+    return metadata
 
 
 def _trace_id_from_request(request: HttpRequest) -> str:
@@ -265,6 +285,7 @@ class RequestCorrelationMiddleware:
                     "route": route,
                     "status": response.status_code,
                     "duration_ms": round((monotonic() - started) * 1000, 3),
+                    **_request_observation_metadata(request),
                 },
             )
             return response

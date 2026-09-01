@@ -40,6 +40,18 @@ class ErrorResponseSerializer(serializers.Serializer):
     error = serializers.CharField()
 
 
+class SocialAuthErrorSerializer(serializers.Serializer):
+    error = serializers.CharField()
+    error_code = serializers.CharField()
+    request_id = serializers.CharField(allow_blank=True)
+    field = serializers.CharField(required=False)
+    action = serializers.CharField(required=False)
+    field_errors = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()),
+        required=False,
+    )
+
+
 class AccountSuccessMessageResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     message = serializers.CharField()

@@ -55,6 +55,8 @@ CORS_ALLOW_HEADERS = [
     # they are. Allowed before either side starts sending it, because a browser
     # rejects the whole request when a header is not in the preflight allow-list.
     'x-client',
+    'x-app-platform',
+    'x-app-version',
     'x-csrftoken',
     'x-request-id',
     'x-requested-with',

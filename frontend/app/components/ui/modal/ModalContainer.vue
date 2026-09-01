@@ -9,6 +9,7 @@
       role="dialog"
       aria-modal="true"
       :aria-labelledby="`modal-title-${modal.id}`"
+      :aria-describedby="modal.options.props?.description ? `modal-description-${modal.id}` : undefined"
       tabindex="-1"
     >
       <!-- Close button (optional) -->

@@ -29,7 +29,7 @@ CLIENT_UNKNOWN = 'unknown'
 
 # Values the clients are allowed to declare via `X-Client`. Anything else is
 # treated as absent, so a typo or a hostile value cannot invent a cohort.
-DECLARED_CLIENTS = frozenset({CLIENT_WEB, CLIENT_SHELL})
+DECLARED_CLIENTS = frozenset({CLIENT_WEB, CLIENT_SHELL, CLIENT_LEGACY_SHELL})
 
 # Measured User-Agent signatures of the shipped 1.2.2 shell.
 #

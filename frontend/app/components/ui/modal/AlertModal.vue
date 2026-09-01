@@ -14,9 +14,29 @@
     </h3>
 
     <!-- Description -->
-    <p v-if="description" class="alert-description">
+    <p
+      v-if="description"
+      :id="`modal-description-${modalId}`"
+      class="alert-description"
+    >
       {{ description }}
     </p>
+
+    <button
+      v-if="copyText"
+      type="button"
+      class="alert-copy-btn"
+      @click="copyDetail"
+    >
+      {{ copyStatus === 'copied' ? '복사됨' : copyStatus === 'failed' ? '복사 실패' : '오류 ID 복사' }}
+    </button>
+    <span class="sr-only" aria-live="polite">
+      {{ copyStatus === 'copied'
+        ? '오류 ID가 복사되었습니다.'
+        : copyStatus === 'failed'
+          ? '오류 ID를 복사하지 못했습니다. 직접 선택해 주세요.'
+          : '' }}
+    </span>
 
     <!-- Action -->
     <div class="alert-actions">
@@ -33,6 +53,7 @@
 
 <script setup lang="ts">
 import { CircleCheckIcon, CircleXIcon, InfoIcon, TriangleAlertIcon } from '@lucide/vue'
+import { ref } from 'vue'
 import { useModal } from '~/composables/useModal'
 import type { ConfirmIcon } from '~/types/modal'
 
@@ -42,11 +63,23 @@ const props = withDefaults(defineProps<{
   description?: string
   confirmText?: string
   icon?: ConfirmIcon
+  copyText?: string
 }>(), {
   confirmText: '확인'
 })
 
 const modal = useModal()
+const copyStatus = ref<'idle' | 'copied' | 'failed'>('idle')
+
+async function copyDetail() {
+  if (!props.copyText) return
+  try {
+    await navigator.clipboard.writeText(props.copyText)
+    copyStatus.value = 'copied'
+  } catch {
+    copyStatus.value = 'failed'
+  }
+}
 
 function handleConfirm() {
   modal.close(props.modalId)
@@ -101,6 +134,26 @@ function handleConfirm() {
   color: var(--color-text-secondary, #6b7280);
   margin: 0 0 1.5rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  user-select: text;
+  white-space: pre-line;
+  word-break: keep-all;
+}
+
+.alert-copy-btn {
+  margin: -0.5rem auto 1.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-default, #d1d5db);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.alert-copy-btn:hover {
+  background: var(--color-bg-muted, #f3f4f6);
 }
 
 .alert-actions {
