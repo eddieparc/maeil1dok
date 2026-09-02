@@ -1,0 +1,104 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  input.deletelink {
+    background: var(--delete-button-bg);
+  }
+
+  input.deletelink:focus,
+  input.deletelink:hover {
+    background: var(--delete-button-hover-bg);
+  }
+
+  .submit-row {
+    align-items: stretch;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  .submit-row .button,
+  .submit-row input {
+    align-items: center;
+    box-sizing: border-box;
+    display: inline-flex;
+    line-height: 1.25rem;
+    margin: 0;
+    min-height: 2.5rem;
+    padding: 0.625rem 0.9375rem;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">관리자</a>
+  &rsaquo; <a href="{% url 'admin:accounts_user_changelist' %}">회원 관리</a>
+  &rsaquo; 영구 삭제 확인
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <p class="errornote">
+    아래 회원 {{ purge_count }}명과 로그인 수단, 통독 기록, 소유 플랜,
+    알림을 포함한 모든 연관 데이터를 복구할 수 없게 삭제합니다.
+  </p>
+
+  <h2>선택한 회원</h2>
+  <ul>
+    {% for user in selected_users %}
+      <li>
+        <strong>{{ user.nickname }}</strong>
+        <span>{{ user.email|default:user.username }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if merged_users %}
+    <h2>병합 계정으로 함께 삭제</h2>
+    <ul>
+      {% for user in merged_users %}
+        <li>
+          <strong>{{ user.nickname }}</strong>
+          <span>{{ user.email|default:user.username }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if shared_plan_subscription_count %}
+    <p class="errornote">
+      다른 회원의 플랜 구독 {{ shared_plan_subscription_count }}건과
+      해당 일정도 함께 삭제됩니다.
+    </p>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    {% for user_id in selected_ids %}
+      <input
+        type="hidden"
+        name="{{ action_checkbox_name }}"
+        value="{{ user_id }}"
+      >
+    {% endfor %}
+    <input type="hidden" name="action" value="{{ action_name }}">
+    <input type="hidden" name="select_across" value="0">
+    <input type="hidden" name="confirm_purge" value="yes">
+
+    <div class="submit-row">
+      <a
+        href="{% url 'admin:accounts_user_changelist' %}"
+        class="button cancel-link"
+      >
+        취소
+      </a>
+      <input type="submit" value="영구 삭제" class="deletelink">
+    </div>
+  </form>
+</div>
+{% endblock %}
