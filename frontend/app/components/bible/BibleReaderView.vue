@@ -105,22 +105,48 @@
           </button>
         </div>
 
-        <!-- 일반 읽기 모드일 때 -->
-        <div v-if="!isTongdokMode && !isLoading" class="content-bottom-action">
-          <button
-            class="mark-read-btn-inline"
-            :class="{ 'is-read': isCurrentChapterRead }"
-            :disabled="isMarkingRead"
-            @click="$emit('mark-as-read')"
-          >
-            <CheckCircleIcon v-if="isCurrentChapterRead" />
-            <CheckCircleOutlineIcon v-else />
-            <span>{{ isCurrentChapterRead ? '읽음 완료' : '읽음으로 표시' }}</span>
-          </button>
+        <!-- 본문 하단 액션 영역: 이전 장 / 완료 / 다음 장 (플랫, 한 줄, 가운데 정렬) -->
+        <div v-if="!isLoading" class="content-bottom-action">
+          <div class="chapter-action-row">
+            <button
+              class="flat-action-btn"
+              type="button"
+              :disabled="!hasPrevChapter"
+              aria-label="이전 장"
+              @click="$emit('prev-chapter')"
+            >
+              <ChevronLeftIcon :size="16" />
+              <span>이전 장</span>
+            </button>
+
+            <button
+              v-if="!isTongdokMode"
+              class="flat-action-btn complete"
+              :class="{ 'is-read': isCurrentChapterRead }"
+              type="button"
+              :disabled="isMarkingRead"
+              @click="$emit('mark-as-read')"
+            >
+              <CheckCircleIcon v-if="isCurrentChapterRead" :size="16" />
+              <CheckCircleOutlineIcon v-else :size="16" />
+              <span>완료</span>
+            </button>
+
+            <button
+              class="flat-action-btn"
+              type="button"
+              :disabled="!hasNextChapter"
+              aria-label="다음 장"
+              @click="$emit('next-chapter')"
+            >
+              <span>다음 장</span>
+              <ChevronRightIcon :size="16" />
+            </button>
+          </div>
 
           <!-- 진도 표시 -->
           <ClientOnly>
-            <div v-if="isAuthenticated && bookProgress.total > 0" class="progress-info-inline">
+            <div v-if="!isTongdokMode && isAuthenticated && bookProgress.total > 0" class="progress-info-inline">
               <span class="progress-label">{{ currentBookName }} 읽기 진도</span>
               <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: `${bookProgress.percentage}%` }"></div>
@@ -959,7 +985,7 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  padding: 1.25rem 1rem 0.75rem;
+  padding: 1.5rem 1rem 2rem;
   margin-top: 1rem;
   /* 시스템 폰트 강제 적용 - 본문 명조체 상속 방지 */
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -968,61 +994,75 @@ defineExpose({
   border-radius: 0;
 }
 
-.mark-read-btn-inline {
+/* 하단 액션 행: 이전 장 / 완료 / 다음 장 - 플랫, 한 줄, 가운데 정렬 */
+.chapter-action-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   width: 100%;
-  max-width: 180px;
-  padding: 0.6875rem 1.125rem;
-  background: linear-gradient(135deg, var(--primary-color, #2A1111) 0%, #3A1A1A 100%);
-  color: white;
-  border-radius: 12px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 0.5rem 1rem;
+}
+
+.flat-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  color: var(--text-primary, #1f2937);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 10px;
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 4px 14px rgba(42, 17, 17, 0.35),
-    0 2px 6px rgba(42, 17, 17, 0.2);
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.mark-read-btn-inline:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--primary-dark, #3A1A1A) 0%, #2A1111 100%);
-  transform: translateY(-2px);
-  box-shadow: 
-    0 8px 20px rgba(42, 17, 17, 0.4),
-    0 4px 10px rgba(42, 17, 17, 0.25);
+.flat-action-btn:hover:not(:disabled) {
+  background: var(--color-bg-hover, #f3f4f6);
+  border-color: var(--color-border-dark, #d1d5db);
 }
 
-.mark-read-btn-inline:active:not(:disabled) {
-  transform: translateY(0) scale(0.98);
-  box-shadow: 
-    0 2px 8px rgba(42, 17, 17, 0.3),
-    0 1px 4px rgba(42, 17, 17, 0.2);
+.flat-action-btn:active:not(:disabled) {
+  background: var(--color-bg-active, #e5e7eb);
 }
 
-.mark-read-btn-inline.is-read {
-  background: linear-gradient(135deg, var(--color-success, #2A1111) 0%, #3A1A1A 100%);
-  box-shadow: 
-    0 4px 14px rgba(42, 17, 17, 0.35),
-    0 2px 6px rgba(42, 17, 17, 0.2);
+.flat-action-btn.complete {
+  color: var(--primary-color, #2A1111);
+  border-color: rgba(42, 17, 17, 0.25);
 }
 
-.mark-read-btn-inline.is-read:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-success-dark, #1F0C0C) 0%, #2A1111 100%);
-  box-shadow: 
-    0 8px 20px rgba(42, 17, 17, 0.4),
-    0 4px 10px rgba(42, 17, 17, 0.25);
+.flat-action-btn.complete.is-read {
+  color: var(--color-success, #2A1111);
+  border-color: rgba(42, 17, 17, 0.3);
+  background: rgba(42, 17, 17, 0.06);
 }
 
-.mark-read-btn-inline:disabled {
-  opacity: 0.5;
+.flat-action-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+}
+
+[data-theme="dark"] .flat-action-btn {
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .flat-action-btn:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .flat-action-btn.complete.is-read {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .progress-info-inline {
