@@ -43,7 +43,7 @@ test('offline session blocks protected action without navigating to login', asyn
 
   expect(hydrationWarnings).toEqual([]);
 
-  const markRead = page.getByRole('button', { name: '읽음으로 표시' });
+  const markRead = page.getByRole('button', { name: '완료' });
   await expect(markRead).toBeVisible();
   await markRead.click();
 
