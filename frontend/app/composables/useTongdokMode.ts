@@ -10,6 +10,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { BIBLE_BOOKS, useBibleData } from './useBibleData';
 import { useApi } from './useApi';
 import type { paths } from '~/types/generated/api-schema';
+import {
+  selectTongdokAudioLink,
+  type ChapterFallbackAudioLink,
+} from '~/utils/tongdokAudioSelection';
 
 export interface PlanDetail {
   book: string;
@@ -27,6 +31,7 @@ export interface ReadingDetailData {
   plan_id?: number;
   plan_detail?: PlanDetail[];
   audio_link?: string | null;
+  fallback_audio_links?: ChapterFallbackAudioLink[] | null;
   guide_link?: string | null;
   plan_date?: string;
   schedule_date?: string;
@@ -302,8 +307,14 @@ export const useTongdokMode = () => {
     }
   };
 
-  const getAudioLink = (): string | null => {
-    return readingDetailResponse.value?.data?.audio_link || null;
+  const getAudioLink = (book?: string | null, chapter?: number | string | null): string | null => {
+    const detail = readingDetailResponse.value?.data;
+    return selectTongdokAudioLink({
+      audioLink: detail?.audio_link,
+      fallbackLinks: detail?.fallback_audio_links,
+      book,
+      chapter,
+    });
   };
 
   const getGuideLink = (): string | null => {

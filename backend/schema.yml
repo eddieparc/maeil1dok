@@ -6563,12 +6563,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ChapterPlanDetail'
+        fallback_audio_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChapterFallbackAudioLink'
       required:
       - book
       - book_kor
       - book_unit_kor
       - chapter
       - is_logined
+    ChapterFallbackAudioLink:
+      type: object
+      properties:
+        book:
+          type: string
+        chapter:
+          type: integer
+        url:
+          type: string
+          format: uri
+      required:
+      - book
+      - chapter
+      - url
     ChapterPlanDetail:
       type: object
       properties:

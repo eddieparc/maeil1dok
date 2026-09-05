@@ -4256,6 +4256,13 @@ export interface components {
             is_complete?: boolean;
             message?: string;
             plan_detail?: components["schemas"]["ChapterPlanDetail"][];
+            fallback_audio_links?: components["schemas"]["ChapterFallbackAudioLink"][];
+        };
+        ChapterFallbackAudioLink: {
+            book: string;
+            chapter: number;
+            /** Format: uri */
+            url: string;
         };
         ChapterPlanDetail: {
             book: string;

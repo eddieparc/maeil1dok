@@ -5482,6 +5482,11 @@
             "book_kor": "<string>",
             "book_unit_kor": "<string>",
             "chapter": "<string>",
+            "fallback_audio_links": {
+              "element_shapes": [],
+              "length": 0,
+              "type": "list"
+            },
             "guide_link": "<string>",
             "is_complete": "<boolean>",
             "is_logined": "<boolean>",
@@ -5514,6 +5519,11 @@
             "book_kor": "<string>",
             "book_unit_kor": "<string>",
             "chapter": "<string>",
+            "fallback_audio_links": {
+              "element_shapes": [],
+              "length": 0,
+              "type": "list"
+            },
             "guide_link": "<string>",
             "is_complete": "<boolean>",
             "is_logined": "<boolean>",
@@ -5546,6 +5556,11 @@
             "book_kor": "<string>",
             "book_unit_kor": "<string>",
             "chapter": "<string>",
+            "fallback_audio_links": {
+              "element_shapes": [],
+              "length": 0,
+              "type": "list"
+            },
             "guide_link": "<string>",
             "is_complete": "<boolean>",
             "is_logined": "<boolean>",

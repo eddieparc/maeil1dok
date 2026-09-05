@@ -488,7 +488,9 @@ const isAtLastTongdokChapter = computed(() =>
 const tongdokAutoComplete = computed(() =>
   readingSettingsStore.settings.tongdokAutoComplete
 );
-const tongdokAudioLink = computed(() => getAudioLink());
+const tongdokAudioLink = computed(() =>
+  getAudioLink(currentBook.value, currentChapter.value)
+);
 const tongdokGuideLink = computed(() => getGuideLink());
 const tongdokScheduleDate = computed(() => getScheduleDate());
 const tongdokProgress = computed(() =>
