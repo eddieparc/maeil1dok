@@ -1260,10 +1260,13 @@ onMounted(async () => {
     );
   }
 
-  // 통독모드일 때 읽기 상세 정보 로드
-  if (isTongdokMode.value && tongdokPlanId.value) {
-    await loadReadingDetail(tongdokPlanId.value, currentBook.value, currentChapter.value);
-  }
+  // 읽기 상세 정보 로드. 통독모드가 아니어도 부른다 —
+  // 플랜 오디오가 없는 일반 읽기 화면에서도 장별 오디오 폴백이 필요하다.
+  await loadReadingDetail(
+    isTongdokMode.value ? tongdokPlanId.value : null,
+    currentBook.value,
+    currentChapter.value
+  );
 
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -1335,13 +1338,15 @@ watch(
   { flush: 'post' }
 );
 
-// 통독모드에서 책/장 변경 시 읽기 상세 정보 로드
+// 책/장 변경 시 읽기 상세 정보 로드 (통독모드가 아니면 플랜 없이 장별 오디오만 받는다)
 watch(
   [() => currentBook.value, () => currentChapter.value, () => tongdokMode.value],
   async ([newBook, newChapter, isTongdok]) => {
-    if (isTongdok && tongdokPlanId.value) {
-      await loadReadingDetail(tongdokPlanId.value, newBook, newChapter);
-    }
+    await loadReadingDetail(
+      isTongdok ? tongdokPlanId.value : null,
+      newBook,
+      newChapter
+    );
   }
 );
 </script>

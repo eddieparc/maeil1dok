@@ -273,11 +273,8 @@ export const useTongdokMode = () => {
     book: string,
     chapter: number
   ): Promise<ReadingDetailData | null> => {
-    if (!planId) {
-      console.warn('Plan ID is missing for loadReadingDetail');
-      return null;
-    }
-
+    // planId 가 없어도 호출한다. 플랜 없이 그냥 장을 보는 경우에도
+    // 백엔드가 그 장의 장별 성경읽기 폴백 오디오를 돌려주기 때문이다.
     const bibleBook = toBibleBook(book);
     if (!bibleBook) return null;
 
@@ -293,7 +290,7 @@ export const useTongdokMode = () => {
 
       const response = await api.GET('/api/v1/todos/detail/', {
         params: {
-          plan_id: planId,
+          plan_id: planId ?? undefined,
           book: bibleBook,
           chapter,
         },
