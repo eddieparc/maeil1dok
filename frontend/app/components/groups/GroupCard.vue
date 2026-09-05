@@ -1,265 +1,54 @@
 <template>
-  <div class="group-card" @click="handleCardClick">
-    <div class="card-header">
-      <div class="header-top">
-        <span
-          :class="[
-            'status-badge',
-            group.is_public ? 'status-public' : 'status-private'
-          ]"
-        >
-          {{ group.is_public ? '공개' : '비공개' }}
-        </span>
-        <span class="member-count">
-          {{ group.member_count }}/{{ group.max_members }}명
-        </span>
+  <NuxtLink :to="`/groups/${group.id}`" class="group-card">
+    <div class="header-top">
+      <div class="badges">
+        <span class="status-badge">{{ group.is_public ? '공개' : '비공개' }}</span>
+        <span v-if="group.is_member" class="status-badge my-group">내 그룹</span>
       </div>
-      <h3 class="group-name">
-        {{ group.name }}
-      </h3>
+      <span class="member-count">{{ group.member_count }}/{{ group.max_members }}명</span>
     </div>
-
-    <p class="group-description">
-      {{ group.description || '설명이 없습니다.' }}
-    </p>
-
-    <div class="group-meta">
-      <div class="meta-row">
-        <span class="meta-label">리더</span>
-        <span class="meta-value">{{ group.creator?.nickname || '관리자' }}</span>
-      </div>
-      <div class="meta-row" v-if="group.plans && group.plans.length > 0">
-        <span class="meta-label">읽기표</span>
-        <div class="plans-wrapper">
-          <span class="plan-text" v-if="group.plans.length === 1">{{ group.plans[0].name }}</span>
-          <span class="plan-text" v-else>
-            {{ group.plans[0].name }} 외 {{ group.plans.length - 1 }}개
-          </span>
-        </div>
+    <h2 class="group-name">{{ group.name }}</h2>
+    <p class="group-description">{{ group.description || '설명이 없습니다.' }}</p>
+    <div class="group-footer">
+      <span class="plan-name">
+        {{ group.plans?.[0]?.name || '등록된 읽기표 없음' }}
+        <template v-if="group.plans?.length > 1"> 외 {{ group.plans.length - 1 }}개</template>
+      </span>
+      <!-- 목록 API가 제공하는 실제 인물은 리더뿐이며 나머지는 인원수로 표시한다. -->
+      <div class="avatar-stack" :aria-label="`${group.creator?.nickname || '리더'} 외 그룹 멤버 ${Math.max(0, group.member_count - 1)}명`">
+        <NuxtImg v-if="group.creator?.profile_image" :src="group.creator.profile_image" alt="" class="stack-avatar" loading="lazy" />
+        <span v-else class="stack-avatar" aria-hidden="true">{{ group.creator?.nickname?.charAt(0) || '?' }}</span>
+        <span v-if="group.member_count > 1" class="stack-avatar stack-count" aria-hidden="true">+{{ group.member_count - 1 }}</span>
       </div>
     </div>
-
-    <div class="card-actions" @click.stop>
-      <NuxtLink
-        :to="`/groups/${group.id}`"
-        class="btn-action btn-secondary"
-      >
-        상세보기
-      </NuxtLink>
-
-      <button
-        v-if="isAuthenticated && !group.is_member && !group.is_full"
-        @click="handleJoin"
-        class="btn-action btn-primary"
-      >
-        가입하기
-      </button>
-
-      <button
-        v-else-if="group.is_member"
-        disabled
-        class="btn-action btn-disabled"
-      >
-        가입됨
-      </button>
-
-      <button
-        v-else-if="group.is_full"
-        disabled
-        class="btn-action btn-disabled"
-      >
-        정원 초과
-      </button>
-    </div>
-  </div>
+  </NuxtLink>
 </template>
 
 <script setup>
-const props = defineProps({
-  group: {
-    type: Object,
-    required: true
-  },
-  isAuthenticated: {
-    type: Boolean,
-    default: false
-  }
+defineProps({
+  group: { type: Object, required: true },
+  isAuthenticated: { type: Boolean, default: false }
 })
-
-const emit = defineEmits(['join'])
-
-const handleCardClick = () => {
-  navigateTo(`/groups/${props.group.id}`)
-}
-
-const handleJoin = () => {
-  emit('join', props.group.id)
-}
+defineEmits(['join'])
 </script>
 
 <style scoped>
-.group-card {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-slate-200);
-  border-radius: 12px;
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-
-.group-card:hover {
-  border-color: var(--color-slate-300);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.125rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.2;
-}
-
-.status-public {
-  background-color: #F0FDF4;
-  color: #15803D;
-  border: 1px solid #DCFCE7;
-}
-
-.status-private {
-  background-color: var(--color-slate-50);
-  color: var(--color-slate-500);
-  border: 1px solid var(--color-slate-200);
-}
-
-.member-count {
-  font-size: 0.8125rem;
-  color: var(--color-slate-500);
-  font-family: 'Pretendard', sans-serif;
-}
-
-.group-name {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-slate-800);
-  margin: 0;
-  line-height: 1.4;
-  font-family: 'Pretendard', sans-serif;
-  letter-spacing: -0.02em;
-}
-
-.group-description {
-  font-size: 0.875rem;
-  color: var(--color-slate-600);
-  margin: 0;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-height: 2.625rem; /* 2 lines height */
-}
-
-.group-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-slate-100);
-}
-
-.meta-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.8125rem;
-}
-
-.meta-label {
-  color: var(--color-slate-400);
-  min-width: 2.5rem;
-}
-
-.meta-value, .plan-text {
-  color: var(--color-slate-700);
-  font-weight: 500;
-}
-
-.card-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.btn-action {
-  flex: 1;
-  padding: 0.5rem;
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: 'Pretendard', sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-secondary {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-slate-200);
-  color: var(--color-slate-600);
-}
-
-.btn-secondary:hover {
-  background: var(--color-slate-50);
-  border-color: var(--color-slate-300);
-  color: var(--color-slate-800);
-}
-
-.btn-primary {
-  background: #1E293B;
-  border: 1px solid #1E293B;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #334155;
-  border-color: #334155;
-}
-
-.btn-disabled {
-  background: var(--color-slate-100);
-  border: 1px solid var(--color-slate-200);
-  color: var(--color-slate-400);
-  cursor: not-allowed;
-}
-
-@media (max-width: 640px) {
-  .group-card {
-    padding: 1rem;
-  }
-}
+.group-card { display: flex; flex-direction: column; gap: 8px; padding: 18px 20px; border: 1px solid var(--color-border-default); border-radius: 20px; background: var(--color-bg-card); box-shadow: var(--shadow-card); color: var(--color-text-primary); text-decoration: none; letter-spacing: var(--tracking-body); transition: transform var(--duration-micro) ease, box-shadow var(--duration-micro) ease; }
+.group-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.group-card:active { transform: scale(0.97); }
+.group-card:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
+.header-top, .group-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.badges { display: flex; gap: 6px; }
+.status-badge { padding: 4px 8px; border-radius: 999px; background: var(--color-bg-tertiary); color: var(--color-text-secondary); font-size: 11px; font-weight: 600; line-height: 1; }
+.my-group { background: var(--color-accent-primary-light); color: var(--color-accent-primary); }
+.member-count { font-size: 12px; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.group-name { margin: 2px 0 0; font-size: 17px; font-weight: 700; line-height: 1.3; }
+.group-description { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
+.group-footer { margin-top: 4px; }
+.plan-name { min-width: 0; color: var(--color-text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar-stack { display: flex; align-items: center; flex-shrink: 0; padding-left: 8px; }
+.stack-avatar { display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 24px; height: 24px; margin-left: -8px; border: 2px solid var(--color-bg-card); border-radius: 50%; object-fit: cover; background: var(--color-accent-primary-light); color: var(--color-accent-primary); font-size: 10px; font-weight: 700; }
+.stack-count { width: auto; min-width: 24px; padding: 0 3px; background: var(--color-bg-tertiary); color: var(--color-text-secondary); font-size: 9px; }
+:global([data-theme="dark"]) .my-group { background: transparent; outline: 1.5px solid var(--color-accent-primary); }
+@media (prefers-reduced-motion: reduce) { .group-card { transition: none; } .group-card:hover, .group-card:active { transform: none; } }
 </style>
