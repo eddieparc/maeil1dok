@@ -76,7 +76,7 @@ const hasHeaderAction = computed(() => Boolean(slots['header-action']))
 }
 
 .container {
-  max-width: 768px;
+  max-width: var(--content-max);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -108,10 +108,6 @@ const hasHeaderAction = computed(() => Boolean(slots['header-action']))
 @media (min-width: 1024px) {
   .app-shell {
     padding-left: var(--sidebar-width);
-  }
-
-  .container {
-    max-width: calc(var(--content-max) + var(--aside-width) + 28px);
   }
 
   .scroll-area,

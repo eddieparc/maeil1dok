@@ -7,6 +7,7 @@ import { useApi } from '~/composables/useApi';
 import type { components } from '~/types/generated/api-schema';
 import HomeHero from '~/components/home-v2/HomeHero.vue';
 import ReadingCardStack from '~/components/home-v2/ReadingCardStack.vue';
+import HomeAsideCards from '~/components/home-v2/HomeAsideCards.vue';
 import StatValue from '~/components/ui/StatValue.vue';
 import Skeleton from '~/components/ui/Skeleton.vue';
 import AppButton from '~/components/ui/AppButton.vue';
@@ -47,6 +48,10 @@ const week = computed(() => weekDates.value.map(day => {
   return { ...day, isToday, state, status };
 }));
 const weeklyCompleted = computed(() => week.value.filter(day => day.state === 'read').length);
+const recentRecords = computed(() => planCalendar.value
+  .filter(entry => entry.is_completed && entry.date <= today.value)
+  .toSorted((a, b) => b.date.localeCompare(a.date) || b.schedule_id - a.schedule_id)
+  .slice(0, 3));
 const todayEntries = computed(() => planCalendar.value.filter(entry => entry.date === today.value));
 const passage = computed(() => todayEntries.value.map(entry => `${entry.book} ${entry.start_chapter === entry.end_chapter ? entry.start_chapter : `${entry.start_chapter}-${entry.end_chapter}`}장`).join(' · '));
 const description = computed(() => {
@@ -113,8 +118,13 @@ onMounted(() => {
 
 <template>
   <div class="home-dashboard stagger">
+    <div class="dashboard-main">
     <HomeHero :streak="streak" />
-    <ReadingCardStack :progress="progress" :plan-name="planName" :passage="passage" :description="description" :loading="loading" />
+    <ReadingCardStack :progress="progress" :plan-name="planName" :passage="passage" :description="description" :loading="loading">
+      <template v-if="$slots.progress" #progress="ring">
+        <slot name="progress" v-bind="ring" />
+      </template>
+    </ReadingCardStack>
     <div v-if="error" class="load-error" role="alert">
       <p>{{ error }}</p>
       <AppButton variant="secondary" size="sm" @click="retry++">다시 시도</AppButton>
@@ -136,7 +146,25 @@ onMounted(() => {
         <StatValue v-else :value="remainingDays ?? '-'" unit="일" />
       </div>
     </section>
+    <section class="recent-card" aria-labelledby="recent-records-title" :aria-busy="loading">
+      <h2 id="recent-records-title" class="section-heading">최근 기록</h2>
+      <Skeleton v-if="loading" width="100%" height="44px" />
+      <p v-else-if="error" class="record-message">기록을 불러오지 못했습니다.</p>
+      <ul v-else-if="recentRecords.length" class="recent-records">
+        <li v-for="record in recentRecords" :key="record.schedule_id">
+          <NuxtLink to="/plan" class="record-link">
+            <CheckIcon :size="16" aria-hidden="true" />
+            <span>{{ record.book }} {{ record.chapters }}장</span>
+            <time :datetime="record.date">{{ record.date.slice(5).replace('-', '.') }}</time>
+          </NuxtLink>
+        </li>
+      </ul>
+      <p v-else class="record-message">최근 완료한 통독 기록이 없어요.</p>
+    </section>
+    </div>
+    <aside class="dashboard-aside" aria-label="읽기 소식">
     <section class="week-card" aria-label="이번 주 읽기 현황" :aria-busy="loading">
+      <h2 class="section-heading">이번 주</h2>
       <ol class="week-grid">
         <li v-for="day in week" :key="day.date" class="week-day" :class="{ 'is-today': day.isToday }" :aria-label="`${day.date} ${loading ? '확인 중' : error ? '확인할 수 없음' : day.status}`" :aria-current="day.isToday ? 'date' : undefined">
           <span class="weekday-label">{{ day.label }}</span>
@@ -148,19 +176,36 @@ onMounted(() => {
         </li>
       </ol>
     </section>
+    <HomeAsideCards :user-id="auth.isAuthenticated.value ? auth.user.value?.id : undefined" :today="today" />
+    </aside>
   </div>
 </template>
 
 <style scoped>
-.home-dashboard { display: flex; flex-direction: column; gap: 20px; }
+.home-dashboard, .dashboard-main, .dashboard-aside { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.stat-card, .week-card { background: var(--color-bg-card); border: 1px solid var(--color-border-default); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.stat-card, .week-card, .recent-card { background: var(--color-bg-card); border: 1px solid var(--color-border-default); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .stat-card { padding: 14px 14px 12px; }
 .stat-heading { display: flex; align-items: center; gap: 5px; margin: 0 0 12px; color: var(--color-text-secondary); font-size: 12px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
 .stat-heading svg { flex-shrink: 0; }
 .streak-icon { color: var(--color-accent-primary); }
 .weekly-stat :deep(.stat-value__unit) { color: var(--color-text-tertiary); }
 .week-card { padding: 14px 16px; }
+.recent-card { padding: 18px 20px; }
+.section-heading { margin: 0 0 14px; color: var(--color-text-primary); font-size: 15px; font-weight: 700; }
+.recent-records { margin: 0; padding: 0; list-style: none; }
+.recent-records li + li { border-top: 1px solid var(--color-border-default); }
+.record-link { display: flex; align-items: center; gap: 10px; min-height: var(--hit-min); color: var(--color-text-primary); font-size: 14px; text-decoration: none; border-radius: var(--radius-control); transition: background var(--duration-micro) ease, transform var(--duration-micro) ease; }
+.record-link svg { flex-shrink: 0; color: var(--color-accent-primary); }
+.record-link time { margin-left: auto; flex-shrink: 0; color: var(--color-text-tertiary); font-size: 12px; }
+.record-link:hover { background: var(--color-bg-hover); }
+.record-link:active { transform: scale(.97); }
+.record-link:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; box-shadow: 0 0 0 1px var(--color-accent-primary); }
+.record-message { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
+@media (min-width: 1024px) {
+  .stats-grid :deep(.stat-value__number) { font-size: 28px; }
+  .stat-heading { flex-wrap: wrap; white-space: normal; }
+}
 .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 0; padding: 0; list-style: none; }
 .week-day { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .weekday-label { color: var(--color-text-tertiary); font-size: 11px; font-weight: 600; line-height: 1; }
@@ -178,5 +223,7 @@ onMounted(() => {
 }
 @media (prefers-reduced-motion: reduce) {
   .home-dashboard, .home-dashboard > * { animation: none; }
+  .record-link { transition: none; }
+  .record-link:active { transform: none; }
 }
 </style>

@@ -1,9 +1,11 @@
 <template>
   <section class="reading-card" aria-label="오늘 읽기">
     <div v-if="isAuthenticated" class="today-reading">
-      <RingProgress :size="88" :thickness="8" :value="progress" :label="loading ? '진도 확인 중' : `${progress}%`">
-        <span class="ring-label">{{ loading ? '-' : progress }}<small v-if="!loading">%</small></span>
-      </RingProgress>
+      <slot name="progress" :progress="progress" :loading="loading">
+        <RingProgress :size="88" :thickness="8" :value="progress" :label="loading ? '진도 확인 중' : `${progress}%`">
+          <span class="ring-label">{{ loading ? '-' : progress }}<small v-if="!loading">%</small></span>
+        </RingProgress>
+      </slot>
       <div class="reading-copy">
         <p class="card-label">{{ planName || '성경통독' }} · 오늘 읽을 본문</p>
         <h2 class="bible-verse">{{ loading ? '본문을 불러오는 중' : passage || '말씀을 이어 읽어보세요' }}</h2>
@@ -58,6 +60,12 @@ const goPrimary = (): void => {
 .ring-label small { margin-left: 1px; font-size: 13px; font-weight: 600; }
 .continue-button { margin-top: 20px; height: 44px; box-shadow: none; }
 .welcome-copy { padding-block: 8px; }
+@media (min-width: 1024px) {
+  .reading-card { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+  .today-reading { flex: 1 1 300px; min-width: 0; }
+  .bible-verse { font-size: 26px; }
+  .continue-button { width: auto; flex: 0 0 auto; margin-top: 0; margin-left: auto; }
+}
 @media (prefers-reduced-motion: reduce) {
   .reading-card { animation: none; }
 }

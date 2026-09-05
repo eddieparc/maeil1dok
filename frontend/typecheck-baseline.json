@@ -1,5 +1,5 @@
 {
-  "total": 156,
+  "total": 155,
   "signatures": {
     "app/components/BibleScheduleContent.vue: TS2322: Type 'Schedule | undefined' is not assignable to type 'Schedule | { id: number; date: string; book: string; start_chapter: number; end_chapter: number; is_completed: boolean; } | null'.": 1,
     "app/components/BibleScheduleContent.vue: TS2322: Type 'Schedule | undefined' is not assignable to type '{ id: number; date: string; book: string; start_chapter: number; end_chapter: number; is_completed: boolean; } | null'.": 2,
@@ -84,7 +84,6 @@
     "app/pages/bible/index.vue: TS2322: Type '(subscription: { plan_id: number; plan_name: string; is_default: boolean; }) => void' is not assignable to type '(subscription: SubscriptionSummary) => any'.": 1,
     "app/pages/bible/index.vue: TS2322: Type 'Promise<Note[]>' is not assignable to type 'Promise<void>'.": 1,
     "app/pages/bible/index.vue: TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.": 1,
-    "app/pages/notifications/index.vue: TS2322: Type '\"default\"' is not assignable to type '\"user\" | \"note\" | \"bookmark\" | \"highlight\" | \"history\" | \"plan\" | \"schedule\" | undefined'.": 1,
     "app/pages/notifications/settings.vue: TS2322: Type '\"default\"' is not assignable to type '\"user\" | \"note\" | \"bookmark\" | \"highlight\" | \"history\" | \"plan\" | \"schedule\" | undefined'.": 1,
     "app/pages/notifications/settings.vue: TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.": 1,
     "app/plugins/pinia-persistedstate.client.ts: TS18046: 'nuxtApp.$pinia' is of type 'unknown'.": 1,

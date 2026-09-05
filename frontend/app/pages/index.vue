@@ -45,6 +45,7 @@
       </div>
     </div>
 
+    <SidebarNav />
     <div class="landing-content">
       <div class="container">
         <header class="home-header">
@@ -60,7 +61,12 @@
           <HomeHeaderActions :is-dark="isDark" @toggle-theme="toggleTheme" @open-menu="showMenu = true" />
         </header>
         <main class="home-main">
-          <HomeDashboard v-if="isKnownAuthenticated" />
+          <HomeDashboard v-if="isKnownAuthenticated">
+            <template #progress="{ progress, loading }">
+              <RingProgress v-if="isDesktop" :size="120" :thickness="10" :value="progress" :label="loading ? '진도 확인 중' : `${progress}%`" />
+              <RingProgress v-else :size="88" :thickness="8" :value="progress" :label="loading ? '진도 확인 중' : `${progress}%`" />
+            </template>
+          </HomeDashboard>
           <template v-else>
             <HomeHero class="fade-in" />
             <ReadingCardStack class="fade-in" />
@@ -75,7 +81,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
+import SidebarNav from '~/components/common/SidebarNav.vue';
+import RingProgress from '~/components/ui/RingProgress.vue';
 import HomeHero from '~/components/home-v2/HomeHero.vue';
 import HomeDashboard from '~/components/home-v2/HomeDashboard.vue';
 import HomeHeaderActions from '~/components/home-v2/HomeHeaderActions.vue';
@@ -127,6 +135,18 @@ useHead({
 .landing-skeleton__icon, .landing-skeleton__ring, .landing-skeleton__button, .landing-skeleton__dot { background: var(--color-bg-hover); }
 .sanctuary-theme.is-shell-ready .landing-skeleton { animation: none; opacity: 0; visibility: hidden; transition: opacity var(--duration-micro) ease, visibility 0s linear var(--duration-micro); }
 @keyframes landing-skeleton-timeout { to { opacity: 0; visibility: hidden; } }
+@media (min-width: 1024px) {
+  .landing-skeleton { left: var(--sidebar-width); }
+  .landing-skeleton__inner { box-sizing: content-box; display: grid; grid-template-columns: minmax(0, var(--content-max)) var(--aside-width); gap: 20px 28px; align-content: start; max-width: calc(var(--content-max) + var(--aside-width) + 28px); padding: 36px 40px; }
+  .landing-skeleton__header { grid-column: 1 / -1; justify-content: flex-end; }
+  .landing-skeleton__logo { display: none; }
+  .landing-skeleton__hero, .landing-skeleton__card, .landing-skeleton__stats, .landing-skeleton__grid, .landing-skeleton__inner > .landing-skeleton__line { grid-column: 1; margin-block: 0; }
+  .landing-skeleton__card { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+  .landing-skeleton__reading { flex: 1 1 300px; min-width: 0; }
+  .landing-skeleton__ring { width: 120px; height: 120px; }
+  .landing-skeleton__button { width: 96px; margin: 0 0 0 auto; }
+  .landing-skeleton__week { grid-column: 2; grid-row: 2; align-self: start; margin: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .landing-skeleton { animation-duration: 1ms; }
   .landing-skeleton .skeleton-shimmer { animation: none; }
@@ -139,6 +159,9 @@ useHead({
 definePageMeta({ layout: false });
 const showMenu = ref(false);
 const isShellReady = ref(false);
+const isDesktop = ref(false);
+let desktopQuery: MediaQueryList | undefined;
+const updateDesktop = () => { isDesktop.value = desktopQuery?.matches ?? false; };
 const settingsStore = useReadingSettingsStore();
 const isDark = ref(false);
 const toggleTheme = () => {
@@ -150,10 +173,14 @@ const revealShell = (): void => {
   requestAnimationFrame(() => { isShellReady.value = true; });
 };
 onMounted(() => {
+  desktopQuery = window.matchMedia('(min-width: 1024px)');
+  updateDesktop();
+  desktopQuery.addEventListener('change', updateDesktop);
   revealShell();
   settingsStore.initialize();
   isDark.value = settingsStore.effectiveTheme === 'dark';
 });
+onUnmounted(() => desktopQuery?.removeEventListener('change', updateDesktop));
 </script>
 
 <style scoped>
@@ -164,6 +191,15 @@ onMounted(() => {
 .home-main { display: flex; flex-direction: column; gap: 20px; }
 .home-shortcuts { animation-delay: calc(var(--stagger) * 4); }
 :global([data-theme="dark"]) .logo-img { filter: brightness(0) invert(1); }
+@media (min-width: 1024px) {
+  .landing-content { padding-left: var(--sidebar-width); }
+  .container { box-sizing: content-box; width: auto; max-width: calc(var(--content-max) + var(--aside-width) + 28px); min-height: calc(100vh - 72px); padding: 36px 40px; }
+  .home-header { justify-content: flex-end; margin-bottom: 20px; }
+  .logo-img { display: none; }
+  .home-main, .home-main :deep(.home-dashboard) { display: grid; grid-template-columns: minmax(0, var(--content-max)) var(--aside-width); gap: 28px; align-items: start; }
+  .home-main :deep(.home-dashboard) { grid-column: 1 / -1; }
+  .home-main > .hero-section, .home-main > .reading-card, .home-shortcuts { grid-column: 1; min-width: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .home-shortcuts { animation: none; }
 }
