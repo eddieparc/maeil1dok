@@ -26,7 +26,7 @@
       <div class="header-actions">
         <BibleSearchButton />
         <button
-          v-if="isTongdokMode && tongdokAudioLink"
+          v-if="tongdokAudioLink"
           class="header-icon-action"
           type="button"
           @click="$emit('audio-link-click', tongdokAudioLink)"
@@ -162,7 +162,7 @@
     <FloatingBottomBar>
       <template #above>
         <TongdokAudioPlayer
-          v-if="isTongdokMode && tongdokAudioLink"
+          v-if="tongdokAudioLink"
           :audio-link="tongdokAudioLink"
           :is-open="isTongdokAudioPlayerOpen"
           :schedule-range="tongdokScheduleRange"

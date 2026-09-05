@@ -1416,8 +1416,11 @@ def get_chapter_detail(request):
             'is_logined': user is not None
         }
 
-        # plan_id가 없으면 기본 정보만 반환
+        # 플랜 없이 그냥 장을 열었어도 그 장의 장별 성경읽기 오디오는 들을 수 있다.
         if not plan_id:
+            response_data['fallback_audio_links'] = build_fallback_audio_links(
+                [(book, chapter_number, chapter_number)]
+            )
             return Response(response_data)
 
         plan = _get_active_public_plan(plan_id)
@@ -1438,7 +1441,10 @@ def get_chapter_detail(request):
                 'plan_id': plan_id,
                 'plan_name': plan.name,
                 'message': f"이 플랜에는 현재 위치에 대한 일정이 없어요.",
-                'plan_detail': []
+                'plan_detail': [],
+                'fallback_audio_links': build_fallback_audio_links(
+                    [(book, chapter_number, chapter_number)]
+                ),
             })
             return Response(response_data)
 
