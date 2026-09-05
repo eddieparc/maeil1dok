@@ -1,25 +1,10 @@
-/* 모바일 하단 네비게이션 관련 전역 스타일 */
-@media (max-width: 768px) {
-  /* 페이지 컨텐츠가 하단 네비게이션과 겹치지 않도록 패딩 추가 */
-  .container,
-  .content-wrapper,
-  .page-container {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+/* PageLayout reserves tab space in its scroll area; standalone pages reserve it here. */
+@media (max-width: 1023px) {
+  :where(.container, .content-wrapper, .page-container):not(.page-layout-content):has(.bottom-nav-container) {
+    padding-bottom: calc(var(--tabbar-height) + 12px + max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px)));
   }
-  
-  /* 고정된 하단 버튼이 있는 경우 추가 여백 */
-  .fixed-bottom-button {
-    bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-}
 
-/* iOS 안전 영역 지원 */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  @media (max-width: 768px) {
-    .container,
-    .content-wrapper,
-    .page-container {
-      padding-bottom: calc(60px + env(safe-area-inset-bottom)) !important;
-    }
+  body:has(.bottom-nav-container) .fixed-bottom-button {
+    bottom: calc(var(--tabbar-height) + max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px)));
   }
 }

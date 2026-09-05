@@ -41,11 +41,11 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  letter-spacing: -0.05em;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-body);
   color: var(--color-text-primary);
   background: var(--color-bg-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -56,7 +56,69 @@ button {
 }
 
 h2 {
-  letter-spacing: -0.05em;
+  letter-spacing: var(--tracking-display);
+}
+
+/* Shared entry motion. Backwards fill releases transform for press/hover afterwards. */
+@keyframes maeil-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in,
+.stagger > * {
+  animation: maeil-enter var(--duration-enter) var(--ease-out-quint) backwards;
+}
+
+.stagger > :nth-child(1) { animation-delay: calc(var(--stagger) * 0); }
+.stagger > :nth-child(2) { animation-delay: calc(var(--stagger) * 1); }
+.stagger > :nth-child(3) { animation-delay: calc(var(--stagger) * 2); }
+.stagger > :nth-child(4) { animation-delay: calc(var(--stagger) * 3); }
+.stagger > :nth-child(5) { animation-delay: calc(var(--stagger) * 4); }
+.stagger > :nth-child(6) { animation-delay: calc(var(--stagger) * 5); }
+.stagger > :nth-child(7) { animation-delay: calc(var(--stagger) * 6); }
+.stagger > :nth-child(8) { animation-delay: calc(var(--stagger) * 7); }
+
+.press {
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+  transition: transform var(--duration-micro) ease;
+}
+
+.press:active {
+  transform: scale(0.97);
+}
+
+.press:focus-visible {
+  outline: 1px solid var(--color-accent-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--color-accent-focus-ring);
+}
+
+/* skeleton-shimmer and its 1.6s linear keyframes are reused from _shimmer.css. */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .stagger > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .press,
+  .press:active {
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .skeleton-shimmer {
+    animation: none !important;
+  }
 }
 
 /* ===== 명조체 폰트 ===== */
