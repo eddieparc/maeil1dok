@@ -67,6 +67,7 @@ from .services.notifications import (
 )
 
 from .services.catchup import sync_catchup_schedules
+from .services.chapter_audio_service import build_fallback_audio_links
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -1490,6 +1491,15 @@ def get_chapter_detail(request):
                 'date': schedule.date.isoformat(),
                 'is_complete': progress_dict.get(schedule_id, False)
             })
+
+        # 플랜에 오디오가 없으면 @readingjesus 장별 성경읽기 영상을 기본 오디오로 제공한다.
+        if target_schedule.audio_link:
+            response_data['fallback_audio_links'] = []
+        else:
+            response_data['fallback_audio_links'] = build_fallback_audio_links(
+                (item['book'], item['start_chapter'], item['end_chapter'])
+                for item in response_data['plan_detail']
+            )
 
         # 전체 완료 상태 업데이트
         response_data['is_complete'] = all(

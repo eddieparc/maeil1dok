@@ -250,6 +250,12 @@ class ChapterPlanDetailSerializer(serializers.Serializer):
     is_complete = serializers.BooleanField()
 
 
+class ChapterFallbackAudioLinkSerializer(serializers.Serializer):
+    book = serializers.CharField()
+    chapter = serializers.IntegerField()
+    url = serializers.URLField()
+
+
 class ChapterDetailResponseSerializer(serializers.Serializer):
     book = serializers.CharField()
     book_kor = serializers.CharField()
@@ -264,6 +270,7 @@ class ChapterDetailResponseSerializer(serializers.Serializer):
     is_complete = serializers.BooleanField(required=False)
     message = serializers.CharField(required=False)
     plan_detail = ChapterPlanDetailSerializer(many=True, required=False)
+    fallback_audio_links = ChapterFallbackAudioLinkSerializer(many=True, required=False)
 
 
 class TodayScheduleSerializer(serializers.Serializer):
