@@ -566,13 +566,16 @@ test('native Apple link results accept credentials but reject malformed messages
   }), null);
 });
 
+const editActionPattern = />\s*프로필 편집\s*<\/(?:button|AppButton)>/;
+const settingsActionPattern = />\s*계정 설정\s*<\/(?:button|AppButton)>/;
+
 test('profile page exposes account settings entry beside profile edit for own profile', async () => {
   const ownProfile = await renderProfile({ isOwnProfile: true });
-  assert.match(ownProfile, />\s*프로필 편집\s*<\/button>/);
-  assert.match(ownProfile, />\s*계정 설정\s*<\/button>/);
+  assert.match(ownProfile, editActionPattern);
+  assert.match(ownProfile, settingsActionPattern);
 
   const anotherProfile = await renderProfile({ isOwnProfile: false });
-  assert.doesNotMatch(anotherProfile, />\s*프로필 편집\s*<\/button>/);
-  assert.doesNotMatch(anotherProfile, />\s*계정 설정\s*<\/button>/);
+  assert.doesNotMatch(anotherProfile, editActionPattern);
+  assert.doesNotMatch(anotherProfile, settingsActionPattern);
   assert.match(profileScriptSetupSource, /navigateTo\('\/account\/settings'\)/);
 });

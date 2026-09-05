@@ -1,16 +1,10 @@
 <template>
-  <section class="quick-access">
-    <h3 class="section-title">Explore</h3>
-
+  <section class="quick-access" aria-labelledby="quick-access-title">
+    <h2 id="quick-access-title" class="section-title">바로가기</h2>
     <div class="grid-2">
-      <NuxtLink to="/hasena" class="sub-card" data-testid="card-hasena">
-        <ListIcon size="24" />
-        <strong>하세나하시조</strong>
-      </NuxtLink>
-
-      <div class="sub-card plan-card">
+      <div v-if="!isKnownAuthenticated" class="sub-card plan-card">
         <NuxtLink to="/plan" class="card-main">
-          <CalendarIcon size="24" />
+          <HomeShortcutIcon name="plan" />
           <strong>통독표</strong>
         </NuxtLink>
         <NuxtLink to="/plans" class="plan-pill" data-testid="pill-plans">
@@ -18,31 +12,36 @@
           플랜 관리
         </NuxtLink>
       </div>
-
-      <NuxtLink to="/scoreboard" class="sub-card" data-testid="card-scoreboard">
-        <TrophyIcon :size="24" />
-        <strong>리더보드</strong>
+      <NuxtLink v-else to="/plan" class="sub-card">
+        <HomeShortcutIcon name="plan" />
+        <strong>통독표</strong>
       </NuxtLink>
-
-      <NuxtLink to="/friends" class="sub-card" data-testid="card-friends">
-        <UsersIcon :size="24" />
-        <strong>친구</strong>
+      <NuxtLink to="/hasena" class="sub-card" data-testid="card-hasena">
+        <HomeShortcutIcon name="hasena" />
+        <strong>하세나하시조</strong>
       </NuxtLink>
-
       <NuxtLink to="/intro" class="sub-card">
-        <MonitorIcon size="24" />
+        <HomeShortcutIcon name="intro" />
         <strong>개론 영상</strong>
       </NuxtLink>
-
       <NuxtLink to="/groups" class="sub-card">
-        <UsersIcon :size="24" />
-        <strong>커뮤니티</strong>
+        <HomeShortcutIcon name="groups" />
+        <strong>함께</strong>
       </NuxtLink>
-
-      <NuxtLink :to="profileLink" class="sub-card">
-        <HistoryIcon size="24" />
-        <strong>내 활동</strong>
-      </NuxtLink>
+      <template v-if="!isKnownAuthenticated">
+        <NuxtLink to="/scoreboard" class="sub-card" data-testid="card-scoreboard">
+          <TrophyIcon :size="18" aria-hidden="true" />
+          <strong>리더보드</strong>
+        </NuxtLink>
+        <NuxtLink to="/friends" class="sub-card" data-testid="card-friends">
+          <UsersIcon :size="18" aria-hidden="true" />
+          <strong>친구</strong>
+        </NuxtLink>
+        <NuxtLink :to="profileLink" class="sub-card">
+          <HomeShortcutIcon name="history" />
+          <strong>내 활동</strong>
+        </NuxtLink>
+      </template>
     </div>
   </section>
 </template>
@@ -51,13 +50,10 @@
 import { computed } from 'vue';
 import { SettingsIcon, TrophyIcon, UsersIcon } from '@lucide/vue';
 import { useLandingAuthState } from '~/composables/useLandingAuthState';
-import CalendarIcon from '~/components/icons/CalendarIcon.vue';
-import HistoryIcon from '~/components/icons/HistoryIcon.vue';
-import ListIcon from '~/components/icons/ListIcon.vue';
-import MonitorIcon from '~/components/icons/MonitorIcon.vue';
+import HomeShortcutIcon from '~/components/home-v2/HomeShortcutIcon.vue';
 
-const { displayUser, isFirstPaintPending } = useLandingAuthState();
-
+const { displayUser, isFirstPaintPending, isKnownAuthenticated: knownAuthenticated } = useLandingAuthState();
+const isKnownAuthenticated = computed(() => knownAuthenticated.value);
 const profileLink = computed(() => {
   if (isFirstPaintPending.value) return '/login';
   return displayUser.value ? `/profile/${displayUser.value.id}` : '/login';
@@ -65,107 +61,37 @@ const profileLink = computed(() => {
 </script>
 
 <style scoped>
-.quick-access {
-  margin-bottom: 2rem;
-}
-
-.section-title {
-  color: var(--text-main);
-  font-family: var(--font-serif);
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0 0 1.5rem;
-}
-
-.grid-2 {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr 1fr;
-}
-
+.section-title { margin: 0 0 10px; color: var(--color-text-secondary); font-size: 13px; font-weight: 600; line-height: 1.4; }
+.grid-2 { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sub-card {
-  align-items: center;
-  background: var(--card-bg);
-  border: 1px solid rgba(0, 0, 0, 0.02);
-  border-radius: 20px;
-  box-shadow: var(--paper-shadow);
-  color: var(--text-main);
   display: flex;
-  gap: 0.75rem;
-  min-height: 96px;
-  padding: 1.4rem;
-  text-decoration: none;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card-main {
   align-items: center;
-  color: inherit;
-  display: flex;
-  flex: 1;
-  gap: 0.75rem;
-  min-width: 0;
+  gap: 10px;
+  min-height: 56px;
+  padding: 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-card);
   text-decoration: none;
+  transition: transform var(--duration-micro) ease, box-shadow var(--duration-micro) ease;
 }
-
-.plan-card {
-  gap: 0.75rem;
-  justify-content: space-between;
+.sub-card svg { flex-shrink: 0; color: var(--color-text-secondary); }
+.sub-card strong { font-size: 14px; font-weight: 600; line-height: 1.5; }
+.sub-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.sub-card:active, .plan-pill:active { transform: scale(.97); }
+.sub-card:focus-visible, .card-main:focus-visible, .plan-pill:focus-visible {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 2px;
+  border-color: var(--color-accent-primary);
 }
-
-.plan-pill {
-  align-items: center;
-  background: var(--accent-light);
-  border-radius: 999px;
-  color: var(--accent);
-  display: inline-flex;
-  font-size: 0.75rem;
-  font-weight: 700;
-  gap: 0.25rem;
-  line-height: 1;
-  padding: 0.45rem 0.7rem;
-  flex-shrink: 0;
-  text-decoration: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.plan-pill:hover {
-  opacity: 0.78;
-  transform: translateY(-1px);
-}
-
-.sub-card:hover {
-  box-shadow: 0 8px 20px rgba(44, 51, 51, 0.06);
-  transform: translateY(-2px);
-}
-
-.sub-card svg,
-.card-main svg {
-  color: var(--text-main);
-  flex-shrink: 0;
-}
-
-.plan-pill svg {
-  color: currentColor;
-}
-
-.sub-card strong,
-.card-main strong {
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.35;
-  min-width: 0;
-}
-
-@media (max-width: 480px) {
-  .sub-card {
-    min-height: 88px;
-    padding: 1.15rem;
-  }
-
-  .plan-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+.plan-card { flex-wrap: wrap; gap: 0 8px; }
+.card-main { display: flex; align-items: center; gap: 10px; min-height: var(--hit-min); color: inherit; text-decoration: none; }
+.plan-pill { display: inline-flex; align-items: center; gap: 4px; min-height: var(--hit-min); padding: 0 10px; border-radius: var(--radius-pill); background: var(--color-accent-primary-light); color: var(--color-accent-primary); font-size: 12px; font-weight: 600; text-decoration: none; transition: background var(--duration-micro) ease, transform var(--duration-micro) ease; }
+.plan-pill:hover { background: var(--color-bg-hover); }
+@media (prefers-reduced-motion: reduce) {
+  .sub-card, .plan-pill { transition: none; }
+  .sub-card:hover, .sub-card:active, .plan-pill:active { transform: none; }
 }
 </style>

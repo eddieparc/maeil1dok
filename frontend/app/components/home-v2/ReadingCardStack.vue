@@ -1,31 +1,21 @@
 <template>
-  <section class="card-stack">
-    <button
-      class="reading-card main-card"
-      type="button"
-      @click="goPrimary"
-    >
-      <div class="card-header">
-        <span class="card-label">{{ cardLabel }}</span>
+  <section class="reading-card" aria-label="오늘 읽기">
+    <div v-if="isAuthenticated" class="today-reading">
+      <RingProgress :size="88" :thickness="8" :value="progress" :label="loading ? '진도 확인 중' : `${progress}%`">
+        <span class="ring-label">{{ loading ? '-' : progress }}<small v-if="!loading">%</small></span>
+      </RingProgress>
+      <div class="reading-copy">
+        <p class="card-label">{{ planName || '성경통독' }} · 오늘 읽을 본문</p>
+        <h2 class="bible-verse">{{ loading ? '본문을 불러오는 중' : passage || '말씀을 이어 읽어보세요' }}</h2>
+        <p class="chapter-range">{{ description || '나의 통독표와 읽기 기록을 확인할 수 있습니다' }}</p>
       </div>
-
-      <h2 class="bible-verse">
-        <template v-if="isAuthenticated">오늘의 말씀을<br>이어 읽어보세요</template>
-        <template v-else>로그인하고<br>시작하세요</template>
-      </h2>
-
-      <p class="chapter-range">
-        {{ chapterRange }}
-      </p>
-
-      <span class="start-btn">
-        {{ startButtonText }}
-        <ArrowRightIcon size="16" />
-      </span>
-    </button>
-
-    <div class="card-shadow-1"></div>
-    <div class="card-shadow-2"></div>
+    </div>
+    <div v-else class="welcome-copy">
+      <p class="card-label">WELCOME</p>
+      <h2 class="bible-verse">로그인하고<br>시작하세요</h2>
+      <p class="chapter-range">나만의 통독 기록을 관리할 수 있습니다</p>
+    </div>
+    <UiAppButton variant="primary" size="lg" block class="continue-button" @click="goPrimary">{{ isAuthenticated ? '이어 읽기' : '로그인 / 회원가입' }}</UiAppButton>
   </section>
 </template>
 
@@ -33,116 +23,42 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useLandingAuthState } from '~/composables/useLandingAuthState';
-import ArrowRightIcon from '~/components/icons/ArrowRightIcon.vue';
+import RingProgress from '~/components/ui/RingProgress.vue';
+
+withDefaults(defineProps<{
+  progress?: number;
+  planName?: string;
+  passage?: string;
+  description?: string;
+  loading?: boolean;
+}>(), { progress: 0, planName: '', passage: '', description: '', loading: false });
 
 const router = useRouter();
 const { isKnownAuthenticated } = useLandingAuthState();
 const isAuthenticated = computed(() => isKnownAuthenticated.value);
-const cardLabel = computed(() => isAuthenticated.value ? "TODAY'S READING" : 'WELCOME');
-const chapterRange = computed(() => {
-  return isAuthenticated.value
-    ? '나의 통독표와 읽기 기록을 확인할 수 있습니다'
-    : '나만의 통독 기록을 관리할 수 있습니다';
-});
-const startButtonText = computed(() => isAuthenticated.value ? '통독 시작하기' : '로그인 / 회원가입');
-
 const goPrimary = (): void => {
   router.push(isAuthenticated.value ? '/bible' : '/login');
 };
 </script>
 
 <style scoped>
-.card-stack {
-  position: relative;
-  margin-bottom: 3rem;
-}
-
 .reading-card {
-  width: 100%;
-  min-height: 260px;
-  border: 1px solid rgba(0, 0, 0, 0.02);
-  border-radius: 24px;
-  background: var(--card-bg);
-  box-shadow: var(--paper-shadow);
-  color: inherit;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  overflow: hidden;
-  padding: 2.25rem 2rem;
-  position: relative;
-  text-align: left;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  z-index: 10;
+  padding: var(--card-padding);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
 }
-
-.reading-card:hover {
-  box-shadow: 0 12px 30px rgba(44, 51, 51, 0.08);
-  transform: translateY(-3px);
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.card-label {
-  color: var(--accent);
-  font-family: var(--font-sans);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-
-.bible-verse {
-  color: var(--text-main);
-  font-family: var(--font-serif);
-  font-size: 2rem;
-  font-weight: 500;
-  line-height: 1.22;
-  margin: 0 0 0.75rem;
-}
-
-.chapter-range {
-  color: var(--text-sub);
-  font-size: 1rem;
-  line-height: 1.5;
-  margin: 0 0 2rem;
-}
-
-.start-btn {
-  align-items: center;
-  align-self: flex-start;
-  border-bottom: 1px solid currentColor;
-  color: var(--text-main);
-  display: inline-flex;
-  font-size: 1rem;
-  font-weight: 600;
-  gap: 0.4rem;
-  padding-bottom: 4px;
-}
-
-.card-shadow-1,
-.card-shadow-2 {
-  background: var(--card-bg);
-  border-radius: 24px;
-  box-shadow: var(--paper-shadow);
-  height: 100%;
-  position: absolute;
-}
-
-.card-shadow-1 {
-  inset: 10px 20px auto;
-  opacity: 0.5;
-  z-index: 5;
-}
-
-.card-shadow-2 {
-  inset: 20px 40px auto;
-  opacity: 0.3;
-  z-index: 1;
+.today-reading { display: flex; align-items: center; gap: 20px; }
+.reading-copy { min-width: 0; }
+.card-label { margin: 0 0 6px; color: var(--color-accent-primary); font-size: 12px; font-weight: 600; line-height: 1.4; }
+.bible-verse { margin: 0 0 6px; color: var(--color-text-primary); font-size: 20px; font-weight: 700; line-height: 1.3; letter-spacing: var(--tracking-display); }
+.chapter-range { margin: 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
+.ring-label { font-size: 24px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-display); }
+.ring-label small { margin-left: 1px; font-size: 13px; font-weight: 600; }
+.continue-button { margin-top: 20px; height: 44px; box-shadow: none; }
+.welcome-copy { padding-block: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .reading-card { animation: none; }
 }
 </style>

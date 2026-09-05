@@ -1,5 +1,5 @@
 {
-  "total": 162,
+  "total": 161,
   "signatures": {
     "app/components/BibleScheduleContent.vue: TS2322: Type 'Schedule | undefined' is not assignable to type 'Schedule | { id: number; date: string; book: string; start_chapter: number; end_chapter: number; is_completed: boolean; } | null'.": 1,
     "app/components/BibleScheduleContent.vue: TS2322: Type 'Schedule | undefined' is not assignable to type '{ id: number; date: string; book: string; start_chapter: number; end_chapter: number; is_completed: boolean; } | null'.": 2,
@@ -57,7 +57,6 @@
     "app/components/icons/XCircleIcon.vue: TS2322: Type 'string | number' is not assignable to type 'number | undefined'.": 1,
     "app/components/icons/XMarkIcon.vue: TS2322: Type 'string | number' is not assignable to type 'number | undefined'.": 1,
     "app/components/notifications/DevicePushSetting.vue: TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.": 1,
-    "app/components/profile/FollowersModal.vue: TS2322: Type 'boolean | undefined' is not assignable to type 'boolean'.": 1,
     "app/components/schedule/ScheduleItem.vue: TS18048: 'first' is possibly 'undefined'.": 4,
     "app/components/schedule/ScheduleItem.vue: TS18048: 'last' is possibly 'undefined'.": 4,
     "app/components/schedule/ScheduleItem.vue: TS18048: 's' is possibly 'undefined'.": 7,

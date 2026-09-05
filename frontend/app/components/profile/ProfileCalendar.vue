@@ -1,11 +1,11 @@
 <template>
   <div class="profile-calendar fade-in">
     <div class="calendar-header">
-      <button @click="previousMonth" class="month-nav-button">
+      <button type="button" @click="previousMonth" class="month-nav-button" aria-label="이전 달">
         <ChevronLeftIcon :size="20" />
       </button>
       <h3 class="current-month">{{ currentMonthLabel }}</h3>
-      <button @click="nextMonth" class="month-nav-button" :disabled="isCurrentMonth">
+      <button type="button" @click="nextMonth" class="month-nav-button" :disabled="isCurrentMonth" aria-label="다음 달">
         <ChevronRightIcon :size="20" />
       </button>
     </div>
@@ -13,7 +13,7 @@
     <!-- 플랜 범례 -->
     <div v-if="plans.length > 0" class="plan-legend">
       <div v-for="plan in plans" :key="plan.id" class="legend-plan-item">
-        <span class="legend-dot" :style="{ backgroundColor: plan.color }"></span>
+        <span class="legend-dot" aria-hidden="true"></span>
         <span class="legend-name">{{ plan.name }}</span>
       </div>
     </div>
@@ -23,29 +23,33 @@
         {{ day }}
       </div>
 
-      <CalendarDayCell
-        v-for="(date, index) in calendarDates"
-        :key="index"
-        :day="date.day"
-        :date-str="date.dateStr"
-        :is-current-month="date.isCurrentMonth"
-        :is-today="date.isToday"
-        :is-future="date.isFuture"
-        :schedules="date.schedules"
-        :display-mode="hasMultiplePlans ? 'text' : 'simple'"
-        :max-items="2"
-        @click="handleDayClick"
-      />
+      <button
+        v-for="date in calendarDates"
+        :key="date.dateStr"
+        type="button"
+        class="calendar-day-button"
+        :class="{ 'other-month': !date.isCurrentMonth }"
+        :disabled="!date.isCurrentMonth || date.schedules.length === 0"
+        :aria-label="`${date.dateStr}, ${dayStateLabel(date)}${date.schedules.length ? `, 일정 ${date.schedules.length}개` : ''}`"
+        :aria-current="date.isToday ? 'date' : undefined"
+        @click="handleDayClick(date)"
+      >
+        <span class="calendar-day-cell" :class="dayState(date)">{{ date.day }}</span>
+      </button>
     </div>
 
     <div class="calendar-legend">
       <div class="legend-item">
         <div class="legend-icon completed"></div>
-        <span>완료</span>
+        <span>읽음</span>
       </div>
       <div class="legend-item">
         <div class="legend-icon today"></div>
         <span>오늘</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-icon missed"></div>
+        <span>미완료</span>
       </div>
       <div class="legend-item">
         <div class="legend-icon future"></div>
@@ -66,8 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import CalendarDayCell from '~/components/calendar/CalendarDayCell.vue'
+import { ref, computed } from 'vue'
 import ScheduleDetailModal from '~/components/calendar/ScheduleDetailModal.vue'
 import { ChevronLeftIcon, ChevronRightIcon } from '@lucide/vue'
 import type { ScheduleDisplay } from '~/components/calendar/CalendarDayCell.vue'
@@ -114,10 +117,6 @@ const selectedDate = ref<{ dateStr: string; day: number } | null>(null)
 const selectedSchedules = ref<ScheduleDetail[]>([])
 
 const weekDays = ['일', '월', '화', '수', '목', '금', '토']
-
-const hasMultiplePlans = computed(() => {
-  return (props.plans?.length ?? 0) > 0 || props.calendarData.some(d => d.plan_id)
-})
 
 const plans = computed(() => props.plans ?? [])
 
@@ -193,7 +192,7 @@ const calendarDates = computed(() => {
     const schedules: ScheduleDisplay[] = daySchedules.map(item => ({
       plan_id: item.plan_id,
       plan_name: item.plan_name,
-      color: item.color || '#3B82F6',
+      color: item.color || 'var(--color-accent-primary)',
       book: item.book,
       chapters: item.chapters,
       schedule_text: item.schedule_text,
@@ -231,6 +230,24 @@ const calendarDates = computed(() => {
 
   return dates
 })
+
+type CalendarDate = typeof calendarDates.value[number]
+
+const dayState = (date: CalendarDate) => {
+  if (!date.isCurrentMonth) return 'outside'
+  if (date.schedules.length > 0 && date.schedules.every(schedule => schedule.is_completed)) return 'completed'
+  if (date.isToday) return 'today'
+  if (date.isFuture) return 'future'
+  return 'missed'
+}
+
+const dayStateLabel = (date: CalendarDate) => ({
+  outside: '다른 달',
+  completed: '읽음',
+  today: '오늘',
+  future: '미래',
+  missed: '미완료',
+})[dayState(date)]
 
 const handleDayClick = (payload: { dateStr: string; day: number; schedules: ScheduleDisplay[] }) => {
   if (payload.schedules.length === 0) return
@@ -283,177 +300,61 @@ const nextMonth = () => {
 </script>
 
 <style scoped>
-.profile-calendar {
-  padding: 1rem;
-}
-
-.calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
+.profile-calendar { padding: var(--card-padding); letter-spacing: var(--tracking-body); }
+.calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .month-nav-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: transparent;
-  border: 1px solid var(--gray-300);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-:root.dark .month-nav-button {
-  border-color: var(--color-border);
-  color: var(--text-primary);
-}
-
-.month-nav-button:hover:not(:disabled) {
-  background: var(--gray-100);
-  border-color: var(--primary-color);
-}
-
-:root.dark .month-nav-button:hover:not(:disabled) {
-  background: var(--color-bg-hover);
-}
-
-.month-nav-button:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.current-month {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-/* 플랜 범례 */
-.plan-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
-  margin-bottom: 0.75rem;
-  border-bottom: 1px solid var(--gray-200);
-}
-
-:root.dark .plan-legend {
-  border-color: var(--color-border);
-}
-
-.legend-plan-item {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.legend-name {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.calendar-grid {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.375rem;
+  place-items: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
 }
-
-.weekday-label {
-  text-align: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  padding: 0.5rem 0;
+.month-nav-button::before { content: ''; position: absolute; inset: 8px; border: 1px solid var(--color-border-default); border-radius: var(--radius-control); }
+.month-nav-button:disabled { opacity: 0.3; cursor: not-allowed; }
+.current-month { margin: 0; font-size: 15px; font-weight: 700; color: var(--color-text-primary); }
+.plan-legend { display: flex; flex-wrap: wrap; gap: 8px 12px; padding-bottom: 12px; }
+.legend-plan-item { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent-primary); flex-shrink: 0; }
+.legend-name { font-size: 11px; color: var(--color-text-secondary); }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px 4px; margin-inline: -12px; }
+.weekday-label { padding-block: 6px; text-align: center; font-size: 11px; font-weight: 600; color: var(--color-text-tertiary); }
+.calendar-day-button {
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-cell);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
 }
-
-.calendar-legend {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--gray-200);
-}
-
-:root.dark .calendar-legend {
-  border-color: var(--color-border);
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.legend-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--gray-300);
-}
-
-:root.dark .legend-icon {
-  border-color: var(--color-border);
-}
-
-.legend-icon.completed {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-.legend-icon.today {
-  border-color: var(--primary-color);
-  border-width: 2px;
-}
-
-.legend-icon.future {
-  background: var(--gray-50);
-}
-
-:root.dark .legend-icon.future {
-  background: var(--color-bg-tertiary);
-}
-
-@media (max-width: 640px) {
-  .profile-calendar {
-    padding: 0.75rem;
-  }
-
-  .calendar-grid {
-    gap: 0.25rem;
-  }
-
-  .plan-legend {
-    gap: 0.5rem;
-    padding: 0.375rem 0;
-    margin-bottom: 0.5rem;
-  }
-
-  .legend-name {
-    font-size: 0.6875rem;
-  }
-
-  .calendar-legend {
-    gap: 1rem;
-    font-size: 0.8125rem;
-  }
+.calendar-day-button:disabled { cursor: default; }
+.calendar-day-cell { display: grid; place-items: center; box-sizing: border-box; width: 32px; height: 32px; border-radius: var(--radius-cell); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.calendar-day-cell.completed,
+.legend-icon.completed { background: var(--color-schedule-completed-bg); color: var(--color-schedule-completed-text); }
+.calendar-day-cell.today,
+.legend-icon.today { background: var(--color-schedule-current-bg); border: 1.5px solid var(--color-schedule-current-border); color: var(--color-schedule-current-text); }
+.calendar-day-cell.missed,
+.legend-icon.missed { border: 1.5px dashed var(--color-schedule-missed-border); color: var(--color-text-tertiary); }
+.calendar-day-cell.future,
+.legend-icon.future { background: var(--color-schedule-upcoming-bg); color: var(--color-schedule-upcoming-text); }
+.other-month { visibility: hidden; }
+.calendar-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 16px; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--color-text-secondary); }
+.legend-icon { box-sizing: border-box; width: 12px; height: 12px; border-radius: var(--radius-cell); }
+button { transition: background-color var(--duration-micro) ease, transform var(--duration-micro) ease; }
+button:hover:not(:disabled) { background: var(--color-bg-hover); }
+button:active:not(:disabled) { transform: scale(0.97); }
+button:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: -3px; }
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none; }
+  button:active:not(:disabled) { transform: none; }
 }
 </style>
