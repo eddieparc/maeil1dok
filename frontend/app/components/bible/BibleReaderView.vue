@@ -155,30 +155,6 @@
             </div>
           </ClientOnly>
         </div>
-
-        <!-- 본문 하단 이전장/다음장 이동 버튼 -->
-        <div v-if="!isLoading" class="chapter-nav-inline">
-          <button
-            class="chapter-nav-btn prev"
-            type="button"
-            :disabled="!hasPrevChapter"
-            aria-label="이전 장"
-            @click="$emit('prev-chapter')"
-          >
-            <ChevronLeftIcon :size="18" />
-            <span>이전 장</span>
-          </button>
-          <button
-            class="chapter-nav-btn next"
-            type="button"
-            :disabled="!hasNextChapter"
-            aria-label="다음 장"
-            @click="$emit('next-chapter')"
-          >
-            <span>다음 장</span>
-            <ChevronRightIcon :size="18" />
-          </button>
-        </div>
       </template>
     </BibleViewer>
 
@@ -1115,61 +1091,6 @@ defineExpose({
   background: linear-gradient(90deg, var(--primary-color, #2A1111) 0%, #3A1A1A 100%);
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 4px;
-}
-
-/* 본문 하단 이전장/다음장 이동 버튼 */
-.chapter-nav-inline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 360px;
-  margin-top: 1.5rem;
-  padding-bottom: 2.5rem;
-  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.chapter-nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  flex: 1;
-  padding: 0.75rem 1rem;
-  background: var(--color-bg-card, rgba(255, 255, 255, 0.8));
-  color: var(--text-primary, #1f2937);
-  border: 1px solid var(--color-border-light, rgba(0, 0, 0, 0.08));
-  border-radius: 12px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  transition: all 0.2s ease;
-}
-
-.chapter-nav-btn:hover:not(:disabled) {
-  background: var(--color-bg-hover, #f3f4f6);
-  border-color: var(--color-border-dark, #d1d5db);
-}
-
-.chapter-nav-btn:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.chapter-nav-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-[data-theme="dark"] .chapter-nav-btn {
-  background: var(--color-bg-card);
-  color: var(--color-text-primary);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme="dark"] .chapter-nav-btn:hover:not(:disabled) {
-  background: var(--color-bg-hover);
-  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .nav-button {
