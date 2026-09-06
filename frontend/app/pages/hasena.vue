@@ -482,9 +482,11 @@ onMounted(async () => {
   // 읽기 설정 초기화
   await readingSettings.initialize()
 
+  const authReady = auth.initialize()
   await fetchHasenaContent()
   setupYouTubeListener()
-  
+
+  await authReady
   if (auth.isAuthenticated.value) {
     await hasenaStore.fetchStats()
   }
@@ -570,7 +572,7 @@ onMounted(async () => {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 */
   height: 0;
-  background: linear-gradient(160deg, var(--color-tooltip-bg), var(--color-apple-bg));
+  background: linear-gradient(160deg, var(--color-video-gradient-start), var(--color-video-gradient-end));
 }
 
 .video-container iframe {
@@ -707,7 +709,7 @@ onMounted(async () => {
   color: var(--color-text-tertiary);
   margin: 0 0 0.5rem 0;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-body);
 }
 
 .summary-content :deep(.section-text) {

@@ -31,10 +31,13 @@ export const useBookmark = () => {
    * 현재 장의 북마크 목록 불러오기
    */
   const loadBookmarks = async (book: string, chapter: number): Promise<void> => {
-    if (!auth.isAuthenticated.value) return;
-
     try {
       isBookmarkLoading.value = true;
+      if (!auth.isInitialized.value || auth.isLoading.value) {
+        await auth.initialize();
+      }
+      if (!auth.isAuthenticated.value) return;
+
       const response = await api.GET('/api/v1/todos/bible/bookmarks/by-chapter/', {
         params: { book, chapter }
       });
@@ -140,6 +143,9 @@ export const useBookmark = () => {
    * 전체 북마크 목록 불러오기
    */
   const getAllBookmarks = async (): Promise<Bookmark[]> => {
+    if (!auth.isInitialized.value || auth.isLoading.value) {
+      await auth.initialize();
+    }
     if (!auth.isAuthenticated.value) return [];
 
     try {

@@ -91,6 +91,7 @@
             <EmptyState v-else title="등록된 읽기표가 없습니다" description="그룹에 읽기표가 연결되면 일정을 볼 수 있어요." />
           </ListCard>
         </div>
+        <!-- TODO(handoff-v2): No group board API is available; retain the honest unavailable state. -->
         <div v-else id="group-panel-board" role="tabpanel" aria-labelledby="group-tab-board">
           <ListCard class="fade-in">
             <EmptyState title="게시판 준비 중" description="아직 그룹 게시판 기능이 제공되지 않습니다.">
@@ -269,7 +270,7 @@ const handleJoinGroup = async () => {
 }
 const handleLeaveGroup = async () => {
   showMore.value = false
-  const confirmed = await modal.confirm({ title: '그룹 탈퇴', description: '정말로 이 그룹에서 탈퇴하시겠습니까?', confirmText: '탈퇴', cancelText: '취소', icon: 'warning' })
+  const confirmed = await modal.confirm({ title: '그룹 탈퇴', description: '정말로 이 그룹에서 탈퇴하시겠습니까?', confirmText: '탈퇴', confirmVariant: 'danger', cancelText: '취소', icon: 'warning' })
   if (!confirmed) return
   isActionLoading.value = true
   try {
@@ -282,7 +283,7 @@ const handleLeaveGroup = async () => {
     isActionLoading.value = false
   }
 }
-// 현재 앱에는 채팅 라우트/API가 없다. 존재하지 않는 경로로 이동하지 않는다.
+// TODO(handoff-v2): 현재 앱에는 채팅 라우트/API가 없다. 존재하지 않는 경로로 이동하지 않는다.
 const handleOpenChat = () => modal.alert({ title: '그룹 채팅', description: '아직 그룹 채팅 기능이 제공되지 않습니다.' })
 onUnmounted(() => {
   activityRequest++
@@ -345,7 +346,7 @@ onUnmounted(() => {
 .error-state { text-align: center; color: var(--color-text-secondary); }
 .error-state h2 { font-size: 18px; color: var(--color-text-primary); }
 .error-state svg { color: var(--color-error); margin: 0 auto; }
-:global([data-theme="dark"]) .accent-badge, :global([data-theme="dark"]) .leader-badge { background: transparent; outline: 1.5px solid var(--color-accent-primary); }
+[data-theme="dark"] .accent-badge, [data-theme="dark"] .leader-badge { background: transparent; outline: 1.5px solid var(--color-accent-primary); }
 @media (min-width: 1024px) { .group-cta { left: var(--sidebar-width); bottom: 0; padding-bottom: 24px; } }
 @media (prefers-reduced-motion: reduce) { .progress-fill { transition: none; } }
 </style>

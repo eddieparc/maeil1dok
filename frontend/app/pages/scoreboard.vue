@@ -35,18 +35,28 @@
           />
         </div>
         <SegmentedControl v-model="activeView" :options="viewModes" aria-label="보기" />
+        <label v-if="activeView === 'group' && auth.isAuthenticated.value && groupsLoaded && groupsStore.myGroups.length" class="group-filter">
+          <span>그룹</span>
+          <select v-model="selectedGroupId" class="group-input" aria-label="리더보드 그룹 선택" :disabled="groupLoading" @change="loadLeaderboard">
+            <option v-for="group in groupsStore.myGroups" :key="group.id" :value="group.id">{{ group.name }}</option>
+          </select>
+        </label>
         <label v-if="currentPeriod === 'month'" class="month-filter">
           <span>월별 랭킹</span>
           <input v-model="rankingMonth" type="month" class="month-input" aria-label="랭킹 월 선택" @change="changeMonth">
         </label>
       </div>
 
-      <div class="leaderboard-card fade-in">
+      <div id="scoreboard-panel" class="leaderboard-card fade-in" role="tabpanel" :aria-labelledby="`scoreboard-view-${activeView}`">
         <div v-if="showInitialSkeleton" class="loading-rows" role="status" aria-label="리더보드 불러오는 중">
           <SkeletonLeaderboardRow v-for="i in 8" :key="i" />
         </div>
         <div v-else-if="showAuthGate" class="leaderboard-empty-panel">
-          <EmptyState title="로그인이 필요합니다" description="친구와 팔로잉 리더보드는 로그인 후 확인할 수 있습니다." />
+          <EmptyState title="로그인이 필요합니다" description="친구, 그룹과 팔로잉 리더보드는 로그인 후 확인할 수 있습니다." />
+        </div>
+        <ErrorState v-else-if="loadError" :message="loadError" role="alert" @retry="loadLeaderboard" />
+        <div v-else-if="activeView === 'group' && !selectedGroupId" class="leaderboard-empty-panel">
+          <EmptyState title="가입한 그룹이 없습니다" description="그룹에 가입하면 함께 읽는 멤버의 활동을 확인할 수 있어요." />
         </div>
         <div v-else-if="showRelationshipEmptyState" class="leaderboard-empty-panel">
           <EmptyState :title="relationshipEmptyState.title" :description="relationshipEmptyState.description" />
@@ -90,6 +100,8 @@
 </template>
 
 <script setup lang="ts">
+import { useGroupsStore } from '~/stores/groups'
+import ErrorState from '~/components/ErrorState.vue'
 import { useScoreboardStore } from '~/stores/scoreboard'
 import { useAuthService } from '~/composables/useAuthService'
 import PageLayout from '~/components/common/PageLayout.vue'
@@ -101,6 +113,12 @@ import SkeletonCard from '~/components/ui/skeleton/SkeletonCard.vue'
 import SkeletonLeaderboardRow from '~/components/ui/skeleton/SkeletonLeaderboardRow.vue'
 
 const scoreboardStore = useScoreboardStore()
+const groupsStore = useGroupsStore()
+const selectedGroupId = ref<number | null>(null)
+const groupLoading = ref(false)
+const groupsLoaded = ref(false)
+const groupError = ref<string | null>(null)
+const loadError = computed(() => activeView.value === 'group' ? groupError.value || scoreboardStore.error : scoreboardStore.error)
 const auth = useAuthService()
 
 useHead({
@@ -115,7 +133,7 @@ useHead({
 const activeView = ref<string | number>('global')
 const currentPeriod = computed(() => scoreboardStore.currentPeriod)
 const rankingMonth = ref(scoreboardStore.selectedMonth)
-const isLoading = computed(() => scoreboardStore.isLoading)
+const isLoading = computed(() => scoreboardStore.isLoading || groupLoading.value)
 const isInitialPending = ref(true)
 const showInitialSkeleton = computed(() =>
   (isInitialPending.value || isLoading.value) && currentLeaderboard.value.length === 0
@@ -125,6 +143,8 @@ const myRanking = computed(() => scoreboardStore.myRanking)
 const currentLeaderboard = computed(() => {
   if (activeView.value === 'global') {
     return scoreboardStore.globalLeaderboard
+  } else if (activeView.value === 'group') {
+    return scoreboardStore.groupLeaderboard
   } else if (activeView.value === 'following') {
     return scoreboardStore.followingLeaderboard
   } else {
@@ -162,12 +182,13 @@ const periods: Array<{ value: 'week' | 'month' | 'all'; label: string }> = [
   { value: 'all', label: '전체' }
 ]
 
-// 기존 팔로잉 API 계약을 유지한다. 그룹으로 표기하면 다른 관계의 순위를 보여주게 된다.
+// 그룹은 기존 그룹 랭킹 API를 사용하고 팔로잉 관계도 별도 보기로 유지한다.
 const viewModes = [
   { value: 'global', label: '전체' },
   { value: 'friends', label: '친구' },
+  { value: 'group', label: '그룹' },
   { value: 'following', label: '팔로잉' }
-]
+].map(view => ({ ...view, id: `scoreboard-view-${view.value}`, controls: 'scoreboard-panel' }))
 
 const scoreboardContextLabel = computed(() => {
   if (currentPeriod.value !== 'month') return '선택한 기간의'
@@ -176,7 +197,7 @@ const scoreboardContextLabel = computed(() => {
 })
 
 onMounted(async () => {
-  await loadLeaderboard()
+  await Promise.all([loadLeaderboard(), auth.initialize()])
   isInitialPending.value = false
   if (auth.isAuthenticated.value) {
     void scoreboardStore.fetchMyRanking()
@@ -186,6 +207,33 @@ onMounted(async () => {
 const loadLeaderboard = async () => {
   if (activeView.value === 'global') {
     await scoreboardStore.fetchGlobalLeaderboard(currentPeriod.value, undefined, 100, rankingMonth.value)
+    return
+  }
+
+  await auth.initialize()
+  if (activeView.value === 'group' && auth.isAuthenticated.value) {
+    const groupOwner = auth.user.value?.id
+    groupLoading.value = true
+    groupError.value = null
+    scoreboardStore.error = null
+    try {
+      if (!groupsLoaded.value) {
+        await groupsStore.fetchGroups({ only_mine: true })
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== groupOwner) return
+        if (groupsStore.error) {
+          groupError.value = groupsStore.error
+          return
+        }
+        groupsLoaded.value = true
+        selectedGroupId.value = groupsStore.myGroups[0]?.id ?? null
+      }
+      scoreboardStore.groupLeaderboard = []
+      if (selectedGroupId.value !== null) {
+        await scoreboardStore.fetchGroupLeaderboard(selectedGroupId.value, currentPeriod.value, rankingMonth.value)
+      }
+    } finally {
+      groupLoading.value = false
+    }
   } else if (activeView.value === 'following' && auth.isAuthenticated.value) {
     await scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'following', rankingMonth.value)
   } else if (activeView.value === 'friends' && auth.isAuthenticated.value) {
@@ -211,6 +259,14 @@ const changeMonth = () => {
 
 watch(activeView, () => {
   loadLeaderboard()
+})
+
+watch(() => auth.isAuthenticated.value ? auth.user.value?.id : null, () => {
+  groupsLoaded.value = false
+  selectedGroupId.value = null
+  groupError.value = null
+  groupsStore.myGroups = []
+  scoreboardStore.groupLeaderboard = []
 })
 
 onUnmounted(() => {
@@ -256,9 +312,9 @@ onUnmounted(() => {
 .stat-unit { margin-left: 2px; font-size: 13px; font-weight: 600; }
 .filter-section { display: grid; gap: 10px; }
 .period-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.month-filter { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 600; color: var(--color-text-tertiary); }
-.month-input { min-height: 44px; min-width: 0; padding: 0 16px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-text-primary); font: inherit; }
-.month-input:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
+.month-filter, .group-filter { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 600; color: var(--color-text-tertiary); }
+.month-input, .group-input { min-height: 44px; min-width: 0; padding: 0 16px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-text-primary); font: inherit; }
+.month-input:focus-visible, .group-input:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
 .leaderboard-card { overflow: hidden; border: 1px solid var(--color-border-default); border-radius: var(--radius-card); background: var(--color-bg-card); box-shadow: var(--shadow-card); }
 .loading-rows { display: grid; gap: 8px; padding: 20px; }
 .leaderboard-empty-panel { padding: 20px; }
@@ -272,7 +328,7 @@ onUnmounted(() => {
 .score-explainer p { margin: 0; }
 @media (min-width: 640px) {
   .filter-section { grid-template-columns: 1fr 1fr; align-items: center; }
-  .month-filter { grid-column: 1 / -1; }
+  .month-filter, .group-filter { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .fade-in { animation: none; opacity: 1; transform: none; }

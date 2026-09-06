@@ -134,6 +134,7 @@ const hasMore = computed(() => summaries.value.length < total.value)
 
 onMounted(async () => {
   try {
+    await authStore.initialize()
     if (authStore.isAuthenticated.value) {
       isStaff.value = authStore.isStaff?.value ?? false
       if (isStaff.value) {

@@ -32,6 +32,7 @@
               </div>
               <div class="profile-info">
                 <h2 class="profile-name">{{ profile.user.nickname }}</h2>
+                <!-- TODO(handoff-v2): UserProfileResponse has no church field; show only the real join date. -->
                 <p class="profile-meta">{{ formatDate(profile.joined_date) }}부터</p>
                 <p v-if="profile.bio" class="profile-bio">{{ profile.bio }}</p>
                 <div class="follow-stats">
@@ -93,6 +94,7 @@
             </div>
             <div class="stat-item">
               <div class="stat-label">하세나</div>
+              <!-- TODO(handoff-v2): Profile API has no Hasena total; do not substitute synthetic stats. -->
               <div class="stat-value" aria-label="하세나 기록 제공 안 됨" title="프로필에서 하세나 기록을 제공하지 않습니다">-<span class="stat-unit">회</span></div>
             </div>
           </div>
@@ -109,6 +111,8 @@
               role="tab"
               :aria-selected="activeTab === tab.id"
               :aria-controls="`profile-panel-${tab.id}`"
+              :tabindex="activeTab === tab.id ? 0 : -1"
+              @keydown="handleTabKeydown($event, tab.id)"
               @click="activeTab = tab.id"
               :class="[
                 'tab-button',
@@ -152,13 +156,14 @@
               <ProfileGroups
                 v-else-if="profile"
                 :groups-data="groupsData"
+                :is-own-profile="isOwnProfile"
               />
             </div>
           </div>
         </div>
       </template>
 
-      <ErrorState v-else-if="error" :message="error" />
+      <ErrorState v-else-if="error" :message="error" @retry="loadInitialData" />
 
       <!-- 팔로워 모달 -->
       <FollowersModal
@@ -292,6 +297,17 @@ const tabs = [
   { id: 'achievements', label: '업적' },
   { id: 'groups', label: '그룹' }
 ]
+
+const handleTabKeydown = (event: KeyboardEvent, id: string) => {
+  const index = tabs.findIndex(tab => tab.id === id)
+  const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length
+    : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+      : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null
+  if (next === null) return
+  event.preventDefault()
+  activeTab.value = tabs[next]!.id
+  document.getElementById(`profile-tab-${activeTab.value}`)?.focus()
+}
 
 // 초기 로드
 onMounted(() => {

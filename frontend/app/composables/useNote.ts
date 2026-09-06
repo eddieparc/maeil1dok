@@ -36,10 +36,13 @@ export const useNote = () => {
    * 전체 묵상노트 목록 불러오기
    */
   const fetchNotes = async (): Promise<Note[]> => {
-    if (!auth.isAuthenticated.value) return [];
-
     try {
       isNoteLoading.value = true;
+      if (!auth.isInitialized.value || auth.isLoading.value) {
+        await auth.initialize();
+      }
+      if (!auth.isAuthenticated.value) return [];
+
       const response = await api.GET('/api/v1/todos/bible/notes/');
       notes.value = response.data.results.map(normalizeNote);
       return notes.value;
@@ -56,6 +59,9 @@ export const useNote = () => {
    * 현재 장의 묵상노트 불러오기
    */
   const fetchChapterNotes = async (book: string, chapter: number): Promise<Note[]> => {
+    if (!auth.isInitialized.value || auth.isLoading.value) {
+      await auth.initialize();
+    }
     if (!auth.isAuthenticated.value) return [];
 
     try {
@@ -75,10 +81,13 @@ export const useNote = () => {
    * 노트 상세 조회
    */
   const fetchNote = async (id: number): Promise<Note | null> => {
-    if (!auth.isAuthenticated.value) return null;
-
     try {
       isNoteLoading.value = true;
+      if (!auth.isInitialized.value || auth.isLoading.value) {
+        await auth.initialize();
+      }
+      if (!auth.isAuthenticated.value) return null;
+
       const response = await api.GET(api.path('/api/v1/todos/bible/notes/{id}/', { id }));
       currentNote.value = normalizeNote(response.data);
       return currentNote.value;

@@ -295,6 +295,7 @@ const loadLists = async () => {
 }
 
 onMounted(async () => {
+  await auth.initialize()
   if (!auth.isAuthenticated.value) {
     navigateTo('/login')
     return

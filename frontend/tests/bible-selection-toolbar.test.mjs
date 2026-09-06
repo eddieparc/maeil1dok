@@ -23,6 +23,10 @@ const floatingBottomBarSource = await readFile(
   new URL('../app/components/common/FloatingBottomBar.vue', import.meta.url),
   'utf8',
 );
+const bottomNavigationSource = await readFile(
+  new URL('../app/components/BottomNavigation.vue', import.meta.url),
+  'utf8',
+);
 const importTypescriptModule = async (path) => {
   const source = await readFile(new URL(path, import.meta.url), 'utf8');
   const { code } = await esbuild.transform(source, {
@@ -56,28 +60,48 @@ const iconStub = defineComponent({
 });
 const nuxtLinkStub = defineComponent({
   name: 'NuxtLink',
-  props: { to: { type: [String, Object], required: true } },
+  props: { to: { type: [String, Object], required: true }, custom: Boolean },
   setup(props, { slots }) {
-    return () => h('a', {
-      href: typeof props.to === 'string' ? props.to : props.to.path,
-    }, slots.default?.());
+    return () => {
+      const href = typeof props.to === 'string' ? props.to : props.to.path;
+      return props.custom
+        ? slots.default?.({ href, navigate: () => {} })
+        : h('a', { href }, slots.default?.());
+    };
   },
 });
 
 const renderTongdokReader = async () => {
-  const FloatingBottomBar = defineComponent({
-    name: 'FloatingBottomBar',
+  const emptyStub = defineComponent({ setup: () => () => h('div') });
+  const BottomNavigation = defineComponent({
+    name: 'BottomNavigation',
+    props: {
+      density: { type: String, default: 'standard' },
+      hidden: Boolean,
+      interceptPlan: Boolean,
+    },
     components: {
-      HomeIcon: iconStub,
       NuxtLink: nuxtLinkStub,
+      HouseIcon: iconStub,
+      BookOpenIcon: iconStub,
+      CalendarIcon: iconStub,
+      UsersIcon: iconStub,
       UserIcon: iconStub,
     },
     setup() {
-      return { profileLink: '/login' };
+      return { profileLink: '/login', isActive: () => false, onPlanClick: () => {} };
+    },
+    render: compileSfcTemplate(bottomNavigationSource, 'BottomNavigation.vue'),
+  });
+  const FloatingBottomBar = defineComponent({
+    name: 'FloatingBottomBar',
+    inheritAttrs: false,
+    components: {
+      BottomNavigation,
+      SidebarNav: emptyStub,
     },
     render: compileSfcTemplate(floatingBottomBarSource, 'FloatingBottomBar.vue'),
   });
-  const emptyStub = defineComponent({ setup: () => () => h('div') });
   const audioStub = defineComponent({
     name: 'TongdokAudioPlayer',
     setup: () => () => h('section', { 'aria-label': '통독 오디오 재생 진행률' }),

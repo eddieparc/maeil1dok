@@ -217,6 +217,12 @@ onMounted(() => {
 .week-dot-missed { background: var(--color-bg-card); border: 1.5px solid var(--color-border-default); color: var(--color-text-tertiary); }
 .load-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--color-error); font-size: 13px; }
 .load-error p { margin: 0; }
+/* H01 reserves recent records and supplementary news for the desktop columns. */
+@media (max-width: 1023px) {
+  .recent-card,
+  .dashboard-aside :deep(.aside-card),
+  .dashboard-aside :deep(.app-button) { display: none; }
+}
 @media (max-width: 359px) {
   .stat-card { padding-inline: 10px; }
   .stat-heading { gap: 3px; }

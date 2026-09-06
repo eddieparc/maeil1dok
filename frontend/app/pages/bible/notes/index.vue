@@ -18,7 +18,7 @@
       </div>
     </template>
 
-    <template v-if="isLoading"><SkeletonList :count="5" variant="note" /></template>
+    <template v-if="auth.isLoading.value || isLoading"><SkeletonList :count="5" variant="note" /></template>
     <EmptyState v-else-if="!auth.isAuthenticated.value" text="로그인 후 묵상노트를 확인할 수 있습니다" fullscreen>
       <template #icon><FileText :size="48" /></template>
       <template #action><NuxtLink to="/login" class="bible-login-btn">로그인</NuxtLink></template>
@@ -78,7 +78,7 @@ const showSearch = ref(false);
 const searchQuery = ref('');
 
 onMounted(async () => {
-  if (auth.isAuthenticated.value) await fetchNotes();
+  await fetchNotes();
 });
 
 const filteredNotes = computed(() => {

@@ -105,7 +105,7 @@ h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 
 .group-link:hover { background: var(--color-bg-hover); }
 .hasena-link:active, .group-link:active { transform: scale(.97); }
 .hasena-link:focus-visible, .group-link:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; box-shadow: 0 0 0 1px var(--color-accent-primary); }
-.hasena-thumbnail { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: linear-gradient(135deg, var(--color-accent-primary), var(--color-text-secondary)); }
+.hasena-thumbnail { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: linear-gradient(160deg, var(--color-video-gradient-start), var(--color-video-gradient-end)); }
 .hasena-thumbnail img { position: absolute; width: 100%; height: 100%; object-fit: cover; }
 .play-button { z-index: 1; display: grid; place-items: center; width: var(--hit-min); height: var(--hit-min); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-accent-primary); box-shadow: var(--shadow-card); }
 .card-message { margin: 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }

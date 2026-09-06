@@ -73,30 +73,33 @@ function handleDismiss() {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.875rem 1rem;
+  padding: 4px 8px 4px 16px;
+  min-height: var(--hit-min);
+  box-sizing: border-box;
   min-width: var(--toast-min-width);
   max-width: var(--toast-max-width);
   border-radius: var(--toast-radius);
-  color: white;
+  color: var(--color-text-inverse);
   font-size: 0.9375rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
+  letter-spacing: var(--tracking-body);
   pointer-events: auto;
 }
 
 .toast-info {
-  background: var(--toast-bg-info);
+  background: var(--color-accent-primary);
 }
 
 .toast-success {
-  background: var(--toast-bg-success);
+  background: var(--color-accent-primary);
 }
 
 .toast-warning {
-  background: var(--toast-bg-warning);
+  background: var(--color-accent-primary);
 }
 
 .toast-error {
-  background: var(--toast-bg-error);
+  background: var(--color-error);
 }
 
 .toast-icon {
@@ -104,7 +107,6 @@ function handleDismiss() {
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.9;
 }
 
 .toast-content {
@@ -121,19 +123,21 @@ function handleDismiss() {
 .toast-message {
   margin: 0;
   font-size: 0.875rem;
-  opacity: 0.95;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .toast-action {
   flex-shrink: 0;
   padding: 0.375rem 0.75rem;
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
   font-size: 0.8125rem;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.2);
   border: none;
-  border-radius: 6px;
-  color: white;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-inverse);
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -147,21 +151,30 @@ function handleDismiss() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--hit-min);
+  height: var(--hit-min);
   padding: 0;
   background: transparent;
   border: none;
-  color: white;
-  opacity: 0.7;
+  color: var(--color-text-inverse);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--radius-pill);
   transition: all 0.15s ease;
 }
 
 .toast-dismiss:hover {
   opacity: 1;
   background: rgba(255, 255, 255, 0.1);
+}
+
+.toast-action:focus-visible,
+.toast-dismiss:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-action, .toast-dismiss { transition: none; }
 }
 
 /* Mobile adjustments */

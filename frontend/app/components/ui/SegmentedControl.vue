@@ -4,26 +4,34 @@ import { computed } from 'vue'
 type Value = string | number
 const props = defineProps<{
   modelValue: Value
-  options: Array<{ value: Value; label: string }>
+  options: Array<{ value: Value; label: string; disabled?: boolean; id?: string; controls?: string }>
+  disabled?: boolean
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: Value] }>()
 const activeIndex = computed(() => props.options.findIndex(option => option.value === props.modelValue))
+const enabledIndices = computed(() => props.options.flatMap((option, index) => !props.disabled && !option.disabled ? [index] : []))
+const focusIndex = computed(() => enabledIndices.value.includes(activeIndex.value) ? activeIndex.value : (enabledIndices.value[0] ?? -1))
 const thumbStyle = computed(() => ({
   width: `${100 / props.options.length}%`,
   transform: `translateX(${activeIndex.value * 100}%)`,
 }))
+function select(index: number) {
+  if (enabledIndices.value.includes(index)) emit('update:modelValue', props.options[index]!.value)
+}
 function onKeydown(event: KeyboardEvent, index: number) {
-  const last = props.options.length - 1
+  const enabled = enabledIndices.value
+  const position = enabled.indexOf(index)
+  if (position < 0) return
   let next: number
   switch (event.key) {
-    case 'ArrowRight': next = index === last ? 0 : index + 1; break
-    case 'ArrowLeft': next = index === 0 ? last : index - 1; break
-    case 'Home': next = 0; break
-    case 'End': next = last; break
+    case 'ArrowRight': next = enabled[(position + 1) % enabled.length]!; break
+    case 'ArrowLeft': next = enabled[(position + enabled.length - 1) % enabled.length]!; break
+    case 'Home': next = enabled[0]!; break
+    case 'End': next = enabled[enabled.length - 1]!; break
     default: return
   }
   event.preventDefault()
-  emit('update:modelValue', props.options[next]!.value)
+  select(next)
   const target = event.currentTarget as HTMLElement
   target.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus()
 }
@@ -40,9 +48,12 @@ function onKeydown(event: KeyboardEvent, index: number) {
       type="button"
       role="tab"
       class="segmented-control__option"
+      :id="option.id"
+      :aria-controls="option.controls"
+      :disabled="disabled || option.disabled"
       :aria-selected="option.value === modelValue"
-      :tabindex="index === (activeIndex < 0 ? 0 : activeIndex) ? 0 : -1"
-      @click="emit('update:modelValue', option.value)"
+      :tabindex="index === focusIndex ? 0 : -1"
+      @click="select(index)"
       @keydown="onKeydown($event, index)"
     >{{ option.label }}</button>
   </div>
@@ -64,7 +75,7 @@ function onKeydown(event: KeyboardEvent, index: number) {
   border-radius: var(--radius-pill);
   background: var(--color-bg-card);
   box-shadow: var(--shadow-segment-thumb);
-  transition: transform var(--duration-standard) var(--ease-decelerate), width var(--duration-standard) var(--ease-decelerate);
+  transition: transform var(--duration-micro) var(--ease-decelerate);
 }
 .segmented-control__option {
   position: relative;
@@ -83,12 +94,13 @@ function onKeydown(event: KeyboardEvent, index: number) {
   transition: color var(--duration-micro) ease, transform var(--duration-micro) ease;
 }
 .segmented-control__option[aria-selected="true"],
-.segmented-control__option:hover { color: var(--color-accent-primary); }
-.segmented-control__option:active { transform: scale(0.97); }
+.segmented-control__option:hover:not(:disabled) { color: var(--color-accent-primary); }
+.segmented-control__option:active:not(:disabled) { transform: scale(0.97); }
+.segmented-control__option:disabled { opacity: 0.5; cursor: not-allowed; }
 .segmented-control__option:focus-visible { outline: 3px solid var(--color-accent-focus-ring); border-color: var(--color-accent-primary); outline-offset: 1px; }
-:global([data-theme="dark"]) .segmented-control__option[aria-selected="true"] { border: 1.5px solid var(--color-accent-primary); }
+[data-theme="dark"] .segmented-control__option[aria-selected="true"] { border: 1.5px solid var(--color-accent-primary); }
 @media (prefers-reduced-motion: reduce) {
   .segmented-control__thumb, .segmented-control__option { transition: none; }
-  .segmented-control__option:active { transform: none; }
+  .segmented-control__option:active:not(:disabled) { transform: none; }
 }
 </style>

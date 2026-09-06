@@ -1142,6 +1142,7 @@ const handleNextScheduleAction = async (payload: { action: NextScheduleAction; r
 
 // 헬퍼: 사용자 데이터 로딩 (인증된 사용자 전용)
 const loadUserDataForChapter = async (book: string, chapter: number, skipReadChapters = false) => {
+  await auth.initialize();
   if (!auth.isAuthenticated.value) return;
 
   const promises: Promise<void>[] = [
@@ -1312,7 +1313,7 @@ watch(
 watch(
   () => currentBook.value,
   async (newBook) => {
-    if (auth.isAuthenticated.value && !isTongdokMode.value) {
+    if (!isTongdokMode.value) {
       await fetchReadChapters(newBook);
     }
   }
@@ -1322,11 +1323,7 @@ watch(
 watch(
   [() => currentBook.value, () => currentChapter.value],
   async ([newBook, newChapter]) => {
-    if (auth.isAuthenticated.value) {
-      await fetchChapterNotes(newBook, newChapter);
-      await fetchChapterHighlights(newBook, newChapter);
-      await loadBookmarks(newBook, newChapter);
-    }
+    await loadUserDataForChapter(newBook, newChapter, true);
   }
 );
 

@@ -1,54 +1,37 @@
 <template>
-  <div class="floating-bottom-area">
-    <div v-if="$slots.popover" class="floating-above-popover">
-      <slot name="popover" />
-    </div>
+  <SidebarNav />
+  <BottomNavigation density="reader" v-bind="$attrs">
+    <template #above>
+      <div class="floating-bottom-area">
+        <div v-if="$slots.popover" class="floating-above-popover">
+          <slot name="popover" />
+        </div>
 
-    <slot name="above" />
+        <slot name="above" />
 
-    <nav class="floating-bottom-navigation">
-      <NuxtLink to="/" class="floating-side-nav-item" aria-label="홈으로 이동">
-        <HomeIcon :size="18" aria-hidden="true" />
-      </NuxtLink>
-
-      <div class="floating-center-nav-group">
-        <slot name="center" />
+        <div v-if="$slots.center" class="floating-bottom-navigation">
+          <div class="floating-center-nav-group">
+            <slot name="center" />
+          </div>
+        </div>
       </div>
-
-      <NuxtLink :to="profileLink" class="floating-side-nav-item" aria-label="내 프로필">
-        <UserIcon :size="18" aria-hidden="true" />
-      </NuxtLink>
-    </nav>
-  </div>
+    </template>
+  </BottomNavigation>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { HomeIcon, UserIcon } from '@lucide/vue';
-import { useAuthService } from '~/composables/useAuthService';
+import BottomNavigation from '~/components/BottomNavigation.vue';
+import SidebarNav from '~/components/common/SidebarNav.vue';
 
-const auth = useAuthService();
-
-const profileLink = computed(() => (
-  auth.user.value ? `/profile/${auth.user.value.id}` : '/login'
-));
+// Keep legacy slots and forward optional shared-navigation props/events unchanged.
+defineOptions({ inheritAttrs: false });
 </script>
 
 <style scoped>
 .floating-bottom-area {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 32px);
-  max-width: min(400px, calc(100vw - 32px));
-  z-index: 100;
-  background: #fff;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  border-radius: 20px;
-  box-shadow:
-    0 12px 36px rgba(17, 24, 39, 0.14),
-    0 2px 8px rgba(17, 24, 39, 0.08);
+  position: relative;
+  background: var(--color-bg-card);
+  border-top: 1px solid var(--color-border-default);
 }
 
 .floating-above-popover {
@@ -84,50 +67,5 @@ const profileLink = computed(() => (
   flex: 1;
   min-width: 0;
   overflow: hidden;
-}
-
-.floating-side-nav-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  color: var(--color-slate-500, #64748b);
-  border-radius: 8px;
-  text-decoration: none;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.floating-side-nav-item:hover {
-  color: var(--color-accent-primary);
-  background: rgba(42, 17, 17, 0.08);
-}
-
-.floating-side-nav-item:active {
-  transform: scale(0.92);
-}
-
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .floating-bottom-area {
-    bottom: calc(16px + env(safe-area-inset-bottom));
-  }
-}
-
-[data-theme="dark"] .floating-bottom-area {
-  background: #fff;
-  border-color: rgba(17, 24, 39, 0.08);
-  box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.36),
-    0 2px 8px rgba(0, 0, 0, 0.22);
-}
-
-[data-theme="dark"] .floating-side-nav-item {
-  color: var(--color-slate-500, #64748b);
-}
-
-[data-theme="dark"] .floating-side-nav-item:hover {
-  color: var(--color-accent-primary, #2A1111);
-  background: rgba(42, 17, 17, 0.08);
 }
 </style>

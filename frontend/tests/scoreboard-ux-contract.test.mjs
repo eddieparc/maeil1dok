@@ -131,7 +131,9 @@ const renderScoreboard = async ({
   const component = defineComponent({
     components: {
       PageLayout: passthrough,
-      FilterButtonGroup,
+      SegmentedControl: FilterButtonGroup,
+      FilterChip: defineComponent({ props: ['label'], setup: props => () => h('button', props.label) }),
+      ErrorState: emptyStub,
       EmptyState,
       LeaderboardItem,
       SkeletonCard: emptyStub,
@@ -150,6 +152,11 @@ const renderScoreboard = async ({
         currentPeriod: 'month',
         handleAvatarError: () => {},
         isLoading: false,
+        loadError: null,
+        loadLeaderboard: () => {},
+        groupsStore: { myGroups: [] },
+        selectedGroupId: null,
+        groupLoading: false,
         myRanking: null,
         periods: [
           { value: 'month', label: '이번 달' },

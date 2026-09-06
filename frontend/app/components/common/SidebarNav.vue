@@ -93,6 +93,10 @@ const isActive = (path) => route.path === path || (path !== '/' && route.path.st
   height: 22px;
 }
 
+[data-theme="dark"] .sidebar-brand img {
+  filter: brightness(0) invert(1);
+}
+
 .sidebar-menu {
   display: flex;
   flex-direction: column;

@@ -1,5 +1,5 @@
 <template>
-  <BibleSubpageLayout title="내 기록" class="records-page" :loading="isLoading" loading-text="북마크를 불러오는 중..." :empty="isEmpty" :empty-text="emptyText" :empty-hint="emptyHint" :empty-guide="emptyGuide">
+  <BibleSubpageLayout title="내 기록" class="records-page" :loading="authStore.isLoading.value || isLoading" loading-text="북마크를 불러오는 중..." :empty="isEmpty" :empty-text="emptyText" :empty-hint="emptyHint" :empty-guide="emptyGuide">
     <template #actions>
       <button type="button" class="icon-btn" aria-label="기록 검색" :aria-expanded="showSearch" aria-controls="bookmarks-search" @click="showSearch = !showSearch"><Search :size="20" aria-hidden="true" /></button>
     </template>
@@ -95,6 +95,7 @@ const emptyGuide = computed(() => authStore.isAuthenticated.value && !filterBook
 );
 
 onMounted(async () => {
+  await authStore.initialize();
   if (authStore.isAuthenticated.value) {
     try {
       bookmarks.value = await getAllBookmarks();

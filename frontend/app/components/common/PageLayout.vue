@@ -29,7 +29,13 @@
         <slot></slot>
       </div>
     </div>
-    <BottomNavigation v-if="showFloatingNav" />
+    <BottomNavigation
+      v-if="showFloatingNav"
+      :density="density"
+      :hidden="hidden"
+      :intercept-plan="interceptPlan"
+      @plan="$emit('plan')"
+    />
   </div>
 </template>
 
@@ -62,8 +68,16 @@ defineProps({
   showFloatingNav: {
     type: Boolean,
     default: true
-  }
+  },
+  density: {
+    type: String,
+    default: 'standard',
+    validator: (value) => ['standard', 'reader'].includes(value)
+  },
+  hidden: { type: Boolean, default: false },
+  interceptPlan: { type: Boolean, default: false }
 })
+defineEmits(['plan'])
 
 const slots = useSlots()
 const hasHeaderAction = computed(() => Boolean(slots['header-action']))
@@ -102,7 +116,7 @@ const hasHeaderAction = computed(() => Boolean(slots['header-action']))
 }
 
 .scroll-area.with-floating-nav {
-  padding-bottom: calc(var(--tabbar-height) + 12px + max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px)));
+  padding-bottom: calc(var(--mobile-nav-height) + 12px);
 }
 
 @media (min-width: 1024px) {

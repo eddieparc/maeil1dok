@@ -234,9 +234,24 @@ export const useApi = () => {
                            url.includes('/api/v1/todos/plans/user/') ||  // 사용자 플랜 목록
                            url.includes('/api/v1/todos/certification/progress/') ||
                            url.includes('/api/v1/todos/notifications/') ||
+                           url.includes('/api/v1/todos/bible/notes/') ||
+                           url.includes('/api/v1/todos/bible/bookmarks/') ||
+                           url.includes('/api/v1/todos/bible/highlights/') ||
+                           url.includes('/api/v1/todos/bible/personal-records/') ||
+                           url.includes('/api/v1/todos/bible/reading-position/') ||
                            (url.includes('/api/v1/todos/user/') && !isVideoIntroAPI);
 
       const auth = useAuthService();
+      // The selector returns subscriptions for members and public plans for guests.
+      // Wait for identity restoration without requiring login for the public read.
+      if (
+        (requiresAuth || url === '/api/v1/todos/plan/') &&
+        !isAuthCheckEndpoint &&
+        (!auth.isInitialized.value || auth.isLoading.value)
+      ) {
+        await auth.initialize();
+      }
+
       // 인증 확인 엔드포인트는 항상 서버로 요청 (쿠키 기반 인증 지원)
       if (requiresAuth && !isAuthCheckEndpoint && !auth.isAuthenticated.value) {
         return { data: { success: false, message: 'Authentication required' } };

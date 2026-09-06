@@ -1,10 +1,33 @@
-/* PageLayout reserves tab space in its scroll area; standalone pages reserve it here. */
+:root {
+  /* The 24px design minimum is part of 84/80px, not an extra device inset. */
+  --mobile-nav-safe-inset: max(24px, env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px));
+  --mobile-nav-height: calc(var(--tabbar-height) - 24px + var(--mobile-nav-safe-inset));
+}
+
+body:has(.bottom-nav-container[data-density="reader"]) {
+  --mobile-nav-height: calc(var(--tabbar-reader-height, 80px) - 24px + var(--mobile-nav-safe-inset));
+}
+
+/* PageLayout owns its scroll padding; only the innermost standalone container reserves tabs. */
 @media (max-width: 1023px) {
-  :where(.container, .content-wrapper, .page-container):not(.page-layout-content):has(.bottom-nav-container) {
-    padding-bottom: calc(var(--tabbar-height) + 12px + max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px)));
+  :where(.container, .content-wrapper, .page-container):not(.page-layout-content):has(.bottom-nav-container):not(:has(:where(.container, .content-wrapper, .page-container) .bottom-nav-container)) {
+    padding-bottom: calc(var(--mobile-nav-height) + 12px);
   }
 
-  body:has(.bottom-nav-container) .fixed-bottom-button {
-    bottom: calc(var(--tabbar-height) + max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px)));
+  /* Retain the legacy reader control allowance, adding the shared tabs/inset once. */
+  .bible-reader-view:has(.floating-bottom-area) .bible-viewer {
+    padding-bottom: calc(84px + var(--mobile-nav-height));
+  }
+
+  body:has(.bottom-nav-container) :is(.fixed-bottom-button, .completion-dock, .group-cta) {
+    bottom: var(--mobile-nav-height);
+  }
+}
+
+/* The legacy reader now shares the desktop sidebar instead of its two-link bar. */
+@media (min-width: 1024px) {
+  .bible-page:has(.floating-bottom-area) {
+    max-width: calc(var(--content-max) + var(--sidebar-width));
+    padding-inline-start: var(--sidebar-width);
   }
 }

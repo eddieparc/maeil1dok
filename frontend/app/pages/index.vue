@@ -188,7 +188,7 @@ onUnmounted(() => desktopQuery?.removeEventListener('change', updateDesktop));
 .logo-img { display: block; height: 22px; width: auto; object-fit: contain; }
 .home-main { display: flex; flex-direction: column; gap: 20px; }
 .home-shortcuts { animation-delay: calc(var(--stagger) * 4); }
-:global([data-theme="dark"]) .logo-img { filter: brightness(0) invert(1); }
+[data-theme="dark"] .logo-img { filter: brightness(0) invert(1); }
 @media (min-width: 1024px) {
   .landing-content { padding-left: var(--sidebar-width); }
   .container { box-sizing: content-box; width: auto; max-width: calc(var(--content-max) + var(--aside-width) + 28px); min-height: calc(100vh - 72px); padding: 36px 40px; }

@@ -1,5 +1,4 @@
-import { computed } from 'vue'
-import { useToastState } from './useToastState'
+import { DEFAULT_TOAST_DURATION, useToastState } from './useToastState'
 import type { ToastOptions, ToastType, PromiseToastOptions, UseToastReturn } from '~/types/toast'
 
 export function useToast(): UseToastReturn {
@@ -54,12 +53,9 @@ export function useToast(): UseToastReturn {
       state.update(id, {
         message: successMessage,
         type: 'success',
-        duration: 3000,
+        duration: DEFAULT_TOAST_DURATION,
         dismissible: true
       })
-
-      // 3초 후 제거
-      setTimeout(() => state.dismiss(id), 3000)
 
       return result
     } catch (err) {
@@ -70,12 +66,9 @@ export function useToast(): UseToastReturn {
       state.update(id, {
         message: errorMessage,
         type: 'error',
-        duration: 5000,
+        duration: DEFAULT_TOAST_DURATION,
         dismissible: true
       })
-
-      // 5초 후 제거
-      setTimeout(() => state.dismiss(id), 5000)
 
       throw err
     }

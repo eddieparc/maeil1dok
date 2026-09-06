@@ -17,9 +17,7 @@ withDefaults(defineProps<{ title?: string; padded?: boolean }>(), { title: '', p
   box-shadow: var(--shadow-card);
   color: var(--color-text-primary);
   letter-spacing: var(--tracking-body);
-  transition: box-shadow var(--duration-micro) ease;
 }
-.list-card:hover { box-shadow: var(--shadow-card-hover); }
 .list-card--padded { padding: var(--card-padding); }
 .list-card__title { margin: 0; padding: var(--card-padding); font-size: 15px; font-weight: 700; line-height: 1.3; }
 .list-card--padded .list-card__title { padding: 0 0 14px; }
@@ -27,7 +25,4 @@ withDefaults(defineProps<{ title?: string; padded?: boolean }>(), { title: '', p
 .list-card__content :deep(.list-card-row:last-child) { border-bottom: none; }
 .list-card--padded .list-card__content :deep(.list-card-row) { padding-inline: 0; }
 .list-card__content :deep(.list-card-row:focus-visible) { outline: 3px solid var(--color-accent-focus-ring); outline-offset: -3px; }
-@media (prefers-reduced-motion: reduce) {
-  .list-card { transition: none; }
-}
 </style>

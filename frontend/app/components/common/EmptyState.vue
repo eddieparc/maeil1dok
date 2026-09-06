@@ -1,14 +1,22 @@
 <template>
-  <div class="empty-state fade-in">
+  <div class="empty-state fade-in" :class="{ fullscreen }">
     <div class="empty-icon">
       <slot name="icon">
         <Info :size="32" :stroke-width="1.5" aria-hidden="true" />
       </slot>
     </div>
 
-    <h3 class="empty-title">{{ title }}</h3>
+    <h3 class="empty-title">{{ resolvedTitle }}</h3>
 
-    <p v-if="description" class="empty-description">{{ description }}</p>
+    <p v-if="resolvedDescription" class="empty-description">{{ resolvedDescription }}</p>
+
+    <div v-if="$slots.guide || guide?.length" class="empty-guide">
+      <slot name="guide">
+        <ol v-if="guide?.length" class="empty-guide__steps">
+          <li v-for="(step, index) in guide" :key="index">{{ step }}</li>
+        </ol>
+      </slot>
+    </div>
 
     <div v-if="actionText || $slots.action" class="empty-action">
       <slot name="action">
@@ -21,23 +29,32 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Info } from '@lucide/vue'
 import AppButton from '../ui/AppButton.vue'
 
 const props = defineProps({
   title: {
     type: String,
-    default: '데이터가 없습니다'
+    default: undefined
   },
   description: {
     type: String,
-    default: ''
+    default: undefined
   },
+  text: { type: String, default: '데이터가 없습니다' },
+  hint: { type: String, default: '' },
+  guide: { type: Array, default: undefined },
+  fullscreen: { type: Boolean, default: false },
   actionText: {
     type: String,
     default: ''
   }
 })
+
+// Explicit modern props (including empty strings) override legacy aliases.
+const resolvedTitle = computed(() => props.title ?? props.text)
+const resolvedDescription = computed(() => props.description ?? props.hint)
 
 const emit = defineEmits(['action'])
 
@@ -57,6 +74,11 @@ const handleAction = () => {
   color: var(--color-text-primary);
   letter-spacing: var(--tracking-body);
   text-align: center;
+}
+
+.empty-state.fullscreen {
+  min-height: calc(100vh - 120px);
+  min-height: calc(100dvh - 120px);
 }
 
 .empty-icon {
@@ -92,6 +114,20 @@ const handleAction = () => {
   font-size: 14px;
   line-height: 1.5;
 }
+
+.empty-guide {
+  width: 100%;
+  max-width: 400px;
+  margin-top: var(--card-padding);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.empty-guide__steps { margin: 0; padding-left: 24px; }
+.empty-guide__steps li + li { margin-top: 12px; }
+.empty-guide__steps li::marker { color: var(--color-accent-primary); font-weight: 600; }
 
 .empty-action {
   margin-top: var(--card-padding);

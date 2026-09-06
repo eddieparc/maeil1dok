@@ -12,6 +12,8 @@
           role="tab"
           :aria-selected="activeAchievementTab === tab.key"
           :aria-controls="`achievement-panel-${tab.key}`"
+          :tabindex="activeAchievementTab === tab.key ? 0 : -1"
+          @keydown="handleTabKeydown($event, tab.key)"
           @click="activeAchievementTab = tab.key"
         >
           <component :is="tab.icon" :size="18" aria-hidden="true" />
@@ -34,7 +36,10 @@
           :class="{ active: selectedPlanId === plan.id }"
           role="tab"
           :aria-selected="selectedPlanId === plan.id"
-          @click="selectedPlanId = plan.id"
+          :disabled="plan.id !== 'all'"
+          :tabindex="plan.id === 'all' ? 0 : -1"
+          :title="plan.id !== 'all' ? '플랜별 업적은 아직 제공되지 않습니다' : undefined"
+          @click="plan.id === 'all' && (selectedPlanId = plan.id)"
         >
           {{ plan.name }}
         </button>
@@ -146,6 +151,7 @@ const achievementGroups = [
   { key: 'hasena', label: '하세나', matcher: (type: string) => type.includes('hasena') },
 ]
 
+// TODO(handoff-v2): AchievementResponse has no plan_id; only aggregate achievements can be shown.
 const planTabs = computed(() => [
   { id: 'all' as const, name: '전체 플랜' },
   ...(props.plans ?? []).map(plan => ({ id: plan.id, name: plan.name })),
@@ -193,6 +199,17 @@ const achievementTabs = computed(() => [
     unlockedCount: hasenaAchievements.value.reduce((sum, group) => sum + group.unlockedCount, 0),
   },
 ])
+
+const handleTabKeydown = (event: KeyboardEvent, key: 'bible' | 'hasena') => {
+  let next: 'bible' | 'hasena'
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') next = key === 'bible' ? 'hasena' : 'bible'
+  else if (event.key === 'Home') next = 'bible'
+  else if (event.key === 'End') next = 'hasena'
+  else return
+  event.preventDefault()
+  activeAchievementTab.value = next
+  document.getElementById(`achievement-tab-${next}`)?.focus()
+}
 
 const getAchievementIcon = (icon: string) => {
   if (icon.includes('book')) return BookOpenIcon
@@ -252,8 +269,9 @@ const nextStepText = (achievement: Achievement) => {
 .locked-next { margin: 0; font-size: 12px; line-height: 1.4; }
 .empty-icon { color: var(--color-text-tertiary); }
 button { min-width: var(--hit-min); min-height: var(--hit-min); cursor: pointer; transition: background-color var(--duration-micro) ease, color var(--duration-micro) ease, transform var(--duration-micro) ease; }
-button:hover { background: var(--color-bg-hover); }
-button:active { transform: scale(0.97); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:hover:not(:disabled) { background: var(--color-bg-hover); }
+button:active:not(:disabled) { transform: scale(0.97); }
 button:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: -3px; border-color: var(--color-accent-primary); }
 @media (max-width: 359px) {
   .achievements-grid { grid-template-columns: 1fr; }

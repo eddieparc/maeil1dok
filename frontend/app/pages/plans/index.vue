@@ -227,6 +227,7 @@ onMounted(async () => {
   isLoading.value = true;
 
   try {
+    await auth.initialize();
     if (auth.isAuthenticated.value) {
       await fetchUserPlans();
     }

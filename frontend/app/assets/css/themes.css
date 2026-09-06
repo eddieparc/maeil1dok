@@ -50,6 +50,9 @@
   --color-error-bg: #FBEBEA;
   --color-error-text: #8C1D17;
   --color-warning: #8A6A2E;
+  --color-reading-current: #B8862B;
+  --color-video-gradient-start: #2C2A28;
+  --color-video-gradient-end: #151414;
   --color-warning-bg: #F7F0E1;
   --color-warning-text: #6B4F1D;
   --color-info: #2A1111;
@@ -114,6 +117,7 @@
   --card-padding: 20px;
   --appbar-height: 52px;
   --tabbar-height: 84px;
+  --tabbar-reader-height: 80px;
   --sidebar-width: 240px;
   --content-max: 760px;
   --aside-width: 300px;
@@ -275,6 +279,7 @@
   --color-error-bg: #3C2422;
   --color-error-text: #FFB4AB;
   --color-warning: #D9B36A;
+  --color-reading-current: var(--color-warning);
   --color-warning-bg: #3A3222;
   --color-warning-text: #F1DDB0;
   --color-info: #F3EEEE;
@@ -589,7 +594,6 @@ body,
 
 /* Hover states for cards */
 [data-theme="dark"] .task:hover,
-[data-theme="dark"] .card:hover,
 [data-theme="dark"] .notice-content:hover {
   background-color: var(--color-bg-hover) !important;
 }
@@ -640,17 +644,17 @@ body,
   color: var(--color-text-muted) !important;
 }
 
-/* Buttons - default style */
-[data-theme="dark"] button:not(.primary-button):not(.auth-button):not(.google-button):not(.kakao-button) {
+/* Legacy defaults must not override shared primitives' semantic states. */
+:where([data-theme="dark"] button:not(.primary-button):not(.auth-button):not(.google-button):not(.kakao-button):not(:where(.app-button, .filter-chip, .segmented-control__option))) {
   color: var(--color-text-primary);
 }
 
 /* Links */
-[data-theme="dark"] a {
+[data-theme="dark"] a:not(:where(.app-button)) {
   color: var(--color-link);
 }
 
-[data-theme="dark"] a:hover {
+[data-theme="dark"] a:not(:where(.app-button)):hover {
   color: var(--color-link-hover);
 }
 
@@ -664,8 +668,8 @@ body,
   color: var(--color-text-primary);
 }
 
-[data-theme="dark"] p,
-[data-theme="dark"] span:not(.task-title):not(.check-mark) {
+:where([data-theme="dark"] p),
+:where([data-theme="dark"] span:not(.task-title):not(.check-mark):not(:where(.status-badge))) {
   color: inherit;
 }
 

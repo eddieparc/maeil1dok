@@ -81,8 +81,10 @@ function guardClick(event: MouseEvent) {
 .app-button--ghost { background: transparent; color: var(--color-accent-primary); }
 .app-button--danger { background: transparent; color: var(--color-error); border-color: var(--color-error); }
 .app-button--secondary:hover:not([aria-disabled="true"]),
-.app-button--ghost:hover:not([aria-disabled="true"]),
-.app-button--danger:hover:not([aria-disabled="true"]) { background: var(--color-bg-hover); }
+.app-button--ghost:hover:not([aria-disabled="true"]) { background: var(--color-bg-hover); }
+.app-button--danger:hover:not([aria-disabled="true"]) { background: var(--color-error-bg); }
+[data-theme="dark"] .app-button--secondary { background: transparent; border: 1.5px solid var(--color-accent-primary); }
+[data-theme="dark"] .app-button--secondary:hover:not([aria-disabled="true"]) { background: var(--color-bg-hover); }
 .app-button:active:not([aria-disabled="true"]) { transform: scale(0.97); }
 .app-button:focus-visible {
   outline: 3px solid var(--color-accent-focus-ring);

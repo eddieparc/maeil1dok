@@ -129,6 +129,7 @@ const renderScoreboardPage = async () => {
       PageLayout: passthrough,
       FilterButtonGroup: filterStub,
       EmptyState: emptyStateStub,
+      ErrorState: emptyStub,
       LeaderboardItem,
       SkeletonCard: emptyStub,
       SkeletonLeaderboardRow: emptyStub,
@@ -146,6 +147,7 @@ const renderScoreboardPage = async () => {
         currentPeriod: 'month',
         handleAvatarError: () => {},
         isLoading: false,
+        loadError: null,
         myRanking: null,
         periods: [
           { value: 'month', label: '이번 달' },

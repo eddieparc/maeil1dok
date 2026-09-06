@@ -1,27 +1,34 @@
 <template>
-  <div class="bottom-nav-container">
-    <nav class="bottom-nav" aria-label="주요 메뉴">
-      <NuxtLink to="/" class="nav-item" :class="{ active: isActive('/') }" :aria-current="isActive('/') ? 'page' : undefined">
-        <HouseIcon :size="22" :stroke-width="isActive('/') ? 2.2 : 2" aria-hidden="true" />
-        <span>홈</span>
-      </NuxtLink>
-      <NuxtLink to="/bible" class="nav-item" :class="{ active: isActive('/bible') }" :aria-current="isActive('/bible') ? 'page' : undefined">
-        <BookOpenIcon :size="22" :stroke-width="isActive('/bible') ? 2.2 : 2" aria-hidden="true" />
-        <span>성경</span>
-      </NuxtLink>
-      <NuxtLink to="/plan" class="nav-item" :class="{ active: isActive('/plan') }" :aria-current="isActive('/plan') ? 'page' : undefined">
-        <CalendarIcon :size="22" :stroke-width="isActive('/plan') ? 2.2 : 2" aria-hidden="true" />
-        <span>통독표</span>
-      </NuxtLink>
-      <NuxtLink to="/groups" class="nav-item" :class="{ active: isActive('/groups') }" :aria-current="isActive('/groups') ? 'page' : undefined">
-        <UsersIcon :size="22" :stroke-width="isActive('/groups') ? 2.2 : 2" aria-hidden="true" />
-        <span>함께</span>
-      </NuxtLink>
-      <NuxtLink :to="profileLink" class="nav-item" :class="{ active: isActive(profileLink) }" :aria-current="isActive(profileLink) ? 'page' : undefined">
-        <UserIcon :size="22" :stroke-width="isActive(profileLink) ? 2.2 : 2" aria-hidden="true" />
-        <span>내 정보</span>
-      </NuxtLink>
-    </nav>
+  <div class="bottom-nav-container" :data-density="density">
+    <div v-if="$slots.above" class="bottom-nav-above">
+      <slot name="above" />
+    </div>
+    <div class="bottom-nav-tabs" :class="{ 'is-hidden': hidden }" :inert="hidden" :aria-hidden="hidden || undefined">
+      <nav class="bottom-nav" aria-label="주요 메뉴">
+        <NuxtLink to="/" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive('/') }" :aria-current="isActive('/') ? 'page' : undefined">
+          <HouseIcon :size="22" :stroke-width="isActive('/') ? 2.2 : 2" aria-hidden="true" />
+          <span>홈</span>
+        </NuxtLink>
+        <NuxtLink to="/bible" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive('/bible') }" :aria-current="isActive('/bible') ? 'page' : undefined">
+          <BookOpenIcon :size="22" :stroke-width="isActive('/bible') ? 2.2 : 2" aria-hidden="true" />
+          <span>성경</span>
+        </NuxtLink>
+        <NuxtLink v-slot="{ href, navigate }" to="/plan" custom>
+          <a :href="href" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive('/plan') }" :aria-current="isActive('/plan') ? 'page' : undefined" @click="onPlanClick($event, navigate)">
+            <CalendarIcon :size="22" :stroke-width="isActive('/plan') ? 2.2 : 2" aria-hidden="true" />
+            <span>통독표</span>
+          </a>
+        </NuxtLink>
+        <NuxtLink to="/groups" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive('/groups') }" :aria-current="isActive('/groups') ? 'page' : undefined">
+          <UsersIcon :size="22" :stroke-width="isActive('/groups') ? 2.2 : 2" aria-hidden="true" />
+          <span>함께</span>
+        </NuxtLink>
+        <NuxtLink :to="profileLink" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive(profileLink) }" :aria-current="isActive(profileLink) ? 'page' : undefined">
+          <UserIcon :size="22" :stroke-width="isActive(profileLink) ? 2.2 : 2" aria-hidden="true" />
+          <span>내 정보</span>
+        </NuxtLink>
+      </nav>
+    </div>
   </div>
 </template>
 
@@ -29,6 +36,27 @@
 import { computed } from 'vue'
 import { BookOpenIcon, CalendarIcon, HouseIcon, UserIcon, UsersIcon } from '@lucide/vue'
 import { useAuthService } from '~/composables/useAuthService'
+
+const props = defineProps({
+  density: {
+    type: String,
+    default: 'standard',
+    validator: (value) => ['standard', 'reader'].includes(value)
+  },
+  hidden: { type: Boolean, default: false },
+  interceptPlan: { type: Boolean, default: false }
+})
+const emit = defineEmits(['plan'])
+
+const onPlanClick = (event, navigate) => {
+  if (props.interceptPlan && !event.defaultPrevented && event.button === 0 &&
+      !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+    event.preventDefault()
+    emit('plan')
+    return
+  }
+  return navigate(event)
+}
 
 const route = useRoute()
 const { user } = useAuthService()
@@ -39,22 +67,45 @@ const isActive = (path) => route.path === path || (path !== '/' && route.path.st
 
 <style scoped>
 .bottom-nav-container {
+  --mobile-nav-content-height: calc(var(--tabbar-height) - 24px);
   position: fixed;
   inset: auto 0 0;
   z-index: 100;
+  pointer-events: none;
+}
+
+.bottom-nav-container[data-density="reader"] {
+  --mobile-nav-content-height: calc(var(--tabbar-reader-height, 80px) - 24px);
+}
+
+.bottom-nav-above {
+  position: relative;
+  max-width: 768px;
+  margin: 0 auto;
+  pointer-events: auto;
+}
+
+.bottom-nav-tabs {
   background: var(--color-bg-card);
-  border-top: 1px solid var(--color-border-default);
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px));
+  box-shadow: inset 0 1px var(--color-border-default);
+  padding-bottom: var(--mobile-nav-safe-inset);
+  pointer-events: auto;
+  transition: transform var(--duration-standard, 250ms) ease;
+}
+
+.bottom-nav-tabs.is-hidden {
+  transform: translateY(100%);
+  pointer-events: none;
 }
 
 .bottom-nav {
   display: flex;
   align-items: flex-start;
   box-sizing: border-box;
-  height: var(--tabbar-height);
+  height: var(--mobile-nav-content-height);
   max-width: 768px;
   margin: 0 auto;
-  padding: 6px 8px 24px;
+  padding: 6px 8px 0;
 }
 
 .nav-item {
@@ -98,11 +149,16 @@ const isActive = (path) => route.path === path || (path !== '/' && route.path.st
 
 @media (min-width: 1024px) {
   .bottom-nav-container {
+    left: var(--sidebar-width);
+  }
+
+  .bottom-nav-tabs {
     display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .bottom-nav-tabs,
   .nav-item {
     transition: none;
   }
