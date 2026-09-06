@@ -9,9 +9,7 @@
     <!-- 스크롤 영역 -->
     <div class="scroll-area">
       <!-- 인증 초기화 중 -->
-      <div v-if="isAuthLoading" class="loading-indicator fade-in">
-        <p>인증 정보를 확인하는 중...</p>
-      </div>
+      <SkeletonList v-if="isAuthLoading" :count="4" variant="video" />
 
       <div v-else-if="!authStore.isAuthenticated.value" class="unauthorized-prompt fade-in" style="animation-delay: 0.2s">
         <p class="text-lg text-gray-600 mb-4">
@@ -35,8 +33,11 @@
         </div>
 
         <!-- 영상 개론 목록 -->
-        <div v-if="loading" class="loading-indicator">
-          <p>데이터를 불러오는 중...</p>
+        <SkeletonList v-if="loading" :count="4" variant="video" />
+
+        <div v-else-if="loadError" class="empty-state" role="alert">
+          <p>{{ loadError }}</p>
+          <button type="button" class="login-button" @click="fetchVideoIntros">다시 시도</button>
         </div>
 
         <div v-else-if="videoIntros.length === 0" class="empty-state">
@@ -178,6 +179,7 @@ import { useModal } from '~/composables/useModal'
 import PageLayout from '~/components/common/PageLayout.vue'
 import Toast from '~/components/Toast.vue'
 import BaseModal from '~/components/ui/modal/BaseModal.vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 
 const authStore = useAuthService()
 const api = useApi()
@@ -203,6 +205,7 @@ const selectedPlanId = ref('')
 const showUploadModal = ref(false)
 const loading = ref(false)
 const uploading = ref(false)
+const loadError = ref('')
 
 const uploadForm = ref({
   planId: '',
@@ -252,6 +255,7 @@ const fetchPlans = async () => {
 
   try {
     loading.value = true
+    loadError.value = ''
     const response = await api.GET('/api/v1/todos/bible-plans/')
 
     // 응답 구조 처리 - data 속성 확인
@@ -265,6 +269,7 @@ const fetchPlans = async () => {
       showToastMessage('플랜 목록 형식이 올바르지 않습니다.', 'error')
     }
   } catch (error) {
+    loadError.value = '플랜 목록을 불러오지 못했습니다.'
     showToastMessage('플랜 목록을 불러오는데 실패했습니다.', 'error')
   } finally {
     loading.value = false
@@ -276,6 +281,7 @@ const fetchVideoIntros = async () => {
   if (!await checkAccess()) return
 
   loading.value = true
+  loadError.value = ''
   try {
 
     const selectedPlan = Number(selectedPlanId.value)
@@ -293,6 +299,7 @@ const fetchVideoIntros = async () => {
       showToastMessage('영상 개론 목록 형식이 올바르지 않습니다.', 'error')
     }
   } catch (error) {
+    loadError.value = '영상 개론 목록을 불러오지 못했습니다.'
     showToastMessage('영상 개론 목록을 불러오는데 실패했습니다.', 'error')
   } finally {
     loading.value = false

@@ -161,6 +161,7 @@ const renderScoreboard = async ({
         scoreboardContextLabel: '2026년 8월',
         scoreboardStore: { currentPeriod: 'month' },
         showAuthGate,
+        showInitialSkeleton: false,
         showRelationshipEmptyState,
         topThree: [],
         viewModes: [

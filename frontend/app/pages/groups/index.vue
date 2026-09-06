@@ -36,7 +36,7 @@
         </div>
       </div>
 
-      <div v-if="isLoading" class="groups-grid" aria-label="그룹을 불러오는 중" aria-busy="true">
+      <div v-if="showInitialSkeleton" class="groups-grid" role="status" aria-label="그룹을 불러오는 중" aria-busy="true">
         <ListCard v-for="i in 4" :key="i" class="group-skeleton">
           <Skeleton width="72px" height="20px" />
           <Skeleton width="65%" height="22px" />
@@ -92,6 +92,10 @@ const auth = useAuthService()
 const modal = useModal()
 const isAuthenticated = computed(() => auth.isAuthenticated.value)
 const isLoading = computed(() => groupsStore.isLoading)
+const isInitialPending = ref(true)
+const showInitialSkeleton = computed(() =>
+  (isInitialPending.value || isLoading.value) && currentGroups.value.length === 0
+)
 const searchQuery = ref('')
 const activeFilter = ref<'all' | 'public' | 'mine'>('all')
 const showCreateModal = ref(false)
@@ -107,12 +111,16 @@ const currentGroups = computed(() => {
   return groupsStore.groups
 })
 
-const loadGroups = () => {
-  groupsStore.fetchGroups({
-    search: searchQuery.value,
-    ...(activeFilter.value === 'public' ? { only_public: true } : {}),
-    ...(activeFilter.value === 'mine' ? { only_mine: true } : {})
-  })
+const loadGroups = async () => {
+  try {
+    await groupsStore.fetchGroups({
+      search: searchQuery.value,
+      ...(activeFilter.value === 'public' ? { only_public: true } : {}),
+      ...(activeFilter.value === 'mine' ? { only_mine: true } : {})
+    })
+  } finally {
+    isInitialPending.value = false
+  }
 }
 const debouncedSearch = debounce(loadGroups, 300)
 watch(activeFilter, () => {

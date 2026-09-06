@@ -27,6 +27,8 @@ definePageMeta({
 })
 
 const currentTheme = ref<'light' | 'dark'>('light')
+const previewState = ref<'pending' | 'empty' | 'error'>('pending')
+const forceReducedMotion = ref(false)
 
 const applyTheme = (theme: 'light' | 'dark') => {
   currentTheme.value = theme
@@ -55,7 +57,9 @@ const listVariants = [
   'history',
   'user',
   'plan',
-  'schedule'
+  'schedule',
+  'summary',
+  'video'
 ] as const
 
 const avatarSizes = ['sm', 'md', 'lg', 'xl'] as const
@@ -63,7 +67,11 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
 </script>
 
 <template>
-  <div class="min-h-screen bg-primary text-primary p-6">
+  <div
+    class="min-h-screen bg-primary text-primary p-6"
+    :class="{ 'force-reduced-motion': forceReducedMotion }"
+    :data-skeleton-state="previewState"
+  >
     <header class="max-w-5xl mx-auto mb-8 flex items-center justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-2xl font-bold mb-1">스켈레톤 미리보기 (dev)</h1>
@@ -74,6 +82,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       <div class="flex gap-2">
         <button
           type="button"
+          data-qa="theme-light"
           :class="[
             'px-4 py-2 rounded-[8px] text-sm font-medium border',
             currentTheme === 'light'
@@ -86,6 +95,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
         </button>
         <button
           type="button"
+          data-qa="theme-dark"
           :class="[
             'px-4 py-2 rounded-[8px] text-sm font-medium border',
             currentTheme === 'dark'
@@ -96,12 +106,26 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
         >
           Dark
         </button>
+        <button type="button" data-qa="reduced-motion-toggle" class="px-4 py-2 rounded-[8px] text-sm font-medium border bg-card border-default" @click="forceReducedMotion = !forceReducedMotion">
+          {{ forceReducedMotion ? 'Motion on' : 'Reduce motion' }}
+        </button>
       </div>
     </header>
 
     <main class="max-w-5xl mx-auto flex flex-col gap-12">
+      <section data-qa="skeleton-state-harness">
+        <h2 class="text-lg font-semibold mb-4">Pending lifecycle states</h2>
+        <div class="flex gap-2 mb-4">
+          <button v-for="state in ['pending', 'empty', 'error'] as const" :key="state" type="button" class="px-3 py-2 rounded-[8px] border border-default bg-card" @click="previewState = state">{{ state }}</button>
+        </div>
+        <div class="bg-card border border-default rounded-[12px] p-4" aria-live="polite">
+          <SkeletonList v-if="previewState === 'pending'" :count="3" variant="summary" />
+          <p v-else-if="previewState === 'empty'" data-qa="skeleton-empty-state">불러온 항목이 없습니다.</p>
+          <p v-else data-qa="skeleton-error-state">데이터를 불러오지 못했습니다.</p>
+        </div>
+      </section>
       <!-- Atom -->
-      <section>
+      <section data-qa="skeleton-atom">
         <h2 class="text-lg font-semibold mb-4">Skeleton (atom)</h2>
         <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
           <div v-for="r in skeletonRounds" :key="r" class="flex flex-col gap-2">
@@ -112,7 +136,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Text -->
-      <section>
+      <section data-qa="skeleton-text">
         <h2 class="text-lg font-semibold mb-4">SkeletonText</h2>
         <div class="bg-card border border-default rounded-[12px] p-4 max-w-md">
           <SkeletonText :lines="4" lastLineWidth="50%" />
@@ -120,7 +144,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Avatar -->
-      <section>
+      <section data-qa="skeleton-avatar">
         <h2 class="text-lg font-semibold mb-4">SkeletonAvatar</h2>
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div v-for="s in avatarSizes" :key="s" class="bg-card border border-default rounded-[12px] p-4">
@@ -131,7 +155,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Card -->
-      <section>
+      <section data-qa="skeleton-card">
         <h2 class="text-lg font-semibold mb-4">SkeletonCard (default + slots)</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SkeletonCard />
@@ -150,7 +174,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- List variants -->
-      <section>
+      <section data-qa="skeleton-list">
         <h2 class="text-lg font-semibold mb-4">SkeletonList variants</h2>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div
@@ -165,7 +189,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Calendar -->
-      <section>
+      <section data-qa="skeleton-calendar">
         <h2 class="text-lg font-semibold mb-4">SkeletonCalendar</h2>
         <div class="bg-card border border-default rounded-[12px] p-4 max-w-md">
           <SkeletonCalendar :weeks="5" />
@@ -173,13 +197,13 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Stats -->
-      <section>
+      <section data-qa="skeleton-stats">
         <h2 class="text-lg font-semibold mb-4">SkeletonStats</h2>
         <SkeletonStats :count="3" />
       </section>
 
       <!-- Leaderboard row -->
-      <section>
+      <section data-qa="skeleton-leaderboard">
         <h2 class="text-lg font-semibold mb-4">SkeletonLeaderboardRow</h2>
         <div class="flex flex-col gap-2 max-w-2xl">
           <SkeletonLeaderboardRow v-for="i in 4" :key="i" />
@@ -187,7 +211,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Group card -->
-      <section>
+      <section data-qa="skeleton-group-card">
         <h2 class="text-lg font-semibold mb-4">SkeletonGroupCard</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SkeletonGroupCard v-for="i in 3" :key="i" />
@@ -195,7 +219,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Profile header -->
-      <section>
+      <section data-qa="skeleton-profile">
         <h2 class="text-lg font-semibold mb-4">SkeletonProfileHeader</h2>
         <div class="max-w-md">
           <SkeletonProfileHeader />
@@ -203,7 +227,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Hasena card -->
-      <section>
+      <section data-qa="skeleton-hasena">
         <h2 class="text-lg font-semibold mb-4">SkeletonHasenaCard</h2>
         <div class="max-w-2xl">
           <SkeletonHasenaCard />
@@ -211,7 +235,7 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
       </section>
 
       <!-- Plan rows -->
-      <section class="mb-12">
+      <section class="mb-12" data-qa="skeleton-plan">
         <h2 class="text-lg font-semibold mb-4">SkeletonPlanRow</h2>
         <div class="flex flex-col gap-3 max-w-2xl">
           <SkeletonPlanRow v-for="i in 3" :key="i" />
@@ -220,3 +244,10 @@ const skeletonRounds = ['sm', 'md', 'lg', 'xl', 'full'] as const
     </main>
   </div>
 </template>
+
+<style scoped>
+.force-reduced-motion :deep(.skeleton-shimmer) {
+  animation: none !important;
+  background: var(--color-bg-tertiary) !important;
+}
+</style>

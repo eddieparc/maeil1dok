@@ -108,7 +108,6 @@ useHead({
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   pointer-events: none;
-  animation: landing-skeleton-timeout var(--duration-standard) ease 900ms forwards;
 }
 .landing-skeleton__inner { box-sizing: border-box; max-width: 768px; min-height: 100vh; margin: 0 auto; padding: 0 20px 96px; }
 .landing-skeleton__header { display: flex; align-items: center; justify-content: space-between; height: 52px; }
@@ -134,7 +133,6 @@ useHead({
 .landing-skeleton__tile { display: flex; align-items: center; min-height: 56px; padding: 14px; }
 .landing-skeleton__icon, .landing-skeleton__ring, .landing-skeleton__button, .landing-skeleton__dot { background: var(--color-bg-hover); }
 .sanctuary-theme.is-shell-ready .landing-skeleton { animation: none; opacity: 0; visibility: hidden; transition: opacity var(--duration-micro) ease, visibility 0s linear var(--duration-micro); }
-@keyframes landing-skeleton-timeout { to { opacity: 0; visibility: hidden; } }
 @media (min-width: 1024px) {
   .landing-skeleton { left: var(--sidebar-width); }
   .landing-skeleton__inner { box-sizing: content-box; display: grid; grid-template-columns: minmax(0, var(--content-max)) var(--aside-width); gap: 20px 28px; align-content: start; max-width: calc(var(--content-max) + var(--aside-width) + 28px); padding: 36px 40px; }

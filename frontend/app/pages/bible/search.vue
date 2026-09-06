@@ -47,7 +47,8 @@
     </section>
 
     <section class="results-section" aria-live="polite">
-      <div v-if="!hasSearched" class="empty-state">
+      <SkeletonList v-if="isSearching && results.length === 0" :count="5" variant="bookmark" />
+      <div v-else-if="!hasSearched" class="empty-state">
         <SearchIcon :size="30" aria-hidden="true" />
         <strong>찾고 싶은 말씀의 단어를 입력하세요</strong>
         <span>예: 사랑, 믿음, 평안</span>
@@ -101,6 +102,7 @@ import type { paths } from '~/types/generated/api-schema';
 import { useApi } from '~/composables/useApi';
 import { useBibleData } from '~/composables/useBibleData';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import {
   highlightBibleSearchSnippet,
 } from '~/utils/bibleSearchSnippet';

@@ -2,8 +2,8 @@
   <PageLayout title="알림 설정">
     <div class="notification-settings-shell">
       <h2 class="sr-only">알림 설정</h2>
-      <div v-if="notificationsStore.isLoading && !settings" class="settings-card">
-        <SkeletonList :count="4" variant="default" />
+    <div v-if="!notificationsStore.hasLoadedSettings || (notificationsStore.isLoading && !settings)" class="settings-card">
+      <SkeletonList :count="4" variant="default" />
       </div>
 
       <ErrorState

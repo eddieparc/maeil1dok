@@ -6,29 +6,30 @@ const props = withDefaults(defineProps<{
   height?: string | number
   radius?: string | number
   circle?: boolean
+  rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
 }>(), { width: '100%', radius: 'var(--radius-control)' })
 const dimension = (value: string | number) => typeof value === 'number' ? `${value}px` : value
+const roundedRadius = computed(() => ({
+  sm: 'var(--radius-cell)',
+  md: 'var(--radius-control)',
+  lg: '12px',
+  xl: '16px',
+  full: 'var(--radius-pill)',
+})[props.rounded ?? 'md'])
 const skeletonStyle = computed(() => ({
   width: dimension(props.width),
   height: props.height !== undefined ? dimension(props.height) : props.circle ? undefined : '16px',
-  borderRadius: props.circle ? '50%' : dimension(props.radius),
+  borderRadius: props.circle ? '50%' : props.rounded ? roundedRadius.value : dimension(props.radius),
 }))
 </script>
 
 <template>
-  <div class="skeleton" :class="{ 'skeleton--circle': circle }" :style="skeletonStyle" aria-hidden="true" />
+  <div class="skeleton-shimmer skeleton" :class="{ 'skeleton--circle': circle }" :style="skeletonStyle" aria-hidden="true" />
 </template>
 
 <style scoped>
-.skeleton {
+.skeleton-shimmer.skeleton {
   flex-shrink: 0;
-  background: linear-gradient(90deg, var(--color-bg-hover) 25%, var(--color-bg-primary) 50%, var(--color-bg-hover) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.6s linear infinite;
 }
 .skeleton--circle { aspect-ratio: 1; }
-@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .skeleton { animation: none; }
-}
 </style>

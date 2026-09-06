@@ -12,10 +12,7 @@
     <!-- 스크롤 영역 -->
     <div class="scroll-area">
       <!-- 인증 초기화 중 -->
-      <div v-if="isAuthLoading" class="loading-indicator fade-in">
-        <div class="spinner"></div>
-        <p>인증 정보를 확인하는 중...</p>
-      </div>
+      <SkeletonList v-if="isAuthLoading" :count="4" variant="plan" />
 
       <!-- 인증 및 권한 관련 UI -->
       <div v-else-if="!authStore.isAuthenticated.value" class="message-card fade-in" style="animation-delay: 0.2s">

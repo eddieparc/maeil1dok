@@ -1,7 +1,7 @@
 <template>
   <PageLayout title="리더보드">
     <div class="content-wrapper stagger">
-      <SkeletonCard v-if="isLoading && auth.isAuthenticated.value" class="fade-in" />
+      <SkeletonCard v-if="showInitialSkeleton && auth.isAuthenticated.value" class="fade-in" />
       <section v-else-if="myRanking" class="my-rank-card fade-in" aria-label="내 순위">
         <div class="ranking-info">
           <p class="ranking-label">내 순위 · {{ periods.find(period => period.value === currentPeriod)?.label }}</p>
@@ -42,7 +42,7 @@
       </div>
 
       <div class="leaderboard-card fade-in">
-        <div v-if="isLoading" class="loading-rows" role="status" aria-label="리더보드 불러오는 중">
+        <div v-if="showInitialSkeleton" class="loading-rows" role="status" aria-label="리더보드 불러오는 중">
           <SkeletonLeaderboardRow v-for="i in 8" :key="i" />
         </div>
         <div v-else-if="showAuthGate" class="leaderboard-empty-panel">
@@ -116,6 +116,10 @@ const activeView = ref<string | number>('global')
 const currentPeriod = computed(() => scoreboardStore.currentPeriod)
 const rankingMonth = ref(scoreboardStore.selectedMonth)
 const isLoading = computed(() => scoreboardStore.isLoading)
+const isInitialPending = ref(true)
+const showInitialSkeleton = computed(() =>
+  (isInitialPending.value || isLoading.value) && currentLeaderboard.value.length === 0
+)
 const myRanking = computed(() => scoreboardStore.myRanking)
 
 const currentLeaderboard = computed(() => {
@@ -171,20 +175,21 @@ const scoreboardContextLabel = computed(() => {
   return `${year}년 ${Number(month)}월`
 })
 
-onMounted(() => {
-  loadLeaderboard()
+onMounted(async () => {
+  await loadLeaderboard()
+  isInitialPending.value = false
   if (auth.isAuthenticated.value) {
-    scoreboardStore.fetchMyRanking()
+    void scoreboardStore.fetchMyRanking()
   }
 })
 
-const loadLeaderboard = () => {
+const loadLeaderboard = async () => {
   if (activeView.value === 'global') {
-    scoreboardStore.fetchGlobalLeaderboard(currentPeriod.value, undefined, 100, rankingMonth.value)
+    await scoreboardStore.fetchGlobalLeaderboard(currentPeriod.value, undefined, 100, rankingMonth.value)
   } else if (activeView.value === 'following' && auth.isAuthenticated.value) {
-    scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'following', rankingMonth.value)
+    await scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'following', rankingMonth.value)
   } else if (activeView.value === 'friends' && auth.isAuthenticated.value) {
-    scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'mutual', rankingMonth.value)
+    await scoreboardStore.fetchFriendsLeaderboard(currentPeriod.value, undefined, 'mutual', rankingMonth.value)
   }
 }
 

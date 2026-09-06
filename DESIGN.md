@@ -99,6 +99,14 @@ All spacing derives from 4px.
 - States: loading, inline error text, cancel action.
 - Accessibility: labeled password inputs and explicit submit buttons.
 
+### Loading Skeletons
+
+- One canonical `ui/Skeleton` atom owns token-based shimmer; `ui/skeleton/Skeleton` is an API-compatible wrapper for existing `rounded` consumers.
+- Composite families mirror the loaded geometry: text/list rows, avatars, cards, calendars, stats, leaderboards, groups, plans, video/Hasena content, and admin summary/video rows.
+- A loading region exposes one meaningful `role="status"` or `aria-busy="true"` boundary. Every placeholder shape inside it is decorative and `aria-hidden`.
+- Initial unresolved data renders its matching family before empty/error content. Settled empty/error removes the skeleton; refreshes retain useful current content whenever possible.
+- The dev-only `/__dev__/skeletons-preview` harness exposes every family plus pending, empty, error, dark, and forced reduced-motion states.
+
 ## 6. Motion & Interaction
 
 | Type | Duration | Easing | Usage |
@@ -109,6 +117,7 @@ All spacing derives from 4px.
 - Animate color, opacity, and transform only.
 - Every interactive control needs hover, active, focus, and disabled states.
 - Respect shared `:focus-visible` styling from `main.css`.
+- Skeleton shimmer uses the shared 1.6s token-colored gradient only while pending. `prefers-reduced-motion: reduce` replaces it with a static tertiary surface.
 
 ## 7. Depth & Surface
 

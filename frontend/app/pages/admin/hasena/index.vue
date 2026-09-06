@@ -2,9 +2,7 @@
   <PageLayout title="하세나 AI 요약 관리" fallback-path="/">
 
     <div class="scroll-area">
-      <div v-if="isAuthLoading" class="loading-indicator fade-in">
-        <p>인증 정보를 확인하는 중...</p>
-      </div>
+      <SkeletonList v-if="isAuthLoading" :count="4" variant="summary" />
 
       <div v-else-if="!authStore.isAuthenticated.value" class="unauthorized-prompt fade-in" role="status">
         <p class="text-lg text-txt-secondary mb-4">로그인이 필요한 페이지입니다.</p>
@@ -16,8 +14,11 @@
       </div>
 
       <div v-else class="content-section fade-in">
-        <div v-if="loading" class="loading-indicator">
-          <p>데이터를 불러오는 중...</p>
+        <SkeletonList v-if="loading" :count="4" variant="summary" />
+
+        <div v-else-if="loadError" class="empty-state" role="alert">
+          <p>{{ loadError }}</p>
+          <button type="button" class="load-more-btn" @click="fetchSummaries()">다시 시도</button>
         </div>
 
         <div v-else-if="summaries.length === 0" class="empty-state">
@@ -98,6 +99,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthService } from '~/composables/useAuthService'
 import { useApi } from '~/composables/useApi'
 import PageLayout from '~/components/common/PageLayout.vue'
+import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 
 interface Summary {
   id: number
@@ -121,6 +123,7 @@ const summaries = ref<Summary[]>([])
 const page = ref(1)
 const pageSize = 20
 const total = ref(0)
+const loadError = ref('')
 const regenerating = ref<string | null>(null)
 
 const showEditModal = ref(false)
@@ -147,6 +150,7 @@ const fetchSummaries = async (reset = true) => {
     loading.value = true
     page.value = 1
     summaries.value = []
+    loadError.value = ''
   } else {
     loadingMore.value = true
   }
@@ -165,6 +169,7 @@ const fetchSummaries = async (reset = true) => {
     }
   } catch (error) {
     console.error('Failed to fetch summaries:', error)
+    loadError.value = 'AI 요약 목록을 불러오지 못했습니다.'
   } finally {
     loading.value = false
     loadingMore.value = false

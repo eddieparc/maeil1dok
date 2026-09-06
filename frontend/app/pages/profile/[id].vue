@@ -9,7 +9,7 @@
       <!-- 로딩 상태 -->
       <div v-if="isLoading" class="profile-card fade-in">
         <SkeletonProfileHeader />
-        <SkeletonStats :count="4" />
+      <SkeletonStats :count="4" :announce="false" />
       </div>
 
       <template v-else-if="profile">

@@ -4,7 +4,7 @@ import SkeletonAvatar from './SkeletonAvatar.vue'
 import SkeletonText from './SkeletonText.vue'
 
 interface Props {
-  variant?: 'note' | 'bookmark' | 'highlight' | 'history' | 'user' | 'plan' | 'schedule'
+  variant?: 'default' | 'note' | 'bookmark' | 'highlight' | 'history' | 'user' | 'plan' | 'schedule' | 'summary' | 'video'
   class?: string
 }
 
@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
 <template>
   <div aria-hidden="true" :class="['w-full', props.class]">
     <!-- Note -->
-    <div v-if="variant === 'note'" class="flex items-start gap-3 w-full">
+    <div v-if="variant === 'note' || variant === 'default'" class="flex items-start gap-3 w-full">
       <SkeletonAvatar size="sm" :withCaption="false" />
       <div class="flex-1 min-w-0">
         <SkeletonText :lines="2" lastLineWidth="80%" />
@@ -87,6 +87,29 @@ const props = withDefaults(defineProps<Props>(), {
       <div class="flex-shrink-0 ml-2">
         <Skeleton width="2.5rem" height="1.25rem" rounded="full" />
       </div>
+    </div>
+
+    <!-- Admin summary -->
+    <div v-else-if="variant === 'summary'" class="flex flex-col gap-3 w-full p-4 bg-card border border-default rounded-[12px]">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+          <Skeleton width="5rem" height="1rem" />
+          <Skeleton width="7rem" height="0.75rem" />
+        </div>
+        <Skeleton width="8rem" height="2rem" rounded="md" />
+      </div>
+      <SkeletonText :lines="3" lastLineWidth="65%" />
+      <Skeleton width="12rem" height="0.75rem" />
+    </div>
+
+    <!-- Video intro -->
+    <div v-else class="flex items-center justify-between gap-4 w-full p-4 bg-card border border-default rounded-[12px]">
+      <div class="flex-1 min-w-0 flex flex-col gap-2">
+        <Skeleton width="35%" height="1.25rem" />
+        <Skeleton width="65%" height="0.875rem" />
+        <Skeleton width="45%" height="0.875rem" />
+      </div>
+      <Skeleton width="4rem" height="2rem" rounded="md" />
     </div>
   </div>
 </template>

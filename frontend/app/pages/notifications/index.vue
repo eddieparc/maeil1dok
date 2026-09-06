@@ -28,7 +28,14 @@
         </button>
       </div>
 
-      <ListCard v-if="notificationsStore.isLoading" :padded="false" class="notification-list" aria-busy="true" aria-label="알림 불러오는 중">
+    <ListCard
+      v-if="!notificationsStore.hasLoadedInbox || (notificationsStore.isLoading && notificationsStore.notifications.length === 0)"
+      :padded="false"
+      class="notification-list"
+      role="status"
+      aria-busy="true"
+      aria-label="알림 불러오는 중"
+    >
         <div v-for="row in 5" :key="row" class="notification-card" aria-hidden="true">
           <Skeleton width="34px" height="34px" circle />
           <div class="notification-copy">

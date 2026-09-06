@@ -14,10 +14,7 @@
       <template v-if="videoIntroId">
         <main class="main-content">
           <!-- 로딩 상태 -->
-          <div v-if="isLoading" class="state-container loading fade-in" style="animation-delay: 0.2s">
-            <div class="loading-spinner"></div>
-            <p>영상 정보를 불러오는 중...</p>
-          </div>
+          <SkeletonHasenaCard v-if="isLoading" class="fade-in" />
 
           <!-- 에러 상태 -->
           <div v-else-if="error" class="state-container error fade-in" style="animation-delay: 0.2s">
@@ -97,6 +94,7 @@ import { useAuthService } from '~/composables/useAuthService'
 import { useToast } from '~/composables/useToast'
 import IntroListContent from '~/components/IntroListContent.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
+import SkeletonHasenaCard from '~/components/ui/skeleton/SkeletonHasenaCard.vue'
 import CheckCircleIcon from '~/components/icons/CheckCircleIcon.vue'
 import { useHead } from '#imports'
 
