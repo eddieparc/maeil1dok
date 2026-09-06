@@ -482,7 +482,7 @@ export function useAuthService() {
 
   async function loginWithSocial(
     provider: 'kakao' | 'google',
-    payload: { code?: string; access_token?: string }
+    payload: { code?: string; access_token?: string; redirect_uri?: string }
   ): Promise<SocialLoginResult> {
     try {
       const result = await apiRequest<{
@@ -623,8 +623,11 @@ export function useAuthService() {
     }
   }
 
-  async function socialLogin(provider: string, code: string): Promise<any> {
-    const result = await loginWithSocial(provider as 'kakao' | 'google', { code })
+  async function socialLogin(provider: string, code: string, redirectUri?: string): Promise<any> {
+    const result = await loginWithSocial(provider as 'kakao' | 'google', {
+      code,
+      redirect_uri: redirectUri,
+    })
     
     if (result.success) {
       return {

@@ -114,6 +114,7 @@ import { useHead } from '#imports'
 import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
+import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
 
 useHead({
   title: '로그인 - 매일일독',
@@ -181,21 +182,33 @@ const handleSubmit = async () => {
 }
 
 const handleKakaoLogin = () => {
-  const redirectUri = encodeURIComponent(config.public.KAKAO_REDIRECT_URI)
+  const redirectUri = encodeURIComponent(resolveSocialRedirectUri(
+    'kakao',
+    config.public.KAKAO_REDIRECT_URI,
+    window.location.origin,
+  ))
   // scope: profile_nickname, profile_image, account_email 권한 요청
   const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${config.public.KAKAO_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=profile_nickname,profile_image,account_email`
   window.location.href = kakaoAuthUrl
 }
 
 const handleGoogleLogin = () => {
-  const redirectUri = encodeURIComponent(config.public.GOOGLE_REDIRECT_URI)
+  const redirectUri = encodeURIComponent(resolveSocialRedirectUri(
+    'google',
+    config.public.GOOGLE_REDIRECT_URI,
+    window.location.origin,
+  ))
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.public.GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=email%20profile&access_type=offline&prompt=consent`
   window.location.href = googleAuthUrl
 }
 
 const handleAppleLogin = () => {
   const clientId = config.public.APPLE_CLIENT_ID
-  const redirectUri = encodeURIComponent(config.public.APPLE_REDIRECT_URI || `${window.location.origin}/auth/apple/callback`)
+  const redirectUri = encodeURIComponent(resolveSocialRedirectUri(
+    'apple',
+    config.public.APPLE_REDIRECT_URI,
+    window.location.origin,
+  ))
   const appleAuthUrl = `https://appleid.apple.com/auth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code%20id_token&scope=name%20email&response_mode=form_post`
   window.location.href = appleAuthUrl
 }

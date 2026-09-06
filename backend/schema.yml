@@ -315,6 +315,18 @@ paths:
         이미 다른 계정에 연동된 경우 병합을 위한 상세 정보 반환
       tags:
       - accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkSocialAccountRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LinkSocialAccountRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LinkSocialAccountRequest'
+        required: true
       security:
       - cookieJwtAuth: []
       - bearerAuth: []
@@ -1385,6 +1397,18 @@ paths:
         이미 다른 계정에 연동된 경우 병합을 위한 상세 정보 반환
       tags:
       - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkSocialAccountRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LinkSocialAccountRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LinkSocialAccountRequest'
+        required: true
       security:
       - cookieJwtAuth: []
       - bearerAuth: []
@@ -7697,6 +7721,28 @@ components:
       - progress_rate
       - rank
       - user
+    LinkSocialAccountRequest:
+      type: object
+      properties:
+        provider:
+          $ref: '#/components/schemas/ProviderEnum'
+        state:
+          type: string
+        code:
+          type: string
+        access_token:
+          type: string
+        id_token:
+          type: string
+        redirect_uri:
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
+      required:
+      - provider
+      - state
     LinkedAccountsResponse:
       type: object
       properties:

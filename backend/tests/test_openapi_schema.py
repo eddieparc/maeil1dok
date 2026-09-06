@@ -20,6 +20,25 @@ HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "tra
 class OpenApiSchemaTest(SimpleTestCase):
     maxDiff = None
 
+    def test_social_account_link_request_declares_callback_uri(self):
+        with redirect_stderr(io.StringIO()):
+            schema = SchemaGenerator().get_schema(public=True)
+
+        for prefix in ("auth", "accounts"):
+            operation = schema["paths"][f"/api/v1/{prefix}/link-social/"]["post"]
+            self.assertIn("requestBody", operation)
+            reference = operation["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+            request_schema = schema["components"]["schemas"][reference.rsplit("/", 1)[1]]
+            self.assertEqual(
+                {"provider", "state", "code", "access_token", "id_token", "redirect_uri"},
+                set(request_schema["properties"]),
+            )
+            self.assertEqual({"provider", "state"}, set(request_schema["required"]))
+            self.assertIn(
+                {"type": "string", "format": "uri"},
+                request_schema["properties"]["redirect_uri"]["oneOf"],
+            )
+
     def test_committed_schema_matches_generated_schema(self):
         with tempfile.TemporaryDirectory() as directory:
             generated_path = Path(directory) / "schema.yml"

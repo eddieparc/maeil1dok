@@ -1,10 +1,11 @@
 <!-- noqa: SIZE_OK OAuth callback is the existing provider bridge; this hardening keeps the redirect contract intact -->
 <template>
-  <div class="min-h-screen flex items-center justify-center">
-    <div class="text-center">
+  <main class="auth-callback-page" aria-busy="true">
+    <div class="auth-callback-status" role="status" aria-live="polite">
+      <span class="auth-callback-spinner" aria-hidden="true" />
       <p>{{ statusMessage }}</p>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup lang="ts">
@@ -19,6 +20,7 @@ import {
   getMergeToken,
   getNativeAppScheme,
   isSignedLinkState,
+  resolveSocialRedirectUri,
   type NativeAppState,
 } from '#shared/utils/authCallbackRuntime'
 
@@ -28,6 +30,12 @@ const modal = useModal()
 const { consumeRedirectUrl } = useNavigation()
 
 const statusMessage = ref('처리 중입니다...')
+
+interface CallbackContext {
+  readonly redirectUri: string
+  readonly isFromApp: boolean
+  readonly appScheme?: string
+}
 
 const parseStateParam = (): NativeAppState | null => {
   const state = firstQueryValue(route.query.state)
@@ -48,12 +56,11 @@ const redirectToApp = (scheme: string, provider: string, params: Record<string, 
 const handleLoginError = async (
   provider: string,
   error: unknown,
-  isFromApp: boolean,
-  appScheme?: string,
+  context: CallbackContext,
 ) => {
   const authError = resolveSocialAuthError(error)
-  if (isFromApp && appScheme) {
-    redirectToApp(appScheme, provider, {
+  if (context.isFromApp && context.appScheme) {
+    redirectToApp(context.appScheme, provider, {
       error: authError.message,
       error_code: authError.errorCode,
       request_id: authError.requestId,
@@ -100,6 +107,22 @@ onMounted(async () => {
   const safeAppScheme = getNativeAppScheme(stateData)
   const isFromApp = Boolean(safeAppScheme)
   const isLinkAction = isSignedLinkState(state)
+  const config = useRuntimeConfig()
+  const configuredRedirectUris = {
+    apple: config.public.APPLE_REDIRECT_URI,
+    google: config.public.GOOGLE_REDIRECT_URI,
+    kakao: config.public.KAKAO_REDIRECT_URI,
+  }
+  const redirectUri = resolveSocialRedirectUri(
+    providerName,
+    configuredRedirectUris[providerName as keyof typeof configuredRedirectUris],
+    window.location.origin,
+  )
+  const callbackContext: CallbackContext = {
+    redirectUri,
+    isFromApp,
+    appScheme: safeAppScheme || undefined,
+  }
 
   if (!code) {
     navigateTo('/login')
@@ -121,31 +144,42 @@ onMounted(async () => {
     }
     
     statusMessage.value = '계정 연결 중입니다...'
-    await handleLinkSocialAccount(providerName, code, state)
+    await handleLinkSocialAccount(providerName, code, { state, redirectUri })
     return
   }
 
   statusMessage.value = '로그인 처리 중입니다...'
   if (providerName === 'kakao') {
-    await handleKakaoCallback(code, isFromApp, safeAppScheme)
+    await handleKakaoCallback(code, callbackContext)
   } else if (providerName === 'google') {
-    await handleGoogleCallback(code, isFromApp, safeAppScheme)
+    await handleGoogleCallback(code, callbackContext)
   } else if (providerName === 'apple') {
     const idToken = firstQueryValue(route.query.id_token)
     const userInfo = firstQueryValue(route.query.user)
-    await handleAppleCallback(code, idToken, userInfo, isFromApp, safeAppScheme)
+    await handleAppleCallback({ code, idToken, userInfo }, callbackContext)
   } else {
     navigateTo('/login')
   }
 })
 
 // 계정 연결 처리
-const handleLinkSocialAccount = async (provider: string, code: string, state: string) => {
+const handleLinkSocialAccount = async (
+  provider: string,
+  code: string,
+  callback: {
+    readonly state: string
+    readonly redirectUri: string
+  },
+) => {
   const idToken = firstQueryValue(route.query.id_token)
   try {
     const api = useApi()
     
-    const payload = buildLinkSocialPayload(provider, code, state, idToken)
+    const payload = buildLinkSocialPayload(provider, code, {
+      state: callback.state,
+      idToken,
+      redirectUri: callback.redirectUri,
+    })
     
     const response = await api.POST('/api/v1/auth/link-social/', payload)
 
@@ -181,13 +215,16 @@ const handleLinkSocialAccount = async (provider: string, code: string, state: st
   }
 }
 
-const handleKakaoCallback = async (code: string, isFromApp = false, appScheme?: string) => {
+const handleKakaoCallback = async (
+  code: string,
+  context: CallbackContext,
+) => {
   try {
-    const response = await auth.socialLogin('kakao', code)
+    const response = await auth.socialLogin('kakao', code, context.redirectUri)
 
     if (response.needsSignup) {
-      if (isFromApp && appScheme) {
-        redirectToApp(appScheme, 'kakao', {
+      if (context.isFromApp && context.appScheme) {
+        redirectToApp(context.appScheme, 'kakao', {
           needsSignup: 'true',
           provider: 'kakao',
           provider_id: response.kakao_id || '',
@@ -211,8 +248,8 @@ const handleKakaoCallback = async (code: string, isFromApp = false, appScheme?: 
         })
       }
     } else {
-      if (isFromApp && appScheme) {
-        redirectToApp(appScheme, 'kakao', {
+      if (context.isFromApp && context.appScheme) {
+        redirectToApp(context.appScheme, 'kakao', {
           access: response.access,
           refresh: response.refresh,
           user: encodeURIComponent(JSON.stringify(response.user))
@@ -228,23 +265,27 @@ const handleKakaoCallback = async (code: string, isFromApp = false, appScheme?: 
     }
   } catch (error) {
     console.error('[Kakao Callback] Error during login:', error)
-    await handleLoginError('kakao', error, isFromApp, appScheme)
+    await handleLoginError('kakao', error, context)
   }
 }
 
-const handleGoogleCallback = async (code: string, isFromApp = false, appScheme?: string) => {
+const handleGoogleCallback = async (
+  code: string,
+  context: CallbackContext,
+) => {
   try {
     const api = useApi()
     const response = await api.POST('/api/v1/auth/social-login/v2/', {
       provider: 'google',
-      code
+      code,
+      redirect_uri: context.redirectUri,
     })
 
     const data = response
 
     if ('needsSignup' in data && data.needsSignup) {
-      if (isFromApp && appScheme) {
-        redirectToApp(appScheme, 'google', {
+      if (context.isFromApp && context.appScheme) {
+        redirectToApp(context.appScheme, 'google', {
           needsSignup: 'true',
           provider: 'google',
           provider_id: data.provider_id as string,
@@ -269,8 +310,8 @@ const handleGoogleCallback = async (code: string, isFromApp = false, appScheme?:
       }
     } else {
       const loginData = data as Extract<typeof data, { access: string }>
-      if (isFromApp && appScheme) {
-        redirectToApp(appScheme, 'google', {
+      if (context.isFromApp && context.appScheme) {
+        redirectToApp(context.appScheme, 'google', {
           access: loginData.access,
           refresh: loginData.refresh,
           user: encodeURIComponent(JSON.stringify(loginData.user))
@@ -286,19 +327,26 @@ const handleGoogleCallback = async (code: string, isFromApp = false, appScheme?:
     }
   } catch (error) {
     console.error('[Google Callback] Error during login:', error)
-    await handleLoginError('google', error, isFromApp, appScheme)
+    await handleLoginError('google', error, context)
   }
 }
 
-const handleAppleCallback = async (code: string, idToken: string, userInfo: string | undefined, isFromApp = false, appScheme?: string) => {
+const handleAppleCallback = async (
+  credential: {
+    readonly code: string
+    readonly idToken: string
+    readonly userInfo?: string
+  },
+  context: CallbackContext,
+) => {
   try {
     const api = useApi()
     
     // Parse user info if provided (Apple only sends this on first login)
     let fullName: string | undefined
-    if (userInfo) {
+    if (credential.userInfo) {
       try {
-        const user = JSON.parse(userInfo)
+        const user = JSON.parse(credential.userInfo)
         if (user.name) {
           fullName = `${user.name.firstName || ''} ${user.name.lastName || ''}`.trim() || undefined
         }
@@ -309,16 +357,17 @@ const handleAppleCallback = async (code: string, idToken: string, userInfo: stri
     
     const response = await api.POST('/api/v1/auth/social-login/v2/', {
       provider: 'apple',
-      code,
-      id_token: idToken,
-      full_name: fullName
+      code: credential.code,
+      id_token: credential.idToken,
+      full_name: fullName,
+      redirect_uri: context.redirectUri,
     })
 
     const data = response
 
     if ('needsSignup' in data && data.needsSignup) {
-      if (isFromApp && appScheme) {
-        redirectToApp(appScheme, 'apple', {
+      if (context.isFromApp && context.appScheme) {
+        redirectToApp(context.appScheme, 'apple', {
           needsSignup: 'true',
           provider: 'apple',
           provider_id: data.provider_id as string,
@@ -343,8 +392,8 @@ const handleAppleCallback = async (code: string, idToken: string, userInfo: stri
       }
     } else {
       const loginData = data as Extract<typeof data, { access: string }>
-      if (isFromApp && appScheme) {
-        redirectToApp(appScheme, 'apple', {
+      if (context.isFromApp && context.appScheme) {
+        redirectToApp(context.appScheme, 'apple', {
           access: loginData.access,
           refresh: loginData.refresh,
           user: encodeURIComponent(JSON.stringify(loginData.user))
@@ -360,7 +409,54 @@ const handleAppleCallback = async (code: string, idToken: string, userInfo: stri
     }
   } catch (error) {
     console.error('[Apple Callback] Error during login:', error)
-    await handleLoginError('apple', error, isFromApp, appScheme)
+    await handleLoginError('apple', error, context)
   }
 }
 </script>
+
+<style scoped>
+.auth-callback-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--spacing-6);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.auth-callback-status {
+  display: grid;
+  justify-items: center;
+  gap: var(--spacing-3);
+  text-align: center;
+}
+
+.auth-callback-status p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.auth-callback-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--color-border-default);
+  border-top-color: var(--color-accent-primary);
+  border-radius: 50%;
+  animation: auth-callback-spin 0.8s linear infinite;
+}
+
+@keyframes auth-callback-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-callback-spinner {
+    animation: none;
+  }
+}
+</style>

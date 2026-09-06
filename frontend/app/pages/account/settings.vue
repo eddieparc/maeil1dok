@@ -269,6 +269,7 @@ import {
   parseNativeAppleLinkResult,
   shouldUseNativeAppleLink,
 } from '~/utils/accountSettingsRuntime.js'
+import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
 
 useHead({
   title: '계정 설정 - 매일일독',
@@ -613,18 +614,30 @@ const getOAuthProviderConfig = (provider: Provider) => {
   const providerConfig = {
     kakao: {
       clientId: config.public.KAKAO_CLIENT_ID,
-      redirectUri: config.public.KAKAO_REDIRECT_URI,
+      redirectUri: resolveSocialRedirectUri(
+        'kakao',
+        config.public.KAKAO_REDIRECT_URI,
+        window.location.origin,
+      ),
       baseUrl: 'https://kauth.kakao.com/oauth/authorize',
     },
     google: {
       clientId: config.public.GOOGLE_CLIENT_ID,
-      redirectUri: config.public.GOOGLE_REDIRECT_URI,
+      redirectUri: resolveSocialRedirectUri(
+        'google',
+        config.public.GOOGLE_REDIRECT_URI,
+        window.location.origin,
+      ),
       baseUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
       scope: 'email profile',
     },
     apple: {
       clientId: config.public.APPLE_CLIENT_ID,
-      redirectUri: config.public.APPLE_REDIRECT_URI || `${window.location.origin}/auth/apple/callback`,
+      redirectUri: resolveSocialRedirectUri(
+        'apple',
+        config.public.APPLE_REDIRECT_URI,
+        window.location.origin,
+      ),
       baseUrl: 'https://appleid.apple.com/auth/authorize',
       scope: 'name email',
     },

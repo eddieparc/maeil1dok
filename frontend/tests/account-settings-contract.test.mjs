@@ -411,7 +411,10 @@ test('social linking uses server-issued state and sends it back to the API', asy
   assert.equal(isSignedLinkState('header:payload:signature'), true);
   assert.equal(isSignedLinkState('header:payload'), false);
   assert.deepEqual(
-    buildLinkSocialPayload('apple', 'single-use-code', 'header:payload:signature', 'apple-id-token'),
+    buildLinkSocialPayload('apple', 'single-use-code', {
+      state: 'header:payload:signature',
+      idToken: 'apple-id-token',
+    }),
     {
       provider: 'apple',
       code: 'single-use-code',
@@ -420,7 +423,10 @@ test('social linking uses server-issued state and sends it back to the API', asy
     },
   );
   assert.deepEqual(
-    buildLinkSocialPayload('google', 'single-use-code', 'header:payload:signature', 'ignored-token'),
+    buildLinkSocialPayload('google', 'single-use-code', {
+      state: 'header:payload:signature',
+      idToken: 'ignored-token',
+    }),
     {
       provider: 'google',
       code: 'single-use-code',
@@ -452,6 +458,62 @@ test('server native OAuth redirects use the same app scheme allowlist', async ()
   for (const source of [serverOAuthRedirectSource, serverAppleCallbackSource]) {
     assert.doesNotMatch(source, /\$\{stateData\.scheme\}:\/\/auth\//);
   }
+});
+
+test('web OAuth callbacks stay on the production or beta origin for every provider', async () => {
+  const { resolveSocialRedirectUri } = await importAuthCallbackRuntime();
+  const providers = ['kakao', 'google', 'apple'];
+
+  for (const provider of providers) {
+    assert.equal(
+      resolveSocialRedirectUri(
+        provider,
+        `https://maeil1dok.app/auth/${provider}/callback`,
+        'https://beta.maeil1dok.app',
+      ),
+      `https://beta.maeil1dok.app/auth/${provider}/callback`,
+    );
+    assert.equal(
+      resolveSocialRedirectUri(
+        provider,
+        `https://beta.maeil1dok.app/auth/${provider}/callback`,
+        'https://maeil1dok.app',
+      ),
+      `https://maeil1dok.app/auth/${provider}/callback`,
+    );
+    assert.equal(
+      resolveSocialRedirectUri(
+        provider,
+        `http://localhost:3019/auth/${provider}/callback`,
+        'http://localhost:3019',
+      ),
+      `http://localhost:3019/auth/${provider}/callback`,
+    );
+  }
+});
+
+test('Apple form_post forwards credentials to the same web host or an allowlisted native scheme', async () => {
+  const { buildAppleCallbackForward } = await importAuthCallbackRuntime();
+  const state = encodeURIComponent(JSON.stringify({ from: 'app', scheme: 'maeil1dok' }));
+  const credentials = {
+    code: 'apple-code',
+    id_token: 'apple-id-token',
+    state,
+    user: '{"name":{"firstName":"Grace"}}',
+  };
+
+  assert.equal(
+    buildAppleCallbackForward(credentials),
+    `/auth/apple/callback?${new URLSearchParams(credentials).toString()}`,
+  );
+  assert.equal(
+    buildAppleCallbackForward(credentials, { from: 'app', scheme: 'maeil1dok' }),
+    `maeil1dok://auth/apple/callback?${new URLSearchParams(credentials).toString()}`,
+  );
+  assert.equal(
+    buildAppleCallbackForward(credentials, { from: 'app', scheme: 'javascript' }),
+    `/auth/apple/callback?${new URLSearchParams(credentials).toString()}`,
+  );
 });
 
 test('Google account linking has a guarded loading state and configuration error path', () => {

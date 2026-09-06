@@ -47,6 +47,7 @@ from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from accounts.models import SocialAccount
+from accounts.views import generate_oauth_link_state
 
 User = get_user_model()
 
@@ -237,6 +238,7 @@ class SocialLoginV2ContractTestCase(APITestCase):
     def setUp(self):
         super().setUp()
         cache.clear()
+        self.addCleanup(cache.clear)
 
     def post_social_login(self, payload):
         return self.client.post(SOCIAL_LOGIN_V2_URL, payload, format="json")
@@ -835,3 +837,136 @@ class SocialLoginV2SharedContractTests(SocialLoginV2ContractTestCase):
         self.assertEqual(body["action"], "correct_input")
         self.assertIn("provider", body["field_errors"])
         self.assert_no_auth_cookies(response)
+
+
+class SocialOAuthRedirectContractTests(SocialLoginV2ContractTestCase):
+    def test_beta_and_production_redirects_are_used_for_code_exchange(self):
+        cases = (
+            (
+                "kakao",
+                KAKAO_TOKEN_URL,
+                KAKAO_USERINFO_URL,
+                {
+                    "id": "kakao-redirect",
+                    "kakao_account": {"email": "redirect@example.com"},
+                    "properties": {"nickname": "카카오리다이렉트"},
+                },
+            ),
+            (
+                "google",
+                GOOGLE_TOKEN_URL,
+                GOOGLE_USERINFO_URL,
+                {
+                    "sub": "google-redirect",
+                    "email": "redirect@example.com",
+                    "email_verified": True,
+                    "name": "구글리다이렉트",
+                },
+            ),
+        )
+
+        for provider, token_url, userinfo_url, userinfo in cases:
+            for origin in ("https://maeil1dok.app", "https://beta.maeil1dok.app"):
+                with self.subTest(provider=provider, origin=origin):
+                    redirect_uri = f"{origin}/auth/{provider}/callback"
+                    with mocked_provider_http(
+                        post_map={token_url: {"access_token": "exchanged-token"}},
+                        get_map={userinfo_url: userinfo},
+                    ) as network:
+                        response = self.post_social_login(
+                            {
+                                "provider": provider,
+                                "code": f"{provider}-code",
+                                "redirect_uri": redirect_uri,
+                            }
+                        )
+
+                    self.assertEqual(response.status_code, 200)
+                    token_request = network.calls[0]
+                    self.assertEqual(token_request[2]["data"]["redirect_uri"], redirect_uri)
+
+    def test_apple_accepts_exact_beta_and_production_callback_urls(self):
+        for origin in ("https://maeil1dok.app", "https://beta.maeil1dok.app"):
+            with self.subTest(origin=origin):
+                id_token = make_apple_id_token(
+                    f"apple-{origin}",
+                    email="apple-redirect@example.com",
+                )
+                with mocked_apple_jwks():
+                    response = self.post_social_login(
+                        {
+                            "provider": "apple",
+                            "id_token": id_token,
+                            "redirect_uri": f"{origin}/auth/apple/callback",
+                        }
+                    )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertIs(response.json()["needsSignup"], True)
+
+    def test_unapproved_redirect_is_rejected_before_provider_verification(self):
+        provider_payloads = (
+            ("kakao", {"code": "kakao-code"}, "accounts.views.get_kakao_user_info"),
+            ("google", {"code": "google-code"}, "accounts.views.get_google_user_info"),
+            (
+                "apple",
+                {"id_token": "apple-id-token"},
+                "accounts.views.get_apple_user_info",
+            ),
+        )
+
+        for provider, credential, provider_function in provider_payloads:
+            with self.subTest(provider=provider):
+                with patch(provider_function) as provider_call:
+                    response = self.post_social_login(
+                        {
+                            "provider": provider,
+                            **credential,
+                            "redirect_uri": "https://evil.example/auth/callback",
+                        }
+                    )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["error_code"], "invalid_redirect_uri")
+                provider_call.assert_not_called()
+
+    def test_account_linking_exchanges_google_code_with_beta_redirect(self):
+        user = User.objects.create(
+            username="beta-link-user",
+            nickname="베타연결",
+            email="beta-link@example.com",
+        )
+        self.client.force_authenticate(user=user)
+        state = generate_oauth_link_state(user)
+        redirect_uri = "https://beta.maeil1dok.app/auth/google/callback"
+        userinfo = {
+            "sub": "google-beta-link",
+            "email": "linked@example.com",
+            "email_verified": True,
+            "name": "연결 사용자",
+        }
+
+        with mocked_provider_http(
+            post_map={GOOGLE_TOKEN_URL: {"access_token": "linked-token"}},
+            get_map={GOOGLE_USERINFO_URL: userinfo},
+        ) as network:
+            response = self.client.post(
+                "/api/v1/auth/link-social/",
+                {
+                    "provider": "google",
+                    "code": "google-link-code",
+                    "state": state,
+                    "redirect_uri": redirect_uri,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(network.calls[0][2]["data"]["redirect_uri"], redirect_uri)
+        self.assertTrue(
+            SocialAccount.objects.filter(
+                user=user,
+                provider="google",
+                provider_id="google-beta-link",
+            ).exists()
+        )

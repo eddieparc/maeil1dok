@@ -4673,6 +4673,14 @@ export interface components {
             /** Format: date-time */
             joined_at?: string;
         };
+        LinkSocialAccountRequest: {
+            provider: components["schemas"]["ProviderEnum"];
+            state: string;
+            code?: string;
+            access_token?: string;
+            id_token?: string;
+            redirect_uri?: string;
+        };
         LinkedAccountsResponse: {
             has_password: boolean;
             email: (string) | null;
@@ -5802,7 +5810,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkSocialAccountRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LinkSocialAccountRequest"];
+                "multipart/form-data": components["schemas"]["LinkSocialAccountRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -6848,7 +6862,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkSocialAccountRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LinkSocialAccountRequest"];
+                "multipart/form-data": components["schemas"]["LinkSocialAccountRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {

@@ -13,7 +13,7 @@ from .serializers import (
     SocialLoginSerializer, EmailRegisterSerializer, LinkedAccountsSerializer,
     SetPasswordSerializer, PasswordResetConfirmSerializer,
     AccountEmailSerializer, CompleteSocialSignupSerializer,
-    NotificationSettingsSerializer
+    NotificationSettingsSerializer, LinkSocialAccountRequestSerializer
 )
 from .authentication import (
     SOCIAL_SIGNUP_COOKIE,
@@ -25,6 +25,7 @@ from .authentication import (
 )
 from .email_identity import normalize_email_identity
 from .models import SocialAccount, EmailVerificationToken, PasswordResetToken, UserReadingSettings
+from .oauth_redirects import InvalidOAuthRedirectURIError, resolve_oauth_redirect_uri
 from .visibility import is_live_user
 from . import handoff
 from .email_utils import send_verification_email, send_password_reset_email, send_welcome_email
@@ -872,8 +873,19 @@ def social_login_v2(request):
     provider = serializer.validated_data.get('provider')
     code = serializer.validated_data.get('code')
     access_token = serializer.validated_data.get('access_token')
-    # 앱에서 사용한 redirect_uri (웹과 다를 수 있음)
-    redirect_uri = serializer.validated_data.get('redirect_uri')
+    try:
+        redirect_uri = resolve_oauth_redirect_uri(
+            provider,
+            serializer.validated_data.get('redirect_uri'),
+        )
+    except InvalidOAuthRedirectURIError:
+        return _social_error(
+            '허용되지 않은 소셜 로그인 콜백 주소입니다.',
+            error_code='invalid_redirect_uri',
+            status_code=400,
+            field='redirect_uri',
+            action='restart_social_login',
+        )
     
     try:
         # 소셜 제공자별 사용자 정보 가져오기
@@ -1486,7 +1498,10 @@ def issue_oauth_link_state(request):
     return Response({'state': generate_oauth_link_state(request.user)})
 
 
-@extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
+@extend_schema(
+    request=LinkSocialAccountRequestSerializer,
+    responses={200: openapi.AccountSuccessMessageResponseSerializer},
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def link_social_account(request):
@@ -1500,9 +1515,30 @@ def link_social_account(request):
     access_token = request.data.get('access_token')
     code = request.data.get('code')
     state = request.data.get('state')
+    requested_redirect_uri = request.data.get('redirect_uri')
     
     if not provider:
         return Response({'error': '소셜 제공자를 지정해주세요.'}, status=400)
+    if provider not in {'apple', 'google', 'kakao'}:
+        return Response({'error': '지원하지 않는 소셜 제공자입니다.'}, status=400)
+    if requested_redirect_uri is not None and not isinstance(requested_redirect_uri, str):
+        return _social_error(
+            '허용되지 않은 소셜 로그인 콜백 주소입니다.',
+            error_code='invalid_redirect_uri',
+            status_code=400,
+            field='redirect_uri',
+            action='restart_social_login',
+        )
+    try:
+        redirect_uri = resolve_oauth_redirect_uri(provider, requested_redirect_uri)
+    except InvalidOAuthRedirectURIError:
+        return _social_error(
+            '허용되지 않은 소셜 로그인 콜백 주소입니다.',
+            error_code='invalid_redirect_uri',
+            status_code=400,
+            field='redirect_uri',
+            action='restart_social_login',
+        )
     if not verify_oauth_link_state(state, user):
         return Response({'error': '유효하지 않은 계정 연결 요청입니다.'}, status=400)
     
@@ -1512,7 +1548,7 @@ def link_social_account(request):
             if access_token:
                 social_info = get_kakao_user_info_by_token(access_token)
             elif code:
-                social_info = get_kakao_user_info(code)
+                social_info = get_kakao_user_info(code, redirect_uri)
             else:
                 return Response({'error': 'access_token 또는 code가 필요합니다.'}, status=400)
             
@@ -1524,7 +1560,7 @@ def link_social_account(request):
             if access_token:
                 social_info = get_google_user_info_by_token(access_token)
             elif code:
-                social_info = get_google_user_info(code)
+                social_info = get_google_user_info(code, redirect_uri)
             else:
                 return Response({'error': 'access_token 또는 code가 필요합니다.'}, status=400)
             
