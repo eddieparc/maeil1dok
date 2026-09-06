@@ -115,3 +115,82 @@ class ChapterDetailFallbackAudioApiTest(TestCase):
         self.assertEqual(response.status_code, 200)
         pairs = [(item["book"], item["chapter"]) for item in response.data["fallback_audio_links"]]
         self.assertEqual(pairs, [("gen", 1), ("gen", 2), ("mat", 5)])
+
+
+@override_settings(ROOT_URLCONF=__name__)
+class PlainChapterFallbackAudioApiTest(TestCase):
+    """플랜 없이 그냥 장을 열었을 때도 그 장의 폴백 오디오를 준다."""
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def _detail(self, book, chapter):
+        return self.client.get(
+            "/api/v1/todos/detail/",
+            {"book": book, "chapter": chapter},
+        )
+
+    def test_returns_fallback_for_the_requested_chapter(self):
+        response = self._detail("hab", 1)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data["fallback_audio_links"],
+            [{"book": "hab", "chapter": 1, "url": get_chapter_audio_url("hab", 1)}],
+        )
+        self.assertTrue(
+            response.data["fallback_audio_links"][0]["url"].startswith(
+                "https://www.youtube.com/watch?v="
+            )
+        )
+
+    def test_fallback_follows_the_requested_chapter(self):
+        first = self._detail("hab", 1).data["fallback_audio_links"][0]["url"]
+        second = self._detail("hab", 2).data["fallback_audio_links"][0]["url"]
+
+        self.assertNotEqual(first, second)
+        self.assertEqual(
+            self._detail("hab", 2).data["fallback_audio_links"][0]["chapter"], 2
+        )
+
+    def test_unpublished_chapter_returns_empty_list(self):
+        response = self._detail("psa", 101)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["fallback_audio_links"], [])
+
+    def test_invalid_book_code_is_still_rejected(self):
+        response = self._detail("nope", 1)
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_chapter_outside_the_plan_schedule_still_gets_fallback(self):
+        owner = User.objects.create_user(
+            username="plain-fallback-owner",
+            nickname="플랜관리자",
+            password="pw-test-1234",
+        )
+        plan = BibleReadingPlan.objects.create(
+            name="일정 없는 장 확인용 플랜",
+            is_active=True,
+            created_by=owner,
+        )
+        DailyBibleSchedule.objects.create(
+            plan=plan,
+            date=timezone.now().date(),
+            book="창세기",
+            start_chapter=1,
+            end_chapter=1,
+        )
+
+        response = self.client.get(
+            "/api/v1/todos/detail/",
+            {"plan_id": plan.id, "book": "hab", "chapter": 1},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["plan_detail"], [])
+        self.assertEqual(
+            response.data["fallback_audio_links"],
+            [{"book": "hab", "chapter": 1, "url": get_chapter_audio_url("hab", 1)}],
+        )
