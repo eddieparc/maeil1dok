@@ -47,14 +47,30 @@ interface Highlight {
   memo?: string;
 }
 
+export interface VerseSelectionPayload {
+  book: string;
+  chapter: number;
+  version: string;
+  start: number;
+  end: number;
+  text: string;
+  verses: Array<{ number: number; text: string }>;
+}
+
+export interface SelectionHighlightPayload extends VerseSelectionPayload {
+  color: string;
+  highlightId?: number;
+}
+
 export interface SelectionMenuState {
   visible: boolean;
   mode: 'action' | 'copy' | null;
   isHighlighted: boolean;
   isSingleVerse: boolean;
+  selection?: VerseSelectionPayload | null;
 }
 
-export interface SelectionSharePayload {
+export interface SelectionSharePayload extends Partial<VerseSelectionPayload> {
   text: string;
   startVerse: number;
   endVerse: number;
@@ -64,12 +80,14 @@ interface Props {
   content: string;
   book: string;
   chapter: number;
+  version?: string;
   isLoading?: boolean;
   initialScrollPosition?: number;
   highlights?: Highlight[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  version: '',
   isLoading: false,
   initialScrollPosition: 0,
   highlights: () => [],
@@ -77,11 +95,14 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   scroll: [position: number];
-  'verse-select': [verses: { start: number; end: number; text: string }];
+  'scroll-pixels': [position: number];
+  'verse-select': [verses: VerseSelectionPayload];
+  'highlight-save': [payload: SelectionHighlightPayload];
   bookmark: [verses: { start: number; end: number; text: string }];
   highlight: [verses: { start: number; end: number; text: string }];
   'highlight-delete': [highlightId: number];
   copy: [text: string];
+  'copy-error': [error: unknown];
   share: [payload: SelectionSharePayload];
   'selection-menu-change': [state: SelectionMenuState];
   'swipe-left': [];
@@ -119,12 +140,34 @@ const showActionMenu = ref(false);
 const selectedVerses = ref({ start: 0, end: 0 });
 const selectedText = ref('');
 
+// Read the complete verse, including KNT continuation lines, from sanitized content.
+const getVerseText = (el: Element): string => Array.from(el.querySelectorAll('.verse-text'))
+  .map(line => line.textContent?.trim() || '').filter(Boolean).join(' ');
+
+const getSelectionPayload = (): VerseSelectionPayload | null => {
+  const { start, end } = selectedVerses.value;
+  if (start <= 0 || end < start || !viewerRef.value) return null;
+  const verses: VerseSelectionPayload['verses'] = [];
+  viewerRef.value.querySelectorAll('.verse').forEach(el => {
+    const number = Number(el.querySelector('.verse-number')?.textContent?.trim());
+    if (number >= start && number <= end) verses.push({ number, text: getVerseText(el) });
+  });
+  if (!verses.length) return null;
+  return { book: props.book, chapter: props.chapter, version: props.version,
+    start, end, text: verses.map(verse => verse.text).join(' '), verses };
+};
+
 const emitSelectionMenuChange = () => {
+  const visible = showActionMenu.value || showCopyMenu.value;
+  const selection = visible ? getSelectionPayload() : null;
+  // Consumers receive a detached snapshot before any action can open a sheet.
+  if (selection) emit('verse-select', selection);
   emit('selection-menu-change', {
-    visible: showActionMenu.value || showCopyMenu.value,
+    visible,
     mode: showActionMenu.value ? 'action' : showCopyMenu.value ? 'copy' : null,
     isHighlighted: isSelectedVerseHighlighted.value,
-    isSingleVerse: clickSelectedVerses.value.length === 1,
+    isSingleVerse: selectedVerses.value.start === selectedVerses.value.end,
+    selection,
   });
 };
 
@@ -184,12 +227,12 @@ const renderedContent = computed(() => {
   if (props.highlights.length > 0) {
     // .verse 요소에 하이라이트 적용 (verse-number에서 절 번호 추출)
     content = content.replace(
-      /<div class="verse"><span class="verse-number">(\d+)<\/span>/g,
-      (match, verseNum) => {
+      /<div class="(verse(?: [^"]*)?)">(\s*(?:<div class="verse-line[^"]*">\s*)?<span class="verse-number">(\d+)<\/span>)/g,
+      (match, classes, prefix, verseNum) => {
         const highlight = getHighlightForVerse(parseInt(verseNum));
         if (highlight) {
           // 배경색을 직접 지정하지 않고 CSS 변수로 전달하여 투명도 조절 가능하게 함
-          return `<div class="verse highlighted" data-highlight-id="${highlight.id}" style="--highlight-bg: ${highlight.color}"><span class="verse-number">${verseNum}</span>`;
+          return `<div class="${classes} highlighted" data-highlight-id="${highlight.id}" style="--highlight-bg: ${highlight.color}">${prefix}`;
         }
         return match;
       }
@@ -202,6 +245,7 @@ const renderedContent = computed(() => {
 // 스크롤 핸들러 (throttle 적용)
 let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 const handleScroll = () => {
+  if (viewerRef.value) emit('scroll-pixels', viewerRef.value.scrollTop);
   if (scrollTimeout) {
     clearTimeout(scrollTimeout);
   }
@@ -253,8 +297,8 @@ const clearDragSelection = () => {
 
 // 모든 선택 초기화
 const clearAllSelections = () => {
-  clearClickSelection();
   clearDragSelection();
+  clearClickSelection();
 };
 
 // 절 하이라이트 적용
@@ -313,25 +357,37 @@ const getCopyText = (type: string): string => {
 };
 
 // 절 클릭 복사 핸들러
+const writeCopyText = async (text: string): Promise<boolean> => {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Keep the older-browser fallback, but never report a failed copy as success.
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.setAttribute('readonly', '');
+    document.body.appendChild(textarea);
+    try {
+      textarea.select();
+      if (!document.execCommand('copy')) throw new Error('Clipboard copy failed');
+    } catch (error) {
+      emit('copy-error', error);
+      return false;
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+  emit('copy', text);
+  return true;
+};
+
 const handleClickCopy = async (type: string) => {
   const text = getCopyText(type);
   if (!text) return;
-
-  try {
-    await navigator.clipboard.writeText(text);
-    emit('copy', text);
-  } catch {
-    // Fallback for older browsers
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    emit('copy', text);
-  }
-
-  clearClickSelection();
+  const selection = selectedVerses.value;
+  const copied = await writeCopyText(text);
+  if (copied && selection === selectedVerses.value) clearAllSelections();
 };
 
 // 절 클릭 핸들러 - 액션 메뉴 표시
@@ -353,7 +409,7 @@ const handleVerseClick = (event: MouseEvent | TouchEvent) => {
   if (!numEl || !textEl) return;
 
   const num = parseInt(numEl.textContent?.trim() || '0', 10);
-  const txt = textEl.textContent?.trim() || '';
+  const txt = getVerseText(verseEl);
 
   // 단일 절 선택 상태에서 같은 절을 다시 클릭하면 해제
   if (
@@ -362,10 +418,7 @@ const handleVerseClick = (event: MouseEvent | TouchEvent) => {
     clickSelectedStart.value === num &&
     clickSelectedVerses.value.length === 1
   ) {
-    hideActionMenu();
-    setTimeout(() => {
-      clearClickSelection();
-    }, TIMING.VERSE_RESELECT_DELAY);
+    clearAllSelections();
     return;
   }
 
@@ -404,7 +457,7 @@ const handleVerseClick = (event: MouseEvent | TouchEvent) => {
         if (!nEl || !tEl) return;
         const n = parseInt(nEl.textContent?.trim() || '0', 10);
         if (n >= start && n <= end) {
-          const verseText = tEl.textContent?.trim() || '';
+          const verseText = getVerseText(el);
           versesArray.push({ number: n, text: verseText });
           combinedText += (combinedText ? ' ' : '') + verseText;
         }
@@ -419,20 +472,15 @@ const handleVerseClick = (event: MouseEvent | TouchEvent) => {
     showActionMenu.value = true;
     emitSelectionMenuChange();
   } else {
-    // 재선택: 메뉴를 닫고 새로 열기
-    clearClickSelection();
-    hideActionMenu();
-    setTimeout(() => {
-      clickSelectedStart.value = num;
-      clickSelectedVerses.value = [{ number: num, text: txt }];
-      highlightVerses(num, num);
-      
-      // 액션 메뉴용 데이터 설정
-      selectedVerses.value = { start: num, end: num };
-      selectedText.value = txt;
-      showActionMenu.value = true;
-      emitSelectionMenuChange();
-    }, TIMING.VERSE_RESELECT_DELAY);
+    clearAllSelections();
+    selectionMode.value = 'click';
+    clickSelectedStart.value = num;
+    clickSelectedVerses.value = [{ number: num, text: txt }];
+    highlightVerses(num, num);
+    selectedVerses.value = { start: num, end: num };
+    selectedText.value = txt;
+    showActionMenu.value = true;
+    emitSelectionMenuChange();
   }
 };
 
@@ -462,7 +510,7 @@ const handleTextSelection = () => {
   const container = range.commonAncestorContainer;
   const isInBibleContent = container.parentElement?.closest('.bible-content') ||
                            (container as Element).closest?.('.bible-content');
-  if (!isInBibleContent) {
+  if (!isInBibleContent || !viewerRef.value?.contains(container)) {
     return;
   }
 
@@ -475,7 +523,9 @@ const handleTextSelection = () => {
 
   if (verses.start > 0) {
     selectedVerses.value = verses;
-    selectedText.value = text;
+    const payload = getSelectionPayload();
+    selectedText.value = payload?.text || text;
+    clickSelectedVerses.value = payload?.verses || [];
     showActionMenu.value = true;
     emitSelectionMenuChange();
   }
@@ -483,39 +533,16 @@ const handleTextSelection = () => {
 
 // 절 번호 추출
 const extractVerseNumbers = (range: Range): { start: number; end: number } => {
-  const container = range.commonAncestorContainer;
-  const parent = container.parentElement?.closest('.bible-content') || viewerRef.value;
-
-  if (!parent) return { start: 0, end: 0 };
-
-  // 선택 범위 내의 절 번호 찾기 (.verse-number 클래스 사용)
-  const allVerseNums = parent.querySelectorAll('.verse-number');
   let start = 0;
   let end = 0;
-
-  allVerseNums.forEach((el) => {
-    // 절 번호는 텍스트 콘텐츠에서 추출
-    const verseNum = parseInt(el.textContent?.trim() || '0', 10);
-    if (verseNum === 0) return;
-
-    // 선택 범위와 비교
-    try {
-      const position = range.comparePoint(el, 0);
-      if (position <= 0 && start === 0) {
-        start = verseNum;
-      }
-      if (position <= 0) {
-        end = verseNum;
-      }
-    } catch {
-      // comparePoint가 실패하는 경우 (다른 문서 등) 무시
-    }
+  // Intersect whole verse elements: a selection may begin after its verse number.
+  viewerRef.value?.querySelectorAll('.verse').forEach(el => {
+    if (!range.intersectsNode(el)) return;
+    const number = Number(el.querySelector('.verse-number')?.textContent?.trim());
+    if (!number) return;
+    if (!start) start = number;
+    end = number;
   });
-
-  // 시작 절이 없으면 첫 번째 절로
-  if (start === 0 && end > 0) start = 1;
-  if (end === 0 && start > 0) end = start;
-
   return { start, end };
 };
 
@@ -530,13 +557,19 @@ const hideActionMenu = () => {
 
 // 액션 핸들러
 const handleHighlight = () => {
-  emit('highlight', {
-    start: selectedVerses.value.start,
-    end: selectedVerses.value.end,
-    text: selectedText.value,
-  });
-  hideActionMenu();
-  clearSelection();
+  const payload = getSelectionPayload();
+  if (!payload) return;
+  emit('highlight', payload);
+  clearAllSelections();
+};
+
+// Saving remains with the authenticated page/service owner, not this text viewer.
+const handleHighlightColor = (color: string) => {
+  const payload = getSelectionPayload();
+  if (!payload) return;
+  const existing = getSelectedVerseHighlight();
+  emit('highlight-save', { ...payload, color, ...(existing ? { highlightId: existing.id } : {}) });
+  clearAllSelections();
 };
 
 // 하이라이트 추가 또는 제거 핸들러
@@ -554,73 +587,25 @@ const handleHighlightOrRemove = () => {
 };
 
 const handleCopy = async () => {
-  // 액션 메뉴를 숨기고 복사 메뉴 표시
-  hideActionMenu();
-  
-  // 클릭 선택 모드에서는 복사 메뉴 표시
-  if (selectionMode.value === 'click') {
-    showCopyMenu.value = true;
-    emitSelectionMenuChange();
-    return;
-  }
-  
-  // 드래그 선택 모드에서는 clickSelectedVerses 데이터 설정 후 복사 메뉴 표시
-  if (selectionMode.value === 'drag') {
-    // 드래그 선택 데이터를 클릭 선택 형식으로 변환
-    clickSelectedStart.value = selectedVerses.value.start;
-    clickSelectedEnd.value = selectedVerses.value.start === selectedVerses.value.end 
-      ? null 
-      : selectedVerses.value.end;
-    
-    // 단일 절 선택
-    if (selectedVerses.value.start === selectedVerses.value.end) {
-      clickSelectedVerses.value = [{
-        number: selectedVerses.value.start,
-        text: selectedText.value
-      }];
-    } else {
-      // 범위 선택 - viewerRef에서 각 절 텍스트 추출
-      const versesArray: Array<{ number: number; text: string }> = [];
-      if (viewerRef.value) {
-        viewerRef.value.querySelectorAll('.verse').forEach((el) => {
-          const nEl = el.querySelector('.verse-number');
-          const tEl = el.querySelector('.verse-text');
-          if (!nEl || !tEl) return;
-          const n = parseInt(nEl.textContent?.trim() || '0', 10);
-          if (n >= selectedVerses.value.start && n <= selectedVerses.value.end) {
-            versesArray.push({
-              number: n,
-              text: tEl.textContent?.trim() || ''
-            });
-          }
-        });
-      }
-      clickSelectedVerses.value = versesArray;
-    }
-    
-    selectionMode.value = 'click'; // 복사 메뉴는 클릭 모드로 처리
-    showCopyMenu.value = true;
-    emitSelectionMenuChange();
-  }
+  const payload = getSelectionPayload();
+  if (!payload) return;
+  const selection = selectedVerses.value;
+  const range = payload.start === payload.end ? `${payload.start}` : `${payload.start}-${payload.end}`;
+  const version = payload.version ? ` (${payload.version})` : '';
+  const text = `${payload.book} ${payload.chapter}:${range} ${payload.text}${version}`;
+  const copied = await writeCopyText(text);
+  // A clipboard promise must not clear a newer selection or chapter.
+  if (copied && selection === selectedVerses.value) clearAllSelections();
 };
 
 const handleShare = () => {
-  const startVerse = selectedVerses.value.start;
-  const endVerse = selectedVerses.value.end;
-  if (startVerse <= 0 || endVerse < startVerse) return;
-
-  emit('share', {
-    text: selectedText.value,
-    startVerse,
-    endVerse,
-  });
-  hideActionMenu();
-  clearSelection();
+  const payload = getSelectionPayload();
+  if (!payload) return;
+  emit('share', { ...payload, startVerse: payload.start, endVerse: payload.end });
+  clearAllSelections();
 };
 
-const clearSelection = () => {
-  clearDragSelection();
-};
+const clearSelection = clearAllSelections;
 
 // 스크롤 위치 복원
 const restoreScrollPosition = () => {
@@ -779,7 +764,7 @@ onUnmounted(() => {
 });
 
 // 컨텐츠 변경 시 스크롤 위치 복원 및 선택 상태 초기화
-watch(() => props.content, () => {
+watch(() => [props.content, props.book, props.chapter, props.version], () => {
   // 컨텐츠 변경 시 모든 선택 상태 초기화
   clearAllSelections();
   nextTick(() => {
@@ -793,6 +778,8 @@ defineExpose({
   restoreScrollPosition,
   focusVerseRange,
   handleHighlightOrRemove,
+  handleHighlightColor,
+  clearSelection,
   handleCopy,
   handleShare,
   clearAllSelections,
@@ -804,6 +791,7 @@ defineExpose({
 <style scoped>
 .bible-viewer {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 1rem;
   padding-bottom: 84px;

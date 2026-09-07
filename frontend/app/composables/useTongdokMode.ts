@@ -1,11 +1,11 @@
 /**
- * Tongdok Mode Composable
+ * Reader tongdok state.
  *
- * 통독모드 상태 관리 및 관련 기능 제공
- * - localStorage를 통한 상태 영속화
- * - URL 파라미터와의 동기화
+ * The backend stores completion per schedule row. Chapter marks in this module
+ * belong only to the active reader session and are used to decide when a real
+ * schedule row is eligible for that existing write API.
  */
-import { ref, type Ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { BIBLE_BOOKS, useBibleData } from './useBibleData';
 import { useApi } from './useApi';
@@ -29,6 +29,7 @@ export interface ReadingDetailData {
   book?: string;
   chapter?: number | string;
   plan_id?: number;
+  plan_name?: string;
   plan_detail?: PlanDetail[];
   audio_link?: string | null;
   fallback_audio_links?: ChapterFallbackAudioLink[] | null;
@@ -43,6 +44,47 @@ export interface ReadingDetailResponse {
   data?: ReadingDetailData;
 }
 
+export interface TongdokContextIdentity {
+  planId: number;
+  scheduleId: number;
+  scheduleDate: string | null;
+}
+
+export interface TongdokProgress {
+  /** One-based position in the current range, or zero when outside it. */
+  current: number;
+  total: number;
+  /** Chapters completed by server rows or marked in this active session. */
+  done: number;
+  isCurrentInRange: boolean;
+  isComplete: boolean;
+}
+
+export type CompleteCurrentChapterStatus =
+  | 'completed'
+  | 'progressed'
+  | 'already-complete'
+  | 'out-of-range'
+  | 'invalid-context'
+  | 'busy'
+  | 'failed'
+  | 'stale-context';
+
+export interface CompleteCurrentChapterResult {
+  ok: boolean;
+  status: CompleteCurrentChapterStatus;
+  planId: number | null;
+  selectedScheduleId: number | null;
+  scheduleDate: string | null;
+  markedChapter: { book: string; chapter: number } | null;
+  /** Every row known complete after this operation. */
+  completedScheduleIds: number[];
+  /** Rows acknowledged by /reading/update/ during this operation. */
+  persistedScheduleIds: number[];
+  scheduleCompleted: boolean;
+  progress: TongdokProgress | null;
+}
+
 type BibleBook = NonNullable<
   paths['/api/v1/todos/detail/']['get']['parameters']['query']
 >['book'];
@@ -50,63 +92,122 @@ type BibleBook = NonNullable<
 const BIBLE_BOOK_CODES = new Set<string>(
   [...BIBLE_BOOKS.old, ...BIBLE_BOOKS.new].map(book => book.id)
 );
-
-const toBibleBook = (value: string): BibleBook | undefined =>
-  BIBLE_BOOK_CODES.has(value) ? (value as BibleBook) : undefined;
-
-// localStorage 키
 const TONGDOK_STATE_KEY = 'tongdokModeState';
 
 interface TongdokStateStorage {
   enabled: boolean;
   scheduleId: number | null;
   planId: number | null;
+  scheduleDate?: string | null;
   updatedAt: string;
 }
 
-/**
- * localStorage에서 통독모드 상태 로드
- */
+interface LoadedDetailIdentity {
+  planId: number | null;
+  scheduleId: number | null;
+  scheduleDate: string | null;
+  book: string;
+  chapter: number;
+}
+
+interface AuthoritativeDetail {
+  identity: TongdokContextIdentity;
+  data: ReadingDetailData;
+  rows: Array<PlanDetail & { schedule_id: number; date: string }>;
+}
+
+const toBibleBook = (value: string): BibleBook | undefined =>
+  BIBLE_BOOK_CODES.has(value) ? (value as BibleBook) : undefined;
+const positiveId = (value: unknown): number | null => {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : null;
+};
+const positiveChapter = (value: unknown): number | null => {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : null;
+};
+const chapterKey = (book: string, chapter: number): string => `${book}:${chapter}`;
+
 const loadTongdokState = (): TongdokStateStorage | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const stored = localStorage.getItem(TONGDOK_STATE_KEY);
-    return stored ? JSON.parse(stored) : null;
+    const parsed = JSON.parse(localStorage.getItem(TONGDOK_STATE_KEY) || 'null') as TongdokStateStorage | null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
   } catch {
     return null;
   }
 };
 
-/**
- * localStorage에 통독모드 상태 저장
- */
 const saveTongdokState = (state: TongdokStateStorage): void => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(TONGDOK_STATE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.warn('Failed to save tongdok state:', e);
+  } catch (error) {
+    console.warn('Failed to save tongdok state:', error);
   }
 };
 
-/**
- * localStorage에서 통독모드 상태 삭제
- */
 const clearTongdokState = (): void => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(TONGDOK_STATE_KEY);
-  } catch (e) {
-    console.warn('Failed to clear tongdok state:', e);
+  } catch (error) {
+    console.warn('Failed to clear tongdok state:', error);
   }
 };
 
-// 상태 (singleton - 모듈 레벨에서 공유)
+// Shared state: the reader has one active tongdok session per app instance.
 const tongdokMode = ref(false);
 const tongdokScheduleId: Ref<number | null> = ref(null);
 const tongdokPlanId: Ref<number | null> = ref(null);
+const tongdokScheduleDate: Ref<string | null> = ref(null);
 const readingDetailResponse: Ref<ReadingDetailResponse | null> = ref(null);
 const isCompleting = ref(false);
+const lastCompleteCurrentResult: Ref<CompleteCurrentChapterResult | null> = ref(null);
+const sessionChapterMarks = new Set<string>();
+const sessionPersistedScheduleIds = new Set<number>();
+const detailCache = new Map<string, ReadingDetailResponse>();
+let loadedDetailIdentity: LoadedDetailIdentity | null = null;
+let activeScheduleRange: Pick<ReadingDetailData, 'plan_detail' | 'plan_date' | 'schedule_date'> | null = null;
+let detailRequestVersion = 0;
+
+const resetActiveSession = (clearDetail = true): void => {
+  sessionChapterMarks.clear();
+  sessionPersistedScheduleIds.clear();
+  lastCompleteCurrentResult.value = null;
+  loadedDetailIdentity = null;
+  activeScheduleRange = null;
+  detailRequestVersion += 1;
+  if (clearDetail) readingDetailResponse.value = null;
+};
+
+const currentContextKey = (
+  planId: number | null,
+  book: string,
+  chapter: number,
+): string => {
+  const scheduleId = tongdokMode.value && tongdokPlanId.value === planId
+    ? tongdokScheduleId.value
+    : null;
+  const scheduleDate = scheduleId === null ? null : tongdokScheduleDate.value;
+  return [planId ?? 'plain', scheduleId ?? 'none', scheduleDate ?? 'unknown', book, chapter].join('|');
+};
+
+const sameIdentity = (left: LoadedDetailIdentity, right: LoadedDetailIdentity): boolean =>
+  left.planId === right.planId &&
+  left.scheduleId === right.scheduleId &&
+  left.scheduleDate === right.scheduleDate &&
+  left.book === right.book &&
+  left.chapter === right.chapter;
+
+const currentLoadedIdentity = (book: string, chapter: number): LoadedDetailIdentity => ({
+  planId: tongdokPlanId.value,
+  scheduleId: tongdokScheduleId.value,
+  scheduleDate: tongdokScheduleDate.value,
+  book,
+  chapter,
+});
 
 export const useTongdokMode = () => {
   const route = useRoute();
@@ -114,192 +215,290 @@ export const useTongdokMode = () => {
   const api = useApi();
   const { bookNames } = useBibleData();
 
-  /**
-   * 통독모드 초기화
-   * 우선순위: URL 파라미터 > localStorage
-   */
-  const initTongdokMode = (): void => {
-    const { tongdok, schedule, plan } = route.query;
+  const activeTongdokContext = computed<TongdokContextIdentity | null>(() => {
+    const planId = positiveId(tongdokPlanId.value);
+    const scheduleId = positiveId(tongdokScheduleId.value);
+    if (!tongdokMode.value || planId === null || scheduleId === null) return null;
+    return { planId, scheduleId, scheduleDate: tongdokScheduleDate.value };
+  });
 
-    // 1. URL 파라미터가 있으면 우선 사용
-    if (tongdok === 'true' || plan) {
-      tongdokMode.value = true;
-      tongdokScheduleId.value = schedule ? Number(schedule) : null;
-      tongdokPlanId.value = plan ? Number(plan) : null;
-
-      // localStorage에도 저장
-      saveTongdokState({
-        enabled: true,
-        scheduleId: tongdokScheduleId.value,
-        planId: tongdokPlanId.value,
-        updatedAt: new Date().toISOString(),
-      });
-      return;
-    }
-
-    // 2. URL에 없으면 localStorage에서 복원
-    const savedState = loadTongdokState();
-    if (savedState && savedState.enabled) {
-      tongdokMode.value = true;
-      tongdokScheduleId.value = savedState.scheduleId;
-      tongdokPlanId.value = savedState.planId;
-    }
-  };
-
-  /**
-   * 통독모드 현재 일정 범위 표시용 computed
-   */
-  const getTongdokScheduleRange = (currentBook: string, currentChapter: number): string | null => {
-    if (!tongdokMode.value || !readingDetailResponse.value?.data?.plan_detail) {
-      return null;
-    }
-
-    const planDetails = readingDetailResponse.value.data.plan_detail;
-    if (planDetails.length === 0) return null;
-
-    // 현재 장이 속한 구간 찾기
-    const currentDetail = planDetails.find(detail =>
-      detail.book === currentBook &&
-      currentChapter >= detail.start_chapter &&
-      currentChapter <= detail.end_chapter
-    );
-
-    if (!currentDetail) return null;
-
-    const bookName = bookNames[currentDetail.book] || currentDetail.book;
-    const chapters = currentDetail.start_chapter === currentDetail.end_chapter
-      ? `${currentDetail.start_chapter}장`
-      : `${currentDetail.start_chapter}-${currentDetail.end_chapter}장`;
-
-    return `${bookName} ${chapters}`;
-  };
-
-  /**
-   * 통독모드에서 마지막 장인지 확인
-   */
-  const isLastChapterInTongdok = (currentBook: string, currentChapter: number): boolean => {
-    if (!tongdokMode.value || !readingDetailResponse.value?.data?.plan_detail) {
-      return false;
-    }
-
-    const planDetails = readingDetailResponse.value.data.plan_detail;
-    if (planDetails.length === 0) return false;
-
-    // 마지막 구간의 마지막 장인지 확인
-    const lastDetail = planDetails[planDetails.length - 1];
-    if (!lastDetail) return false;
-
-    return currentBook === lastDetail.book &&
-           currentChapter === lastDetail.end_chapter;
-  };
-
-  /**
-   * 장 완료 여부 확인
-   */
-  const isChapterCompleted = (book: string, chapter: number): boolean => {
-    if (!readingDetailResponse.value?.data?.plan_detail) return false;
-
-    const detail = readingDetailResponse.value.data.plan_detail.find((d) => {
-      const isTargetBook = d.book === book;
-      const isInRange = chapter >= d.start_chapter && chapter <= d.end_chapter;
-      return isTargetBook && isInRange;
-    });
-
-    return detail?.is_complete || false;
-  };
-
-  /**
-   * 현재 일정(스케줄) 전체가 완료되었는지 확인
-   * - readingDetailResponse.data.is_complete 또는
-   * - 모든 plan_detail의 is_complete가 true인 경우
-   */
-  const isScheduleCompleted = (): boolean => {
-    if (!readingDetailResponse.value?.data) return false;
-
-    // 1. 전체 일정 완료 플래그 확인
-    if (readingDetailResponse.value.data.is_complete === true) {
-      return true;
-    }
-
-    // 2. 모든 plan_detail이 완료되었는지 확인
-    const planDetails = readingDetailResponse.value.data.plan_detail;
-    if (!planDetails || planDetails.length === 0) return false;
-
-    return planDetails.every(detail => detail.is_complete === true);
-  };
-
-  /**
-   * 통독모드 끄기
-   */
-  const disableTongdokMode = (): void => {
-    tongdokMode.value = false;
-    tongdokScheduleId.value = null;
-    tongdokPlanId.value = null;
-    clearTongdokState();
-
-    const { tongdok, schedule, plan, from, ...restQuery } = route.query;
-    router.replace({ query: restQuery });
-  };
-
-  /**
-   * 통독모드 켜기
-   */
-  const enableTongdokMode = (scheduleId?: number, planId?: number): void => {
-    tongdokMode.value = true;
-    if (scheduleId) {
-      tongdokScheduleId.value = scheduleId;
-    }
-    if (planId) {
-      tongdokPlanId.value = planId;
-    }
-
+  const persistActiveContext = (): void => {
     saveTongdokState({
       enabled: true,
       scheduleId: tongdokScheduleId.value,
       planId: tongdokPlanId.value,
+      scheduleDate: tongdokScheduleDate.value,
       updatedAt: new Date().toISOString(),
     });
   };
 
-  /**
-   * 읽기 응답 데이터 설정
-   */
+  const setModeIdentity = (
+    enabled: boolean,
+    scheduleId: number | null,
+    planId: number | null,
+    scheduleDate: string | null,
+  ): void => {
+    const changed = tongdokMode.value !== enabled ||
+      tongdokScheduleId.value !== scheduleId ||
+      tongdokPlanId.value !== planId ||
+      tongdokScheduleDate.value !== scheduleDate;
+    tongdokMode.value = enabled;
+    tongdokScheduleId.value = scheduleId;
+    tongdokPlanId.value = planId;
+    tongdokScheduleDate.value = scheduleDate;
+    if (changed) resetActiveSession();
+  };
+
+  /** Bare /bible is the hub. A stored session is restored only for explicit reader intent. */
+  const initTongdokMode = (): void => {
+    const query = route.query;
+    const hasExplicitReaderIntent = Boolean(
+      query.book || query.chapter || query.verse || query.search ||
+      query.tongdok || query.plan || query.schedule || query.from
+    );
+
+    if (route.path === '/bible' && !hasExplicitReaderIntent) {
+      setModeIdentity(false, null, null, null);
+      return;
+    }
+
+    if (query.tongdok === 'true' || query.plan) {
+      setModeIdentity(
+        true,
+        positiveId(query.schedule),
+        positiveId(query.plan),
+        typeof query.date === 'string' ? query.date : null,
+      );
+      persistActiveContext();
+      return;
+    }
+
+    const saved = loadTongdokState();
+    if (saved?.enabled) {
+      setModeIdentity(
+        true,
+        positiveId(saved.scheduleId),
+        positiveId(saved.planId),
+        typeof saved.scheduleDate === 'string' ? saved.scheduleDate : null,
+      );
+      return;
+    }
+
+    setModeIdentity(false, null, null, null);
+  };
+
+  const getAuthoritativeDetail = (
+    data = readingDetailResponse.value?.data,
+    detailIdentity = loadedDetailIdentity,
+  ): AuthoritativeDetail | null => {
+    const identity = activeTongdokContext.value;
+    if (!identity || !data || !detailIdentity) return null;
+
+    const loadedChapter = positiveChapter(data.chapter);
+    const expectedLoaded = currentLoadedIdentity(data.book || '', loadedChapter || 0);
+    if (!sameIdentity(detailIdentity, expectedLoaded)) return null;
+    if (positiveId(data.plan_id) !== identity.planId || !data.book || loadedChapter === null) return null;
+
+    const responseDate = data.plan_date || data.schedule_date || null;
+    if (!identity.scheduleDate || responseDate !== identity.scheduleDate) return null;
+
+    const rawRows = data.plan_detail;
+    if (!rawRows?.length) return null;
+    const rows: AuthoritativeDetail['rows'] = [];
+    for (const row of rawRows) {
+      const scheduleId = positiveId(row.schedule_id);
+      if (scheduleId === null || row.date !== identity.scheduleDate) return null;
+      rows.push({ ...row, schedule_id: scheduleId, date: row.date });
+    }
+    if (!rows.some(row => row.schedule_id === identity.scheduleId)) return null;
+    return { identity, data, rows };
+  };
+
+  const rowContains = (row: PlanDetail, book: string, chapter: number): boolean =>
+    row.book === book && chapter >= row.start_chapter && chapter <= row.end_chapter;
+  const rowCompleted = (row: PlanDetail & { schedule_id: number }): boolean =>
+    row.is_complete === true || sessionPersistedScheduleIds.has(row.schedule_id);
+  const rowChaptersMarked = (row: PlanDetail): boolean => {
+    for (let chapter = row.start_chapter; chapter <= row.end_chapter; chapter += 1) {
+      if (!sessionChapterMarks.has(chapterKey(row.book, chapter))) return false;
+    }
+    return true;
+  };
+
+  const calculateProgress = (
+    rows: Array<PlanDetail & { schedule_id?: number }>,
+    currentBook: string,
+    currentChapter: number,
+  ): TongdokProgress => {
+    let total = 0;
+    let done = 0;
+    let current = 0;
+    let ordinal = 0;
+
+    for (const row of rows) {
+      const serverOrPersistedComplete = row.is_complete === true ||
+        (positiveId(row.schedule_id) !== null && sessionPersistedScheduleIds.has(Number(row.schedule_id)));
+      for (let chapter = row.start_chapter; chapter <= row.end_chapter; chapter += 1) {
+        ordinal += 1;
+        total += 1;
+        if (serverOrPersistedComplete || sessionChapterMarks.has(chapterKey(row.book, chapter))) done += 1;
+        if (row.book === currentBook && chapter === currentChapter && current === 0) current = ordinal;
+      }
+    }
+
+    return {
+      current,
+      total,
+      done,
+      isCurrentInRange: current > 0,
+      isComplete: total > 0 && done === total,
+    };
+  };
+
+  const getTongdokScheduleRange = (currentBook: string, currentChapter: number): string | null => {
+    if (!tongdokMode.value || !readingDetailResponse.value?.data?.plan_detail) return null;
+    const detail = readingDetailResponse.value.data.plan_detail.find(row => rowContains(row, currentBook, currentChapter));
+    if (!detail) return null;
+    const bookName = bookNames[detail.book] || detail.book;
+    const chapters = detail.start_chapter === detail.end_chapter
+      ? `${detail.start_chapter}장`
+      : `${detail.start_chapter}-${detail.end_chapter}장`;
+    return `${bookName} ${chapters}`;
+  };
+
+  const isLastChapterInTongdok = (currentBook: string, currentChapter: number): boolean => {
+    if (!tongdokMode.value || !readingDetailResponse.value?.data?.plan_detail?.length) return false;
+    const rows = readingDetailResponse.value.data.plan_detail;
+    const last = rows[rows.length - 1];
+    return Boolean(last && currentBook === last.book && currentChapter === last.end_chapter);
+  };
+
+  const isChapterCompleted = (book: string, chapter: number): boolean => {
+    const row = readingDetailResponse.value?.data?.plan_detail?.find(detail => rowContains(detail, book, chapter));
+    if (!row) return false;
+    const scheduleId = positiveId(row.schedule_id);
+    return row.is_complete === true ||
+      (scheduleId !== null && sessionPersistedScheduleIds.has(scheduleId)) ||
+      sessionChapterMarks.has(chapterKey(book, chapter));
+  };
+
+  const isScheduleCompleted = (): boolean => {
+    const authoritative = getAuthoritativeDetail();
+    if (!authoritative) return false;
+    return calculateProgress(authoritative.rows, authoritative.data.book || '', positiveChapter(authoritative.data.chapter) || 0).isComplete;
+  };
+
+  const disableTongdokMode = (): void => {
+    setModeIdentity(false, null, null, null);
+    clearTongdokState();
+    const { tongdok: _tongdok, schedule: _schedule, plan: _plan, from: _from, date: _date, ...restQuery } = route.query;
+    router.replace({ query: restQuery });
+  };
+
+  /** Existing positional arguments remain valid; date adds exact context when the caller has it. */
+  const enableTongdokMode = (scheduleId?: number, planId?: number, scheduleDate?: string | null): void => {
+    const nextScheduleId = scheduleId === undefined ? tongdokScheduleId.value : positiveId(scheduleId);
+    const nextPlanId = planId === undefined ? tongdokPlanId.value : positiveId(planId);
+    const nextDate = scheduleDate === undefined ? tongdokScheduleDate.value : scheduleDate;
+    setModeIdentity(true, nextScheduleId, nextPlanId, nextDate || null);
+    persistActiveContext();
+  };
+
+  /** Compatibility setter. Data supplied without a fetched identity is display-only, never completable. */
   const setReadingDetailResponse = (response: ReadingDetailResponse | null): void => {
+    detailRequestVersion += 1;
+    loadedDetailIdentity = null;
+    activeScheduleRange = null;
     readingDetailResponse.value = response;
+  };
+
+  const applyLoadedResponse = (
+    response: ReadingDetailResponse,
+    requestIdentity: LoadedDetailIdentity,
+  ): void => {
+    const data = response.data;
+    if (!data) return;
+
+    // An old positional enable call may not know the date. Adopt it only after
+    // plan and selected schedule both match the fetched response.
+    if (
+      requestIdentity.planId !== null &&
+      requestIdentity.scheduleId !== null &&
+      requestIdentity.scheduleDate === null &&
+      positiveId(data.plan_id) === requestIdentity.planId
+    ) {
+      const selected = data.plan_detail?.find(row => positiveId(row.schedule_id) === requestIdentity.scheduleId);
+      const responseDate = data.plan_date || data.schedule_date || null;
+      if (selected?.date && responseDate === selected.date) {
+        tongdokScheduleDate.value = selected.date;
+        requestIdentity.scheduleDate = selected.date;
+        persistActiveContext();
+      }
+    }
+
+    data.plan_detail?.forEach(row => {
+      const scheduleId = positiveId(row.schedule_id);
+      if (scheduleId !== null && sessionPersistedScheduleIds.has(scheduleId)) row.is_complete = true;
+    });
+    // The API returns the browsed chapter's date group, not the active schedule.
+    // Only a response validated against the active identity may replace its range.
+    if (getAuthoritativeDetail(data, requestIdentity)) {
+      activeScheduleRange = {
+        plan_detail: data.plan_detail,
+        plan_date: data.plan_date,
+        schedule_date: data.schedule_date,
+      };
+    }
+    const isActiveChapterResponse = positiveId(data.plan_id) === requestIdentity.planId &&
+      sameIdentity(requestIdentity, currentLoadedIdentity(data.book || '', positiveChapter(data.chapter) || 0));
+    // Preserve the page's public contract: active rows/date with browsed metadata/audio.
+    readingDetailResponse.value = activeScheduleRange && isActiveChapterResponse
+      ? { data: { ...data, ...activeScheduleRange, is_complete: activeScheduleRange.plan_detail?.every(row => row.is_complete) } }
+      : response;
+    loadedDetailIdentity = { ...requestIdentity };
   };
 
   const loadReadingDetail = async (
     planId: number | null,
     book: string,
-    chapter: number
+    chapter: number,
   ): Promise<ReadingDetailData | null> => {
-    // planId 가 없어도 호출한다. 플랜 없이 그냥 장을 보는 경우에도
-    // 백엔드가 그 장의 장별 성경읽기 폴백 오디오를 돌려주기 때문이다.
     const bibleBook = toBibleBook(book);
-    if (!bibleBook) return null;
+    if (!bibleBook || positiveChapter(chapter) === null) return null;
+
+    const normalizedPlanId = positiveId(planId);
+    const requestIdentity: LoadedDetailIdentity = {
+      planId: normalizedPlanId,
+      scheduleId: tongdokMode.value && tongdokPlanId.value === normalizedPlanId ? tongdokScheduleId.value : null,
+      scheduleDate: tongdokMode.value && tongdokPlanId.value === normalizedPlanId ? tongdokScheduleDate.value : null,
+      book,
+      chapter,
+    };
+    const requestKey = currentContextKey(normalizedPlanId, book, chapter);
+    const requestVersion = ++detailRequestVersion;
+    const cached = detailCache.get(requestKey);
+    if (cached) {
+      applyLoadedResponse(cached, requestIdentity);
+      return cached.data || null;
+    }
 
     try {
-      const hasSameData =
-        readingDetailResponse.value?.data &&
-        readingDetailResponse.value.data.book === book &&
-        readingDetailResponse.value.data.chapter === chapter;
+      const response = await api.GET('/api/v1/todos/detail/', {
+        params: { plan_id: normalizedPlanId ?? undefined, book: bibleBook, chapter },
+      });
+      const wrapped: ReadingDetailResponse = { data: response.data };
+      detailCache.set(requestKey, wrapped);
 
-      if (hasSameData) {
-        return readingDetailResponse.value?.data || null;
+      if (requestVersion !== detailRequestVersion || requestKey !== currentContextKey(normalizedPlanId, book, chapter)) {
+        return response.data || null;
       }
 
-      const response = await api.GET('/api/v1/todos/detail/', {
-        params: {
-          plan_id: planId ?? undefined,
-          book: bibleBook,
-          chapter,
-        },
-      });
-
-      readingDetailResponse.value = response;
+      applyLoadedResponse(wrapped, requestIdentity);
+      const adoptedKey = currentContextKey(normalizedPlanId, book, chapter);
+      detailCache.set(adoptedKey, wrapped);
       return response.data || null;
     } catch (error) {
-      console.error('Failed to load reading detail:', error);
+      if (requestVersion === detailRequestVersion) console.error('Failed to load reading detail:', error);
       return null;
     }
   };
@@ -313,134 +512,212 @@ export const useTongdokMode = () => {
       chapter,
     });
   };
+  const getGuideLink = (): string | null => readingDetailResponse.value?.data?.guide_link || null;
+  const getScheduleDate = (): string | null =>
+    tongdokScheduleDate.value || readingDetailResponse.value?.data?.plan_date || readingDetailResponse.value?.data?.schedule_date || null;
 
-  const getGuideLink = (): string | null => {
-    return readingDetailResponse.value?.data?.guide_link || null;
+  const getTongdokProgress = (currentBook: string, currentChapter: number): TongdokProgress | null => {
+    if (!tongdokMode.value || !readingDetailResponse.value?.data?.plan_detail?.length) return null;
+    return calculateProgress(readingDetailResponse.value.data.plan_detail, currentBook, currentChapter);
   };
 
-  const getScheduleDate = (): string | null => {
-    return readingDetailResponse.value?.data?.plan_date || readingDetailResponse.value?.data?.schedule_date || null;
+  /** Mark only the chapter represented by the currently loaded, validated context. */
+  const markCurrentChapter = (book: string, chapter: number): boolean => {
+    const authoritative = getAuthoritativeDetail();
+    if (!authoritative || authoritative.data.book !== book || positiveChapter(authoritative.data.chapter) !== chapter) return false;
+    if (authoritative.rows.filter(row => rowContains(row, book, chapter)).length !== 1) return false;
+    sessionChapterMarks.add(chapterKey(book, chapter));
+    return true;
   };
 
-  /**
-   * 통독 진행 상황 계산
-   * @returns { current: 현재 장 순번(1부터), total: 전체 장 수 }
-   */
-  const getTongdokProgress = (currentBook: string, currentChapter: number): { current: number; total: number } | null => {
-    if (!tongdokMode.value || !readingDetailResponse.value?.data?.plan_detail) {
-      return null;
-    }
-
-    const planDetails = readingDetailResponse.value.data.plan_detail;
-    if (planDetails.length === 0) return null;
-
-    let total = 0;
-    let current = 0;
-    let foundCurrent = false;
-
-    for (const detail of planDetails) {
-      const chapterCount = detail.end_chapter - detail.start_chapter + 1;
-      total += chapterCount;
-
-      if (!foundCurrent) {
-        if (detail.book === currentBook &&
-            currentChapter >= detail.start_chapter &&
-            currentChapter <= detail.end_chapter) {
-          // 현재 장이 이 구간에 있음
-          current += (currentChapter - detail.start_chapter + 1);
-          foundCurrent = true;
-        } else {
-          // 이전 구간들은 모두 카운트
-          current += chapterCount;
-        }
-      }
-    }
-
-    if (!foundCurrent) {
-      // 현재 위치를 찾지 못한 경우 (범위 밖)
-      return { current: 1, total };
-    }
-
-    return { current, total };
-  };
-
-  /**
-   * 현재 일정의 구간 정보 가져오기
-   */
-  const getCurrentSectionChapters = (currentBook: string): Array<{
+  const getCurrentSectionChapters = (_currentBook: string): Array<{
     book: string;
     book_kor: string;
     chapters: number[];
-  }> => {
-    if (!readingDetailResponse.value?.data?.plan_detail) return [];
+  }> => (readingDetailResponse.value?.data?.plan_detail || []).map(detail => ({
+    book: detail.book,
+    book_kor: bookNames[detail.book] || detail.book,
+    chapters: Array.from(
+      { length: detail.end_chapter - detail.start_chapter + 1 },
+      (_, index) => detail.start_chapter + index,
+    ),
+  }));
 
-    const planDetails = readingDetailResponse.value.data.plan_detail;
-    return planDetails.map(detail => ({
-      book: detail.book,
-      book_kor: bookNames[detail.book] || detail.book,
-      chapters: Array.from(
-        { length: detail.end_chapter - detail.start_chapter + 1 },
-        (_, i) => detail.start_chapter + i
-      )
-    }));
+  const getFullScheduleRange = (): string => (readingDetailResponse.value?.data?.plan_detail || []).map(detail => {
+    const bookName = bookNames[detail.book] || detail.book;
+    const chapters = detail.start_chapter === detail.end_chapter
+      ? `${detail.start_chapter}장`
+      : `${detail.start_chapter}-${detail.end_chapter}장`;
+    return `${bookName} ${chapters}`;
+  }).join(', ');
+
+  const completeResult = (
+    status: CompleteCurrentChapterStatus,
+    authoritative: AuthoritativeDetail | null,
+    book: string | null,
+    chapter: number | null,
+    persistedScheduleIds: number[] = [],
+    ok = false,
+  ): CompleteCurrentChapterResult => {
+    const context = authoritative?.identity || activeTongdokContext.value;
+    const rows = authoritative?.rows || [];
+    const progress = authoritative
+      ? calculateProgress(rows, book || '', chapter || 0)
+      : null;
+    const completedScheduleIds = rows
+      .filter(row => rowCompleted(row))
+      .map(row => row.schedule_id);
+    const result: CompleteCurrentChapterResult = {
+      ok,
+      status,
+      planId: context?.planId ?? null,
+      selectedScheduleId: context?.scheduleId ?? null,
+      scheduleDate: context?.scheduleDate ?? null,
+      markedChapter: book && chapter ? { book, chapter } : null,
+      completedScheduleIds,
+      persistedScheduleIds,
+      scheduleCompleted: progress?.isComplete ?? false,
+      progress,
+    };
+    lastCompleteCurrentResult.value = result;
+    return result;
   };
 
   /**
-   * 통독 전체 범위 문자열 가져오기
+   * Exact completion API for the reader integrator.
+   *
+   * It marks the current chapter locally, writes only rows for which every
+   * chapter has been visited in this active session, validates the backend
+   * acknowledgement, and deliberately leaves tongdok mode active on success.
    */
-  const getFullScheduleRange = (): string => {
-    if (!readingDetailResponse.value?.data?.plan_detail) return '';
+  const completeCurrentChapter = async (
+    book: string,
+    chapter: number,
+  ): Promise<CompleteCurrentChapterResult> => {
+    const authoritative = getAuthoritativeDetail();
+    if (!authoritative) return completeResult('invalid-context', null, null, null);
+    const currentRows = authoritative.rows.filter(row => rowContains(row, book, chapter));
+    if (currentRows.length === 0) return completeResult('out-of-range', authoritative, null, null);
+    if (
+      currentRows.length !== 1 ||
+      authoritative.data.book !== book ||
+      positiveChapter(authoritative.data.chapter) !== chapter
+    ) {
+      return completeResult('invalid-context', authoritative, null, null);
+    }
+    if (isCompleting.value) return completeResult('busy', authoritative, null, null);
 
-    const planDetails = readingDetailResponse.value.data.plan_detail;
-    if (planDetails.length === 0) return '';
+    const wasComplete = isChapterCompleted(book, chapter);
+    sessionChapterMarks.add(chapterKey(book, chapter));
+    const eligibleIds = authoritative.rows
+      .filter(row => !rowCompleted(row) && rowChaptersMarked(row))
+      .map(row => row.schedule_id);
 
-    // 모든 구간을 문자열로
-    return planDetails.map(detail => {
-      const bookName = bookNames[detail.book] || detail.book;
-      const chapters = detail.start_chapter === detail.end_chapter
-        ? `${detail.start_chapter}장`
-        : `${detail.start_chapter}-${detail.end_chapter}장`;
-      return `${bookName} ${chapters}`;
-    }).join(', ');
-  };
-
-  /**
-   * 통독 완료 처리 API 호출
-   */
-  const completeReading = async (): Promise<boolean> => {
-    if (!tongdokPlanId.value || !tongdokScheduleId.value) {
-      console.warn('Plan ID or Schedule ID is missing');
-      return false;
+    if (eligibleIds.length === 0) {
+      const progress = calculateProgress(authoritative.rows, book, chapter);
+      return completeResult(
+        progress.isComplete || wasComplete ? 'already-complete' : 'progressed',
+        authoritative,
+        book,
+        chapter,
+        [],
+        true,
+      );
     }
 
+    // The row-closing mark is tentative until the write is acknowledged.
+    // Keep earlier chapter marks so a failed write can retry the same row.
+    sessionChapterMarks.delete(chapterKey(book, chapter));
+
+    const identitySnapshot = { ...authoritative.identity };
+    const loadedSnapshot = loadedDetailIdentity ? { ...loadedDetailIdentity } : null;
     isCompleting.value = true;
     try {
-      await api.POST('/api/v1/todos/reading/update/', {
-        plan_id: tongdokPlanId.value,
-        schedule_ids: [tongdokScheduleId.value],
-        action: 'complete'
+      const response = await api.POST('/api/v1/todos/reading/update/', {
+        plan_id: identitySnapshot.planId,
+        schedule_ids: eligibleIds,
+        action: 'complete',
       });
+      const acknowledgedIds = Array.isArray(response?.schedule_ids)
+        ? response.schedule_ids.map(positiveId).filter((id): id is number => id !== null)
+        : [];
+      const exactAcknowledgement = response?.success === true &&
+        positiveId(response.plan_id) === identitySnapshot.planId &&
+        response.is_completed === true &&
+        acknowledgedIds.length === eligibleIds.length &&
+        eligibleIds.every(id => acknowledgedIds.includes(id));
+      if (!exactAcknowledgement) return completeResult('failed', authoritative, book, chapter);
 
-      clearTongdokState();
-      tongdokMode.value = false;
-      tongdokScheduleId.value = null;
-      tongdokPlanId.value = null;
+      const contextUnchanged = activeTongdokContext.value?.planId === identitySnapshot.planId &&
+        activeTongdokContext.value?.scheduleId === identitySnapshot.scheduleId &&
+        activeTongdokContext.value?.scheduleDate === identitySnapshot.scheduleDate &&
+        loadedSnapshot !== null && loadedDetailIdentity !== null && sameIdentity(loadedSnapshot, loadedDetailIdentity);
+      if (!contextUnchanged) {
+        const completed = new Set([
+          ...authoritative.rows.filter(row => rowCompleted(row)).map(row => row.schedule_id),
+          ...acknowledgedIds,
+        ]);
+        const snapshotRows = authoritative.rows.map(row => ({ ...row, is_complete: completed.has(row.schedule_id) }));
+        const snapshotProgress = calculateProgress(snapshotRows, book, chapter);
+        const result: CompleteCurrentChapterResult = {
+          ok: true,
+          status: 'stale-context',
+          planId: identitySnapshot.planId,
+          selectedScheduleId: identitySnapshot.scheduleId,
+          scheduleDate: identitySnapshot.scheduleDate,
+          markedChapter: { book, chapter },
+          completedScheduleIds: [...completed],
+          persistedScheduleIds: acknowledgedIds,
+          scheduleCompleted: snapshotProgress.isComplete,
+          progress: snapshotProgress,
+        };
+        lastCompleteCurrentResult.value = result;
+        return result;
+      }
 
-      return true;
+      acknowledgedIds.forEach(id => sessionPersistedScheduleIds.add(id));
+      authoritative.data.plan_detail?.forEach(row => {
+        const scheduleId = positiveId(row.schedule_id);
+        if (scheduleId !== null && acknowledgedIds.includes(scheduleId)) row.is_complete = true;
+      });
+      return completeResult(
+        calculateProgress(authoritative.rows, book, chapter).isComplete ? 'completed' : 'progressed',
+        authoritative,
+        book,
+        chapter,
+        acknowledgedIds,
+        true,
+      );
     } catch (error) {
       console.error('통독 완료 처리 실패:', error);
-      return false;
+      return completeResult('failed', authoritative, book, chapter);
     } finally {
       isCompleting.value = false;
     }
+  };
+
+  /** Legacy boolean API. True now means the validated current range is complete. */
+  const completeReading = async (book?: string, chapter?: number): Promise<boolean> => {
+    const data = readingDetailResponse.value?.data;
+    const targetBook = book || data?.book;
+    const targetChapter = chapter ?? positiveChapter(data?.chapter);
+    if (!targetBook || !targetChapter) {
+      lastCompleteCurrentResult.value = completeResult('invalid-context', null, null, null);
+      return false;
+    }
+    const result = await completeCurrentChapter(targetBook, targetChapter);
+    return result.ok && result.scheduleCompleted;
   };
 
   return {
     tongdokMode,
     tongdokScheduleId,
     tongdokPlanId,
+    tongdokScheduleDate,
+    activeTongdokContext,
     readingDetailResponse,
     isCompleting,
+    lastCompleteCurrentResult,
 
     initTongdokMode,
     getTongdokScheduleRange,
@@ -452,6 +729,8 @@ export const useTongdokMode = () => {
     enableTongdokMode,
     setReadingDetailResponse,
     getCurrentSectionChapters,
+    markCurrentChapter,
+    completeCurrentChapter,
     completeReading,
     loadReadingDetail,
     getAudioLink,

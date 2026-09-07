@@ -9,7 +9,7 @@
       aria-label="도구 메뉴"
       :aria-expanded="isOpen"
     >
-      <EllipsisIcon />
+      <EllipsisIcon :size="20" aria-hidden="true" />
       <span v-if="hasIndicator" class="indicator-dot"></span>
     </button>
 
@@ -62,9 +62,9 @@
         </button>
 
         <!-- 현재 장 북마크 토글 (통독 모드에서만 표시) -->
-        <button v-if="showBookmarkToggle" class="popover-item" :class="{ active: isBookmarked }" @click="handleBookmarkToggle">
+        <button v-if="showBookmarkToggle" data-testid="reader-bookmark-toggle" class="popover-item" :class="{ active: isBookmarked }" @click="handleBookmarkToggle">
           <div class="item-icon">
-            <BookmarkFilledIcon v-if="isBookmarked" />
+            <BookmarkFilledIcon v-if="isBookmarked" fill="currentColor" />
             <BookmarkOutlineIcon v-else />
           </div>
           <div class="item-content">
@@ -85,7 +85,7 @@
         <div class="popover-divider"></div>
 
         <!-- 읽기 설정 -->
-        <button class="popover-item" @click="handleSettings">
+        <button data-testid="reader-settings" class="popover-item" @click="handleSettings">
           <div class="item-icon">
             <SettingsIcon />
           </div>
@@ -99,84 +99,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue';
-
-// 아이콘 컴포넌트들
-const EllipsisIcon = defineComponent({
-  render() {
-    return h('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none' }, [
-      h('circle', { cx: 12, cy: 12, r: 1.5, fill: 'currentColor' }),
-      h('circle', { cx: 6, cy: 12, r: 1.5, fill: 'currentColor' }),
-      h('circle', { cx: 18, cy: 12, r: 1.5, fill: 'currentColor' }),
-    ]);
-  }
-});
-
-const NoteIcon = defineComponent({
-  render() {
-    return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [
-      h('path', { d: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-      h('polyline', { points: '14 2 14 8 20 8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-      h('line', { x1: 16, y1: 13, x2: 8, y2: 13, 'stroke-linecap': 'round' }),
-      h('line', { x1: 16, y1: 17, x2: 8, y2: 17, 'stroke-linecap': 'round' }),
-    ]);
-  }
-});
-
-const BookmarkOutlineIcon = defineComponent({
-  render() {
-    return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [
-      h('path', { d: 'M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-    ]);
-  }
-});
-
-const BookmarkFilledIcon = defineComponent({
-  render() {
-    return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'currentColor', stroke: 'currentColor', 'stroke-width': 2 }, [
-      h('path', { d: 'M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-    ]);
-  }
-});
-
-const SettingsIcon = defineComponent({
-  render() {
-    return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [
-      h('circle', { cx: 12, cy: 12, r: 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-      h('path', { d: 'M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-    ]);
-  }
-});
-
-const ListCheckIcon = defineComponent({
-  render() {
-    return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, [
-      h('path', { d: 'M11 6h9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-      h('path', { d: 'M11 12h9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-      h('path', { d: 'M11 18h9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-      h('path', { d: 'M4 6l2 2 4-4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-      h('path', { d: 'M4 12l2 2 4-4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-      h('path', { d: 'M4 18l2 2 4-4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
-    ]);
-  }
-});
-
-const AudioIcon = defineComponent({
-  render() {
-    return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
-      h('path', { d: 'M3 18v-6a9 9 0 0 1 18 0v6' }),
-      h('path', { d: 'M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z' }),
-    ]);
-  }
-});
-
-const GuideIcon = defineComponent({
-  render() {
-    return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [
-      h('path', { d: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' }),
-    ]);
-  }
-});
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { Ellipsis as EllipsisIcon, FileText as NoteIcon, Bookmark as BookmarkOutlineIcon, Bookmark as BookmarkFilledIcon, Settings as SettingsIcon, ListChecks as ListCheckIcon, Headphones as AudioIcon, BookOpen as GuideIcon } from '@lucide/vue';
 
 const props = defineProps<{
   noteCount: number;
@@ -193,10 +117,12 @@ const emit = defineEmits<{
   'bookmark-toggle': [];
   'audio-link-click': [url: string];
   'open-settings': [];
+  'open-change': [value: boolean];
 }>();
 
 const popoverRef = ref<HTMLElement | null>(null);
 const isOpen = ref(false);
+watch(isOpen, value => emit('open-change', value), { flush: 'sync' });
 
 // 인디케이터 표시 여부 (노트가 있는 경우)
 const hasIndicator = computed(() => props.noteCount > 0);
@@ -226,7 +152,7 @@ const handleBookmarkList = () => {
 
 const handleSettings = () => {
   closePopover();
-  navigateTo('/bible/settings');
+  emit('open-settings');
 };
 
 const handleReadingPlan = () => {
@@ -248,12 +174,18 @@ const handleClickOutside = (e: MouseEvent) => {
   }
 };
 
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') closePopover();
+};
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  document.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
+  document.removeEventListener('keydown', handleKeydown);
 });
 </script>
 
@@ -266,9 +198,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  color: var(--text-secondary, #6b7280);
+  width: var(--hit-min);
+  height: var(--hit-min);
+  color: var(--color-text-secondary);
   background: transparent;
   border-radius: 8px;
   border: none;
@@ -278,13 +210,13 @@ onUnmounted(() => {
 }
 
 .tool-trigger-button:hover {
-  background: var(--color-bg-hover, #f3f4f6);
-  color: var(--text-primary, #1f2937);
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
 .tool-trigger-button.active {
-  background: rgba(17, 24, 39, 0.055);
-  color: var(--text-primary, #1f2937);
+  background: var(--color-accent-bg);
+  color: var(--color-text-primary);
 }
 
 .indicator-dot {
@@ -293,7 +225,7 @@ onUnmounted(() => {
   right: 6px;
   width: 6px;
   height: 6px;
-  background: var(--primary-color, #2A1111);
+  background: var(--color-accent-primary);
   border-radius: 50%;
 }
 
@@ -302,12 +234,12 @@ onUnmounted(() => {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  min-width: 140px;
+  min-width: 168px;
   max-width: calc(100vw - 32px);
-  background: var(--color-bg-card, #fff);
-  border-radius: 10px;
-  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.09);
-  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: var(--color-bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border-default);
   padding: 0.25rem;
   z-index: 100;
 }
@@ -318,6 +250,7 @@ onUnmounted(() => {
   gap: 0.45rem;
   width: 100%;
   padding: 0.42rem 0.48rem;
+  min-height: var(--hit-min);
   background: transparent;
   border-radius: 7px;
   transition: background 0.15s ease;
@@ -325,15 +258,15 @@ onUnmounted(() => {
 }
 
 .popover-item:hover {
-  background: var(--color-bg-hover, #f3f4f6);
+  background: var(--color-bg-hover);
 }
 
 .popover-item.active {
-  color: var(--primary-color, #2A1111);
+  color: var(--color-accent-primary);
 }
 
 .popover-item.active .item-icon {
-  color: var(--primary-color, #2A1111);
+  color: var(--color-accent-primary);
 }
 
 .item-icon {
@@ -342,7 +275,7 @@ onUnmounted(() => {
   justify-content: center;
   width: 18px;
   height: 18px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
@@ -361,7 +294,7 @@ onUnmounted(() => {
 .item-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--color-text-primary);
   letter-spacing: -0.4px;
 }
 
@@ -372,8 +305,8 @@ onUnmounted(() => {
   min-width: 18px;
   height: 18px;
   padding: 0 0.375rem;
-  background: var(--primary-color, #2A1111);
-  color: white;
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
   font-size: 0.6875rem;
   font-weight: 600;
   border-radius: 9px;
@@ -381,7 +314,7 @@ onUnmounted(() => {
 
 .popover-divider {
   height: 1px;
-  background: rgba(17, 24, 39, 0.08);
+  background: var(--color-border-default);
   margin: 0.18rem 0.15rem;
 }
 
@@ -425,8 +358,8 @@ onUnmounted(() => {
 
 [data-theme="dark"] .popover-content {
   background: var(--color-bg-card);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  border-color: var(--color-border-default);
+  box-shadow: var(--shadow-md);
 }
 
 [data-theme="dark"] .popover-item:hover {
@@ -450,10 +383,23 @@ onUnmounted(() => {
 }
 
 [data-theme="dark"] .popover-divider {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-border-default);
 }
 
 [data-theme="dark"] .indicator-dot {
   background: var(--color-accent-primary);
+}
+.popover-item:focus-visible,
+.tool-trigger-button:focus-visible {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover-fade-enter-active,
+  .popover-fade-leave-active,
+  .popover-item {
+    transition: none;
+  }
 }
 </style>

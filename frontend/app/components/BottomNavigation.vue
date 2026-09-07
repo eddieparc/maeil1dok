@@ -1,5 +1,5 @@
 <template>
-  <div class="bottom-nav-container" :data-density="density">
+  <div class="bottom-nav-container" :data-density="density" :class="{ 'tabs-hidden': hidden }">
     <div v-if="$slots.above" class="bottom-nav-above">
       <slot name="above" />
     </div>
@@ -78,6 +78,15 @@ const isActive = (path) => route.path === path || (path !== '/' && route.path.st
   --mobile-nav-content-height: calc(var(--tabbar-reader-height, 80px) - 24px);
 }
 
+.bottom-nav-container[data-density="reader"] .bottom-nav-tabs {
+  background: color-mix(in srgb, var(--color-bg-card) 96%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.bottom-nav-container[data-density="reader"].tabs-hidden:has(.bottom-nav-above) {
+  padding-bottom: var(--mobile-nav-safe-inset);
+}
+
 .bottom-nav-above {
   position: relative;
   max-width: 768px;
@@ -86,15 +95,20 @@ const isActive = (path) => route.path === path || (path !== '/' && route.path.st
 }
 
 .bottom-nav-tabs {
+  box-sizing: border-box;
+  height: calc(var(--mobile-nav-content-height) + var(--mobile-nav-safe-inset));
+  overflow: hidden;
   background: var(--color-bg-card);
   box-shadow: inset 0 1px var(--color-border-default);
   padding-bottom: var(--mobile-nav-safe-inset);
   pointer-events: auto;
-  transition: transform var(--duration-standard, 250ms) ease;
+  transition: height var(--duration-standard, 250ms) ease, padding-bottom var(--duration-standard, 250ms) ease, opacity var(--duration-standard, 250ms) ease;
 }
 
 .bottom-nav-tabs.is-hidden {
-  transform: translateY(100%);
+  height: 0;
+  padding-bottom: 0;
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -150,6 +164,10 @@ const isActive = (path) => route.path === path || (path !== '/' && route.path.st
 @media (min-width: 1024px) {
   .bottom-nav-container {
     left: var(--sidebar-width);
+  }
+
+  .bottom-nav-container[data-density="reader"].tabs-hidden:has(.bottom-nav-above) {
+    padding-bottom: 0;
   }
 
   .bottom-nav-tabs {

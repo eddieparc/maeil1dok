@@ -128,13 +128,13 @@
             <p class="setting-label">테마</p>
             <SegmentedControl v-model="selectedTheme" :options="themeOptions" aria-label="테마" />
           </div>
-          <NuxtLink to="/bible/settings" class="list-card-row setting-row row-action">
+          <button type="button" class="list-card-row setting-row row-action" @click="isReadingSettingsOpen = true">
             <div class="setting-info">
               <p class="setting-label">읽기 설정</p>
               <p class="setting-description">글꼴 · 크기 · 줄 간격</p>
             </div>
             <ChevronRight :size="18" class="chevron" aria-hidden="true" />
-          </NuxtLink>
+          </button>
         </ListCard>
       </section>
 
@@ -234,6 +234,7 @@
         </div>
       </section>
 
+      <ReadingSettingsSheet v-model="isReadingSettingsOpen" />
       <ProfileEditModal v-if="showProfileEdit && editableProfile" :profile="editableProfile" @close="showProfileEdit = false" />
       <p v-if="shellIdentity.visible" class="shell-identity">{{ shellIdentity.label }}</p>
     </div>
@@ -256,6 +257,7 @@ import AppButton from '~/components/ui/AppButton.vue'
 import ListCard from '~/components/ui/ListCard.vue'
 import SegmentedControl from '~/components/ui/SegmentedControl.vue'
 import ProfileEditModal from '~/components/profile/ProfileEditModal.vue'
+import ReadingSettingsSheet from '~/components/ReadingSettingsSheet.vue'
 import { Apple, CheckCircle, ChevronRight, Globe, Mail, MessageCircle } from '@lucide/vue'
 import { useNotificationsStore, type NotificationSettings } from '~/stores/notifications'
 import { useReadingSettingsStore } from '~/stores/readingSettings'
@@ -282,6 +284,7 @@ const config = useRuntimeConfig()
 const { goBack } = useNavigation()
 const notificationsStore = useNotificationsStore()
 const readingSettings = useReadingSettingsStore()
+const isReadingSettingsOpen = ref(false)
 const profileStore = useProfileStore()
 
 const themeOptions = [
@@ -1173,7 +1176,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .display-group { animation-delay: 150ms; }
 .account-actions { animation-delay: 200ms; }
 @keyframes settings-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-:global([data-theme="dark"]) .connected-badge { background: transparent; border: 1.5px solid var(--color-accent-primary); }
+[data-theme="dark"] .connected-badge { background: transparent; border: 1.5px solid var(--color-accent-primary); }
 @media (min-width: 1024px) { .account-settings-page { padding: 36px 40px; } }
 @media (max-width: 360px) { .setting-row { gap: 8px; } .setting-row.highlight { flex-wrap: wrap; } }
 @media (prefers-reduced-motion: reduce) {

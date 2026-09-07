@@ -407,7 +407,7 @@ const handleBack = () => {
   padding: 32px var(--screen-gutter) max(12px, env(safe-area-inset-bottom, 0px));
 }
 .logo { display: block; height: 34px; width: auto; object-fit: contain; margin-bottom: 20px; }
-:global([data-theme="dark"]) .logo { filter: brightness(0) invert(1); }
+[data-theme="dark"] .logo { filter: brightness(0) invert(1); }
 .page-title {
   margin: 0 0 8px;
   font-size: 26px;

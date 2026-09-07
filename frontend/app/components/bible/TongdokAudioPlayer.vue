@@ -3,6 +3,7 @@
     <div v-if="videoId" class="youtube-player-host" aria-hidden="true">
       <iframe
         ref="iframeRef"
+        :key="JSON.stringify([audioContextKey, audioLink])"
         class="youtube-player-frame"
         :src="embedUrl"
         title="통독 오디오"
@@ -143,8 +144,20 @@ const YOUTUBE_PAUSED_STATE = 2;
 const YOUTUBE_BUFFERING_STATE = 3;
 const PROGRESS_SYNC_INTERVAL_MS = 500;
 
+export interface AudioEndedSource {
+  readonly audioLink: string;
+  readonly audioContextKey: string;
+}
+
+interface AudioBinding {
+  generation: number;
+  source: AudioEndedSource;
+  iframe: HTMLIFrameElement;
+}
+
 const props = defineProps<{
   audioLink: string;
+  audioContextKey?: string;
   isOpen: boolean;
   scheduleRange?: string | null;
   isCompleting?: boolean;
@@ -152,8 +165,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:is-open': [value: boolean];
-  ended: [];
+  ended: [source: AudioEndedSource];
   'open-external': [url: string];
+  'overlay-open-change': [value: boolean];
 }>();
 
 const iframeRef = ref<HTMLIFrameElement | null>(null);
@@ -165,6 +179,16 @@ const hasEnded = ref(false);
 const playbackRate = ref<PlaybackRate>(1);
 const isSpeedMenuOpen = ref(false);
 let progressTimer: number | null = null;
+let generation = 0;
+let disposed = false;
+let activeBinding: AudioBinding | null = null;
+
+watch(isSpeedMenuOpen, value => emit('overlay-open-change', value), { flush: 'sync' });
+
+const isCurrentBinding = (binding: AudioBinding): boolean => !disposed && props.isOpen
+  && binding.generation === generation && binding.iframe === iframeRef.value
+  && binding.source.audioLink === props.audioLink
+  && binding.source.audioContextKey === (props.audioContextKey ?? '');
 
 const extractYouTubeVideoId = (url: string): string | null => {
   return url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1] ?? null;
@@ -255,7 +279,8 @@ const stopProgressSync = (): void => {
   progressTimer = null;
 };
 
-const handlePlayerStateChange = (event: YouTubePlayerEvent): void => {
+const handlePlayerStateChange = (event: YouTubePlayerEvent, binding: AudioBinding): void => {
+  if (!isCurrentBinding(binding)) return;
   isPlaying.value = event.data === YOUTUBE_PLAYING_STATE || event.data === YOUTUBE_BUFFERING_STATE;
 
   if (event.data === YOUTUBE_PAUSED_STATE) {
@@ -267,38 +292,48 @@ const handlePlayerStateChange = (event: YouTubePlayerEvent): void => {
   if (event.data === YOUTUBE_ENDED_STATE && !hasEnded.value) {
     hasEnded.value = true;
     isPlaying.value = false;
-    emit('ended');
+    emit('ended', binding.source);
   }
 };
 
 const destroyPlayer = (): void => {
+  // Invalidate before destroy: providers can synchronously call back on disposal.
+  generation++;
+  activeBinding = null;
   stopProgressSync();
   player.value?.destroy();
   player.value = null;
+  isPlaying.value = false;
 };
 
 const setupPlayer = async (): Promise<void> => {
-  if (!props.isOpen || !videoId.value) return;
-
-  await nextTick();
-  if (!iframeRef.value) return;
-
   destroyPlayer();
+  if (!props.isOpen || !videoId.value) return;
+  const pendingGeneration = generation;
+  const source: AudioEndedSource = Object.freeze({
+    audioLink: props.audioLink,
+    audioContextKey: props.audioContextKey ?? '',
+  });
+  await nextTick();
+  if (disposed || pendingGeneration !== generation || !props.isOpen || !iframeRef.value) return;
+  const binding: AudioBinding = { generation: pendingGeneration, source, iframe: iframeRef.value };
+  activeBinding = binding;
   hasEnded.value = false;
   currentTime.value = 0;
   duration.value = 0;
 
   await loadYouTubeApi();
-  if (!window.YT?.Player || !iframeRef.value) return;
+  if (!isCurrentBinding(binding) || !window.YT?.Player) return;
 
-  player.value = new window.YT.Player(iframeRef.value, {
+  player.value = new window.YT.Player(binding.iframe, {
     events: {
       onReady: () => {
+        if (!isCurrentBinding(binding)) return;
         player.value?.setPlaybackRate(playbackRate.value);
         syncProgress();
         startProgressSync();
       },
-      onStateChange: handlePlayerStateChange,
+      onStateChange: event => handlePlayerStateChange(event, binding),
     },
   });
 };
@@ -366,19 +401,20 @@ const parseYouTubeMessage = (data: unknown): YouTubeStateMessage | null => {
 };
 
 const handleMessage = (event: MessageEvent): void => {
-  if (!props.isOpen) return;
+  const binding = activeBinding;
+  if (!binding || !isCurrentBinding(binding)) return;
   if (event.origin !== 'https://www.youtube.com') return;
+  if (!binding.iframe.contentWindow || event.source !== binding.iframe.contentWindow) return;
 
   const message = parseYouTubeMessage(event.data);
   if (message?.event === 'onStateChange' && message.info === YOUTUBE_ENDED_STATE && !hasEnded.value) {
-    hasEnded.value = true;
-    isPlaying.value = false;
-    emit('ended');
+    handlePlayerStateChange({ data: YOUTUBE_ENDED_STATE }, binding);
   }
 };
 
 const close = (): void => {
   isSpeedMenuOpen.value = false;
+  destroyPlayer();
   emit('update:is-open', false);
 };
 
@@ -387,8 +423,9 @@ const handleDocumentClick = (): void => {
 };
 
 watch(
-  () => [props.audioLink, props.isOpen],
+  () => [props.audioLink, props.audioContextKey, props.isOpen],
   () => {
+    isSpeedMenuOpen.value = false;
     if (props.isOpen) {
       void setupPlayer();
       return;
@@ -396,7 +433,7 @@ watch(
 
     destroyPlayer();
   },
-  { immediate: true }
+  { immediate: true, flush: 'sync' }
 );
 
 onMounted(() => {
@@ -406,6 +443,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  disposed = true;
+  isSpeedMenuOpen.value = false;
   destroyPlayer();
   if (typeof window !== 'undefined') {
     window.removeEventListener('message', handleMessage);
@@ -417,7 +456,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .tongdok-audio-player {
   position: relative;
-  padding: 0.5rem 1rem 0;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  background: var(--color-bg-card);
 }
 
 .player-speed-floating {
@@ -436,8 +480,8 @@ onBeforeUnmount(() => {
 }
 
 .player-speed-trigger {
-  min-width: 42px;
-  min-height: 24px;
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
   padding: 0 0.5rem;
   border-radius: 999px;
   background: rgba(42, 17, 17, 0.1);
@@ -464,7 +508,7 @@ onBeforeUnmount(() => {
 }
 
 .player-speed-option {
-  min-height: 30px;
+  min-height: var(--hit-min);
   padding: 0 0.55rem;
   border-radius: 10px;
   color: var(--text-secondary, #6b7280);
@@ -498,6 +542,7 @@ onBeforeUnmount(() => {
 
 .youtube-progress-row,
 .player-fallback {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -508,17 +553,30 @@ onBeforeUnmount(() => {
   position: relative;
   display: block;
   flex: 1;
-  height: 5px;
+  min-width: var(--hit-min);
+  height: var(--hit-min);
   overflow: hidden;
   border: 0;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.12);
+  background: transparent;
   cursor: pointer;
+}
+
+.youtube-progress-track::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 4px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--color-border-default);
 }
 
 .youtube-progress-fill {
   position: absolute;
-  inset: 0 auto 0 0;
+  inset: 50% auto auto 0;
+  height: 4px;
+  transform: translateY(-50%);
   width: 0;
   border-radius: inherit;
   background: var(--color-success, #2A1111);
@@ -537,8 +595,8 @@ onBeforeUnmount(() => {
 .player-control,
 .player-close {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: var(--hit-min);
+  height: var(--hit-min);
   place-items: center;
   flex-shrink: 0;
   border-radius: 999px;
@@ -569,6 +627,7 @@ onBeforeUnmount(() => {
 
 .player-text-action {
   flex-shrink: 0;
+  min-height: var(--hit-min);
   padding: 0.28rem 0.45rem;
   border-radius: 7px;
   background: rgba(42, 17, 17, 0.1);
@@ -582,10 +641,6 @@ onBeforeUnmount(() => {
   color: var(--text-secondary, #6b7280);
   font-size: 0.72rem;
   font-weight: 700;
-}
-
-[data-theme="dark"] .youtube-progress-track {
-  background: rgba(255, 255, 255, 0.16);
 }
 
 [data-theme="dark"] .player-control {
@@ -612,14 +667,25 @@ onBeforeUnmount(() => {
   color: var(--color-text-secondary, #d1d5db);
 }
 
-@media (max-width: 420px) {
+@media (max-width: 360px) {
   .tongdok-audio-player {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
   }
 
-  .player-time {
-    display: none;
-  }
+  .player-time { min-width: 0; }
+}
+
+.player-time {
+  font-size: 11px;
+}
+
+.tongdok-audio-player button:focus-visible {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .youtube-progress-fill { transition: none; }
 }
 </style>

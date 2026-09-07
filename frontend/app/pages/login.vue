@@ -268,7 +268,7 @@ const handleBack = () => {
   margin-bottom: 44px;
 }
 .logo { height: 34px; width: auto; object-fit: contain; }
-:global([data-theme="dark"]) .logo { filter: brightness(0) invert(1); }
+[data-theme="dark"] .logo { filter: brightness(0) invert(1); }
 .tagline { margin: 0; font-size: 14px; line-height: 1.5; color: var(--color-text-secondary); }
 .social-buttons { display: flex; flex-direction: column; gap: 10px; }
 .social-button {

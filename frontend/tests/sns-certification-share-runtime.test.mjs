@@ -1,201 +1,118 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { after, before, beforeEach, test } from 'node:test';
+import { afterEach, before, beforeEach, test as nodeTest } from 'node:test';
 import * as esbuild from 'esbuild';
 
+const test = (name, run) => nodeTest(name, { timeout: 3000 }, run);
 let shareModule;
 let clickedDownloads;
 let copiedLinks;
 let objectUrls;
 let revokeObjectUrls;
 let sharedPayloads;
-let canvasBlobFactory;
-let scheduleCanvasBlob;
 let nativeMessages;
-
+let preparedImage;
+const originals = new Map(['window', 'document', 'navigator'].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
 const originalCreateObjectUrl = URL.createObjectURL;
 const originalRevokeObjectUrl = URL.revokeObjectURL;
 
-const installBrowserStubs = () => {
+before(async () => {
+  const source = await readFile(new URL('../app/composables/useCertificationShare.ts', import.meta.url), 'utf8');
+  const result = await esbuild.transform(source, { loader: 'ts', format: 'esm', target: 'es2022' });
+  shareModule = await import(`data:text/javascript;base64,${Buffer.from(result.code).toString('base64')}`);
+});
+
+beforeEach(() => {
   clickedDownloads = 0;
   copiedLinks = [];
   objectUrls = [];
   revokeObjectUrls = [];
   sharedPayloads = [];
-  canvasBlobFactory = () => new Blob(['certification-png'], { type: 'image/png' });
-  scheduleCanvasBlob = (callback) => callback(canvasBlobFactory());
   nativeMessages = [];
-
-  globalThis.window = {
-    location: {
-      origin: 'https://maeil1dok.app',
-    },
+  // ShareSheet prepares before the tap. These are transport fixtures, NOT canvas
+  // output or PNG-signature proof. The compiled UI/preparation boundary is covered
+  // by sns-certification-contract and handoff-v2-reader-sharing.
+  const bytes = 'prepared transport fixture; native PNG validation is lead-owned';
+  preparedImage = {
+    file: new File([bytes], 'maeil1dok-tongdok-certification.png', { type: 'image/png' }),
+    dataUrl: `data:image/png;base64,${Buffer.from(bytes).toString('base64')}`,
+    width: 720,
+    height: 1280,
   };
-  globalThis.document = {
-    documentElement: {},
-    body: {
-      append() {},
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { location: { origin: 'https://maeil1dok.app' } } });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+    body: { append() {} },
+    createElement(tag) {
+      assert.equal(tag, 'a', 'transport must not render another canvas during activation');
+      return { href: '', download: '', click() { clickedDownloads++; }, remove() {} };
     },
-    createElement(tagName) {
-      if (tagName === 'canvas') {
-        return {
-          width: 0,
-          height: 0,
-          getContext() {
-            return {
-              fillStyle: '',
-              strokeStyle: '',
-              lineWidth: 0,
-              lineCap: '',
-              lineJoin: '',
-              font: '',
-              textAlign: '',
-              fillRect() {},
-              beginPath() {},
-              roundRect() {},
-              fill() {},
-              stroke() {},
-              arc() {},
-              moveTo() {},
-              lineTo() {},
-              quadraticCurveTo() {},
-              fillText() {},
-            };
-          },
-          toBlob(callback) {
-            scheduleCanvasBlob(callback);
-          },
-          toDataURL() {
-            return 'data:image/png;base64,Y2VydGlmaWNhdGlvbi1wbmc=';
-          },
-        };
-      }
-
-      if (tagName === 'a') {
-        return {
-          href: '',
-          download: '',
-          click() {
-            clickedDownloads += 1;
-          },
-          remove() {},
-        };
-      }
-
-      throw new Error(`Unexpected element: ${tagName}`);
-    },
-  };
-  globalThis.getComputedStyle = () => ({
-    getPropertyValue: () => '',
-  });
-  Object.defineProperty(globalThis, 'navigator', {
-    configurable: true,
-    value: {
-      clipboard: {
-        async writeText(value) {
-          copiedLinks.push(value);
-        },
-      },
-      canShare() {
-        return false;
-      },
-    },
-  });
-  globalThis.File = class File extends Blob {
-    constructor(parts, name, options) {
-      super(parts, options);
-      this.name = name;
-    }
-  };
-  URL.createObjectURL = (blob) => {
+  } });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+    clipboard: { async writeText(value) { copiedLinks.push(value); } },
+    canShare: () => false,
+  } });
+  URL.createObjectURL = blob => {
     const url = `blob:certification-${objectUrls.length}`;
-    objectUrls.push({ url, type: blob.type, size: blob.size });
+    objectUrls.push({ url, type: blob.type, size: blob.size, blob });
     return url;
   };
-  URL.revokeObjectURL = (url) => {
-    revokeObjectUrls.push(url);
-  };
-};
-
-before(async () => {
-  const source = await readFile(new URL('../app/composables/useCertificationShare.ts', import.meta.url), 'utf8');
-  const result = await esbuild.transform(source, {
-    loader: 'ts',
-    format: 'esm',
-    target: 'es2022',
-  });
-  const encoded = Buffer.from(result.code).toString('base64');
-  shareModule = await import(`data:text/javascript;base64,${encoded}`);
+  URL.revokeObjectURL = url => revokeObjectUrls.push(url);
 });
 
-beforeEach(() => {
-  installBrowserStubs();
-});
-
-after(async () => {
+afterEach(() => {
+  for (const [name, descriptor] of originals) {
+    if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+    else delete globalThis[name];
+  }
   URL.createObjectURL = originalCreateObjectUrl;
   URL.revokeObjectURL = originalRevokeObjectUrl;
 });
 
-test('shareCertification downloads a generated PNG when Web Share files are unavailable', async () => {
+test('shareCertification downloads the prepared PNG when Web Share files are unavailable', async () => {
   const { shareCertification } = shareModule.useCertificationShare();
-
-  const result = await shareCertification({
+  const payload = {
+    preparedImage,
     planId: 7,
     scheduleId: 13,
     dateLabel: '2026-01-02',
     readingRange: '출애굽기 1장',
     progressLine: '2/3일 완료 · 66.67%',
-  });
-
+    title: '실제 일정 제목',
+    subtitle: '실제 일정 부제',
+  };
+  const result = await shareCertification(payload);
   assert.equal(result, 'downloaded');
   assert.equal(clickedDownloads, 1);
   assert.equal(copiedLinks.length, 0);
   assert.equal(objectUrls[0].type, 'image/png');
+  assert.equal(objectUrls[0].blob, preparedImage.file);
   assert.deepEqual(revokeObjectUrls, ['blob:certification-0']);
 
-  Object.defineProperty(globalThis, 'navigator', {
-    configurable: true,
-    value: {
-      clipboard: navigator.clipboard,
-      canShare: ({ files }) => files?.length === 1,
-      async share(payload) {
-        sharedPayloads.push(payload);
-        throw new DOMException('share cancelled', 'AbortError');
-      },
-    },
-  });
-
-  const cancelledResult = await shareCertification({
-    planId: 7,
-    scheduleId: 13,
-    dateLabel: '2026-01-02',
-  });
+  navigator.canShare = ({ files }) => files?.length === 1;
+  navigator.share = async data => {
+    sharedPayloads.push(data);
+    throw new DOMException('share cancelled', 'AbortError');
+  };
+  const cancelledResult = await shareCertification(payload);
   const [sharedPayload] = sharedPayloads;
-
   assert.equal(cancelledResult, 'shared');
   assert.equal(sharedPayloads.length, 1);
-  assert.equal(sharedPayload.title, '매일일독 통독 인증 카드');
-  assert.equal(sharedPayload.text, '오늘도 말씀을 읽었습니다');
+  assert.equal(sharedPayload.title, payload.title);
+  assert.equal(sharedPayload.text, payload.subtitle);
   assert.match(sharedPayload.url, /certification=tongdok/);
   assert.match(sharedPayload.url, /plan_id=7/);
   assert.match(sharedPayload.url, /schedule_id=13/);
   assert.equal(sharedPayload.files.length, 1);
+  assert.equal(sharedPayload.files[0], preparedImage.file);
   assert.equal(sharedPayload.files[0].name, 'maeil1dok-tongdok-certification.png');
   assert.equal(sharedPayload.files[0].type, 'image/png');
   assert.equal(clickedDownloads, 1);
 });
 
-test('shareCertification falls back to a certification history link when PNG generation fails', async () => {
+test('shareCertification falls back to a certification history link when preparation produced no PNG', async () => {
   const { shareCertification } = shareModule.useCertificationShare();
-  canvasBlobFactory = () => null;
-
-  const result = await shareCertification({
-    planId: 7,
-    scheduleId: 13,
-    dateLabel: '2026-01-02',
-  });
-
+  // Explicit unavailable-image boundary, not a pretend canvas-generation test.
+  const result = await shareCertification({ planId: 7, scheduleId: 13, dateLabel: '2026-01-02' });
   assert.equal(result, 'copied');
   assert.equal(clickedDownloads, 0);
   assert.equal(copiedLinks.length, 1);
@@ -207,92 +124,52 @@ test('shareCertification falls back to a certification history link when PNG gen
 });
 
 test('shareCertification preserves iOS WebView activation and shares only the PNG file', async () => {
-  // Given: iOS WebKit expires the click activation before an asynchronous
-  // canvas.toBlob callback completes.
   window.isReactNativeWebView = true;
   window.isAndroidApp = false;
   let hasTransientActivation = true;
-  scheduleCanvasBlob = (callback) => {
-    queueMicrotask(() => {
-      hasTransientActivation = false;
-      callback(canvasBlobFactory());
-    });
+  navigator.canShare = ({ files }) => files?.length === 1;
+  navigator.share = async payload => {
+    if (!hasTransientActivation) throw new DOMException('share requires user activation', 'NotAllowedError');
+    sharedPayloads.push(payload);
   };
-  Object.defineProperty(globalThis, 'navigator', {
-    configurable: true,
-    value: {
-      clipboard: navigator.clipboard,
-      canShare: ({ files }) => files?.length === 1,
-      async share(payload) {
-        if (!hasTransientActivation) {
-          throw new DOMException('share requires user activation', 'NotAllowedError');
-        }
-        sharedPayloads.push(payload);
-      },
-    },
-  });
-
-  // When: the certification share action starts directly from the tap.
   const { shareCertification } = shareModule.useCertificationShare();
-  const result = await shareCertification({ planId: 7, scheduleId: 13 });
-
-  // Then: the native share sheet receives the PNG before activation expires,
-  // without a mixed text/URL payload or a silent blob-download fallback.
+  queueMicrotask(() => { hasTransientActivation = false; });
+  const sharing = shareCertification({ preparedImage, planId: 7, scheduleId: 13 });
+  assert.equal(sharedPayloads.length, 1, 'dispatch must happen in the original activation');
+  const result = await sharing;
   assert.equal(result, 'shared');
-  assert.equal(sharedPayloads.length, 1);
   assert.deepEqual(Object.keys(sharedPayloads[0]), ['files']);
+  assert.equal(sharedPayloads[0].files[0], preparedImage.file);
   assert.equal(sharedPayloads[0].files[0].type, 'image/png');
   assert.equal(clickedDownloads, 0);
+  assert.equal(copiedLinks.length, 0);
 });
 
 test('downloadCertificationImage opens the iOS WebView share sheet instead of a blob download', async () => {
-  // Given: the image-save action runs inside the iOS app WebView.
   window.isReactNativeWebView = true;
   window.isAndroidApp = false;
-  Object.defineProperty(globalThis, 'navigator', {
-    configurable: true,
-    value: {
-      clipboard: navigator.clipboard,
-      canShare: ({ files }) => files?.length === 1,
-      async share(payload) {
-        sharedPayloads.push(payload);
-      },
-    },
-  });
-
-  // When: the user taps the dedicated image-save action.
+  navigator.canShare = ({ files }) => files?.length === 1;
+  navigator.share = async payload => { sharedPayloads.push(payload); };
   const { downloadCertificationImage } = shareModule.useCertificationShare();
-  await downloadCertificationImage(undefined, { planId: 7, scheduleId: 13 });
-
-  // Then: iOS receives a real PNG through its share sheet, where Save Image is
-  // available, rather than a blob anchor that WKWebView cannot persist.
+  const saving = downloadCertificationImage(undefined, { preparedImage, planId: 7, scheduleId: 13 });
   assert.equal(sharedPayloads.length, 1);
+  await saving;
   assert.deepEqual(Object.keys(sharedPayloads[0]), ['files']);
+  assert.equal(sharedPayloads[0].files[0], preparedImage.file);
   assert.equal(sharedPayloads[0].files[0].type, 'image/png');
   assert.equal(clickedDownloads, 0);
+  navigator.share = async () => { throw new DOMException('save cancelled', 'AbortError'); };
+  await downloadCertificationImage(undefined, { preparedImage, planId: 7, scheduleId: 13 });
+  assert.equal(clickedDownloads, 0, 'cancelling Save Image must not fall through to download');
 });
 
 test('shareCertification copies the history link when iOS cannot share PNG files', async () => {
-  // Given: the iOS app WebView exposes Web Share but rejects PNG file payloads.
   window.isReactNativeWebView = true;
   window.isAndroidApp = false;
-  Object.defineProperty(globalThis, 'navigator', {
-    configurable: true,
-    value: {
-      clipboard: navigator.clipboard,
-      canShare: () => false,
-      async share(payload) {
-        sharedPayloads.push(payload);
-      },
-    },
-  });
-
-  // When: the user attempts to share a completed certification card.
+  navigator.canShare = () => false;
+  navigator.share = async payload => { sharedPayloads.push(payload); };
   const { shareCertification } = shareModule.useCertificationShare();
-  const result = await shareCertification({ planId: 7, scheduleId: 13 });
-
-  // Then: the action has an observable link fallback instead of reporting a
-  // blob download that iOS WebView did not persist.
+  const result = await shareCertification({ preparedImage, planId: 7, scheduleId: 13 });
   assert.equal(result, 'copied');
   assert.equal(sharedPayloads.length, 0);
   assert.equal(clickedDownloads, 0);
@@ -303,40 +180,20 @@ test('shareCertification copies the history link when iOS cannot share PNG files
 });
 
 test('Android app routes certification sharing and saving through the native image bridge', async () => {
-  // Given: the page runs inside the Android app WebView.
   window.isReactNativeWebView = true;
   window.isAndroidApp = true;
-  window.ReactNativeWebView = {
-    postMessage(value) {
-      nativeMessages.push(JSON.parse(value));
-    },
-  };
-
-  // When: the user shares and then saves the generated certification image.
+  window.ReactNativeWebView = { postMessage(value) { nativeMessages.push(JSON.parse(value)); } };
   const { downloadCertificationImage, shareCertification } = shareModule.useCertificationShare();
-  const shareResult = await shareCertification({ planId: 7, scheduleId: 13 });
-  await downloadCertificationImage(undefined, { planId: 7, scheduleId: 13 });
-
-  // Then: both actions carry the PNG through the native bridge instead of a
-  // WebView blob download that does not create a user-visible file.
+  const shareResult = await shareCertification({ preparedImage, planId: 7, scheduleId: 13 });
+  await downloadCertificationImage(undefined, { preparedImage, planId: 7, scheduleId: 13 });
   assert.equal(shareResult, 'shared');
   assert.equal(clickedDownloads, 0);
-  assert.deepEqual(
-    nativeMessages.map(({ type, action, fileName }) => ({ type, action, fileName })),
-    [
-      {
-        type: 'certification:image',
-        action: 'share',
-        fileName: 'maeil1dok-tongdok-certification.png',
-      },
-      {
-        type: 'certification:image',
-        action: 'save',
-        fileName: 'maeil1dok-tongdok-certification.png',
-      },
-    ],
-  );
+  assert.deepEqual(nativeMessages.map(({ type, action, fileName }) => ({ type, action, fileName })), [
+    { type: 'certification:image', action: 'share', fileName: 'maeil1dok-tongdok-certification.png' },
+    { type: 'certification:image', action: 'save', fileName: 'maeil1dok-tongdok-certification.png' },
+  ]);
   for (const message of nativeMessages) {
     assert.match(message.dataUrl, /^data:image\/png;base64,/);
+    assert.equal(message.dataUrl, preparedImage.dataUrl);
   }
 });

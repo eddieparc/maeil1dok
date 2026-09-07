@@ -1,31 +1,48 @@
 <template>
   <div
-    v-if="state.mode === 'action'"
+    v-if="state.visible && state.mode === 'action'"
     data-testid="selection-action-menu"
     class="selection-floating-stack selection-action-menu"
     role="toolbar"
     aria-label="선택한 구절 작업"
     @click.stop
+    @mousedown.prevent
+    @keydown.esc.stop="$emit('close')"
   >
-    <button class="selection-action-button" @click="$emit('highlight-or-remove')">
-      <PenIcon :size="16" aria-hidden="true" />
-      <span>{{ state.isHighlighted ? '제거' : '하이라이트' }}</span>
+    <span v-if="state.selection" class="selection-location">
+      {{ state.selection.chapter }}:{{ state.selection.start }}<template v-if="state.selection.end !== state.selection.start">-{{ state.selection.end }}</template>
+    </span>
+    <div class="selection-palette" role="group" aria-label="하이라이트 색상">
+      <button
+        v-for="color in DEFAULT_HIGHLIGHT_COLORS"
+        :key="color.value"
+        type="button"
+        class="selection-color-button"
+        :data-color="color.value"
+        :aria-label="`${color.name} 하이라이트 저장`"
+        @click="$emit('highlight-color', color.value)"
+      >
+        <span class="selection-swatch" :style="{ backgroundColor: color.value }" aria-hidden="true"></span>
+      </button>
+    </div>
+    <button v-if="state.isHighlighted" type="button" class="selection-action-button selection-delete-button" aria-label="하이라이트 삭제" @click="$emit('highlight-or-remove')">
+      <Trash2Icon :size="16" aria-hidden="true" />
     </button>
-    <button class="selection-action-button" @click="$emit('copy')">
+    <button type="button" class="selection-action-button selection-copy-action" aria-label="구절 복사" @click="$emit('copy')">
       <CopyIcon :size="16" aria-hidden="true" />
       <span>복사</span>
     </button>
-    <button class="selection-action-button" @click="$emit('share')">
+    <button type="button" class="selection-action-button selection-share-action" aria-label="구절 공유" @click="$emit('share')">
       <ShareIcon :size="16" aria-hidden="true" />
       <span>공유</span>
     </button>
-    <button class="selection-action-button close" aria-label="선택 메뉴 닫기" @click="$emit('close')">
+    <button type="button" class="selection-action-button close selection-close-action" aria-label="선택 메뉴 닫기" @click="$emit('close')">
       <XMarkIcon :size="16" aria-hidden="true" />
     </button>
   </div>
 
   <div
-    v-else-if="state.mode === 'copy'"
+    v-else-if="state.visible && state.mode === 'copy'"
     data-testid="selection-copy-menu"
     class="selection-floating-stack selection-copy-menu"
     role="toolbar"
@@ -64,7 +81,8 @@
 </template>
 
 <script setup lang="ts">
-import { CopyIcon, PenIcon, ShareIcon } from '@lucide/vue';
+import { CopyIcon, Trash2Icon, ShareIcon } from '@lucide/vue';
+import { DEFAULT_HIGHLIGHT_COLORS } from '~/composables/useHighlight';
 import type { SelectionMenuState } from '~/components/bible/BibleViewer.vue';
 import XMarkIcon from '~/components/icons/XMarkIcon.vue';
 
@@ -81,6 +99,7 @@ defineProps<{
 
 defineEmits<{
   'highlight-or-remove': [];
+  'highlight-color': [color: string];
   copy: [];
   share: [];
   close: [];
@@ -92,150 +111,91 @@ defineEmits<{
 <style scoped>
 .selection-floating-stack {
   margin: 0 auto;
-  max-width: min(400px, calc(100vw - 32px));
-  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  width: calc(100% - 24px);
+  max-width: 520px;
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-body);
+  color: var(--color-apple-text);
+  background: var(--color-apple-bg);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
 }
 
 .selection-action-menu {
   display: flex;
   align-items: center;
-  gap: 0.125rem;
-  padding: 0.375rem 0.5rem;
-  background: var(--color-bg-card, #fff);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: 999px;
-  box-shadow:
-    0 18px 40px rgba(31, 41, 55, 0.16),
-    0 6px 16px rgba(31, 41, 55, 0.12);
+  flex-wrap: wrap;
+  padding: 6px;
 }
 
-.selection-action-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  min-height: 36px;
-  padding: 0.5rem 0.75rem;
-  color: var(--text-primary, #1f2937);
-  font-size: 0.8125rem;
+.selection-location {
+  flex: 1 0 auto;
+  padding: 0 6px;
+  font-size: 12px;
   font-weight: 600;
-  white-space: nowrap;
-  border-radius: 999px;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
-  -webkit-tap-highlight-color: transparent;
+  font-variant-numeric: tabular-nums;
 }
 
-.selection-action-button svg {
-  color: var(--text-secondary, #6b7280);
-}
-
-.selection-action-button:hover {
-  background: var(--color-bg-hover, #f3f4f6);
-}
-
-.selection-action-button:active {
-  transform: scale(0.96);
-}
-
-.selection-action-button.close {
-  width: 36px;
-  padding: 0;
-  color: var(--text-secondary, #6b7280);
-}
-
-.selection-copy-menu {
+.selection-palette {
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.75rem;
-  width: max-content;
-  padding: 0.5rem 0.75rem;
-  background: var(--color-bg-card, #fff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 16px;
-  box-shadow:
-    0 18px 40px rgba(31, 41, 55, 0.16),
-    0 6px 16px rgba(31, 41, 55, 0.12);
 }
 
-.selection-copy-label {
-  flex-shrink: 0;
-  color: var(--primary-color, #2A1111);
-  font-size: 0.875rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.selection-copy-buttons {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
+.selection-action-button,
+.selection-color-button,
 .selection-copy-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
-  padding: 0.25rem 0.5rem;
-  color: var(--text-secondary, #6b7280);
-  font-size: 0.8125rem;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+  padding: 0 6px;
+  gap: 6px;
+  color: var(--color-apple-text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+  font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
   white-space: nowrap;
-  border-radius: 8px;
-  transition: background 0.2s ease, color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
+.selection-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+}
+
+.selection-action-button:hover,
+.selection-color-button:hover,
 .selection-copy-button:hover {
-  color: var(--text-primary, #1f2937);
-  background: var(--color-bg-hover, #f3f4f6);
+  background: color-mix(in srgb, var(--color-apple-text) 12%, transparent);
 }
 
-.selection-copy-button.close {
-  color: var(--color-error);
-  padding: 0.25rem;
+.selection-action-button:focus-visible,
+.selection-color-button:focus-visible,
+.selection-copy-button:focus-visible {
+  outline: 2px solid var(--color-apple-text);
+  outline-offset: -2px;
 }
 
-.selection-action-divider {
-  color: var(--color-border, #d1d5db);
-  font-size: 0.75rem;
+.selection-copy-menu,
+.selection-copy-buttons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-@media (max-width: 360px) {
-  .selection-action-menu {
-    width: calc(100vw - 32px);
-    justify-content: space-between;
-  }
+.selection-copy-menu { padding: 6px 12px; }
+.selection-copy-label { font-size: 12px; font-weight: 600; }
+.selection-action-divider { opacity: 0.5; }
 
-  .selection-action-button {
-    gap: 0.25rem;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-    font-size: 0.75rem;
-  }
-
-  .selection-action-button.close {
-    width: 32px;
-  }
-
-  .selection-copy-menu {
-    width: calc(100vw - 32px);
-    gap: 0.5rem;
-  }
-
-  .selection-copy-label {
-    font-size: 0.8125rem;
-  }
-
-  .selection-copy-buttons {
-    flex: 1;
-    justify-content: space-between;
-  }
-
-  .selection-copy-button {
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
-    font-size: 0.75rem;
-  }
+@media (max-width: 480px) {
+  .selection-copy-action span,
+  .selection-share-action span { display: none; }
+  .selection-location { flex-basis: 100%; padding: 4px 6px; }
+  .selection-palette { margin-right: auto; }
 }
 </style>

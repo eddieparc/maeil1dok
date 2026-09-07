@@ -150,6 +150,8 @@
       <!-- Toast 컴포넌트 -->
       <Toast ref="toast" />
 
+      <ReadingSettingsSheet v-model="isReadingSettingsOpen" />
+
       <!-- 달력 모달 -->
       <HasenaCalendarModal 
         :is-open="isCalendarOpen" 
@@ -172,6 +174,7 @@ import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/r
 import { useRouter } from 'vue-router'
 import { useSanitize } from '~/composables/useSanitize'
 import Toast from '~/components/Toast.vue'
+import ReadingSettingsSheet from '~/components/ReadingSettingsSheet.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
 import SkeletonHasenaCard from '~/components/ui/skeleton/SkeletonHasenaCard.vue'
 import AppButton from '~/components/ui/AppButton.vue'
@@ -204,8 +207,9 @@ const isCalendarOpen = ref(false)
 const isSummaryExpanded = ref(false)
 
 // 읽기 설정 바로가기
+const isReadingSettingsOpen = ref(false)
 const goToReadingSettings = () => {
-  router.push('/bible/settings')
+  isReadingSettingsOpen.value = true
 }
 
 // 본문 스타일 (읽기 설정 적용)

@@ -79,11 +79,15 @@ const useAuthService = () => globalThis.__guardAuth;`,
     .replace(
       "import { useRouter, useRoute } from 'vue-router';",
       `const useRouter = () => globalThis.__guardRouter;
-const useRoute = () => ({ fullPath: '/plans/private' });`,
+const useRoute = () => globalThis.__guardRoute;`,
     )
     .replace(
       "import { useToast } from '~/composables/useToast';",
       'const useToast = () => globalThis.__guardToast;',
+    )
+    .replace(
+      "import { useModal } from '~/composables/useModal';",
+      'const useModal = () => globalThis.__guardModal;',
     );
 
   const { code } = await transform(runnableSource, {
@@ -193,11 +197,18 @@ test('initialize repairs an incoherent hydrated initialized/loading state', asyn
   });
 });
 
-test('auth guard blocks offline actions without redirecting to login', async () => {
+const withGuardEnvironment = async ({
+  authenticated = false,
+  sessionUnknown = false,
+  fullPath = '/bible?book=gen&chapter=49',
+  confirm = async () => false,
+} = {}, run) => {
   const savedKeys = [
     '__guardAuth',
+    '__guardModal',
     '__guardNavigation',
     '__guardObservations',
+    '__guardRoute',
     '__guardRouter',
     '__guardToast',
   ];
@@ -205,20 +216,30 @@ test('auth guard blocks offline actions without redirecting to login', async () 
     savedKeys.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]),
   );
   const observations = {
+    prompts: [],
     redirects: [],
     reauthReports: [],
     toasts: [],
   };
+  const route = { fullPath };
 
+  const auth = {
+    authState: { value: sessionUnknown ? 'unknown-offline' : authenticated ? 'authenticated' : 'unauthenticated' },
+    isAuthenticated: { value: authenticated },
+    isSessionUnknown: { value: sessionUnknown },
+  };
   globalThis.__guardObservations = observations;
-  globalThis.__guardAuth = {
-    authState: { value: 'unknown-offline' },
-    isAuthenticated: { value: false },
-    isSessionUnknown: { value: true },
+  globalThis.__guardAuth = auth;
+  globalThis.__guardModal = {
+    confirm: (options) => {
+      observations.prompts.push(options);
+      return confirm(options);
+    },
   };
   globalThis.__guardNavigation = {
     setRedirectUrl: (url) => observations.redirects.push(['remember', url]),
   };
+  globalThis.__guardRoute = route;
   globalThis.__guardRouter = {
     push: (url) => observations.redirects.push(['push', url]),
   };
@@ -229,23 +250,84 @@ test('auth guard blocks offline actions without redirecting to login', async () 
 
   try {
     const { useAuthGuard } = await importAuthGuard();
-    const { requireAuth } = useAuthGuard();
-
-    assert.equal(requireAuth(), false, 'offline uncertainty must block the protected action');
-    assert.deepEqual(
-      observations.redirects,
-      [],
-      'unknown-offline must not be converted into a login navigation',
-    );
-    assert.deepEqual(
-      observations.reauthReports,
-      [],
-      'offline uncertainty is not an involuntary sign-out event',
-    );
+    await run({ auth, guard: useAuthGuard(), observations, route });
   } finally {
     for (const key of savedKeys) {
       if (saved[key]) Object.defineProperty(globalThis, key, saved[key]);
       else delete globalThis[key];
     }
   }
+};
+
+test('auth guard blocks offline actions without redirecting or prompting for login', async () => {
+  await withGuardEnvironment({ sessionUnknown: true }, async ({ guard, observations }) => {
+    assert.equal(await guard.requireAuthWithPrompt(), false);
+    assert.deepEqual(observations.prompts, []);
+    assert.deepEqual(observations.redirects, []);
+    assert.deepEqual(observations.reauthReports, []);
+    assert.equal(observations.toasts.length, 1);
+  });
+});
+
+test('authenticated prompt guard passes without opening a dialog', async () => {
+  await withGuardEnvironment({ authenticated: true }, async ({ guard, observations }) => {
+    assert.equal(await guard.requireAuthWithPrompt(), true);
+    assert.deepEqual(observations.prompts, []);
+    assert.deepEqual(observations.redirects, []);
+  });
+});
+
+test('guest prompt cancellation leaves the current route and return state untouched', async () => {
+  await withGuardEnvironment({}, async ({ guard, observations }) => {
+    assert.equal(await guard.requireAuthWithPrompt(), false);
+    assert.equal(observations.prompts.length, 1);
+    assert.deepEqual(observations.redirects, []);
+    assert.deepEqual(observations.reauthReports, []);
+  });
+});
+
+test('guest prompt confirmation captures the return route before navigating and reports reauth', async () => {
+  let resolveConfirmation;
+  const confirmation = new Promise((resolve) => { resolveConfirmation = resolve; });
+  await withGuardEnvironment({ confirm: () => confirmation }, async ({ guard, observations, route }) => {
+    const pending = guard.requireAuthWithPrompt();
+    await Promise.resolve();
+    assert.equal(observations.prompts.length, 1);
+    route.fullPath = '/bible?book=exo&chapter=1';
+    resolveConfirmation(true);
+    assert.equal(await pending, false);
+    assert.deepEqual(observations.redirects, [
+      ['remember', '/bible?book=gen&chapter=49'],
+      ['push', '/login'],
+    ]);
+    assert.deepEqual(observations.reauthReports, [[true]]);
+  });
+});
+
+test('a guest action stays blocked if authentication becomes true while its prompt is open', async () => {
+  let resolveConfirmation;
+  const confirmation = new Promise((resolve) => { resolveConfirmation = resolve; });
+  await withGuardEnvironment({ confirm: () => confirmation }, async ({ auth, guard, observations }) => {
+    const pending = guard.requireAuthWithPrompt();
+    await Promise.resolve();
+    assert.equal(observations.prompts.length, 1);
+    auth.authState.value = 'authenticated';
+    auth.isAuthenticated.value = true;
+    resolveConfirmation(true);
+    assert.equal(await pending, false, 'the originating guest action must not be replayed');
+    assert.deepEqual(observations.redirects, [], 'an authenticated user needs no login navigation');
+    assert.deepEqual(observations.reauthReports, []);
+  });
+});
+
+test('default guard keeps immediate redirect behavior for non-opt-in consumers', async () => {
+  await withGuardEnvironment({}, async ({ guard, observations }) => {
+    assert.equal(guard.requireAuth(), false);
+    assert.deepEqual(observations.prompts, []);
+    assert.deepEqual(observations.redirects, [
+      ['remember', '/bible?book=gen&chapter=49'],
+      ['push', '/login'],
+    ]);
+    assert.deepEqual(observations.reauthReports, [[true]]);
+  });
 });

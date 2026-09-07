@@ -122,6 +122,7 @@ const renderTongdokReader = async () => {
       ClientOnly: emptyStub,
       ChevronLeftIcon: iconStub,
       ChevronRightIcon: iconStub,
+      ChevronDownIcon: iconStub,
       FloatingBottomBar,
       HeadphonesIcon: iconStub,
       SelectionFloatingControls: emptyStub,
@@ -135,6 +136,14 @@ const renderTongdokReader = async () => {
         content: '<div>본문</div>',
         currentBookName: '요한복음',
         currentChapter: 3,
+        currentVersionName: '개역개정',
+        tabsHidden: false,
+        bottomControlsHeight: 88,
+        boundAudioContextKey: 'fixture-chapter',
+        tongdokDone: 0,
+        isTongdokComplete: false,
+        handleScrollPixels: noop,
+        handleAudioEnded: noop,
         handleSelectionClose: noop,
         handleSelectionCopy: noop,
         handleSelectionCopyClose: noop,
@@ -214,14 +223,20 @@ test('preserves adjacent bottom bar and event wiring', async () => {
   const html = await renderTongdokReader();
   const audioIndex = html.indexOf('aria-label="통독 오디오 재생 진행률"');
   const progressIndex = html.indexOf('class="tongdok-progress-area"');
-  const navigationIndex = html.indexOf('class="floating-bottom-navigation"');
-  const previousIndex = html.indexOf('aria-label="이전 장"', navigationIndex);
-  const chapterIndex = html.indexOf('class="chapter-info is-tongdok"', navigationIndex);
-  const nextIndex = html.indexOf('aria-label="다음 장"', navigationIndex);
+  const navigationIndex = html.indexOf('class="bottom-nav"');
+  const header = html.slice(html.indexOf('<header'), html.indexOf('</header>'));
+  const previousIndex = header.indexOf('aria-label="이전 장"');
+  const chapterIndex = header.indexOf('class="book-selector-trigger"');
+  const nextIndex = header.indexOf('aria-label="다음 장"');
 
   assert.ok(audioIndex >= 0 && audioIndex < navigationIndex, 'tongdok audio should render above navigation');
   assert.ok(progressIndex > audioIndex && progressIndex < navigationIndex, 'tongdok progress should render above navigation after audio');
-  assert.ok(previousIndex < chapterIndex && chapterIndex < nextIndex, 'previous, chapter, and next controls should keep DOM order');
+  assert.ok(previousIndex >= 0 && previousIndex < chapterIndex && chapterIndex < nextIndex, 'header previous, chapter, and next controls should keep DOM order');
+  const navigation = html.slice(navigationIndex, html.indexOf('</nav>', navigationIndex));
+  assert.equal(navigation.match(/<a\b/g)?.length, 5, 'reader uses exactly five shared tabs');
+  for (const route of ['/', '/bible', '/plan', '/groups', '/login']) {
+    assert.ok(navigation.includes(`href="${route}"`), `shared navigation retains ${route}`);
+  }
 
   for (const eventName of ['highlight', 'highlight-delete', 'copy', 'share']) {
     assert.ok(

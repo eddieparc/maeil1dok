@@ -5,6 +5,7 @@ import { build } from 'esbuild';
 import { compileScript, parse } from '@vue/compiler-sfc';
 import * as Vue from 'vue';
 import { renderToString } from '@vue/server-renderer';
+import postcss from 'postcss';
 
 const quickAccessSource = await readFile(
   new URL('../app/components/home-v2/QuickAccessGrid.vue', import.meta.url),
@@ -311,7 +312,14 @@ test('floating nav uses an opaque background', () => {
   const floatingNavBlock = bottomNavSource.match(/\.bottom-nav(?:-container)?\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
   const floatingBottomBarBlock = floatingBottomBarSource.match(/\.floating-bottom-area\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
 
-  assert.doesNotMatch(bottomNavSource, /backdrop-filter/, 'landing floating nav should not use glass blur');
+  const styles = postcss.parse(parse(bottomNavSource).descriptor.styles.map(style => style.content).join('\n'));
+  const defaultTabs = styles.nodes.find(node => node.type === 'rule' && node.selector === '.bottom-nav-tabs');
+  assert.equal(defaultTabs?.nodes.find(node => node.prop === 'background')?.value, 'var(--color-bg-card)', 'default tabs retain an opaque card background');
+  styles.walkDecls(/^(?:-webkit-)?backdrop-filter$/, declaration => {
+    for (const selector of declaration.parent.selectors) {
+      assert.match(selector, /^\.bottom-nav-container\[data-density=["']reader["']\](?:\s|[.:#])/, 'glass blur is restricted to the explicit reader variant');
+    }
+  });
   assert.doesNotMatch(floatingNavBlock, /background:\s*rgba\(/, 'landing floating nav container should not use a translucent background');
   assert.doesNotMatch(floatingBottomBarSource, /backdrop-filter/, 'common floating bottom bar should not use glass blur');
   assert.doesNotMatch(floatingBottomBarBlock, /background:\s*rgba\(/, 'common floating bottom bar should not use a translucent background');

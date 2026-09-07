@@ -95,7 +95,7 @@ export function useBiblePageState(): UseBiblePageStateReturn {
   // State
   // ============================================
 
-  const viewMode = ref<ViewMode>('reader');
+  const viewMode = ref<ViewMode>('home');
   const currentBook = ref('gen');
   const currentChapter = ref(1);
   const currentVersion = ref('GAE');
