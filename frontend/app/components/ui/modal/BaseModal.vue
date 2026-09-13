@@ -330,6 +330,7 @@ onUnmounted(() => {
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
+  .base-modal-close,
   .modal-fade-enter-active,
   .modal-fade-leave-active,
   .modal-slide-up-enter-active,

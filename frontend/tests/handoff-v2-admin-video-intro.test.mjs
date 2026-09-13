@@ -214,7 +214,7 @@ test('danger deletion is single-flight; cancel and failure preserve, success rem
 
 // Evaluate compiled scoped CSS against the actual teleported component tree.
 // This is a declaration-cascade check, not a browser layout/animation simulation.
-function modalStyle(view, target, { reduced = false, width = 1280 } = {}) {
+function modalStyle(view, target, { reduced = false, width = 1280, hovered = false } = {}) {
   const nodes = new Map();
   function convert(node) {
     const element = new CssElement(node.tag, Object.fromEntries(Object.entries(node.props)
@@ -236,7 +236,9 @@ function modalStyle(view, target, { reduced = false, width = 1280 } = {}) {
       assert.ok(['(prefers-reduced-motion: reduce)', '(max-width: 640px)'].includes(parent.params));
     }
     for (const selector of selectorParser().astSync(rule.selector).nodes) {
-      if (!matchesCss(nodes.get(target), selector.toString())) continue;
+      if (!matchesCss(nodes.get(target), selector.toString(), {
+        pseudos: { hover: element => hovered && element === nodes.get(target) },
+      })) continue;
       const specificity = selectorSpecificity(selector);
       rule.walkDecls(declaration => {
         const previous = winners.get(declaration.prop);
@@ -265,6 +267,25 @@ test('compiled upload close control has a nonshrinking token-sized 44px target',
     assert.equal(style['flex-shrink'], '0');
   }
   await rendered(() => !view.find('.base-modal-content'), () => click(close));
+});
+
+test('compiled upload close hover removes reduced motion but preserves normal feedback', options, async () => {
+  const view = await mount(); await view.ready();
+  await rendered(() => !!view.find('.base-modal-content'), () => click(view.find('[data-open-upload="true"]')));
+  const close = view.find('.base-modal-close');
+  for (const width of [390, 1280]) for (const hovered of [false, true]) {
+    const normal = modalStyle(view, close, { width, hovered });
+    const reduced = modalStyle(view, close, { width, hovered, reduced: true });
+    assert.equal(normal.transition, 'all 0.2s');
+    assert.equal(reduced.transition, 'none');
+    assert.equal(reduced.background, normal.background);
+    assert.equal(reduced.color, normal.color);
+    if (hovered) {
+      const idle = modalStyle(view, close, { width });
+      assert.notEqual(normal.background, idle.background);
+      assert.notEqual(normal.color, idle.color);
+    }
+  }
 });
 
 test('compiled upload enter and leave CSS removes reduced motion but preserves normal motion', options, async () => {

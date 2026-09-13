@@ -300,15 +300,19 @@ export const useTongdokMode = () => {
     if (positiveId(data.plan_id) !== identity.planId || !data.book || loadedChapter === null) return null;
 
     const responseDate = data.plan_date || data.schedule_date || null;
-    if (!identity.scheduleDate || responseDate !== identity.scheduleDate) return null;
+    // scheduleDate is optional in the identity: the ?date= query param is not
+    // always present (e.g. deep links like ?tongdok=true&plan=4&book=psa&chapter=7).
+    // When it is absent, accept whatever date the backend resolved for today.
+    if (identity.scheduleDate && responseDate !== identity.scheduleDate) return null;
 
     const rawRows = data.plan_detail;
     if (!rawRows?.length) return null;
+    const effectiveDate = identity.scheduleDate || responseDate;
     const rows: AuthoritativeDetail['rows'] = [];
     for (const row of rawRows) {
       const scheduleId = positiveId(row.schedule_id);
-      if (scheduleId === null || row.date !== identity.scheduleDate) return null;
-      rows.push({ ...row, schedule_id: scheduleId, date: row.date });
+      if (scheduleId === null || (effectiveDate && row.date !== effectiveDate)) return null;
+      rows.push({ ...row, schedule_id: scheduleId, date: row.date ?? effectiveDate ?? '' });
     }
     if (!rows.some(row => row.schedule_id === identity.scheduleId)) return null;
     return { identity, data, rows };
