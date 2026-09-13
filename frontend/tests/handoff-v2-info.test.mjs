@@ -79,7 +79,7 @@ function rendered(predicate, action = () => {}) {
 }
 const receipt = { receipt_id: '10ec28ec-a128-4444-9876-2bbc8a2b4a6a', status: 'received' };
 const jsonResponse = (body = receipt, status = 201, headers = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } });
-const deferred = () => Promise.withResolvers();
+const deferred = () => { let resolve, reject; const promise = new Promise((res, rej) => { resolve = res; reject = rej; }); return { promise, resolve, reject }; };
 const originals = new Map(['window', 'fetch', 'document', 'localStorage', '__infoEnv'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 async function mount(path = '/company', authenticated = true) {
   env = { layout, handoffs: [], requests: [], focus: null, response: () => jsonResponse(), refreshes: 0, logouts: 0,

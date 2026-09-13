@@ -130,7 +130,7 @@ test('prepared file reaches native share synchronously and cancellation never do
   t.after(() => oldWindow ? Object.defineProperty(globalThis, 'window', oldWindow) : delete globalThis.window)
   const oldNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
   Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { clipboard: { writeText: async () => {} }, canShare: () => true, share: data => { calls.push(data); return Promise.reject(new DOMException('', 'AbortError')) } } })
-  t.after(() => Object.defineProperty(globalThis, 'navigator', oldNavigator))
+  t.after(() => oldNavigator ? Object.defineProperty(globalThis, 'navigator', oldNavigator) : delete globalThis.navigator)
   const service = useCertificationShare()
   const done = service.shareCertification({ preparedImage: prepared })
   assert.equal(calls.length, 1)

@@ -14,6 +14,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const runtime = { Vue, Pinia, Icons };
 globalThis.__settingsV2 = runtime;
 globalThis.definePageMeta = () => {};
+if (!globalThis.navigator) Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { userAgent: 'node-test' } });
 globalThis.useRouter = () => runtime.router;
 globalThis.useRoute = () => ({ query: {} });
 globalThis.navigateTo = path => runtime.navigation.push(path);
