@@ -81,6 +81,21 @@ test('detail cache is context-scoped and stale responses cannot replace it', asy
   assert.equal(runtime.calls.filter(call => call[0] === 'GET').length, 3)
 })
 
+test('deep link without ?schedule= adopts the resolved schedule and completes', async () => {
+  // ?tongdok=true&plan=7&book=gen&chapter=2 — no ?schedule= or ?date=.
+  // The backend resolves schedule_id 1370 for the browsed chapter; the identity
+  // must adopt it so activeTongdokContext is non-null and completion can POST.
+  const rows = [{ book: 'gen', book_kor: '창세기', start_chapter: 2, end_chapter: 2, schedule_id: 1370, date: '2026-05-02', is_complete: false }]
+  const runtime = tongdokRuntime({ path: '/bible', query: { tongdok: 'true', plan: '7', book: 'gen', chapter: '2' }, get: async ({ book, chapter }) => detail({ planId: 7, book, chapter, date: '2026-05-02', rows: structuredClone(rows) }) })
+  const { useTongdokMode } = await loadTongdok(runtime); const mode = useTongdokMode(); mode.initTongdokMode()
+  assert.equal(mode.tongdokMode.value, true); assert.equal(mode.tongdokScheduleId.value, null)
+  await mode.loadReadingDetail(7, 'gen', 2)
+  assert.equal(mode.tongdokScheduleId.value, 1370, 'schedule_id adopted from the containing plan_detail row')
+  const result = await mode.completeCurrentChapter('gen', 2)
+  assert.equal(result.status, 'completed'); assert.deepEqual(result.persistedScheduleIds, [1370])
+  assert.deepEqual(runtime.calls.filter(call => call[0] === 'POST').map(call => call[2].schedule_ids), [[1370]])
+})
+
 test('completeCurrentChapter persists only fully visited real rows and retains completed mode', async () => {
   const rows = [{ book: 'gen', book_kor: '창세기', start_chapter: 1, end_chapter: 2, schedule_id: 101, date: '2026-09-06', is_complete: false }, { book: 'exo', book_kor: '출애굽기', start_chapter: 1, end_chapter: 1, schedule_id: 102, date: '2026-09-06', is_complete: false }]
   const runtime = tongdokRuntime({ path: '/bible', query: { tongdok: 'true', plan: '7', schedule: '101' }, get: async ({ book, chapter }) => detail({ book, chapter, rows: structuredClone(rows) }) })

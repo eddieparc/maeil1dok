@@ -426,20 +426,39 @@ export const useTongdokMode = () => {
     const data = response.data;
     if (!data) return;
 
-    // An old positional enable call may not know the date. Adopt it only after
-    // plan and selected schedule both match the fetched response.
-    if (
-      requestIdentity.planId !== null &&
-      requestIdentity.scheduleId !== null &&
-      requestIdentity.scheduleDate === null &&
-      positiveId(data.plan_id) === requestIdentity.planId
-    ) {
-      const selected = data.plan_detail?.find(row => positiveId(row.schedule_id) === requestIdentity.scheduleId);
-      const responseDate = data.plan_date || data.schedule_date || null;
-      if (selected?.date && responseDate === selected.date) {
-        tongdokScheduleDate.value = selected.date;
-        requestIdentity.scheduleDate = selected.date;
-        persistActiveContext();
+    // Deep links like ?tongdok=true&plan=4&book=psa&chapter=7 carry no
+    // ?schedule= param, so the identity's scheduleId starts null and
+    // activeTongdokContext would stay null forever (completion impossible).
+    // Adopt the schedule_id of the plan_detail row that contains the browsed
+    // chapter — that row IS the schedule the backend resolved for this chapter.
+    if (requestIdentity.planId !== null && positiveId(data.plan_id) === requestIdentity.planId) {
+      const browsedChapter = positiveChapter(data.chapter);
+      if (requestIdentity.scheduleId === null && browsedChapter !== null) {
+        const containing = data.plan_detail?.find(row =>
+          row.book === (data.book || requestIdentity.book) &&
+          browsedChapter >= row.start_chapter &&
+          browsedChapter <= row.end_chapter);
+        const adoptedId = positiveId(containing?.schedule_id);
+        if (adoptedId !== null) {
+          tongdokScheduleId.value = adoptedId;
+          requestIdentity.scheduleId = adoptedId;
+          if (requestIdentity.scheduleDate === null && containing?.date) {
+            tongdokScheduleDate.value = containing.date;
+            requestIdentity.scheduleDate = containing.date;
+          }
+          persistActiveContext();
+        }
+      }
+      // An old positional enable call may not know the date. Adopt it only after
+      // plan and selected schedule both match the fetched response.
+      if (requestIdentity.scheduleId !== null && requestIdentity.scheduleDate === null) {
+        const selected = data.plan_detail?.find(row => positiveId(row.schedule_id) === requestIdentity.scheduleId);
+        const responseDate = data.plan_date || data.schedule_date || null;
+        if (selected?.date && responseDate === selected.date) {
+          tongdokScheduleDate.value = selected.date;
+          requestIdentity.scheduleDate = selected.date;
+          persistActiveContext();
+        }
       }
     }
 
