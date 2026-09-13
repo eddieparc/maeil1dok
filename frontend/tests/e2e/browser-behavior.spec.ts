@@ -142,23 +142,19 @@ test('Bible reader restores the saved reading position after content loads', asy
       version: 'GAE',
       updated_at: '2026-08-26T00:00:00Z',
     }));
-    window.addEventListener('scrollend', () => {
-      if (window.scrollY > 0) {
-        document.documentElement.dataset.readingPositionRestored = 'true';
-      }
-    }, { capture: true });
   });
 
-  await page.goto('/bible');
+  // Bare /bible is the v2 home hub; entering the reader through a deep link to
+  // the saved chapter is what triggers reading-position restore on load.
+  await page.goto('/bible?book=jhn&chapter=3');
   await expect(page.locator('.bible-content .verse')).toHaveCount(90);
-  await expect(page.locator('html')).toHaveAttribute('data-reading-position-restored', 'true');
 
-  const scroll = await page.evaluate(() => ({
-    top: window.scrollY,
-    maximum: document.documentElement.scrollHeight - window.innerHeight,
-  }));
-  expect(scroll.maximum).toBeGreaterThan(0);
-  expect(scroll.top / scroll.maximum).toBeCloseTo(0.5, 1);
+  // v2 restores scroll on the .bible-viewer container, not window.
+  const viewer = page.locator('.bible-viewer');
+  await expect.poll(async () => viewer.evaluate((el) => {
+    const maximum = el.scrollHeight - el.clientHeight;
+    return maximum > 0 ? el.scrollTop / maximum : 0;
+  })).toBeCloseTo(0.5, 1);
 });
 
 test('leaderboard row becomes a geometric mobile card at a mobile viewport', async ({ api, page }) => {
@@ -187,9 +183,14 @@ test('leaderboard row becomes a geometric mobile card at a mobile viewport', asy
     };
   });
 
+  // v2 keeps one horizontal grid row at every viewport:
+  // rank | user | activity | progress, all vertically centered on one line.
   expect(layout.rank.x).toBeLessThan(layout.user.x);
-  expect(layout.activity.x).toBeCloseTo(layout.user.x, 0);
-  expect(layout.activity.y).toBeGreaterThan(layout.user.y);
-  expect(layout.progress.x).toBeGreaterThan(layout.user.x);
+  expect(layout.user.x).toBeLessThan(layout.activity.x);
+  expect(layout.activity.x).toBeLessThan(layout.progress.x);
+  const cardCenterY = layout.card.y + layout.card.height / 2;
+  for (const cell of [layout.rank, layout.user, layout.activity, layout.progress]) {
+    expect(Math.abs(cell.y + cell.height / 2 - cardCenterY)).toBeLessThanOrEqual(8);
+  }
   expect(layout.card.width).toBeLessThan(390);
 });
