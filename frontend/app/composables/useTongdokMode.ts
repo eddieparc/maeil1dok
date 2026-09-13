@@ -314,7 +314,10 @@ export const useTongdokMode = () => {
       if (scheduleId === null || (effectiveDate && row.date !== effectiveDate)) return null;
       rows.push({ ...row, schedule_id: scheduleId, date: row.date ?? effectiveDate ?? '' });
     }
-    if (!rows.some(row => row.schedule_id === identity.scheduleId)) return null;
+    // scheduleId is optional in the identity: the ?schedule= query param is not
+    // always present (e.g. deep links like ?tongdok=true&plan=4&book=psa&chapter=7).
+    // When it is absent, accept whatever schedule the backend resolved for today.
+    if (identity.scheduleId !== null && !rows.some(row => row.schedule_id === identity.scheduleId)) return null;
     return { identity, data, rows };
   };
 
