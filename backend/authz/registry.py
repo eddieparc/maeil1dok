@@ -118,6 +118,33 @@ AUTHENTICATED_OWNER = _gate(
 
 
 ENDPOINTS = (
+    _endpoint(
+        'support_inquiry.create', 'support-inquiry-create',
+        _action('create_inquiry', 'support_inquiry', 'POST',
+                _gate((ALLOW_ANY,), 'anonymous_allowed', 'user_identity_from_request_only',
+                      'csrf_if_cookie_token', 'scoped_intake_throttle')),
+    ),
+    _endpoint('admin_member.list', 'admin-member-list',
+              _action('list_members', 'user_account', 'GET', STAFF)),
+    _endpoint('admin_member.detail', 'admin-member-detail',
+              _action('view_member', 'user_account', 'GET', STAFF)),
+    _endpoint('admin_member.activity', 'admin-member-activity',
+              _action('view_member_activity', 'user_account', 'GET', STAFF)),
+    _endpoint('admin_member.stats', 'admin-member-stats',
+              _action('view_member_stats', 'user_account', 'GET', STAFF)),
+    _endpoint('admin_member.export', 'admin-member-export',
+              _action('export_members', 'user_account', 'GET', STAFF)),
+    _endpoint('admin_member.actions', 'admin-member-actions', *(
+        _action(action, 'user_account', 'POST', STAFF, selector=f'body.action == {action}')
+        for action in ('verify_email', 'unverify_email', 'resend_verification',
+                       'send_password_reset', 'revoke_sessions', 'grant_staff', 'revoke_staff',
+                       'set_dormant', 'clear_dormant', 'deactivate', 'activate',
+                       'schedule_deletion', 'cancel_deletion', 'unlink_social')
+    )),
+    _endpoint('admin_member.bulk', 'admin-member-bulk', *(
+        _action(action, 'user_account', 'POST', STAFF, selector=f'body.action == {action}')
+        for action in ('resend_verification', 'revoke_sessions', 'deactivate')
+    )),
     # Accounts. Both /api/v1/auth/ and /api/v1/accounts/ resolve to these names.
     _endpoint(
         "auth_session.authenticate",
@@ -855,6 +882,11 @@ ENDPOINTS = (
                 "subscription_is_not_default",
             ),
         ),
+    ),
+    _endpoint(
+        "plan_subscription.summary",
+        "plan-subscription-summary",
+        _action("view_subscription", "plan_subscription", "GET", AUTHENTICATED_OWNER),
     ),
     _endpoint(
         "plan_subscription.toggle_active",

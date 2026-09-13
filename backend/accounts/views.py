@@ -1655,9 +1655,11 @@ def link_social_account(request):
 @extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@transaction.atomic
 def unlink_social_account(request):
     """소셜 계정 연동 해제"""
-    user = request.user
+    # Share the staff unlink lock so concurrent requests cannot remove both methods.
+    user = User.objects.select_for_update().get(pk=request.user.pk)
     provider = request.data.get('provider')
     
     if not provider:

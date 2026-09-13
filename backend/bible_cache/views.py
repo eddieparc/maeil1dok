@@ -244,7 +244,12 @@ def get_supported_versions(request):
 
 @extend_schema(
     parameters=[
-        OpenApiParameter('q', str, required=True, description='Search text (minimum two characters after trimming).'),
+        OpenApiParameter(
+            'q',
+            {'type': 'string', 'minLength': 1},
+            required=True,
+            description='Search text (minimum one character after trimming).',
+        ),
         OpenApiParameter(
             'version',
             str,
@@ -265,11 +270,11 @@ def search_cached_content(request):
     version_param = request.query_params.get('version')
     version = version_param.strip() if version_param else None
 
-    if len(query) < 2:
+    if not query:
         return Response(
             {
                 'success': False,
-                'error': '검색어는 두 글자 이상 입력해주세요.'
+                'error': '검색어를 입력해주세요.'
             },
             status=status.HTTP_400_BAD_REQUEST
         )

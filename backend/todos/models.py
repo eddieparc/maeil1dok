@@ -281,6 +281,33 @@ class HasenaSummary(models.Model):
         return f"[{date_str}] {self.video_id}"
 
 
+class HasenaSummaryFailure(models.Model):
+    """Latest unresolved failure; never a substitute for a persisted summary."""
+
+    video_id = models.CharField(max_length=20, unique=True)
+    video_date = models.DateField(null=True, blank=True)
+    title = models.CharField(max_length=200, blank=True)
+    error_code = models.CharField(max_length=32, choices=[
+        ('transcript_unavailable', 'Transcript unavailable'),
+        ('generation_failed', 'Generation failed'),
+        ('quota_exceeded', 'Quota exceeded'),
+        ('storage_failed', 'Storage failed'),
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(error_code__in=[
+                    'transcript_unavailable', 'generation_failed',
+                    'quota_exceeded', 'storage_failed',
+                ]),
+                name='hasena_failure_valid_code',
+            ),
+        ]
+
+
 class HasenaEntry(models.Model):
     date = models.DateField(unique=True, db_index=True, help_text="하세나 기준 날짜")
     video_id = models.CharField(max_length=20, db_index=True)

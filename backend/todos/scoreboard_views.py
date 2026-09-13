@@ -11,7 +11,7 @@ from django.utils.decorators import method_decorator
 from datetime import date, datetime, timedelta
 from accounts.models import User, Follow
 from accounts.serializers import UserSearchSerializer
-from accounts.visibility import live_user_filter
+from accounts.services.member_activity import eligible_members
 from authz import can, subject_from_request
 from authz.policies.reading_group import GroupScoreboardResource
 from .models import BibleReadingPlan, UserBibleProgress, PlanSubscription, DailyBibleSchedule, ReadingGroup, GroupMembership
@@ -24,7 +24,25 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-SCOREBOARD_CACHE_VERSION = 'v4'
+SCOREBOARD_CACHE_VERSION = 'v5'
+
+
+def scoreboard_cache_version():
+    return f'{SCOREBOARD_CACHE_VERSION}:{cache.get("member_eligibility_generation", "0")}'
+
+
+def cached_eligible_scoreboard(key, user_id=None):
+    data = cache.get(key)
+    if not data:
+        return None
+    ids = {entry['user']['id'] for entry in data.get('leaderboard', [])}
+    if user_id is not None:
+        ids.add(user_id)
+    # Recheck automatic 30-day dormancy even when a cached board has not expired.
+    if ids and eligible_members().filter(pk__in=ids).count() != len(ids):
+        return None
+    return data
+
 VALID_SCOREBOARD_PERIODS = {'all', 'week', 'month'}
 DEFAULT_SCOREBOARD_LIMIT = 100
 MAX_SCOREBOARD_LIMIT = 500
@@ -149,7 +167,7 @@ def parse_follow_type(request):
 
 
 def visible_scoreboard_users_for_request(queryset, request):
-    queryset = queryset.filter(live_user_filter())
+    queryset = eligible_members(queryset)
     if request.user.is_authenticated:
         return queryset.filter(Q(profile__is_public=True) | Q(id=request.user.id))
     return queryset.filter(profile__is_public=True)
@@ -489,17 +507,15 @@ def get_scoreboard(request):
         month_key = month.strftime('%Y-%m') if month else None
 
         # 캐시 키 생성
-        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:global:{period}:{month_key}:{plan_id}:{limit}'
+        cache_key = f'scoreboard:{scoreboard_cache_version()}:global:{period}:{month_key}:{plan_id}:{limit}'
         can_use_shared_cache = not request.user.is_authenticated
         if can_use_shared_cache:
-            cached_data = cache.get(cache_key)
+            cached_data = cached_eligible_scoreboard(cache_key)
             if cached_data:
                 return Response(cached_data)
 
         # 기본 쿼리셋
-        users_query = User.objects.filter(
-            live_user_filter()
-        ).select_related('profile')
+        users_query = eligible_members().select_related('profile')
 
         # 플랜 필터링
         if plan_id:
@@ -611,8 +627,8 @@ def get_friends_scoreboard(request):
         month_key = month.strftime('%Y-%m') if month else None
 
         # 캐시 키 생성
-        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:friends:{request.user.id}:{follow_type}:{period}:{month_key}:{plan_id}'
-        cached_data = cache.get(cache_key)
+        cache_key = f'scoreboard:{scoreboard_cache_version()}:friends:{request.user.id}:{follow_type}:{period}:{month_key}:{plan_id}'
+        cached_data = cached_eligible_scoreboard(cache_key)
         if cached_data:
             return Response(cached_data)
 
@@ -634,7 +650,7 @@ def get_friends_scoreboard(request):
         user_ids = friend_ids + [request.user.id]
 
         # 통합 쿼리셋 (본인 포함)
-        users_query = User.objects.filter(live_user_filter(), id__in=user_ids).select_related('profile')
+        users_query = eligible_members().filter(id__in=user_ids).select_related('profile')
         users_query = users_query.filter(Q(profile__is_public=True) | Q(id=request.user.id))
 
         # 완료 일수 annotate 추가
@@ -748,9 +764,9 @@ def get_group_scoreboard(request, group_id):
         can_use_shared_cache = group.is_public and not request.user.is_authenticated
 
         # 캐시 키
-        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:group:{group_id}:{plan.id}:{period}:{month_key}'
+        cache_key = f'scoreboard:{scoreboard_cache_version()}:group:{group_id}:{plan.id}:{period}:{month_key}'
         if can_use_shared_cache:
-            cached_data = cache.get(cache_key)
+            cached_data = cached_eligible_scoreboard(cache_key)
             if cached_data:
                 return Response(cached_data)
 
@@ -884,8 +900,8 @@ def get_my_ranking(request):
         month_key = month.strftime('%Y-%m') if month else None
 
         # 캐시 키
-        cache_key = f'scoreboard:{SCOREBOARD_CACHE_VERSION}:my_ranking:{request.user.id}:{period}:{month_key}:{plan_id}'
-        cached_data = cache.get(cache_key)
+        cache_key = f'scoreboard:{scoreboard_cache_version()}:my_ranking:{request.user.id}:{period}:{month_key}:{plan_id}'
+        cached_data = cached_eligible_scoreboard(cache_key, request.user.pk)
         if cached_data:
             return Response(cached_data)
 
@@ -907,7 +923,7 @@ def get_my_ranking(request):
                 'plan_id': plan_id
             })
 
-        users_query = User.objects.filter(live_user_filter()).select_related('profile')
+        users_query = eligible_members().select_related('profile')
 
         if plan_id:
             users_query = users_query.filter(

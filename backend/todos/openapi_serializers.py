@@ -1,4 +1,4 @@
-"""Output-only serializers for function-based todos API responses."""
+"""Contract serializers for function-based todos APIs."""
 
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_serializer
 from rest_framework import serializers
@@ -431,6 +431,33 @@ class HasenaSyncResponseSerializer(serializers.Serializer):
     skipped = serializers.ListField(child=serializers.CharField())
 
 
+HASENA_REVIEW_STATUSES = ('reviewed', 'review_needed', 'failed')
+HASENA_FAILURE_CODES = ('transcript_unavailable', 'generation_failed', 'quota_exceeded', 'storage_failed')
+
+
+class HasenaSummaryRegenerateRequestSerializer(serializers.Serializer):
+    video_id = serializers.RegexField(r'^[A-Za-z0-9_-]+$', max_length=20)
+
+
+class HasenaSummaryUpdateRequestSerializer(serializers.Serializer):
+    summary = serializers.CharField(trim_whitespace=False)
+    title = serializers.CharField(max_length=200, allow_blank=True, allow_null=True, required=False, trim_whitespace=False)
+
+
+class HasenaSummaryFailureResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    error = serializers.CharField(max_length=200)
+    video_id = serializers.CharField(required=False)
+    error_code = serializers.ChoiceField(choices=HASENA_FAILURE_CODES, required=False)
+    error_message = serializers.CharField(max_length=200, allow_null=True, required=False)
+    status = serializers.ChoiceField(choices=HASENA_REVIEW_STATUSES, required=False)
+    has_summary = serializers.BooleanField(required=False)
+    failure_persisted = serializers.BooleanField(required=False)
+    persisted = serializers.BooleanField(required=False)
+    cacheable = serializers.BooleanField(required=False)
+    retry_after = serializers.IntegerField(required=False)
+
+
 class HasenaSummaryResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     video_id = serializers.CharField()
@@ -442,6 +469,10 @@ class HasenaSummaryResponseSerializer(serializers.Serializer):
     created = serializers.BooleanField(required=False)
     persisted = serializers.BooleanField()
     cacheable = serializers.BooleanField()
+    status = serializers.ChoiceField(choices=HASENA_REVIEW_STATUSES, required=False, help_text='Staff detail only. Save means reviewed; successful regeneration means review_needed; unresolved failure takes precedence.')
+    has_summary = serializers.BooleanField(required=False)
+    error_code = serializers.ChoiceField(choices=HASENA_FAILURE_CODES, allow_null=True, required=False)
+    error_message = serializers.CharField(max_length=200, allow_null=True, required=False)
 
 
 class HasenaSummaryPendingResponseSerializer(serializers.Serializer):
@@ -453,14 +484,18 @@ class HasenaSummaryPendingResponseSerializer(serializers.Serializer):
 
 
 class HasenaSummaryListItemSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+    id = serializers.IntegerField(allow_null=True, help_text='Summary ID, null for failure-only videos. Use video_id as row identity.')
     video_id = serializers.CharField()
     video_date = serializers.DateField(allow_null=True)
     title = serializers.CharField(allow_blank=True)
-    summary_preview = serializers.CharField()
-    is_edited = serializers.BooleanField()
-    model_used = serializers.CharField()
+    summary_preview = serializers.CharField(allow_null=True, allow_blank=True)
+    is_edited = serializers.BooleanField(allow_null=True)
+    model_used = serializers.CharField(allow_null=True)
     updated_at = serializers.DateTimeField()
+    has_summary = serializers.BooleanField()
+    status = serializers.ChoiceField(choices=HASENA_REVIEW_STATUSES)
+    error_code = serializers.ChoiceField(choices=HASENA_FAILURE_CODES, allow_null=True)
+    error_message = serializers.CharField(max_length=200, allow_null=True)
 
 
 class HasenaSummaryListResponseSerializer(serializers.Serializer):
@@ -471,11 +506,8 @@ class HasenaSummaryListResponseSerializer(serializers.Serializer):
     summaries = HasenaSummaryListItemSerializer(many=True)
 
 
-class HasenaSummaryRegenerateResponseSerializer(serializers.Serializer):
-    success = serializers.BooleanField()
-    video_id = serializers.CharField()
-    summary = serializers.CharField()
-    model = serializers.CharField()
+class HasenaSummaryRegenerateResponseSerializer(HasenaSummaryResponseSerializer):
+    status = serializers.ChoiceField(choices=HASENA_REVIEW_STATUSES)
 
 
 class HasenaSummaryUpdateResponseSerializer(serializers.Serializer):
@@ -484,6 +516,7 @@ class HasenaSummaryUpdateResponseSerializer(serializers.Serializer):
     summary = serializers.CharField()
     title = serializers.CharField(allow_blank=True)
     is_edited = serializers.BooleanField()
+    status = serializers.ChoiceField(choices=HASENA_REVIEW_STATUSES)
 
 
 class HasenaStatsDataSerializer(serializers.Serializer):

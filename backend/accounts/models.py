@@ -6,6 +6,7 @@ from django.db.models.functions import Lower, NullIf, Trim
 from django.conf import settings
 from django.utils import timezone
 import secrets
+import uuid
 from datetime import timedelta
 
 class User(AbstractUser):
@@ -38,6 +39,9 @@ class User(AbstractUser):
     
     token_version = models.PositiveIntegerField(default=0)
     
+    # Operational dormancy, independent of personal notification preferences.
+    is_dormant = models.BooleanField(default=False)
+    dormancy_cleared_at = models.DateTimeField(null=True, blank=True)
     scheduled_deletion_at = models.DateTimeField(null=True, blank=True)
     merged_into = models.ForeignKey(
         'self',
@@ -83,6 +87,42 @@ class User(AbstractUser):
             return True
         other_providers = self.social_accounts.exclude(provider=provider).count()
         return other_providers > 0
+
+
+class AdminAuditLog(models.Model):
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                              null=True, related_name='admin_actions')
+    target_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                    null=True, related_name='admin_audit_logs')
+    action = models.CharField(max_length=40)
+    payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [models.Index(fields=['target_user', '-created_at'], name='admin_audit_target_time_idx')]
+
+
+class SupportInquiry(models.Model):
+    class Kind(models.TextChoices):
+        BUG = 'bug', 'Bug report'
+        FEATURE = 'feature', 'Feature request'
+        ACCOUNT = 'account', 'Account question'
+        OTHER = 'other', 'Other'
+
+    class Status(models.TextChoices):
+        RECEIVED = 'received', 'Received'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    message = models.TextField(max_length=2000)
+    reply_email = models.EmailField(blank=True, default='')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='support_inquiries',
+    )
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.RECEIVED)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class SocialAccount(models.Model):

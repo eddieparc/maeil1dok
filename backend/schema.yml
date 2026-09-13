@@ -1124,6 +1124,308 @@ paths:
                 $ref: '#/components/schemas/AuthenticatedUserResponse'
           description: ''
       deprecated: true
+  /api/v1/admin/members/:
+    get:
+      operationId: admin_members_list
+      parameters:
+      - in: query
+        name: filter
+        schema:
+          enum:
+          - all
+          - unverified
+          - staff
+          - dormant
+          - deletion
+          type: string
+          default: all
+          minLength: 1
+        description: |-
+          * `all` - all
+          * `unverified` - unverified
+          * `staff` - staff
+          * `dormant` - dormant
+          * `deletion` - deletion
+      - in: query
+        name: masked
+        schema:
+          type: boolean
+          default: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: q
+        schema:
+          type: string
+          default: ''
+          maxLength: 254
+      - in: query
+        name: sort
+        schema:
+          enum:
+          - recent
+          - joined
+          - streak
+          type: string
+          default: recent
+          minLength: 1
+        description: |-
+          * `recent` - recent
+          * `joined` - joined
+          * `streak` - streak
+      tags:
+      - admin
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberList'
+          description: ''
+  /api/v1/admin/members/bulk/:
+    post:
+      operationId: admin_members_bulk_create
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberBulk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MemberBulk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MemberBulk'
+        required: true
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberBulkResult'
+          description: ''
+  /api/v1/admin/members/export.csv:
+    get:
+      operationId: admin_members_export.csv_retrieve
+      parameters:
+      - in: query
+        name: filter
+        schema:
+          enum:
+          - all
+          - unverified
+          - staff
+          - dormant
+          - deletion
+          type: string
+          default: all
+          minLength: 1
+        description: |-
+          * `all` - all
+          * `unverified` - unverified
+          * `staff` - staff
+          * `dormant` - dormant
+          * `deletion` - deletion
+      - in: query
+        name: masked
+        schema:
+          type: boolean
+          default: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: q
+        schema:
+          type: string
+          default: ''
+          maxLength: 254
+      - in: query
+        name: sort
+        schema:
+          enum:
+          - recent
+          - joined
+          - streak
+          type: string
+          default: recent
+          minLength: 1
+        description: |-
+          * `recent` - recent
+          * `joined` - joined
+          * `streak` - streak
+      tags:
+      - admin
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            text/csv:
+              schema:
+                type: string
+          description: ''
+  /api/v1/admin/members/stats/:
+    get:
+      operationId: admin_members_stats_retrieve
+      tags:
+      - admin
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberStats'
+          description: ''
+  /api/v1/admin/members/{user_id}/:
+    get:
+      operationId: admin_members_retrieve
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - admin
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberDetail'
+          description: ''
+  /api/v1/admin/members/{user_id}/actions/:
+    post:
+      operationId: admin_members_actions_create
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberAction'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MemberAction'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MemberAction'
+        required: true
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberActionResult'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberActionResult'
+          description: ''
+  /api/v1/admin/members/{user_id}/activity/:
+    get:
+      operationId: admin_members_activity_retrieve
+      parameters:
+      - in: query
+        name: filter
+        schema:
+          enum:
+          - all
+          - unverified
+          - staff
+          - dormant
+          - deletion
+          type: string
+          default: all
+          minLength: 1
+        description: |-
+          * `all` - all
+          * `unverified` - unverified
+          * `staff` - staff
+          * `dormant` - dormant
+          * `deletion` - deletion
+      - in: query
+        name: masked
+        schema:
+          type: boolean
+          default: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: q
+        schema:
+          type: string
+          default: ''
+          maxLength: 254
+      - in: query
+        name: sort
+        schema:
+          enum:
+          - recent
+          - joined
+          - streak
+          type: string
+          default: recent
+          minLength: 1
+        description: |-
+          * `recent` - recent
+          * `joined` - joined
+          * `streak` - streak
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - admin
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberActivity'
+          description: ''
   /api/v1/auth/account-email/:
     get:
       operationId: auth_account_email_retrieve
@@ -2123,7 +2425,8 @@ paths:
         name: q
         schema:
           type: string
-        description: Search text (minimum two characters after trimming).
+          minLength: 1
+        description: Search text (minimum one character after trimming).
         required: true
       - in: query
         name: version
@@ -2319,6 +2622,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/BibleCacheErrorResponse'
           description: ''
+  /api/v1/support/inquiries/:
+    post:
+      operationId: support_inquiries_create
+      description: Persist an inquiry from an anonymous visitor or authenticated member.
+        The receipt acknowledges database storage only, not email delivery or a reply.
+        Cookie-authenticated requests require the existing CSRF header. Unknown fields,
+        including caller-supplied user identity, are rejected.
+      tags:
+      - support
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportInquiryRequest'
+        required: true
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportInquiryReceipt'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Invalid JSON or field validation errors.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportInquiryError'
+          description: ''
+        '405':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportInquiryError'
+          description: ''
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportInquiryError'
+          description: ''
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportInquiryError'
+          description: Intake limit reached; Retry-After header in seconds.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportInquiryError'
+          description: Storage failed; no receipt was issued.
   /api/v1/todos/:
     get:
       operationId: todos_api_root_retrieve
@@ -4221,6 +4587,17 @@ paths:
           type: integer
           default: 20
         description: Results per page (1-100).
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - all
+          - failed
+          - review_needed
+          default: all
+        description: Filter before count and pagination. Failed includes videos without
+          a summary. Saved reviews appear in all only.
       tags:
       - todos
       security:
@@ -4238,6 +4615,18 @@ paths:
       operationId: todos_hasena_summaries_regenerate_create
       tags:
       - todos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HasenaSummaryRegenerateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HasenaSummaryRegenerateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HasenaSummaryRegenerateRequest'
+        required: true
       security:
       - cookieJwtAuth: []
       - bearerAuth: []
@@ -4247,6 +4636,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HasenaSummaryRegenerateResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HasenaSummaryFailureResponse'
           description: ''
   /api/v1/todos/hasena/summaries/{video_id}/:
     put:
@@ -4259,6 +4654,18 @@ paths:
         required: true
       tags:
       - todos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HasenaSummaryUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HasenaSummaryUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HasenaSummaryUpdateRequest'
+        required: true
       security:
       - cookieJwtAuth: []
       - bearerAuth: []
@@ -4268,6 +4675,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HasenaSummaryUpdateResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HasenaSummaryFailureResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HasenaSummaryFailureResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HasenaSummaryFailureResponse'
           description: ''
   /api/v1/todos/hasena/summary/:
     get:
@@ -4305,6 +4730,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HasenaSummaryResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HasenaSummaryFailureResponse'
           description: ''
   /api/v1/todos/hasena/summary/cron/:
     post:
@@ -4669,6 +5100,36 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/todos/plan/{id}/summary/:
+    get:
+      operationId: todos_plan_summary_retrieve
+      description: Whole-plan summary owned by the authenticated user. The path id
+        is a PlanSubscription.id (subscriptions[].id from /plans/user/), not a BibleReadingPlan.id;
+        it is the same resource ID used by /plan/{id}/ delete and toggle-active. Hidden
+        subscriptions and inactive plans remain readable.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Owned PlanSubscription ID, not the reading plan ID.
+        required: true
+      tags:
+      - todos
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanSummary'
+          description: ''
+        '401':
+          description: Authentication required.
+        '404':
+          description: Subscription missing or owned by another user.
   /api/v1/todos/plan/{id}/toggle-active/:
     post:
       operationId: todos_plan_toggle_active_create
@@ -6330,7 +6791,7 @@ components:
           description: '주말 읽기량 배수 (예: 1.5 = 평일의 1.5배)'
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/CatchupSessionResponseStatusEnum'
           readOnly: true
         completed_at:
           type: string
@@ -6368,6 +6829,16 @@ components:
       - subscription
       - total_count
       - updated_at
+    CatchupSessionResponseStatusEnum:
+      enum:
+      - active
+      - completed
+      - abandoned
+      type: string
+      description: |-
+        * `active` - 진행 중
+        * `completed` - 완료
+        * `abandoned` - 포기
     CatchupSessionScheduleDay:
       type: object
       properties:
@@ -6799,6 +7270,18 @@ components:
       - message
       - scheduled_deletion_at
       - success
+    ErrorCodeEnum:
+      enum:
+      - transcript_unavailable
+      - generation_failed
+      - quota_exceeded
+      - storage_failed
+      type: string
+      description: |-
+        * `transcript_unavailable` - transcript_unavailable
+        * `generation_failed` - generation_failed
+        * `quota_exceeded` - quota_exceeded
+        * `storage_failed` - storage_failed
     ErrorResponse:
       type: object
       properties:
@@ -7402,6 +7885,16 @@ components:
       required:
       - data
       - success
+    HasenaReviewStatusEnum:
+      enum:
+      - reviewed
+      - review_needed
+      - failed
+      type: string
+      description: |-
+        * `reviewed` - reviewed
+        * `review_needed` - review_needed
+        * `failed` - failed
     HasenaStatsData:
       type: object
       properties:
@@ -7450,11 +7943,45 @@ components:
       required:
       - data
       - success
+    HasenaSummaryFailureResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+          maxLength: 200
+        video_id:
+          type: string
+        error_code:
+          $ref: '#/components/schemas/ErrorCodeEnum'
+        error_message:
+          type: string
+          nullable: true
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/HasenaReviewStatusEnum'
+        has_summary:
+          type: boolean
+        failure_persisted:
+          type: boolean
+        persisted:
+          type: boolean
+        cacheable:
+          type: boolean
+        retry_after:
+          type: integer
+      required:
+      - error
+      - success
     HasenaSummaryListItem:
       type: object
       properties:
         id:
           type: integer
+          nullable: true
+          description: Summary ID, null for failure-only videos. Use video_id as row
+            identity.
         video_id:
           type: string
         video_date:
@@ -7465,17 +7992,37 @@ components:
           type: string
         summary_preview:
           type: string
+          nullable: true
         is_edited:
           type: boolean
+          nullable: true
         model_used:
           type: string
+          nullable: true
         updated_at:
           type: string
           format: date-time
+        has_summary:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/HasenaReviewStatusEnum'
+        error_code:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ErrorCodeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        error_message:
+          type: string
+          nullable: true
+          maxLength: 200
       required:
+      - error_code
+      - error_message
+      - has_summary
       - id
       - is_edited
       - model_used
+      - status
       - summary_preview
       - title
       - updated_at
@@ -7522,6 +8069,15 @@ components:
       - reason
       - status
       - success
+    HasenaSummaryRegenerateRequest:
+      type: object
+      properties:
+        video_id:
+          type: string
+          maxLength: 20
+          pattern: ^[A-Za-z0-9_-]+$
+      required:
+      - video_id
     HasenaSummaryRegenerateResponse:
       type: object
       properties:
@@ -7533,10 +8089,43 @@ components:
           type: string
         model:
           type: string
+        is_edited:
+          type: boolean
+        video_date:
+          type: string
+          format: date
+          nullable: true
+        title:
+          type: string
+        created:
+          type: boolean
+        persisted:
+          type: boolean
+        cacheable:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/HasenaReviewStatusEnum'
+        has_summary:
+          type: boolean
+        error_code:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ErrorCodeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        error_message:
+          type: string
+          nullable: true
+          maxLength: 200
       required:
+      - cacheable
+      - is_edited
       - model
+      - persisted
+      - status
       - success
       - summary
+      - title
+      - video_date
       - video_id
     HasenaSummaryResponse:
       type: object
@@ -7563,6 +8152,26 @@ components:
           type: boolean
         cacheable:
           type: boolean
+        status:
+          allOf:
+          - $ref: '#/components/schemas/HasenaReviewStatusEnum'
+          description: |-
+            Staff detail only. Save means reviewed; successful regeneration means review_needed; unresolved failure takes precedence.
+
+            * `reviewed` - reviewed
+            * `review_needed` - review_needed
+            * `failed` - failed
+        has_summary:
+          type: boolean
+        error_code:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ErrorCodeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        error_message:
+          type: string
+          nullable: true
+          maxLength: 200
       required:
       - cacheable
       - is_edited
@@ -7573,6 +8182,17 @@ components:
       - title
       - video_date
       - video_id
+    HasenaSummaryUpdateRequest:
+      type: object
+      properties:
+        summary:
+          type: string
+        title:
+          type: string
+          nullable: true
+          maxLength: 200
+      required:
+      - summary
     HasenaSummaryUpdateResponse:
       type: object
       properties:
@@ -7586,8 +8206,11 @@ components:
           type: string
         is_edited:
           type: boolean
+        status:
+          $ref: '#/components/schemas/HasenaReviewStatusEnum'
       required:
       - is_edited
+      - status
       - success
       - summary
       - title
@@ -7633,6 +8256,18 @@ components:
       required:
       - invitations
       - success
+    KindEnum:
+      enum:
+      - bug
+      - feature
+      - account
+      - other
+      type: string
+      description: |-
+        * `bug` - Bug report
+        * `feature` - Feature request
+        * `account` - Account question
+        * `other` - Other
     LastIncompletePosition:
       type: object
       properties:
@@ -7807,6 +8442,570 @@ components:
       - profile_image
       - provider
       - provider_display
+    MemberAction:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/MemberActionActionEnum'
+        provider:
+          $ref: '#/components/schemas/ProviderEnum'
+      required:
+      - action
+    MemberActionActionEnum:
+      enum:
+      - verify_email
+      - unverify_email
+      - resend_verification
+      - send_password_reset
+      - revoke_sessions
+      - grant_staff
+      - revoke_staff
+      - set_dormant
+      - clear_dormant
+      - deactivate
+      - activate
+      - schedule_deletion
+      - cancel_deletion
+      - unlink_social
+      type: string
+      description: |-
+        * `verify_email` - verify_email
+        * `unverify_email` - unverify_email
+        * `resend_verification` - resend_verification
+        * `send_password_reset` - send_password_reset
+        * `revoke_sessions` - revoke_sessions
+        * `grant_staff` - grant_staff
+        * `revoke_staff` - revoke_staff
+        * `set_dormant` - set_dormant
+        * `clear_dormant` - clear_dormant
+        * `deactivate` - deactivate
+        * `activate` - activate
+        * `schedule_deletion` - schedule_deletion
+        * `cancel_deletion` - cancel_deletion
+        * `unlink_social` - unlink_social
+    MemberActionResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        success:
+          type: boolean
+        error:
+          type: string
+          nullable: true
+        token_version:
+          type: integer
+          nullable: true
+      required:
+      - error
+      - id
+      - success
+      - token_version
+    MemberActivity:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: integer
+          nullable: true
+        previous:
+          type: integer
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberActivityItem'
+      required:
+      - count
+      - next
+      - previous
+      - results
+    MemberActivityItem:
+      type: object
+      properties:
+        at:
+          type: string
+          format: date-time
+        kind:
+          type: string
+        text:
+          type: string
+        source_id:
+          type: integer
+      required:
+      - at
+      - kind
+      - source_id
+      - text
+    MemberBulk:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/MemberBulkActionEnum'
+        ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          maxItems: 50
+          minItems: 1
+      required:
+      - action
+      - ids
+    MemberBulkActionEnum:
+      enum:
+      - resend_verification
+      - revoke_sessions
+      - deactivate
+      type: string
+      description: |-
+        * `resend_verification` - resend_verification
+        * `revoke_sessions` - revoke_sessions
+        * `deactivate` - deactivate
+    MemberBulkResult:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberActionResult'
+      required:
+      - results
+    MemberDeltas:
+      type: object
+      properties:
+        total:
+          type: integer
+          nullable: true
+        weekly_active:
+          type: integer
+          nullable: true
+        unverified:
+          type: integer
+          nullable: true
+        scheduled_deletion:
+          type: integer
+          nullable: true
+      required:
+      - scheduled_deletion
+      - total
+      - unverified
+      - weekly_active
+    MemberDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        email_verified:
+          type: boolean
+        is_staff:
+          type: boolean
+        is_active:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/MemberStatusEnum'
+        providers:
+          type: array
+          items:
+            type: string
+        joined_at:
+          type: string
+          format: date-time
+        last_active_at:
+          type: string
+          format: date-time
+          nullable: true
+        plan:
+          allOf:
+          - $ref: '#/components/schemas/MemberPlan'
+          nullable: true
+        current_streak:
+          type: integer
+        total_completed_days:
+          type: integer
+        longest_streak:
+          type: integer
+        is_public:
+          type: boolean
+        has_password:
+          type: boolean
+        token_version:
+          type: integer
+        scheduled_deletion_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_dormant:
+          type: boolean
+        dormancy_cleared_at:
+          type: string
+          format: date-time
+          nullable: true
+        social_accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberSocial'
+        subscriptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberSubscription'
+        reading_settings:
+          $ref: '#/components/schemas/MemberReadingSettings'
+        notification_settings:
+          $ref: '#/components/schemas/MemberNotificationSettings'
+      required:
+      - current_streak
+      - dormancy_cleared_at
+      - email
+      - email_verified
+      - has_password
+      - id
+      - is_active
+      - is_dormant
+      - is_public
+      - is_staff
+      - joined_at
+      - last_active_at
+      - longest_streak
+      - nickname
+      - notification_settings
+      - plan
+      - providers
+      - reading_settings
+      - scheduled_deletion_at
+      - social_accounts
+      - status
+      - subscriptions
+      - token_version
+      - total_completed_days
+    MemberList:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: integer
+          nullable: true
+        previous:
+          type: integer
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberListItem'
+      required:
+      - count
+      - next
+      - previous
+      - results
+    MemberListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        email_verified:
+          type: boolean
+        is_staff:
+          type: boolean
+        is_active:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/MemberStatusEnum'
+        providers:
+          type: array
+          items:
+            type: string
+        joined_at:
+          type: string
+          format: date-time
+        last_active_at:
+          type: string
+          format: date-time
+          nullable: true
+        plan:
+          allOf:
+          - $ref: '#/components/schemas/MemberPlan'
+          nullable: true
+        current_streak:
+          type: integer
+      required:
+      - current_streak
+      - email
+      - email_verified
+      - id
+      - is_active
+      - is_staff
+      - joined_at
+      - last_active_at
+      - nickname
+      - plan
+      - providers
+      - status
+    MemberNotificationSettings:
+      type: object
+      properties:
+        notifications_enabled:
+          type: boolean
+          readOnly: true
+        reading_reminders_enabled:
+          type: boolean
+          readOnly: true
+        hasena_reminders_enabled:
+          type: boolean
+          readOnly: true
+        friend_activity_enabled:
+          type: boolean
+          readOnly: true
+        weekly_summary_enabled:
+          type: boolean
+          readOnly: true
+        service_notice_enabled:
+          type: boolean
+          readOnly: true
+        reading_reminder_time:
+          type: string
+          format: time
+          readOnly: true
+        hasena_reminder_time:
+          type: string
+          format: time
+          readOnly: true
+        timezone:
+          type: string
+          readOnly: true
+      required:
+      - friend_activity_enabled
+      - hasena_reminder_time
+      - hasena_reminders_enabled
+      - notifications_enabled
+      - reading_reminder_time
+      - reading_reminders_enabled
+      - service_notice_enabled
+      - timezone
+      - weekly_summary_enabled
+    MemberPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        percent:
+          type: number
+          format: double
+        completed_days:
+          type: integer
+        total_days:
+          type: integer
+      required:
+      - completed_days
+      - id
+      - name
+      - percent
+      - total_days
+    MemberReadingSettings:
+      type: object
+      properties:
+        theme:
+          allOf:
+          - $ref: '#/components/schemas/ThemeEnum'
+          readOnly: true
+          description: |-
+            화면 테마
+
+            * `light` - 라이트
+            * `dark` - 다크
+            * `system` - 시스템
+        font_family:
+          allOf:
+          - $ref: '#/components/schemas/FontFamilyEnum'
+          readOnly: true
+          description: |-
+            글꼴
+
+            * `ridi-batang` - RIDI 바탕
+            * `noto-serif` - Noto Serif KR
+            * `kopub-batang` - KoPub 바탕
+            * `pretendard` - Pretendard
+            * `noto-sans` - Noto Sans KR
+            * `system` - 시스템 기본
+        font_size:
+          type: integer
+          readOnly: true
+          description: 글자 크기 (14-24)
+        font_weight:
+          allOf:
+          - $ref: '#/components/schemas/FontWeightEnum'
+          readOnly: true
+          description: |-
+            글자 두께
+
+            * `normal` - 보통
+            * `medium` - 중간
+            * `bold` - 굵게
+        line_height:
+          type: number
+          format: double
+          readOnly: true
+          description: 줄 간격 (1.4-2.4)
+        text_align:
+          allOf:
+          - $ref: '#/components/schemas/TextAlignEnum'
+          readOnly: true
+          description: |-
+            텍스트 정렬
+
+            * `left` - 왼쪽
+            * `justify` - 양쪽 정렬
+        verse_joining:
+          type: boolean
+          readOnly: true
+          description: 절을 문단으로 연결하여 표시
+        show_verse_numbers:
+          type: boolean
+          readOnly: true
+          description: 절 번호 표시
+        show_description:
+          type: boolean
+          readOnly: true
+          description: 시편 머리말 표시 (새한글)
+        show_cross_ref:
+          type: boolean
+          readOnly: true
+          description: 교차 참조 표시 (새한글)
+        highlight_names:
+          type: boolean
+          readOnly: true
+          description: 인명/지명 강조 표시
+        show_footnotes:
+          type: boolean
+          readOnly: true
+          description: 각주 표시 (새한글)
+        tongdok_auto_complete:
+          type: boolean
+          readOnly: true
+          description: 통독모드 자동 완료
+      required:
+      - font_family
+      - font_size
+      - font_weight
+      - highlight_names
+      - line_height
+      - show_cross_ref
+      - show_description
+      - show_footnotes
+      - show_verse_numbers
+      - text_align
+      - theme
+      - tongdok_auto_complete
+      - verse_joining
+    MemberSocial:
+      type: object
+      properties:
+        provider:
+          allOf:
+          - $ref: '#/components/schemas/ProviderEnum'
+          readOnly: true
+        provider_id:
+          type: string
+          readOnly: true
+          description: 소셜 제공자의 고유 ID
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - provider
+      - provider_id
+    MemberStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        weekly_active:
+          type: integer
+        unverified:
+          type: integer
+        scheduled_deletion:
+          type: integer
+        new_this_week:
+          type: integer
+        deltas:
+          $ref: '#/components/schemas/MemberDeltas'
+        deltas_unavailable_reason:
+          type: string
+      required:
+      - deltas
+      - deltas_unavailable_reason
+      - new_this_week
+      - scheduled_deletion
+      - total
+      - unverified
+      - weekly_active
+    MemberStatusEnum:
+      enum:
+      - active
+      - dormant
+      - inactive
+      - deletion
+      type: string
+      description: |-
+        * `active` - active
+        * `dormant` - dormant
+        * `inactive` - inactive
+        * `deletion` - deletion
+    MemberSubscription:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        percent:
+          type: number
+          format: double
+        completed_days:
+          type: integer
+        total_days:
+          type: integer
+        plan_id:
+          type: integer
+        is_default:
+          type: boolean
+        is_active:
+          type: boolean
+        is_hidden:
+          type: boolean
+      required:
+      - completed_days
+      - id
+      - is_active
+      - is_default
+      - is_hidden
+      - name
+      - percent
+      - plan_id
+      - total_days
     MergedAccountUser:
       type: object
       properties:
@@ -7942,6 +9141,9 @@ components:
       required:
       - settings
       - success
+    NullEnum:
+      enum:
+      - null
     OAuthLinkStateResponse:
       type: object
       properties:
@@ -8393,6 +9595,30 @@ components:
       oneOf:
       - $ref: '#/components/schemas/PublicPlanSubscription'
       - $ref: '#/components/schemas/PlanSubscription'
+    PlanSummary:
+      type: object
+      properties:
+        completed_days:
+          type: integer
+          minimum: 0
+          description: Distinct dates where every scheduled row is complete for this
+            subscription.
+        total_days:
+          type: integer
+          minimum: 0
+          description: All distinct scheduled dates in the plan, including past and
+            future dates.
+        percent:
+          type: number
+          format: double
+          maximum: 100
+          minimum: 0
+          description: Completed days / total days * 100, rounded to two decimals;
+            zero if empty.
+      required:
+      - completed_days
+      - percent
+      - total_days
     ProfileCalendarData:
       type: object
       properties:
@@ -9040,16 +10266,6 @@ components:
       - profile_image
       - signup_token
       - suggested_nickname
-    StatusEnum:
-      enum:
-      - active
-      - completed
-      - abandoned
-      type: string
-      description: |-
-        * `active` - 진행 중
-        * `completed` - 완료
-        * `abandoned` - 포기
     StrategyEnum:
       enum:
       - parallel
@@ -9078,6 +10294,53 @@ components:
       required:
       - message
       - success
+    SupportInquiryError:
+      type: object
+      properties:
+        detail:
+          type: string
+          readOnly: true
+      required:
+      - detail
+    SupportInquiryReceipt:
+      type: object
+      properties:
+        receipt_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SupportInquiryReceiptStatusEnum'
+          readOnly: true
+      required:
+      - receipt_id
+      - status
+    SupportInquiryReceiptStatusEnum:
+      enum:
+      - received
+      type: string
+      description: '* `received` - Received'
+    SupportInquiryRequest:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        message:
+          type: string
+          maxLength: 2000
+          minLength: 1
+        email:
+          oneOf:
+          - type: string
+            format: email
+            default: ''
+            maxLength: 254
+          - type: string
+            maxLength: 0
+      required:
+      - kind
+      - message
     SupportedVersion:
       type: object
       properties:
