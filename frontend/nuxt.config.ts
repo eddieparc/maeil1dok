@@ -91,6 +91,8 @@ export default defineNuxtConfig({
     hasenaPlaylistId: process.env.HASENA_PLAYLIST_ID || '',
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8019',
+      csrfCookieName: process.env.NUXT_PUBLIC_CSRF_COOKIE_NAME || 'csrftoken',
+      testMailTransport: process.env.NUXT_PUBLIC_TEST_MAIL_TRANSPORT || '',
       bibleCacheUrl: process.env.NUXT_PUBLIC_BIBLE_CACHE_URL || '',
       // 성경 캐시 서버 URL (failback용)
       KAKAO_CLIENT_ID: process.env.NUXT_PUBLIC_KAKAO_CLIENT_ID || process.env.KAKAO_CLIENT_ID,

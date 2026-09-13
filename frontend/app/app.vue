@@ -1,5 +1,7 @@
 <template>
   <div>
+    <BetaTestMailNotice />
+
     <!-- Email Verification Banner (sticky top) -->
     <ClientOnly>
       <EmailVerificationBanner />
@@ -33,6 +35,7 @@ import ModalHost from '~/components/ui/modal/ModalHost.vue'
 import ToastHost from '~/components/ui/toast/ToastHost.vue'
 import EmailVerificationBanner from '~/components/auth/EmailVerificationBanner.vue'
 import SessionUnknownBanner from '~/components/auth/SessionUnknownBanner.vue'
+import BetaTestMailNotice from '~/components/auth/BetaTestMailNotice.vue'
 
 // Preserve inject('toast').value.show without mounting another host.
 const legacyToast = ref<InstanceType<typeof Toast> | null>(null)

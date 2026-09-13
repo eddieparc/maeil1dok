@@ -29,13 +29,14 @@ def resolve_oauth_redirect_uri(provider: str, requested_uri: str | None) -> str:
         CONFIGURED_REDIRECT_SETTINGS[provider],
         "",
     )
-    default_uri = configured_uri or f"{PUBLIC_CALLBACK_ORIGINS[0]}{callback_path}"
+    callback_origins = getattr(settings, 'OAUTH_CALLBACK_ORIGINS', PUBLIC_CALLBACK_ORIGINS)
+    default_uri = configured_uri or f"{callback_origins[0]}{callback_path}"
     if not requested_uri:
         return default_uri
 
     allowed_uris = {
         default_uri,
-        *(f"{origin}{callback_path}" for origin in PUBLIC_CALLBACK_ORIGINS),
+        *(f"{origin}{callback_path}" for origin in callback_origins),
     }
     if requested_uri not in allowed_uris:
         raise InvalidOAuthRedirectURIError

@@ -153,6 +153,10 @@ maeil1dok-poc/mobile/app.json
 # OCI production secrets (never commit; .example is tracked)
 .env.oci
 .env.frontend.oci
+# Isolated beta tunnel credentials and rendered config are host-local only.
+.beta-tunnel/
+# Operator-only test mail contains live beta token links; never track it.
+.beta-test-mail/
 .gjc/_session-*/
 .gjc/**/token-log.jsonl
 .gjc/**/token-logs/
