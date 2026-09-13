@@ -1,7 +1,11 @@
 <template>
   <div class="confirm-modal">
     <!-- Icon -->
-    <div v-if="icon" class="confirm-icon" :class="`confirm-icon-${icon}`">
+    <div
+      v-if="icon"
+      class="confirm-icon"
+      :class="[`confirm-icon-${icon}`, { 'confirm-icon-danger': confirmVariant === 'danger' && icon === 'warning' }]"
+    >
       <TriangleAlertIcon v-if="icon === 'warning'" :size="24" />
       <CircleXIcon v-else-if="icon === 'error'" :size="24" />
       <InfoIcon v-else-if="icon === 'info'" :size="24" />
@@ -114,6 +118,13 @@ function handleCancel() {
 .confirm-icon-success {
   background: var(--color-success-bg);
   color: var(--color-success-text);
+}
+
+.confirm-icon-danger {
+  width: 52px;
+  height: 52px;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .confirm-title {

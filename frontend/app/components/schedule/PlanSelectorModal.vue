@@ -1,247 +1,39 @@
-<template>
-  <BaseModal
-    v-model="isOpen"
-    title="플랜 선택"
-    size="md"
-    @close="handleClose"
-  >
-    <div class="plan-list">
-      <button
-        v-for="subscription in subscriptions"
-        :key="subscription.plan_id"
-        class="plan-item"
-        :class="{ active: isSelected(subscription.plan_id) }"
-        @click="handleSelect(subscription)"
-      >
-        <div class="plan-item-content">
-          <div class="plan-info">
-            <div class="check-icon-wrapper">
-              <!-- 선택된 플랜: 체크 아이콘 -->
-              <svg
-                v-if="isSelected(subscription.plan_id)"
-                class="check-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-              <!-- 선택되지 않은 플랜: 빈 원 아이콘 -->
-              <svg
-                v-else
-                class="empty-circle-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="12" cy="12" r="10"></circle>
-              </svg>
-            </div>
-            <span class="plan-name">{{ subscription.plan_name }}</span>
-          </div>
-          <div class="plan-badges">
-            <span v-if="subscription.is_default" class="default-badge">기본</span>
-          </div>
-        </div>
-      </button>
-    </div>
-
-    <template #footer>
-      <div class="modal-buttons">
-        <button class="cancel-button" @click="handleClose">취소</button>
-        <button class="manage-plan-button" @click="handleManage">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          플랜 관리
-        </button>
-      </div>
-    </template>
-  </BaseModal>
-</template>
-
 <script setup lang="ts">
-import { computed } from 'vue';
-import BaseModal from '~/components/ui/modal/BaseModal.vue';
+import { Circle, CircleDot, SlidersHorizontal } from '@lucide/vue';
+import BottomSheet from '~/components/ui/BottomSheet.vue';
+import AppButton from '~/components/ui/AppButton.vue';
 import type { SubscriptionSummary } from '~/types/plan';
-
-const props = defineProps<{
-  show: boolean;
-  subscriptions: SubscriptionSummary[];
-  selectedPlanId: number | string | null;
-}>();
-
-const emit = defineEmits<{
-  close: [];
-  select: [subscription: SubscriptionSummary];
-  manage: [];
-}>();
-
-// v-model 바인딩을 위한 computed
-const isOpen = computed({
-  get: () => props.show,
-  set: (value: boolean) => {
-    if (!value) {
-      emit('close');
-    }
-  },
-});
-
-// 선택 여부 확인 (타입 안전한 비교)
-function isSelected(planId: number): boolean {
-  if (props.selectedPlanId === null) return false;
-  return Number(planId) === Number(props.selectedPlanId);
-}
-
-function handleClose() {
-  emit('close');
-}
-
-function handleSelect(subscription: SubscriptionSummary) {
-  emit('select', subscription);
-}
-
-function handleManage() {
-  emit('manage');
-}
+defineProps<{ show: boolean; subscriptions: SubscriptionSummary[]; selectedPlanId: number | string | null }>();
+defineEmits<{ close: []; select: [subscription: SubscriptionSummary]; manage: [] }>();
 </script>
-
+<template>
+  <BottomSheet :model-value="show" title="플랜 선택" @update:model-value="!$event && $emit('close')">
+    <div class="plan-list" role="group" aria-label="활성 구독 플랜">
+      <button v-for="subscription in subscriptions" :key="subscription.plan_id" type="button" class="plan-item"
+        :class="{ active: Number(selectedPlanId) === subscription.plan_id }" :aria-pressed="Number(selectedPlanId) === subscription.plan_id"
+        :data-plan="subscription.plan_id" @click="$emit('select', subscription)">
+        <CircleDot v-if="Number(selectedPlanId) === subscription.plan_id" :size="20" aria-hidden="true" /><Circle v-else :size="20" aria-hidden="true" />
+        <span class="plan-name">{{ subscription.plan_name }}</span><span v-if="subscription.is_default" class="default-badge">기본</span>
+      </button>
+      <p v-if="!subscriptions.length" class="empty-plans">표시할 활성 플랜이 없어요.</p>
+    </div>
+    <template #footer><div class="sheet-actions">
+      <AppButton variant="secondary" block @click="$emit('close')">취소</AppButton>
+      <AppButton block @click="$emit('manage')"><SlidersHorizontal :size="16" aria-hidden="true" />플랜 관리</AppButton>
+    </div></template>
+  </BottomSheet>
+</template>
 <style scoped>
-.plan-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.plan-item {
-  width: 100%;
-  padding: 0.875rem 1rem;
-  background: var(--color-slate-50);
-  border: 1px solid var(--color-slate-200);
-  border-radius: 10px;
-  text-align: left;
-  transition: all 0.2s;
-}
-
-.plan-item:hover {
-  background: var(--color-slate-100);
-}
-
-.plan-item.active {
-  background: var(--primary-light);
-  border-color: var(--primary-color);
-}
-
-.plan-item-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.plan-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.check-icon-wrapper {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.check-icon {
-  color: var(--primary-color);
-}
-
-.empty-circle-icon {
-  color: var(--color-slate-300);
-}
-
-.plan-name {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.plan-badges {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.default-badge {
-  font-size: 0.65rem;
-  padding: 0.15em 0.5em;
-  background: var(--color-slate-200);
-  color: var(--color-slate-600);
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-.modal-buttons {
-  display: flex;
-  gap: 0.75rem;
-  width: 100%;
-}
-
-.cancel-button,
-.manage-plan-button {
-  flex: 1;
-  padding: 0.75rem;
-  border-radius: 10px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.cancel-button {
-  background: var(--color-slate-100);
-  color: var(--color-slate-600);
-  border: 1px solid var(--color-slate-200);
-}
-
-.cancel-button:hover {
-  background: var(--color-slate-200);
-}
-
-.manage-plan-button {
-  background: var(--primary-color);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-}
-
-.manage-plan-button:hover {
-  background: var(--primary-dark);
-}
+.plan-list { display: grid; gap: 8px; }
+.plan-item { display: flex; align-items: center; gap: 10px; width: 100%; min-width: var(--hit-min); min-height: 48px; padding: 12px 14px; border: 1px solid var(--color-border-default); border-radius: 14px; background: var(--color-bg-card); color: var(--color-text-primary); text-align: left; cursor: pointer; transition: background-color .15s, transform .15s; }
+.plan-item svg { flex-shrink: 0; color: var(--color-text-tertiary); }
+.plan-item.active { background: var(--color-accent-bg); border-color: var(--color-accent-primary); }
+.plan-item.active svg { color: var(--color-accent-primary); }
+.plan-name { flex: 1; font-size: 14px; font-weight: 600; }
+.default-badge { padding: 4px 8px; border-radius: var(--radius-pill); background: var(--color-accent-bg); color: var(--color-accent-primary); font-size: 11px; }
+.sheet-actions { display: flex; gap: 8px; }
+.empty-plans { color: var(--color-text-secondary); font-size: 14px; }
+.plan-item:hover { background: var(--color-accent-bg); }
+.plan-item:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { .plan-item { transition: none; } .plan-item:active { transform: none; } }
 </style>

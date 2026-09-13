@@ -195,6 +195,29 @@ test('explicit plan-only query updates reload context without erasing intent; pl
   await view.route('/bible?plan=9&schedule=1'); assert.equal(view.state.tongdokPlanId.value, 9); assert.ok(r.requests.some(([p, q]) => p.endsWith('/detail/') && q.plan_id === 9));
 });
 
+test('hub TOC opens the shared selector without entering or fetching the reader', { timeout: 10000 }, async t => {
+  const view = await mount('/bible'); t.after(view.close); await view.ready();
+  await emit('BibleHome', 'show-toc'); await settled();
+  assert.equal(view.state.viewMode.value, 'home');
+  assert.equal(view.state.showBookSelector.value, true);
+  assert.equal(r.boundaries.BookSelector.attrs.modelValue, true);
+  assert.equal(r.contentCalls.length, 0);
+  const entered = signal(view.state.viewMode, mode => mode === 'reader');
+  await emit('BookSelector', 'select', 'exo', 4); await entered; await settled();
+  assert.equal(view.state.viewMode.value, 'reader');
+  assert.equal(view.router.currentRoute.value.query.book, 'exo');
+  assert.equal(view.router.currentRoute.value.query.chapter, '4');
+});
+
+test('choosing a version from the hub selector does not navigate before chapter selection', { timeout: 10000 }, async t => {
+  const view = await mount('/bible'); t.after(view.close); await view.ready();
+  await view.state.handleVersionSelect('KNT'); await settled();
+  assert.equal(view.state.viewMode.value, 'home');
+  assert.equal(view.state.currentVersion.value, 'KNT');
+  assert.equal(view.router.currentRoute.value.fullPath, '/bible');
+  assert.equal(r.contentCalls.length, 0);
+});
+
 test('real shell consumes 60 pixel scroll; all controlled sheets and modal host suspend hiding and clear selection after share snapshot', { timeout: 10000 }, async t => {
   const view = await mount('/bible?book=gen&chapter=49'); t.after(view.close); await view.ready();
   const hidden = () => byClass(view.host, 'bottom-nav-tabs')[0].props.inert;

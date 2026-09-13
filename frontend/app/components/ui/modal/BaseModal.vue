@@ -216,8 +216,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: var(--hit-min);
+  height: var(--hit-min);
   background: none;
   border: none;
   padding: 0;
@@ -338,7 +338,7 @@ onUnmounted(() => {
   .modal-fade-leave-active .base-modal-content,
   .modal-slide-up-enter-active .base-modal-content,
   .modal-slide-up-leave-active .base-modal-content {
-    transition: opacity 100ms;
+    transition: none;
   }
 
   .modal-fade-enter-from .base-modal-content,

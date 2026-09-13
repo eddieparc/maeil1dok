@@ -47,30 +47,28 @@ export function useScheduleApi() {
   const { handleApiError } = useErrorHandler();
   const toast = useToast();
 
-  // 중복 호출 방지 플래그
   const isFetchingSchedules = ref(false);
   const isFetchingNextPosition = ref(false);
-  const lastFetchKey = ref<string | null>(null);
+  let pendingSchedules = 0;
+  let pendingPositions = 0;
 
   /**
    * 월별 일정 조회
    */
   async function fetchMonthlySchedules(
     planId: number,
-    month: number
+    month: number,
+    year?: number,
+    options: { throwOnError?: boolean } = {},
   ): Promise<Schedule[]> {
-    // 동일한 파라미터로 이미 호출 중이면 스킵
-    const fetchKey = `${planId}-${month}`;
-    if (lastFetchKey.value === fetchKey && isFetchingSchedules.value) {
-      return [];
-    }
-
-    lastFetchKey.value = fetchKey;
+    // Consumers own identity-scoped coalescing. A concurrent caller must never
+    // receive a fabricated empty month (or another identity's in-flight data).
+    pendingSchedules++;
     isFetchingSchedules.value = true;
 
     try {
       const response = await api.GET('/api/v1/todos/schedules/month/', {
-        params: { plan_id: planId, month },
+        params: { plan_id: planId, month, ...(year === undefined ? {} : { year }) },
       });
       return response.data.map(schedule => ({
         ...schedule,
@@ -78,9 +76,10 @@ export function useScheduleApi() {
       }));
     } catch (error) {
       handleApiError(error, '일정 조회', { silent: true });
+      if (options.throwOnError) throw error;
       return [];
     } finally {
-      isFetchingSchedules.value = false;
+      isFetchingSchedules.value = --pendingSchedules > 0;
     }
   }
 
@@ -90,7 +89,7 @@ export function useScheduleApi() {
   async function fetchNextPosition(
     planId: number
   ): Promise<NextPositionResponse | null> {
-    if (isFetchingNextPosition.value) return null;
+    pendingPositions++;
     isFetchingNextPosition.value = true;
 
     try {
@@ -102,7 +101,7 @@ export function useScheduleApi() {
       handleApiError(error, '다음 위치 조회', { silent: true });
       return null;
     } finally {
-      isFetchingNextPosition.value = false;
+      isFetchingNextPosition.value = --pendingPositions > 0;
     }
   }
 

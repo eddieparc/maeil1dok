@@ -5,7 +5,7 @@
       v-if="viewMode === 'home'"
       @continue-reading="handleContinueReading"
       @select-book="handleHomeBookSelect"
-      @show-toc="viewMode = 'toc'"
+      @show-toc="showBookSelector = true"
     />
 
     <!-- 목차 뷰 -->
@@ -74,16 +74,6 @@
       />
 
       <!-- 모달 -->
-      <BookSelector
-        v-model="showBookSelector"
-        :current-book="currentBook"
-        :current-chapter="currentChapter"
-        :current-version="currentVersion"
-        :read-chapters="selectorReadChapters"
-        @select="handleBookSelect"
-        @version-select="handleVersionSelect"
-      />
-
       <VersionSelector
         v-model="showVersionSelector"
         :current-version="currentVersion"
@@ -185,6 +175,16 @@
       <Toast />
 
     </template>
+    <BookSelector
+      v-model="showBookSelector"
+      :current-book="currentBook"
+      :current-chapter="currentChapter"
+      :current-version="currentVersion"
+      :read-chapters="selectorReadChapters"
+      @select="handleBookSelect"
+      @version-select="handleVersionSelect"
+    />
+    <SidebarNav v-if="viewMode !== 'reader'" />
     <BottomNavigation v-if="viewMode !== 'reader'" />
   </div>
 </template>
@@ -192,6 +192,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import SidebarNav from '~/components/common/SidebarNav.vue';
 // useBibleFetch는 이제 useBibleContent 내부에서 사용됨
 import { useTongdokMode } from '~/composables/useTongdokMode';
 import { usePersonalRecord } from '~/composables/usePersonalRecord';
@@ -616,6 +617,10 @@ const navigateReader = async (book: string, chapter: number, verse?: number, ver
 
 const handleBookSelect = (book: string, chapter: number, verse?: number) => navigateReader(book, chapter, verse);
 const handleVersionSelect = async (version: string) => {
+  if (viewMode.value !== 'reader') {
+    currentVersion.value = version;
+    return;
+  }
   await navigateReader(currentBook.value, currentChapter.value, undefined, version);
   toast.success(`${currentVersionName.value}으로 전환`);
 };
@@ -1257,8 +1262,9 @@ watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.s
 }
 
 @media (min-width: 1024px) {
-  .bible-page.is-reader {
+  .bible-page {
     max-width: calc(var(--content-max) + var(--sidebar-width));
+    padding-inline-start: var(--sidebar-width);
   }
 }
 

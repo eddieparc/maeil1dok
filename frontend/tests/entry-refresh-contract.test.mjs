@@ -16,8 +16,10 @@ test('소셜 버튼 3개는 52px 필 버튼이다', () => {
   }
 });
 
-test('이메일 입력은 999px 이고 primary 는 두 필드 충족 전까지 비활성이다', () => {
-  assert.match(styleOf(login), /input[^{]*\{[\s\S]*?border-radius:\s*(999px|var\(--radius-pill\))/, '입력 필 반경');
+test('auth inputs use H05 geometry and primary stays disabled until both fields are filled', () => {
+  const inputStyle = styleOf(login).match(/\.form-input\s*\{([^}]+)\}/)?.[1] ?? '';
+  assert.match(inputStyle, /height:\s*48px/);
+  assert.match(inputStyle, /border-radius:\s*14px/);
   assert.match(login, /:disabled="[^"]*(!|없|empty|isSubmitDisabled|canSubmit)/, 'primary disabled 조건 바인딩');
 });
 

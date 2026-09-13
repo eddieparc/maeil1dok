@@ -120,6 +120,7 @@ Buttons, chips, segments, badges and inputs use `--radius-pill: 999px`; small co
 
 - Structure: `useModal().confirm` or `useModal().alert` rendered by `ModalHost`.
 - Variants: primary, danger; warning, error, info, success icons.
+- Destructive warning confirmations use a 52px icon container with `--color-error-bg` and `--color-error`; ordinary warning confirmations retain their warning colors.
 - Accessibility: shared modal container owns focus and escape behavior.
 - Rule: page-local Teleport modals are not used for ordinary confirmations.
 

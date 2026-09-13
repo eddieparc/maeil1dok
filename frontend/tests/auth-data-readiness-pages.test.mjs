@@ -1,14 +1,30 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
 import { test } from 'node:test';
 import { build } from 'esbuild';
 import { compileScript, parse } from '@vue/compiler-sfc';
 import * as Vue from 'vue';
+import * as Icons from '@lucide/vue';
 
 let importSequence = 0;
+globalThis.__pageIcons = Icons;
 
 const runtimeStub = path => {
   if (path === 'vue') {
+    if (globalThis.__pageReactiveVue) {
+      return `
+        export const defineComponent = value => value;
+        export const ref = globalThis.__pageReactiveVue.ref;
+        export const computed = globalThis.__pageReactiveVue.computed;
+        export const watch = globalThis.__pageReactiveVue.watch;
+        export const nextTick = globalThis.__pageReactiveVue.nextTick;
+        export const onMounted = callback => globalThis.__pageMounted.push(callback);
+        export const onBeforeUnmount = () => {};
+        export const onUnmounted = () => {};
+      `;
+    }
     return `
       export const defineComponent = value => value;
       export const ref = value => ({ value });
@@ -106,26 +122,10 @@ const runtimeStub = path => {
     return 'export const formatKoreanDate = value => value;';
   }
   if (path === '@lucide/vue') {
-    return `
-      export const Bookmark = () => null;
-      export const CalendarDaysIcon = () => null;
-      export const ChevronDownIcon = () => null;
-      export const ChevronRightIcon = () => null;
-      export const CircleCheckIcon = () => null;
-      export const FileText = () => null;
-      export const FollowIcon = () => null;
-      export const Highlighter = () => null;
-      export const Lock = () => null;
-      export const PlayIcon = () => null;
-      export const Search = () => null;
-      export const SearchIcon = () => null;
-      export const SlidersHorizontalIcon = () => null;
-      export const SparklesIcon = () => null;
-      export const Trash2 = () => null;
-      export const UserCheckIcon = () => null;
-      export const UserIcon = () => null;
-      export const UsersIcon = () => null;
-    `;
+    return Object.keys(Icons)
+      .filter(name => name !== 'default' && /^[\w$]+$/.test(name))
+      .map(name => `export const ${name} = globalThis.__pageIcons.${name};`)
+      .join('\n');
   }
   return 'export default {};';
 };
@@ -166,7 +166,10 @@ const loadPageSetup = async relativePath => {
   importSequence += 1;
   const dataUrl = `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`;
   const component = (await import(`${dataUrl}#${importSequence}`)).default;
-  const state = component.setup({}, { expose() {} });
+  const createState = () => component.setup({}, { expose() {} });
+  const state = globalThis.__pageEffectScope
+    ? globalThis.__pageEffectScope.run(createState)
+    : createState();
   assert.equal(globalThis.__pageMounted.length, 1);
   return Object.assign(globalThis.__pageMounted[0], { state });
 };
@@ -196,7 +199,10 @@ const setupGlobals = () => {
 };
 
 const cleanupGlobals = () => {
+  globalThis.__pageEffectScope?.stop();
   for (const key of [
+    '__pageReactiveVue',
+    '__pageEffectScope',
     '__pageAuth',
     '__pageApi',
     '__pageHasenaStore',
@@ -226,15 +232,20 @@ const cleanupGlobals = () => {
 test('plans page keeps its initial load pending until auth restoration', { timeout: 5000 }, async () => {
   setupGlobals();
   const authReady = createDeferred();
+  const fetched = createDeferred();
+  globalThis.__pageReactiveVue = Vue;
+  globalThis.__pageEffectScope = Vue.effectScope();
   let fetchCount = 0;
   globalThis.__pageAuth = {
-    isAuthenticated: { value: false },
-    user: { value: null },
+    isAuthenticated: Vue.ref(false),
+    authState: Vue.ref('unknown'),
+    user: Vue.ref(null),
     initialize: () => authReady.promise,
   };
   globalThis.__pagePlanApi = {
     fetchUserPlans: async () => {
       fetchCount += 1;
+      fetched.resolve();
       return { subscriptions: [], available_plans: [] };
     },
     subscribeToPlan: async () => false,
@@ -254,8 +265,11 @@ test('plans page keeps its initial load pending until auth restoration', { timeo
     assert.equal(fetchCount, 0);
 
     globalThis.__pageAuth.isAuthenticated.value = true;
+    globalThis.__pageAuth.authState.value = 'authenticated';
+    globalThis.__pageAuth.user.value = { id: 7 };
     authReady.resolve();
     await initialLoad;
+    await fetched.promise;
     assert.equal(fetchCount, 1);
   } finally {
     cleanupGlobals();
@@ -304,40 +318,86 @@ test('friends page waits for auth restoration before redirecting or loading', { 
 });
 
 test('admin hasena waits for restored staff auth before loading summaries', { timeout: 5000 }, async () => {
-  setupGlobals();
-  const authReady = createDeferred();
-  let readCount = 0;
-  globalThis.__pageAuth = {
-    isAuthenticated: { value: false },
-    isStaff: { value: false },
-    initialize: () => authReady.promise,
-  };
-  globalThis.__pageApi = {
-    GET: async () => {
-      readCount += 1;
-      return { data: { success: true, summaries: [], total: 0 } };
+  // The page is now a thin wrapper. Mount its real template, staff-only layout
+  // and data child so neither the auth boundary nor the request can be stubbed away.
+  const require = createRequire(import.meta.url);
+  const vue = require('vue');
+  const { createRouter, createMemoryHistory, RouterLink } = require('vue-router');
+  const authReady = createDeferred(), initialized = createDeferred(), fetched = createDeferred();
+  const auth = {
+    isAuthenticated: vue.ref(false), isStaff: vue.ref(false), user: vue.ref(null),
+    isInitialized: vue.ref(false), isLoading: vue.ref(true), isSessionUnknown: vue.ref(false),
+    initialize: async () => {
+      initialized.resolve();
+      await authReady.promise;
+      auth.isInitialized.value = true;
+      auth.isLoading.value = false;
     },
   };
-
+  const reads = [];
+  const api = { GET: async (path, options) => {
+    reads.push({ path, options });
+    fetched.resolve();
+    return { data: { success: true, summaries: [], total: 0, page: 1, page_size: 20 } };
+  } };
+  const appDir = new URL('../app/', import.meta.url).pathname;
+  const result = await build({
+    stdin: { contents: "export { default } from './pages/admin/hasena/index.vue';", resolveDir: appDir, loader: 'ts' },
+    bundle: true, write: false, platform: 'node', format: 'cjs', logLevel: 'silent',
+    external: ['vue', 'vue-router', '@lucide/vue', '#components', '~/composables/*'],
+    plugins: [{ name: 'mounted-auth-readiness', setup(builder) {
+      builder.onResolve({ filter: /^~\/components\// }, ({ path }) => ({ path: resolve(appDir, path.slice(2)) }));
+      builder.onLoad({ filter: /\.vue$/ }, async ({ path }) => {
+        const { descriptor, errors } = parse(await readFile(path, 'utf8'), { filename: path });
+        assert.deepEqual(errors, []);
+        return { contents: compileScript(descriptor, { id: path, inlineTemplate: true, templateOptions: { compilerOptions: { hoistStatic: false } } }).content, loader: 'ts', resolveDir: dirname(path) };
+      });
+    } }],
+  });
+  const module = { exports: {} };
+  new Function('require', 'module', 'exports', result.outputFiles[0].text)(name => {
+    if (name === '~/composables/useAuthService') return { useAuthService: () => auth };
+    if (name === '~/composables/useApi') return { useApi: () => api };
+    if (name === '~/composables/useModal') return { useModal: () => ({ isModalOpen: () => false }) };
+    if (name === '#components') return { NuxtLink: RouterLink };
+    return require(name);
+  }, module, module.exports);
+  const node = (tag, text = '') => ({ tag, text, props: {}, children: [], parent: null });
+  const detach = child => { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = null; };
+  const renderer = vue.createRenderer({
+    createElement: node, createText: text => node('#text', text), createComment: text => node('#comment', text),
+    setText(target, text) { target.text = text; }, setElementText(target, text) { target.text = text; target.children = []; },
+    patchProp(target, key, previous, value) { target.props[key] = value; },
+    insert(child, parent, anchor = null) { detach(child); parent.children.splice(anchor ? parent.children.indexOf(anchor) : parent.children.length, 0, child); child.parent = parent; },
+    remove: detach, parentNode: child => child.parent, nextSibling: child => child.parent?.children[child.parent.children.indexOf(child) + 1] ?? null,
+    setScopeId() {}, insertStaticContent() { throw new Error('Unexpected static HTML'); },
+  });
+  const root = node('root');
+  const find = (target, attr) => target.props[attr] !== undefined ? target : target.children.map(child => find(child, attr)).find(Boolean);
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/admin/hasena', component: module.exports.default }] });
+  await router.push('/admin/hasena');
+  const app = renderer.createApp(module.exports.default);
+  app.use(router);
   try {
-    const mounted = await loadPageSetup('admin/hasena/index.vue');
-    let settled = false;
-    const initialLoad = mounted().finally(() => {
-      settled = true;
-    });
-    await Promise.resolve();
+    app.mount(root);
+    await initialized.promise;
+    assert.equal(find(root, 'data-admin-state').props['data-admin-state'], 'loading');
+    assert.equal(find(root, 'data-hasena-state'), undefined);
+    assert.deepEqual(reads, []);
 
-    assert.equal(settled, false);
-    assert.equal(readCount, 0);
-
-    globalThis.__pageAuth.isAuthenticated.value = true;
-    globalThis.__pageAuth.isStaff.value = true;
+    auth.isAuthenticated.value = true;
+    auth.isStaff.value = true;
+    auth.user.value = { id: 7, is_staff: true };
+    await vue.nextTick();
+    assert.deepEqual(reads, [], 'staff identity alone cannot bypass unfinished initialization');
     authReady.resolve();
-    await initialLoad;
-
-    assert.equal(readCount, 1);
+    await fetched.promise;
+    await vue.nextTick();
+    assert.equal(find(root, 'data-admin-state').props['data-admin-state'], 'staff');
+    assert.ok(find(root, 'data-hasena-state'));
+    assert.deepEqual(reads, [{ path: '/api/v1/todos/hasena/summaries/', options: { params: { status: 'all', page: 1, page_size: 20 } } }]);
   } finally {
-    cleanupGlobals();
+    app.unmount();
   }
 });
 

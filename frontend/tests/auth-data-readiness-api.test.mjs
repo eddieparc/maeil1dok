@@ -13,6 +13,8 @@ const apiSource = await readFile(
 
 const importApiModule = async () => {
   const runnableSource = apiSource
+    .replace("import { readCsrfToken, storeCsrfToken } from './csrfCookie'",
+      await readFile(new URL('../app/composables/csrfCookie.ts', import.meta.url), 'utf8'))
     .replace(
       "import { useRuntimeConfig } from '#app'",
       "const useRuntimeConfig = () => ({ public: { apiBase: 'http://api.test' }, internalApiBase: '' });",
@@ -238,6 +240,54 @@ for (const alreadyRestored of [false, true]) {
     }, publicPlans);
   });
 }
+
+for (const alreadyRestored of [false, true]) {
+  test(`anonymous support POST reaches transport ${alreadyRestored ? 'after' : 'during'} auth restoration`, { timeout: 5000 }, async () => {
+    const deferredAuth = createDeferredAuth();
+    if (alreadyRestored) deferredAuth.resolveAsGuest();
+    deferredAuth.auth.refreshToken = async () => assert.fail('public success must not refresh auth');
+    const { useApi } = await importApiModule();
+    const receipt = { receipt_id: '10ec28ec-a128-4444-9876-2bbc8a2b4a6a', status: 'received' };
+    const payload = { kind: 'bug', message: 'Anonymous issue' };
+
+    await withEnvironment(deferredAuth.auth, async fetchCalls => {
+      assert.deepEqual(await useApi().POST('/api/v1/support/inquiries/', payload), receipt);
+      assert.equal(fetchCalls.length, 1);
+      assert.equal(fetchCalls[0][0], 'http://api.test/api/v1/support/inquiries/');
+      assert.equal(fetchCalls[0][1].method, 'POST');
+      assert.equal(fetchCalls[0][1].credentials, 'include');
+      assert.deepEqual(JSON.parse(fetchCalls[0][1].body), payload);
+      assert.equal(deferredAuth.initializationStarts(), 0);
+      assert.equal(deferredAuth.auth.isAuthenticated.value, false);
+    }, receipt);
+  });
+}
+
+test('public support exception does not allow neighboring POST routes or protected mutation methods', async () => {
+  const deferredAuth = createDeferredAuth();
+  deferredAuth.resolveAsGuest();
+  const { useApi } = await importApiModule();
+  const supportPath = '/api/v1/support/inquiries/';
+
+  await withEnvironment(deferredAuth.auth, async fetchCalls => {
+    const api = useApi();
+    for (const path of [
+      '/api/v1/support/',
+      `${supportPath}1/`,
+      `/prefix${supportPath}`,
+      '/api/v1/todos/hasena/record/update/',
+      '/api/v1/admin/members/',
+    ]) {
+      await assert.rejects(api.post(path, {}), { name: 'ApiError', status: 401 });
+    }
+    for (const method of ['put', 'patch', 'delete']) {
+      await assert.rejects(api[method](supportPath, {}), { name: 'ApiError', status: 401 });
+    }
+    await assert.rejects(api.upload(supportPath, new FormData()), { name: 'ApiError', status: 401 });
+    assert.equal(fetchCalls.length, 0, 'protected mutations must still fail before transport');
+    assert.equal(deferredAuth.initializationStarts(), 0);
+  });
+});
 
 test('initialized auth reads immediately without restarting initialization', async () => {
   const auth = {

@@ -41,7 +41,15 @@ function clock(t) {
 
 // Real Vue reactivity, SFC setup/render functions and lifecycle hooks; only Nuxt's
 // state registry and renderer platform are supplied. No browser/layout claim.
-function runtime(t) {
+function runtime(t, imports = {}) {
+  const updates = new Set()
+  const changed = () => { for (const observe of updates) queueMicrotask(observe) }
+  function signal(predicate) {
+    return new Promise(resolve => {
+      const observe = () => { if (predicate()) { updates.delete(observe); resolve() } }
+      updates.add(observe); observe()
+    })
+  }
   const cache = new Map(), states = new Map(), restorePlatform = []
   const Transition = Vue.defineComponent({ props: ['name'], inheritAttrs: false, setup(_, { slots }) { return () => slots.default?.() } })
   const TransitionGroup = Vue.defineComponent({ props: ['tag', 'name'], setup(props, { slots }) {
@@ -61,11 +69,12 @@ function runtime(t) {
     let source = readFileSync(file, 'utf8')
     if (file.endsWith('.vue')) {
       const { descriptor } = parse(source, { filename: file })
-      source = compileScript(descriptor, { id: file, inlineTemplate: true }).content
+      source = compileScript(descriptor, { id: file, inlineTemplate: true, templateOptions: { compilerOptions: { hoistStatic: false } } }).content
     }
     const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
     const localRequire = name => {
       if (name === 'vue') return { ...Vue, Transition, TransitionGroup }
+      if (name in imports) return imports[name]
       if (name.startsWith('~/') || name.startsWith('.')) return load(name.startsWith('~/') ? name : resolve(dirname(file), name))
       return require(name)
     }
@@ -73,7 +82,7 @@ function runtime(t) {
       if (!states.has(key)) states.set(key, Vue.ref(init()))
       return states.get(key)
     }
-    new Function('require', 'module', 'exports', 'useState', js)(localRequire, module, module.exports, useState)
+    new Function('require', 'module', 'exports', 'useState', 'useHead', js)(localRequire, module, module.exports, useState, () => {})
     return module.exports
   }
   const listeners = new Map(), resizeObservers = new Set(), mutationObservers = new Set()
@@ -128,6 +137,7 @@ function runtime(t) {
         }
         doc.activeElement = this
         doc.dispatch('focusin', { target: this })
+        changed()
       },
       getAttribute(key) { return this.props[key] ?? null },
       setAttribute(key, value) { this.props[key] = value },
@@ -139,10 +149,13 @@ function runtime(t) {
     const at = anchor ? parent.children.indexOf(anchor) : -1
     parent.children.splice(at < 0 ? parent.children.length : at, 0, child)
     child.parentNode = parent
+    changed()
   }
   function remove(child) {
     if (child.parentNode) child.parentNode.children.splice(child.parentNode.children.indexOf(child), 1)
+    if (child.contains(doc.activeElement)) doc.activeElement = doc.body
     child.parentNode = null
+    changed()
   }
   doc.body = node('body')
   doc.body.style.overflow = 'auto'
@@ -167,7 +180,14 @@ function runtime(t) {
     createElement: node, createText: text => node('#text', text), createComment: text => node('#comment', text),
     setText: (n, text) => { n.text = text }, setElementText: (n, text) => { n.text = text; n.children = [] },
     parentNode: n => n.parentNode, nextSibling: n => n.parentNode?.children[n.parentNode.children.indexOf(n) + 1] ?? null,
-    insert, remove, patchProp: (n, key, old, value) => { n.props[key] = value; if (key === 'style') n.style = value ?? {} },
+    insert, remove, patchProp: (n, key, old, value) => {
+      n.props[key] = value
+      if (key === 'style') n.style = value ?? {}
+      // Native disabled controls blur and cannot receive focus. Retaining the
+      // opener here would hide the plans caller's pre-activation focus loss.
+      if (key === 'disabled' && value && doc.activeElement === n) doc.activeElement = doc.body
+      changed()
+    },
     querySelector: selector => selector === 'body' ? doc.body : null,
     // CSS transitions are deliberately not emulated by this platform.
     forcePatchProp: () => false
@@ -182,7 +202,7 @@ function runtime(t) {
   }
   t.after(() => {
     try { apps.reverse().forEach(app => app.unmount()) }
-    finally { restorePlatform.reverse().forEach(restore => restore()) }
+    finally { updates.clear(); restorePlatform.reverse().forEach(restore => restore()) }
   })
   async function flush() {
     await Vue.nextTick()
@@ -190,12 +210,146 @@ function runtime(t) {
     await Vue.nextTick()
   }
   return {
-    load, doc, node, mount, flush, viewport,
+    load, doc, node, mount, flush, viewport, signal,
     resize(target) { for (const observer of resizeObservers) if (observer.targets.has(target)) observer.callback([{ target }]) },
     mutate() { for (const observer of mutationObservers) observer.callback([]) },
     get observerCount() { return resizeObservers.size + mutationObservers.size }
   }
 }
+// The actual page, AppButton, API facade and complete service-modal lifecycle
+// share one renderer, in app.vue order. Only app-shell/auth/HTTP boundaries vary.
+async function plansModalRuntime(t) {
+  const authState = Vue.ref('authenticated'), user = Vue.ref({ id: 1 })
+  const auth = {
+    authState, user, isAuthenticated: Vue.computed(() => authState.value === 'authenticated'),
+    isLoading: Vue.ref(false), isSessionUnknown: Vue.ref(false), initialize: async () => {}
+  }
+  const requests = [], errors = []
+  const subscription = { id: 82, plan_id: 8, plan_name: 'Fixture', start_date: '2026-01-01', is_active: false, is_default: false }
+  let subscriptions = [subscription]
+  const api = {
+    path: (path, params) => path.replace('{id}', params.id),
+    async GET(path) {
+      requests.push(['GET', path])
+      if (path === '/api/v1/todos/plans/user/') return { data: { subscriptions, available_plans: [] } }
+      assert.equal(path, '/api/v1/todos/plan/82/summary/')
+      return { data: { completed_days: 2, total_days: 3, percent: 66.67 } }
+    },
+    async DELETE(path) { requests.push(['DELETE', path]); subscriptions = []; return { data: undefined } }
+  }
+  const r = runtime(t, {
+    '~/composables/useAuthService': { useAuthService: () => auth },
+    '~/composables/useApi': { useApi: () => api },
+    '~/composables/useToast': { useToast: () => ({ success() {} }) },
+    '~/composables/useErrorHandler': { useErrorHandler: () => ({ handleApiError: error => errors.push(error) }) },
+    '~/components/common/PageLayout.vue': { default: { setup: (_, { slots }) => () => Vue.h('main', slots.default?.()) } },
+    '~/components/Toast.vue': { default: { render: () => null } },
+    'vue-router': { useRouter: () => ({ push() {} }) },
+    '#components': { NuxtLink: { render: () => Vue.h('a') } }
+  })
+  const Page = r.load('~/pages/plans/index.vue').default
+  const Host = r.load('~/components/ui/modal/ModalHost.vue').default
+  const state = r.load('~/composables/useModalState').useModalState()
+  const ready = r.signal(() => !!byClass(r.doc, 'delete-action')[0])
+  const mounted = r.mount({ render: () => [Vue.h(Page), Vue.h(Host)] })
+  await ready; await r.flush()
+  const trigger = byClass(r.doc, 'delete-action')[0]
+  async function open() {
+    const entered = r.signal(() => byClass(r.doc, 'modal-container')[0]?.contains(r.doc.activeElement))
+    trigger.focus()
+    clickControl(trigger)
+    await state.topModal.value.component.__asyncLoader()
+    await entered; await r.flush()
+    assert.equal(trigger.props.disabled, true, 'write lock remains held throughout confirmation')
+    assert.equal(r.doc.body.style.overflow, 'hidden')
+  }
+  t.after(() => assert.deepEqual(errors, []))
+  return { ...r, open, trigger, state, authState, user, requests, api, mounted }
+}
+function clickControl(control) {
+  const event = { target: control, currentTarget: control, stopped: false,
+    preventDefault() {}, stopImmediatePropagation() { this.stopped = true } }
+  control.props.onClickCapture?.(event)
+  if (!event.stopped) control.props.onClick(event)
+  event.currentTarget = null // Native currentTarget is available only during dispatch.
+}
+
+for (const interaction of ['cancel', 'escape', 'scrim']) {
+  test(`plans delete ${interaction} restores the exact still-present enabled opener after the real modal lifecycle`, async t => {
+    const r = await plansModalRuntime(t)
+    await r.open()
+    const dialog = byClass(r.doc, 'modal-container')[0]
+    const buttons = descendants(dialog).filter(node => node.tag === 'button')
+    buttons.at(-1).focus(); r.doc.dispatch('keydown', { key: 'Tab' })
+    assert.ok(r.doc.activeElement === buttons[0])
+    r.doc.dispatch('keydown', { key: 'Tab', shiftKey: true })
+    assert.ok(r.doc.activeElement === buttons.at(-1))
+    clickControl(r.trigger)
+    assert.equal(r.state.stack.value.length, 1, 'disabled opener cannot open a second confirmation')
+    const returned = []
+    r.doc.addEventListener('focusin', event => {
+      if (event.target === r.trigger) returned.push({ disabled: r.trigger.props.disabled, open: r.state.isOpen.value })
+    })
+    const dismissed = r.signal(() => !byClass(r.doc, 'modal-container').length && !r.trigger.props.disabled)
+    if (interaction === 'escape') r.doc.dispatch('keydown', { key: 'Escape' })
+    else clickControl(byClass(r.doc, interaction === 'cancel' ? 'confirm-btn-cancel' : 'modal-overlay')[0])
+    await dismissed; await r.flush()
+    assert.ok(r.trigger.isConnected)
+    assert.equal(r.doc.activeElement.tag, 'button', 'dismissal must not strand native focus on BODY')
+    assert.ok(r.doc.activeElement === r.trigger, 'restore the invoking delete button, not another plan action')
+    assert.deepEqual(returned, [{ disabled: false, open: false }], 'restore only after the rendered unlock')
+    assert.equal(r.requests.filter(([method]) => method === 'DELETE').length, 0)
+    assert.equal(r.doc.body.style.overflow, 'auto')
+    assert.equal(r.doc.body.style.paddingRight, '7px')
+  })
+}
+
+test('plans completion cannot steal focus from a newer service modal', async t => {
+  const r = await plansModalRuntime(t)
+  await r.open()
+  const lowerId = r.state.topModal.value.id
+  const entered = r.signal(() => byClass(r.doc, 'modal-container')[1]?.contains(r.doc.activeElement))
+  const upperResult = r.state.open({ render: () => Vue.h('button') }).catch(() => false)
+  await entered; await r.flush()
+  const upperFocus = r.doc.activeElement
+  const returned = []
+  r.doc.addEventListener('focusin', event => { if (event.target === r.trigger) returned.push(event.target) })
+  const unlocked = r.signal(() => !r.trigger.props.disabled)
+  await r.state.close(lowerId, false)
+  await unlocked; await r.flush()
+  assert.ok(r.doc.activeElement === upperFocus)
+  assert.deepEqual(returned, [])
+  assert.equal(r.doc.body.style.overflow, 'hidden')
+  r.doc.dispatch('keydown', { key: 'Escape' })
+  assert.equal(await upperResult, false)
+  await r.flush()
+})
+
+test('plans confirmed deletion does not focus a removed trigger or invent a fallback', async t => {
+  const r = await plansModalRuntime(t)
+  await r.open()
+  const write = deferred(), called = deferred()
+  r.api.DELETE = path => { r.requests.push(['DELETE', path]); called.resolve(); return write.promise }
+  const request = called.promise
+  clickControl(byClass(r.doc, 'confirm-btn-danger')[0])
+  await request; await r.flush()
+  assert.equal(r.trigger.props.disabled, true)
+  const replacement = r.node('button'); r.doc.body.appendChild(replacement); replacement.focus()
+  const focused = []
+  r.doc.addEventListener('focusin', event => focused.push(event.target))
+  const removed = r.signal(() => !r.trigger.isConnected)
+  // Reconciliation, rather than a test DOM removal, removes the real card.
+  r.api.GET = async path => {
+    assert.equal(path, '/api/v1/todos/plans/user/')
+    return { data: { subscriptions: [], available_plans: [] } }
+  }
+  write.resolve({ data: undefined })
+  await removed; await r.flush()
+  assert.deepEqual(r.requests.filter(([method]) => method === 'DELETE'), [['DELETE', '/api/v1/todos/plan/82/']])
+  assert.ok(r.doc.activeElement === replacement)
+  assert.deepEqual(focused, [])
+})
+
 function descendants(n) { return n.children.flatMap(child => [child, ...descendants(child)]) }
 function byClass(doc, name) { return descendants(doc.body).filter(n => String(n.props.class || '').split(' ').includes(name)) }
 function deferred() { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b }); return { promise, resolve, reject } }

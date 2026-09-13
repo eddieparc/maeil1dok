@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-const [alertModal, modalContainer, appleSetup] = await Promise.all([
+const [alertModal, modalContainer, appleSetup, socialSignupForm] = await Promise.all([
   readFile(
     new URL('../app/components/ui/modal/AlertModal.vue', import.meta.url),
     'utf8',
@@ -15,6 +15,7 @@ const [alertModal, modalContainer, appleSetup] = await Promise.all([
     new URL('../app/pages/auth/apple/setup.vue', import.meta.url),
     'utf8',
   ),
+  readFile(new URL('../app/components/auth/AuthSocialSignupForm.vue', import.meta.url), 'utf8'),
 ]);
 
 test('detailed error modal exposes description and copyable request id accessibly', () => {
@@ -29,8 +30,9 @@ test('detailed error modal exposes description and copyable request id accessibl
 });
 
 test('Apple nickname validation is announced and linked to the input', () => {
-  assert.match(appleSetup, /aria-invalid/);
-  assert.match(appleSetup, /aria-describedby="apple-nickname-status"/);
-  assert.match(appleSetup, /aria-live="polite"/);
+  assert.match(appleSetup, /<AuthSocialSignupForm[^>]*provider="apple"/);
+  assert.match(socialSignupForm, /aria-invalid/);
+  assert.match(socialSignupForm, /:aria-describedby="`\$\{provider\}-nickname-status`"/);
+  assert.match(socialSignupForm, /role="status"/);
   assert.match(appleSetup, /copyText:\s*signupError\.requestId/);
 });

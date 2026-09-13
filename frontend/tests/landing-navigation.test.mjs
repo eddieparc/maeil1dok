@@ -55,6 +55,7 @@ const landingPageSource = await readFile(
   'utf8',
 );
 
+const authShellSource = await readFile(new URL('../app/components/auth/AuthShell.vue', import.meta.url), 'utf8');
 const logoSurfaceSources = await Promise.all([
   '../app/components/Header.vue',
   '../app/pages/login.vue',
@@ -65,10 +66,11 @@ const logoSurfaceSources = await Promise.all([
   '../app/pages/auth/kakao/setup.vue',
   '../app/pages/auth/reset-password.vue',
   '../app/pages/auth/verify-email.vue',
-].map(async (path) => ({
-  path,
-  source: await readFile(new URL(path, import.meta.url), 'utf8'),
-})));
+].map(async (path) => {
+  const source = await readFile(new URL(path, import.meta.url), 'utf8');
+  // Auth route templates now render the common shell's eager logo.
+  return { path, source: /<AuthShell|<AuthSocialSignupForm/.test(source) ? `${source}\n${authShellSource}` : source };
+}));
 
 const nuxtConfigSource = await readFile(
   new URL('../nuxt.config.ts', import.meta.url),

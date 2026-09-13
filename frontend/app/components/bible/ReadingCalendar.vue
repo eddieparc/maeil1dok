@@ -1,312 +1,119 @@
 <template>
   <div class="reading-calendar">
-    <!-- 월 네비게이션 -->
     <div class="calendar-header">
-      <button class="nav-btn" @click="prevMonth">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 18L9 12L15 6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+      <button type="button" class="nav-btn" aria-label="이전 달" @click="prevMonth">
+        <ChevronLeft :size="18" aria-hidden="true" />
       </button>
-      <span class="current-month">
-        {{ currentYear }}년 {{ currentMonth + 1 }}월
-      </span>
-      <button class="nav-btn" @click="nextMonth">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 18L15 12L9 6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+      <span class="current-month" aria-live="polite">{{ currentYear }}년 {{ currentMonth + 1 }}월</span>
+      <button type="button" class="nav-btn" aria-label="다음 달" :disabled="isCurrentMonth" @click="nextMonth">
+        <ChevronRight :size="18" aria-hidden="true" />
       </button>
     </div>
 
-    <!-- 요일 헤더 -->
-    <div class="calendar-weekdays">
-      <span v-for="day in weekdays" :key="day" :class="{ sunday: day === '일' }">{{ day }}</span>
+    <div class="calendar-weekdays" aria-hidden="true">
+      <span v-for="day in weekdays" :key="day">{{ day }}</span>
     </div>
-
-    <!-- 날짜 그리드 -->
     <div class="calendar-grid">
       <div
-        v-for="(date, index) in calendarDays"
-        :key="index"
+        v-for="date in calendarDays"
+        :key="date.key"
         class="calendar-day"
+        :data-date="date.key"
         :class="{
           'other-month': !date.isCurrentMonth,
           'has-reading': date.hasReading,
-          'today': date.isToday,
-          'sunday': date.dayOfWeek === 0
+          unread: !date.hasReading && !date.isToday && !date.isFuture,
+          today: date.isToday,
+          future: date.isFuture
         }"
-      >
-        <span class="day-number">{{ date.day }}</span>
-        <span v-if="date.hasReading" class="reading-dot"></span>
-      </div>
+        :aria-hidden="!date.isCurrentMonth || undefined"
+        :aria-current="date.isToday ? 'date' : undefined"
+        :aria-label="`${date.key}, ${date.isToday ? '오늘, ' : ''}${date.isFuture ? '예정' : date.hasReading ? '읽음' : '미완료'}`"
+      >{{ date.isCurrentMonth ? date.day : '' }}</div>
     </div>
 
-    <!-- 범례 -->
     <div class="calendar-legend">
-      <span class="legend-item">
-        <span class="reading-dot-legend"></span>
-        읽음
-      </span>
+      <span class="legend-item"><span class="legend-swatch legend-read" aria-hidden="true" />읽음</span>
+      <span class="legend-item"><span class="legend-swatch legend-unread" aria-hidden="true" />미완료</span>
+      <span class="legend-item"><span class="legend-swatch legend-today" aria-hidden="true" />오늘</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import { toLocalDateString } from '~/utils/dateFormat';
 
-const props = defineProps<{
-  readingDates: string[];
-}>();
-
+const props = defineProps<{ readingDates: string[] }>();
 const today = new Date();
-const currentYear = ref(today.getFullYear());
-const currentMonth = ref(today.getMonth());
-
+const todayKey = toLocalDateString(today);
+// Always navigate from day 1; retaining today's day would skip February on the 31st.
+const displayedMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1));
+const currentYear = computed(() => displayedMonth.value.getFullYear());
+const currentMonth = computed(() => displayedMonth.value.getMonth());
+const isCurrentMonth = computed(() => currentYear.value === today.getFullYear() && currentMonth.value === today.getMonth());
 const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-
-const prevMonth = () => {
-  if (currentMonth.value === 0) {
-    currentMonth.value = 11;
-    currentYear.value--;
-  } else {
-    currentMonth.value--;
-  }
-};
-
+const prevMonth = () => { displayedMonth.value = new Date(currentYear.value, currentMonth.value - 1, 1); };
 const nextMonth = () => {
-  if (currentMonth.value === 11) {
-    currentMonth.value = 0;
-    currentYear.value++;
-  } else {
-    currentMonth.value++;
-  }
+  if (!isCurrentMonth.value) displayedMonth.value = new Date(currentYear.value, currentMonth.value + 1, 1);
 };
-
-// 읽은 날짜 Set
 const readingDateSet = computed(() => new Set(props.readingDates));
-
-// 캘린더 날짜 계산
 const calendarDays = computed(() => {
   const year = currentYear.value;
   const month = currentMonth.value;
-
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-
-  const days: Array<{
-    day: number;
-    isCurrentMonth: boolean;
-    hasReading: boolean;
-    isToday: boolean;
-    dayOfWeek: number;
-  }> = [];
-
-  // 이전 달 날짜
-  const prevMonthDays = firstDay.getDay();
-  const prevMonthLastDate = new Date(year, month, 0);
-  for (let i = prevMonthDays - 1; i >= 0; i--) {
-    const day = prevMonthLastDate.getDate() - i;
-    const date = new Date(year, month - 1, day);
-    days.push({
-      day,
-      isCurrentMonth: false,
-      hasReading: readingDateSet.value.has(formatDate(date)),
-      isToday: false,
-      dayOfWeek: date.getDay()
-    });
-  }
-
-  // 현재 달 날짜
-  for (let day = 1; day <= lastDay.getDate(); day++) {
-    const date = new Date(year, month, day);
-    const isToday = date.toDateString() === today.toDateString();
-    days.push({
-      day,
-      isCurrentMonth: true,
-      hasReading: readingDateSet.value.has(formatDate(date)),
-      isToday,
-      dayOfWeek: date.getDay()
-    });
-  }
-
-  // 다음 달 날짜 (42일 채우기)
-  const remaining = 42 - days.length;
-  for (let day = 1; day <= remaining; day++) {
-    const date = new Date(year, month + 1, day);
-    days.push({
-      day,
-      isCurrentMonth: false,
-      hasReading: readingDateSet.value.has(formatDate(date)),
-      isToday: false,
-      dayOfWeek: date.getDay()
-    });
-  }
-
-  return days;
+  const offset = new Date(year, month, 1).getDay();
+  const length = Math.ceil((offset + new Date(year, month + 1, 0).getDate()) / 7) * 7;
+  return Array.from({ length }, (_, index) => {
+    const date = new Date(year, month, index - offset + 1);
+    const key = toLocalDateString(date);
+    const isFuture = key > todayKey;
+    const inMonth = date.getMonth() === month;
+    return {
+      key, day: date.getDate(), isCurrentMonth: inMonth,
+      hasReading: inMonth && !isFuture && readingDateSet.value.has(key),
+      isToday: inMonth && key === todayKey, isFuture
+    };
+  });
 });
-
-const formatDate = (date: Date): string => toLocalDateString(date);
 </script>
 
 <style scoped>
 .reading-calendar {
-  background: var(--color-bg-card, #fff);
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.nav-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: var(--color-bg-secondary, #f3f4f6);
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-primary, #1f2937);
-  transition: all 0.2s;
-}
-
-.nav-btn:hover {
-  background: var(--color-bg-tertiary, #e5e7eb);
-}
-
-.current-month {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary, #1f2937);
-}
-
-.calendar-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  margin-bottom: 0.5rem;
-}
-
-.calendar-weekdays span {
-  text-align: center;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-muted, #9ca3af);
-  padding: 0.25rem 0;
-}
-
-.calendar-weekdays span.sunday {
-  color: var(--color-error, #ef4444);
-}
-
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-}
-
-.calendar-day {
-  aspect-ratio: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.calendar-day.other-month {
-  opacity: 0.3;
-}
-
-.calendar-day.sunday .day-number {
-  color: var(--color-error, #ef4444);
-}
-
-.calendar-day.today {
-  background: var(--primary-light, #eef2ff);
-}
-
-.calendar-day.today .day-number {
-  color: var(--primary-color, #2A1111);
-  font-weight: 600;
-}
-
-.calendar-day.has-reading {
-  background: var(--color-success-light, #d1fae5);
-}
-
-.calendar-day.has-reading.today {
-  background: linear-gradient(135deg, var(--primary-light, #eef2ff), var(--color-success-light, #d1fae5));
-}
-
-.day-number {
-  font-size: 0.8125rem;
-  color: var(--text-primary, #1f2937);
-}
-
-.reading-dot {
-  position: absolute;
-  bottom: 4px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--color-success, #2A1111);
-}
-
-.calendar-legend {
-  display: flex;
-  justify-content: center;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border, #e5e7eb);
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  color: var(--text-muted, #9ca3af);
-}
-
-.reading-dot-legend {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-success, #2A1111);
-}
-
-/* 다크모드 */
-:root.dark .reading-calendar {
+  padding: var(--card-padding);
+  border: 1px solid var(--color-border-default);
+  border-radius: 16px;
   background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
+  font-variant-numeric: tabular-nums;
 }
-
-:root.dark .nav-btn {
-  background: var(--color-bg-secondary);
-  color: var(--text-primary);
+.calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.nav-btn {
+  display: grid; place-items: center;
+  min-width: var(--hit-min); min-height: var(--hit-min);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-pill);
+  background: var(--color-bg-card); color: var(--color-text-secondary); cursor: pointer;
+  transition: background-color var(--duration-micro) ease, transform var(--duration-micro) ease;
 }
-
-:root.dark .nav-btn:hover {
-  background: var(--color-bg-tertiary);
+.nav-btn:hover:not(:disabled) { background: var(--color-bg-tertiary); }
+.nav-btn:active:not(:disabled) { transform: scale(.97); }
+.nav-btn:disabled { opacity: .4; cursor: not-allowed; }
+.current-month { font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+.calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); justify-items: center; gap: 8px 4px; }
+.calendar-weekdays { margin-bottom: 8px; color: var(--color-text-tertiary); font-size: 11px; }
+.calendar-day {
+  display: grid; place-items: center; box-sizing: border-box; width: 32px; height: 32px;
+  border: 1.5px solid transparent; border-radius: var(--radius-cell);
+  color: var(--color-text-secondary); font-size: 12px; font-weight: 600;
 }
-
-:root.dark .calendar-day.today {
-  background: var(--primary-dark);
-}
-
-:root.dark .calendar-day.has-reading {
-  background: rgba(42, 17, 17, 0.2);
-}
-
-:root.dark .calendar-legend {
-  border-color: var(--color-border);
-}
+.calendar-day.unread, .legend-unread { border: 1.5px dashed var(--color-text-tertiary); }
+.calendar-day.has-reading, .legend-read { background: var(--color-accent-primary); color: var(--color-text-inverse); }
+.calendar-day.today, .legend-today { border: 1.5px solid var(--color-accent-primary); background: var(--color-accent-bg); color: var(--color-accent-primary); }
+.calendar-day.has-reading.today { background: var(--color-accent-primary); color: var(--color-text-inverse); outline: 2px solid var(--color-accent-primary); outline-offset: 2px; }
+.calendar-day.future { color: var(--color-text-tertiary); opacity: .55; }
+.calendar-day.other-month { visibility: hidden; }
+.calendar-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; }
+.legend-item { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--color-text-secondary); }
+.legend-swatch { box-sizing: border-box; width: 12px; height: 12px; border-radius: var(--radius-cell); }
+@media (prefers-reduced-motion: reduce) { .nav-btn { transition: none; } .nav-btn:active:not(:disabled) { transform: none; } }
 </style>

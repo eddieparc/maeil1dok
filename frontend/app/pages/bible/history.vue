@@ -1,447 +1,185 @@
 <template>
-  <BibleSubpageLayout title="읽기 기록" :loading="isLoading">
-    <template #skeleton>
-      <SkeletonList :count="5" variant="history" />
-    </template>
+  <div class="bible-page history-page">
+    <header class="history-header">
+      <button type="button" class="back-button" aria-label="뒤로 가기" @click="router.back()"><ChevronLeft :size="20" aria-hidden="true" /></button>
+      <h1>읽기 기록</h1>
+    </header>
 
-    <div class="history-content">
-      <!-- 요약 카드 -->
-      <div class="summary-cards">
+    <div v-if="isLoading" class="history-loading"><SkeletonList :count="5" variant="history" /></div>
+    <div v-else class="history-content">
+      <SkeletonList v-if="statsLoading && !stats" :count="5" variant="history" />
+      <div v-if="statsError" class="history-error" role="alert">
+        <p>읽기 통계를 불러오지 못했어요.</p>
+        <AppButton variant="secondary" data-retry="stats" :loading="statsLoading" @click="loadStats">다시 시도</AppButton>
+      </div>
+      <div v-if="stats" class="summary-cards">
         <div class="summary-card total">
-          <div class="card-icon">
-            <BookIcon :size="20" />
-          </div>
-          <div class="card-content">
-            <div class="card-value">
-              {{ stats.total_chapters_read }} / {{ totalChapters }}
-            </div>
-            <div class="card-label">전체 진도</div>
-            <div class="progress-bar">
-              <div
-                class="progress-fill"
-                :style="{ width: `${totalProgress}%` }"
-              />
-            </div>
-          </div>
+          <div class="card-label">전체 진도</div>
+          <div class="card-value">{{ stats.total_chapters_read }}<span> / {{ totalChapters }}장</span></div>
+          <progress :value="stats.total_chapters_read" :max="totalChapters" aria-label="전체 읽기 진도" />
         </div>
-
         <div class="summary-card streak">
-          <div class="card-icon">
-            <StarIcon :size="20" />
-          </div>
-          <div class="card-content">
-            <div class="card-value">{{ stats.current_streak }}일</div>
-            <div class="card-label">연속 읽기</div>
-          </div>
+          <div class="card-label">연속 읽기</div>
+          <div class="card-value">{{ stats.current_streak }}<span>일</span></div>
         </div>
-
         <div class="summary-card books">
-          <div class="card-icon">
-            <CheckIcon :size="20" />
-          </div>
-          <div class="card-content">
-            <div class="card-value">{{ stats.books_completed }} / 66권</div>
-            <div class="card-label">완독</div>
-          </div>
+          <div class="card-label">완독</div>
+          <div class="card-value">{{ stats.books_completed }}<span> / {{ allBooks.length }}권</span></div>
         </div>
       </div>
 
-      <!-- 캘린더 -->
-      <section class="calendar-section">
-        <h2 class="section-title">읽기 캘린더</h2>
-        <ReadingCalendar :reading-dates="readingDates" />
+      <section class="calendar-section" aria-labelledby="history-calendar-title">
+        <h2 id="history-calendar-title" class="section-title">읽기 캘린더</h2>
+        <SkeletonCalendar v-if="datesLoading && !readingDates" />
+        <div v-if="datesError" class="history-error" role="alert">
+          <p>읽은 날짜를 불러오지 못했어요.</p>
+          <AppButton variant="secondary" data-retry="dates" :loading="datesLoading" @click="loadDates">다시 시도</AppButton>
+        </div>
+        <ReadingCalendar v-if="readingDates" :reading-dates="readingDates" />
       </section>
 
-      <!-- 책별 진도 -->
-      <section class="books-section">
+      <section v-if="stats" class="books-section" aria-labelledby="history-books-title">
         <div class="section-header">
-          <h2 class="section-title">책별 진도</h2>
-          <div class="filter-tabs">
-            <button
-              :class="{ active: filter === 'all' }"
-              @click="filter = 'all'"
-            >
-              전체
-            </button>
-            <button
-              :class="{ active: filter === 'old' }"
-              @click="filter = 'old'"
-            >
-              구약
-            </button>
-            <button
-              :class="{ active: filter === 'new' }"
-              @click="filter = 'new'"
-            >
-              신약
-            </button>
-          </div>
+          <h2 id="history-books-title" class="section-title">책별 진도</h2>
+          <SegmentedControl v-model="filter" :options="filterOptions" aria-label="책별 진도 필터" />
         </div>
-
-        <div class="books-grid">
-          <div
+        <div id="history-books-panel" class="books-grid" role="tabpanel" :aria-labelledby="`history-filter-${filter}`">
+          <button
             v-for="book in filteredBooks"
             :key="book.id"
+            type="button"
             class="book-card"
-            :class="{ completed: book.read === book.total }"
+            :data-book="book.id"
+            :class="{ completed: book.completed, unstarted: book.read === 0 }"
+            :aria-label="`${book.name}, ${book.read} / ${book.total}장${book.completed ? ', 완독' : ''}, 1장 읽기`"
             @click="goToBook(book.id)"
           >
-            <div class="book-name">{{ book.name }}</div>
-            <div class="book-progress">
-              <div class="progress-text">
-                {{ book.read }} / {{ book.total }}장
-              </div>
-              <div class="progress-bar">
-                <div
-                  class="progress-fill"
-                  :style="{ width: `${(book.read / book.total) * 100}%` }"
-                />
-              </div>
-            </div>
-          </div>
+            <span class="book-heading"><span class="book-name">{{ book.name }}</span><Check v-if="book.completed" class="completion-check" :size="16" aria-hidden="true" /></span>
+            <span class="progress-text">{{ book.read }} / {{ book.total }}장</span>
+            <progress :value="book.read" :max="book.total" :aria-label="`${book.name} 읽기 진도`" />
+          </button>
         </div>
       </section>
     </div>
-  </BibleSubpageLayout>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { Check, ChevronLeft } from '@lucide/vue';
 import { useApi } from '~/composables/useApi';
 import { useBibleData } from '~/composables/useBibleData';
 import { useErrorHandler } from '~/composables/useErrorHandler';
-import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
+import ReadingCalendar from '~/components/bible/ReadingCalendar.vue';
+import SegmentedControl from '~/components/ui/SegmentedControl.vue';
+import AppButton from '~/components/ui/AppButton.vue';
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
-import type { ReadingStats } from '~/types/bible';
+import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue';
+import type { ApiResponseBody } from '~/types/api-contract';
 
-definePageMeta({
-  layout: 'default'
-});
-
+definePageMeta({ layout: 'default' });
 const router = useRouter();
 const api = useApi();
 const { bibleBooks } = useBibleData();
 const { handleSilentError } = useErrorHandler();
-
+type ReadingStats = ApiResponseBody<'/api/v1/todos/bible/personal-records/stats/', 'get'>['stats'];
+const stats = ref<ReadingStats | null>(null);
+const readingDates = ref<string[] | null>(null);
 const isLoading = ref(true);
-
-const stats = ref<ReadingStats>({
-  total_chapters_read: 0,
-  books_read: 0,
-  books_completed: 0,
-  current_streak: 0,
-  books_progress: {}
-});
-const readingDates = ref<string[]>([]);
-const filter = ref<'all' | 'old' | 'new'>('all');
-
-// 전체 장 수
-const totalChapters = computed(() => {
-  const all = [...bibleBooks.old, ...bibleBooks.new];
-  return all.reduce((sum, book) => sum + book.chapters, 0);
-});
-
-// 전체 진도 퍼센트
-const totalProgress = computed(() => {
-  if (totalChapters.value === 0) return 0;
-  return (stats.value.total_chapters_read / totalChapters.value) * 100;
-});
-
-// 책 목록 with 진도
-const booksWithProgress = computed(() => {
-  const all = [
-    ...bibleBooks.old.map(b => ({ ...b, testament: 'old' as const })),
-    ...bibleBooks.new.map(b => ({ ...b, testament: 'new' as const }))
-  ];
-
-  return all.map(book => ({
-    ...book,
-    read: stats.value.books_progress[book.id]?.read || 0,
-    total: book.chapters
-  }));
-});
-
-// 필터링된 책
+const statsLoading = ref(false);
+const datesLoading = ref(false);
+const statsError = ref(false);
+const datesError = ref(false);
+const filter = ref<string | number>('all');
+const filterOptions = [
+  { value: 'all', label: '전체', id: 'history-filter-all', controls: 'history-books-panel' },
+  { value: 'old', label: '구약', id: 'history-filter-old', controls: 'history-books-panel' },
+  { value: 'new', label: '신약', id: 'history-filter-new', controls: 'history-books-panel' }
+];
+const allBooks = [
+  ...bibleBooks.old.map(book => ({ ...book, testament: 'old' })),
+  ...bibleBooks.new.map(book => ({ ...book, testament: 'new' }))
+];
+const totalChapters = allBooks.reduce((sum, book) => sum + book.chapters, 0);
 const filteredBooks = computed(() => {
-  if (filter.value === 'all') return booksWithProgress.value;
-  return booksWithProgress.value.filter(b => b.testament === filter.value);
+  if (!stats.value) return [];
+  const progress = stats.value.books_progress;
+  return allBooks.filter(book => filter.value === 'all' || book.testament === filter.value).map(book => {
+    const read = progress[book.id]?.read ?? 0;
+    const total = progress[book.id]?.total ?? book.chapters;
+    return { ...book, read, total, completed: total > 0 && read >= total };
+  });
 });
 
-// 통계 로드
-const loadStats = async () => {
+async function loadStats() {
+  statsLoading.value = true;
+  statsError.value = false;
   try {
     const response = await api.GET('/api/v1/todos/bible/personal-records/stats/');
-    if (response.data.success) {
-      stats.value = response.data.stats;
-    }
-
-    // 읽기 날짜 로드 (캘린더용)
-    const datesResponse = await api.GET('/api/v1/todos/bible/personal-records/dates/');
-    if (datesResponse.data.success) {
-      readingDates.value = datesResponse.data.dates;
-    }
+    if (!response.data.success) throw new Error('Reading statistics request was unsuccessful');
+    stats.value = response.data.stats;
   } catch (error) {
+    statsError.value = true;
     handleSilentError(error, '읽기 통계 로드');
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const goToBook = (bookId: string) => {
-  router.push(`/bible?book=${bookId}&chapter=1`);
-};
-
-onMounted(() => {
-  loadStats();
+  } finally { statsLoading.value = false; }
+}
+async function loadDates() {
+  datesLoading.value = true;
+  datesError.value = false;
+  try {
+    const response = await api.GET('/api/v1/todos/bible/personal-records/dates/');
+    if (!response.data.success) throw new Error('Reading dates request was unsuccessful');
+    readingDates.value = response.data.dates;
+  } catch (error) {
+    datesError.value = true;
+    handleSilentError(error, '읽기 날짜 로드');
+  } finally { datesLoading.value = false; }
+}
+const goToBook = (bookId: string) => { router.push(`/bible?book=${bookId}&chapter=1`); };
+onMounted(async () => {
+  await Promise.all([loadStats(), loadDates()]);
+  isLoading.value = false;
 });
 </script>
 
 <style scoped>
-/*
- * History Page specific styles
- * 공통 스타일은 bible-page.css에서 관리됨
- */
-
-.history-content {
-  padding: 1rem;
-}
-
-/* 요약 카드 */
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.summary-card {
-  background: var(--color-bg-card, #fff);
-  border-radius: 12px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 0.5rem;
-}
-
-.summary-card.total .card-icon {
-  background: var(--primary-light, #eef2ff);
-  color: var(--primary-color, #2A1111);
-}
-
-.summary-card.streak .card-icon {
-  background: #fef3c7;
-  color: #f59e0b;
-}
-
-.summary-card.books .card-icon {
-  background: #d1fae5;
-  color: #2A1111;
-}
-
-.card-value {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-primary, #1f2937);
-}
-
-.card-label {
-  font-size: 0.75rem;
-  color: var(--text-muted, #9ca3af);
-  margin-top: 0.25rem;
-}
-
-.summary-card.total .card-content {
-  width: 100%;
-}
-
-/* 진도 바 */
-.progress-bar {
-  width: 100%;
-  height: 4px;
-  background: var(--color-bg-secondary, #f3f4f6);
-  border-radius: 2px;
-  margin-top: 0.5rem;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--primary-color, #2A1111);
-  transition: width 0.3s ease;
-}
-
-/* 섹션 */
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary, #1f2937);
-  margin-bottom: 1rem;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.section-header .section-title {
-  margin-bottom: 0;
-}
-
-.calendar-section {
-  margin-bottom: 1.5rem;
-}
-
-/* 필터 탭 */
-.filter-tabs {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.filter-tabs button {
-  padding: 0.25rem 0.75rem;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 16px;
-  background: transparent;
-  font-size: 0.75rem;
-  color: var(--text-secondary, #6b7280);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.filter-tabs button:hover {
-  background: var(--color-bg-secondary, #f3f4f6);
-}
-
-.filter-tabs button.active {
-  background: var(--primary-color, #2A1111);
-  color: white;
-  border-color: var(--primary-color, #2A1111);
-}
-
-/* 책 그리드 */
-.books-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.75rem;
-}
-
-.book-card {
-  background: var(--color-bg-card, #fff);
-  border-radius: 8px;
-  padding: 0.75rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid var(--color-border, #e5e7eb);
-}
-
-.book-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.book-card.completed {
-  border-color: var(--color-success, #2A1111);
-  background: var(--color-success-light, #d1fae5);
-}
-
-.book-name {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-primary, #1f2937);
-  margin-bottom: 0.5rem;
-}
-
-.progress-text {
-  font-size: 0.75rem;
-  color: var(--text-muted, #9ca3af);
-  margin-bottom: 0.25rem;
-}
-
-.book-card .progress-fill {
-  background: var(--color-success, #2A1111);
-}
-
-/* 다크모드 */
-:root.dark .summary-card {
-  background: var(--color-bg-card);
-}
-
-:root.dark .summary-card.streak .card-icon {
-  background: rgba(245, 158, 11, 0.2);
-}
-
-:root.dark .summary-card.books .card-icon {
-  background: rgba(42, 17, 17, 0.2);
-}
-
-:root.dark .book-card {
-  background: var(--color-bg-card);
-  border-color: var(--color-border);
-}
-
-:root.dark .book-card.completed {
-  background: rgba(42, 17, 17, 0.15);
-}
-
-:root.dark .filter-tabs button:hover {
-  background: var(--color-bg-tertiary);
-}
-
-/* 모바일 반응형 */
-@media (max-width: 480px) {
-  .summary-cards {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-  }
-
-  .summary-card {
-    padding: 0.75rem 0.5rem;
-  }
-
-  .card-icon {
-    width: 32px;
-    height: 32px;
-  }
-
-  .card-icon svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .card-value {
-    font-size: 0.875rem;
-  }
-
-  .card-label {
-    font-size: 0.625rem;
-  }
-
-  .books-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 0.5rem;
-  }
-
-  .book-card {
-    padding: 0.625rem;
-  }
-
-  .book-name {
-    font-size: 0.8125rem;
-  }
-}
+.history-page { color: var(--color-text-primary); background: var(--color-bg-primary); letter-spacing: var(--tracking-body); }
+.history-header { display: flex; align-items: center; gap: 8px; min-height: var(--appbar-height); padding: 0 12px; border-bottom: 1px solid var(--color-border-default); }
+.history-header h1 { margin: 0; font-size: 16px; font-weight: 700; }
+.back-button { display: grid; place-items: center; min-width: var(--hit-min); min-height: var(--hit-min); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-text-primary); cursor: pointer; }
+.back-button:hover { background: var(--color-bg-tertiary); }
+.back-button:active { transform: scale(.97); }
+.history-content, .history-loading { padding: var(--screen-gutter); }
+.history-content { display: flex; flex-direction: column; gap: 20px; }
+.summary-cards { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; }
+.summary-card { min-width: 0; padding: 14px; border: 1px solid var(--color-border-default); border-radius: 16px; background: var(--color-bg-card); box-shadow: var(--shadow-card); }
+.card-label { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.card-value { margin-top: 8px; font-size: 20px; font-weight: 700; line-height: 1; letter-spacing: var(--tracking-display); font-variant-numeric: tabular-nums; }
+.card-value span { font-size: 12px; font-weight: 600; color: var(--color-text-tertiary); white-space: nowrap; }
+.streak .card-value, .streak .card-value span { color: var(--color-reading-current); }
+progress { display: block; appearance: none; width: 100%; height: 3px; margin-top: 12px; border: 0; border-radius: 2px; overflow: hidden; background: var(--color-border-default); color: var(--color-accent-primary); }
+progress::-webkit-progress-bar { background: var(--color-border-default); }
+progress::-webkit-progress-value { background: var(--color-accent-primary); }
+progress::-moz-progress-bar { background: var(--color-accent-primary); }
+.section-title { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); }
+.section-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.section-header .section-title { margin: 0; }
+.books-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.book-card { min-width: var(--hit-min); min-height: var(--hit-min); padding: 16px; border: 1px solid var(--color-border-default); border-radius: 16px; background: var(--color-bg-card); color: var(--color-text-primary); text-align: left; font: inherit; cursor: pointer; transition: background-color var(--duration-micro) ease, transform var(--duration-micro) ease; }
+.book-card:hover { background: var(--color-bg-tertiary); }
+.book-card:active { transform: scale(.97); }
+.book-card.completed { border-color: var(--color-accent-primary); }
+.book-card.unstarted { opacity: .7; }
+.book-heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.book-name { font-size: 14px; font-weight: 700; }
+.completion-check { color: var(--color-accent-primary); flex-shrink: 0; }
+.progress-text { display: block; margin-top: 8px; font-size: 12px; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.book-card:not(.completed) progress { color: var(--color-reading-current); }
+.book-card:not(.completed) progress::-webkit-progress-value { background: var(--color-reading-current); }
+.book-card:not(.completed) progress::-moz-progress-bar { background: var(--color-reading-current); }
+.history-error { padding: 16px; border: 1px solid var(--color-border-default); border-radius: 16px; background: var(--color-bg-card); }
+.history-error p { margin: 0 0 12px; color: var(--color-error); font-size: 14px; }
+@media (max-width: 360px) { .summary-card { padding: 12px 8px; } .card-value { font-size: 18px; } }
+@media (prefers-reduced-motion: reduce) { .book-card { transition: none; } .back-button:active, .book-card:active { transform: none; } }
 </style>

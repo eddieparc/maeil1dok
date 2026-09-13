@@ -16,6 +16,8 @@ const authGuardSource = await readFile(
 
 const importAuthService = async () => {
   const runnableSource = authServiceSource
+    .replace("import { readCsrfToken, storeCsrfToken } from './csrfCookie'",
+      await readFile(new URL('../app/composables/csrfCookie.ts', import.meta.url), 'utf8'))
     .replace(
       "import { computed, readonly } from 'vue'",
       `const computed = (getter) => ({ get value() { return getter() } });
