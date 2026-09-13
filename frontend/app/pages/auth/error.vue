@@ -1,75 +1,38 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-bg-primary px-4">
-    <div class="max-w-md w-full text-center">
-      <div class="mb-6">
-        <span class="text-6xl">😢</span>
+  <AuthShell>
+    <section class="auth-status" data-state="error">
+      <CircleAlert class="auth-status-icon is-error" aria-hidden="true" />
+      <h1>로그인을 완료하지 못했어요</h1>
+      <p class="auth-description">{{ description }}</p>
+      <div class="auth-code"><code>code: {{ reason }}</code><template v-if="observedAt"> · <time :datetime="observedAt">{{ observedAt }}</time></template></div>
+      <div class="auth-actions">
+        <AppButton block @click="goToLogin">다시 로그인</AppButton>
+        <AppButton block variant="secondary" @click="goToHome">홈으로</AppButton>
       </div>
-
-      <h1 class="text-2xl font-bold text-txt-primary mb-3">
-        {{ errorInfo.title }}
-      </h1>
-
-      <p class="text-txt-secondary mb-8">
-        {{ errorInfo.description }}
-      </p>
-
-      <div class="space-y-3">
-        <button
-          @click="goToLogin"
-          class="w-full btn btn-primary"
-        >
-          다시 로그인하기
-        </button>
-
-        <button
-          @click="goToHome"
-          class="w-full px-4 py-3 border border-border rounded-lg bg-bg-secondary text-txt-primary hover:bg-bg-hover transition-colors"
-        >
-          홈으로 돌아가기
-        </button>
-      </div>
-    </div>
-  </div>
+    </section>
+  </AuthShell>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { CircleAlert } from '@lucide/vue'
+import AuthShell from '~/components/auth/AuthShell.vue'
+import AppButton from '~/components/ui/AppButton.vue'
+import { firstQueryValue } from '#shared/utils/authCallbackRuntime'
 
-definePageMeta({
-  layout: false
-})
-
+definePageMeta({ layout: false })
 const route = useRoute()
 const router = useRouter()
-
-const reason = computed(() => route.query.reason as string || 'unknown')
-
-const errorMessages: Record<string, { title: string; description: string }> = {
-  code_required: {
-    title: '인증 코드가 필요합니다',
-    description: '로그인 과정에서 문제가 발생했습니다. 다시 시도해 주세요.'
-  },
-  invalid_code: {
-    title: '인증 코드가 만료되었습니다',
-    description: '로그인 세션이 만료되었거나 이미 사용된 코드입니다. 다시 로그인해 주세요.'
-  },
-  user_not_found: {
-    title: '사용자를 찾을 수 없습니다',
-    description: '계정 정보를 확인할 수 없습니다. 다시 로그인해 주세요.'
-  },
-  unknown: {
-    title: '인증 오류가 발생했습니다',
-    description: '로그인 과정에서 문제가 발생했습니다. 다시 시도해 주세요.'
-  }
+const reason = computed(() => firstQueryValue(route.query.code) || firstQueryValue(route.query.reason) || 'unknown')
+const observedAt = ref('')
+onMounted(() => { observedAt.value = new Date().toISOString() })
+const messages: Record<string, string> = {
+  provider_denied: '로그인 제공자에서 요청이 취소되었어요. 다시 로그인해주세요.',
+  code_required: '인증 코드가 없습니다. 다시 로그인해주세요.',
+  invalid_code: '인증 코드가 만료되었거나 이미 사용되었어요. 다시 로그인해주세요.',
+  user_not_found: '계정 정보를 확인할 수 없습니다. 다시 로그인해주세요.',
 }
-
-const errorInfo = computed(() => errorMessages[reason.value] || errorMessages.unknown)
-
-const goToLogin = () => {
-  router.push('/login')
-}
-
-const goToHome = () => {
-  router.push('/')
-}
+const description = computed(() => messages[reason.value] || '로그인 과정에서 문제가 발생했습니다. 다시 시도해주세요.')
+const goToLogin = () => router.push('/login')
+const goToHome = () => router.push('/')
 </script>

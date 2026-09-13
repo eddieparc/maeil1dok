@@ -73,6 +73,7 @@
             >
           </div>
           <p v-if="loginError" id="login-error" class="error-text" role="alert">{{ loginError }}</p>
+          <code v-if="loginError && loginCode" class="error-text">code: {{ loginCode }}</code>
           <AppButton
             type="submit"
             variant="primary"
@@ -115,6 +116,7 @@ import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
 import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
+import { authErrorCode, authErrorMessage } from '~/utils/authFormUi'
 
 useHead({
   title: '로그인 - 매일일독',
@@ -140,6 +142,7 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const loginError = ref('')
+const loginCode = ref('')
 const isSubmitDisabled = computed(() => loading.value || !email.value.trim() || !password.value)
 const route = useRoute()
 
@@ -153,6 +156,7 @@ onMounted(() => {
 const handleSubmit = async () => {
   if (isSubmitDisabled.value) return
   loginError.value = ''
+  loginCode.value = ''
   loading.value = true
   const api = useApi()
   try {
@@ -170,7 +174,8 @@ const handleSubmit = async () => {
       throw new Error('Login failed')
     }
   } catch (error) {
-    loginError.value = '이메일 또는 비밀번호를 확인해주세요.'
+    loginError.value = authErrorMessage(error, '로그인하지 못했어요. 연결 상태와 이메일 또는 비밀번호를 확인해주세요.')
+    loginCode.value = authErrorCode(error)
     await modal.alert({
       title: '로그인 실패',
       description: loginError.value,
@@ -267,8 +272,8 @@ const handleBack = () => {
   gap: 14px;
   margin-bottom: 44px;
 }
-.logo { height: 34px; width: auto; object-fit: contain; }
-[data-theme="dark"] .logo { filter: brightness(0) invert(1); }
+.logo { height: 22px; width: auto; object-fit: contain; }
+:global([data-theme="dark"] .login-container .logo) { filter: brightness(0) invert(1); }
 .tagline { margin: 0; font-size: 14px; line-height: 1.5; color: var(--color-text-secondary); }
 .social-buttons { display: flex; flex-direction: column; gap: 10px; }
 .social-button {
@@ -321,14 +326,14 @@ const handleBack = () => {
 .form-input {
   appearance: none;
   width: 100%;
-  height: 52px;
-  padding: 0 20px;
+  height: 48px;
+  padding: 0 16px;
   border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-pill);
+  border-radius: 14px;
   background: var(--color-bg-card);
   color: var(--color-text-primary);
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   transition: border-color var(--duration-micro) ease, box-shadow var(--duration-micro) ease;
 }
@@ -351,7 +356,7 @@ const handleBack = () => {
   font-size: 13px;
   font-weight: 500;
 }
-.auth-links a, .legal-links a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; border-radius: var(--radius-pill); }
+.auth-links a, .legal-links a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; border-radius: var(--radius-pill); }
 .auth-links .forgot-link { color: var(--color-text-secondary); }
 .auth-links .register-link { color: var(--color-accent-primary); }
 .link-separator { color: var(--color-border-default); }
