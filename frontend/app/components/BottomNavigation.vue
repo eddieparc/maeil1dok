@@ -84,7 +84,9 @@ const isActive = (path) => route.path === path || (path !== '/' && route.path.st
 }
 
 .bottom-nav-container[data-density="reader"].tabs-hidden:has(.bottom-nav-above) {
-  padding-bottom: var(--mobile-nav-safe-inset);
+  /* Tabs are gone — reserve only the real device inset, not the 24px design
+     floor, so the floating bar sits at the edge without dead space. */
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px));
 }
 
 .bottom-nav-above {

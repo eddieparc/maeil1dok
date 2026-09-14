@@ -32,32 +32,40 @@ onMounted(() => {
     groupDay.value = null;
     hasenaError.value = false;
     groupError.value = false;
-    if (!userId) return;
     const params = { year: Number(props.today.slice(0, 4)), month: Number(props.today.slice(5, 7)) };
-    const [videoResult, groupResult] = await Promise.allSettled([
+    // 하세나 영상은 로그인 여부와 무관하게 오늘의 썸네일을 보여준다.
+    const videoResult = await Promise.allSettled([
       api.GET('/api/v1/todos/hasena/calendar/', { params }).then(({ data }) => {
         if (!data.success) throw new Error('하세나를 불러오지 못했습니다.');
-        return data.entries.find(entry => entry.date === props.today) ?? null;
+        // 오늘 영상이 아직 없으면(주말·미게시) 가장 최근 영상을 보여준다.
+        const entries = data.entries.filter(entry => entry.date <= props.today);
+        return entries.find(entry => entry.date === props.today) ?? entries.at(-1) ?? null;
       }),
-      (async () => {
-        const { data } = await api.GET('/api/v1/todos/groups/', { params: { only_mine: true } });
-        if (!data.success) throw new Error('그룹을 불러오지 못했습니다.');
-        const firstGroup = data.groups[0] ?? null;
-        if (!firstGroup || !firstGroup.plans.length) return { group: firstGroup, day: null };
-        const response = await api.GET(api.path('/api/v1/todos/groups/{group_id}/member-progress/', { group_id: firstGroup.id }), {
-          params: { ...params, plan_id: firstGroup.plans[0]!.id },
-        });
-        if (!response.data.success) throw new Error('그룹 진도를 불러오지 못했습니다.');
-        return { group: firstGroup, day: response.data.calendar[props.today] ?? null };
-      })(),
-    ]);
+    ]).then(([result]) => result);
     if (!active) return;
     if (videoResult.status === 'fulfilled') hasena.value = videoResult.value;
     else hasenaError.value = true;
-    if (groupResult.status === 'fulfilled') {
-      group.value = groupResult.value.group;
-      groupDay.value = groupResult.value.day;
-    } else groupError.value = true;
+    // 그룹 진도는 로그인 사용자에게만 보인다.
+    if (userId) {
+      const groupResult = await Promise.allSettled([
+        (async () => {
+          const { data } = await api.GET('/api/v1/todos/groups/', { params: { only_mine: true } });
+          if (!data.success) throw new Error('그룹을 불러오지 못했습니다.');
+          const firstGroup = data.groups[0] ?? null;
+          if (!firstGroup || !firstGroup.plans.length) return { group: firstGroup, day: null };
+          const response = await api.GET(api.path('/api/v1/todos/groups/{group_id}/member-progress/', { group_id: firstGroup.id }), {
+            params: { ...params, plan_id: firstGroup.plans[0]!.id },
+          });
+          if (!response.data.success) throw new Error('그룹 진도를 불러오지 못했습니다.');
+          return { group: firstGroup, day: response.data.calendar[props.today] ?? null };
+        })(),
+      ]).then(([result]) => result);
+      if (!active) return;
+      if (groupResult.status === 'fulfilled') {
+        group.value = groupResult.value.group;
+        groupDay.value = groupResult.value.day;
+      } else groupError.value = true;
+    }
     loading.value = false;
   }, { immediate: true });
 });
