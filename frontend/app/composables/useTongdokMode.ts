@@ -408,16 +408,31 @@ export const useTongdokMode = () => {
    * 통독 완료 처리 API 호출
    */
   const completeReading = async (): Promise<boolean> => {
-    if (!tongdokPlanId.value || !tongdokScheduleId.value) {
-      console.warn('Plan ID or Schedule ID is missing');
+    const planId = tongdokPlanId.value ?? readingDetailResponse.value?.data?.plan_id ?? null;
+    if (!planId) {
+      console.warn('Plan ID is missing');
+      return false;
+    }
+
+    // 같은 날짜에 스케줄이 여러 개인 플랜이 있다. plan_detail은 그 날짜의
+    // 모든 스케줄 행을 담고 있으므로 전부 완료 처리해야 하루가 완료된다.
+    // 하나만내면 나머지가 미완료로 남아 is_complete가 false가 된다.
+    const detailIds = (readingDetailResponse.value?.data?.plan_detail ?? [])
+      .map(detail => Number(detail.schedule_id))
+      .filter(id => Number.isInteger(id) && id > 0);
+    const scheduleIds = detailIds.length > 0
+      ? [...new Set(detailIds)]
+      : (tongdokScheduleId.value ? [tongdokScheduleId.value] : []);
+    if (scheduleIds.length === 0) {
+      console.warn('Schedule ID is missing');
       return false;
     }
 
     isCompleting.value = true;
     try {
       await api.POST('/api/v1/todos/reading/update/', {
-        plan_id: tongdokPlanId.value,
-        schedule_ids: [tongdokScheduleId.value],
+        plan_id: planId,
+        schedule_ids: scheduleIds,
         action: 'complete'
       });
 
