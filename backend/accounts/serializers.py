@@ -85,6 +85,15 @@ class SocialLoginSerializer(serializers.Serializer):
     user_name = serializers.CharField(required=False, allow_blank=True, max_length=200)
 
 
+class LinkSocialAccountRequestSerializer(serializers.Serializer):
+    provider = serializers.ChoiceField(choices=("apple", "google", "kakao"))
+    state = serializers.CharField()
+    code = serializers.CharField(required=False, allow_blank=True)
+    access_token = serializers.CharField(required=False, allow_blank=True)
+    id_token = serializers.CharField(required=False, allow_blank=True)
+    redirect_uri = serializers.URLField(required=False, allow_blank=True)
+
+
 class CompleteSocialSignupSerializer(serializers.Serializer):
     nickname = serializers.CharField(min_length=2, max_length=20)
     signup_token = serializers.CharField(required=False, allow_blank=True)

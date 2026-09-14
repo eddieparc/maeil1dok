@@ -73,21 +73,10 @@
 
     <template #footer>
       <div class="modal-footer-content">
-        <button
-          type="button"
-          @click="handleClose"
-          class="btn-secondary"
-        >
-          취소
-        </button>
-        <button
-          type="button"
-          @click="handleSubmit"
-          :disabled="isSaving"
-          class="btn-primary"
-        >
+        <AppButton variant="secondary" size="md" @click="handleClose">취소</AppButton>
+        <AppButton variant="primary" size="md" :loading="isSaving" @click="handleSubmit">
           {{ isSaving ? '저장 중...' : '저장' }}
-        </button>
+        </AppButton>
       </div>
     </template>
   </BaseModal>
@@ -98,6 +87,7 @@ import { ref, onMounted } from 'vue'
 import { useProfileStore } from '~/stores/profile'
 import { useModal } from '~/composables/useModal'
 import BaseModal from '~/components/ui/modal/BaseModal.vue'
+import AppButton from '~/components/ui/AppButton.vue'
 import { UserIcon } from '@lucide/vue'
 
 interface ProfileData {
@@ -169,181 +159,29 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.profile-edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary, #374151);
-}
-
-.avatar-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.avatar-wrapper {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid var(--color-border, #E2E8F0);
-  flex-shrink: 0;
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #EFF6FF;
-  color: #3B82F6;
-  font-size: 1.5rem;
-}
-
-.form-input {
-  padding: 0.625rem 0.875rem;
-  border: 1px solid var(--color-border, #E2E8F0);
-  border-radius: 8px;
-  font-size: 0.9375rem;
-  color: var(--text-primary, #1E293B);
-  background-color: var(--color-bg-card, #fff);
-  transition: all 0.2s ease;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-input.disabled {
-  background: var(--color-bg-secondary, #F8FAFC);
-  color: var(--text-secondary, #94A3B8);
-  cursor: not-allowed;
-}
-
-.form-textarea {
-  padding: 0.625rem 0.875rem;
-  border: 1px solid var(--color-border, #E2E8F0);
-  border-radius: 8px;
-  font-size: 0.9375rem;
-  color: var(--text-primary, #1E293B);
-  background-color: var(--color-bg-card, #fff);
-  resize: vertical;
-  min-height: 100px;
-  font-family: inherit;
-  transition: all 0.2s ease;
-}
-
-.form-textarea:focus {
-  outline: none;
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-hint {
-  font-size: 0.8125rem;
-  color: var(--text-secondary, #64748B);
-  margin: 0;
-}
-
-.char-count {
-  text-align: right;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  cursor: pointer;
-  font-size: 0.9375rem;
-  color: var(--text-primary, #1E293B);
-}
-
-.checkbox-input {
-  width: 1.125rem;
-  height: 1.125rem;
-  accent-color: #3B82F6;
-  cursor: pointer;
-}
-
-.checkbox-hint {
-  margin-left: 1.75rem;
-}
-
-.modal-footer-content {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  width: 100%;
-}
-
-.btn-secondary,
-.btn-primary {
-  padding: 0.625rem 1.25rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  border: none;
-  cursor: pointer;
-}
-
-.btn-secondary {
-  background: var(--color-bg-secondary, #F1F5F9);
-  color: var(--text-secondary, #475569);
-}
-
-.btn-secondary:hover {
-  background: var(--color-bg-hover, #E2E8F0);
-}
-
-.btn-primary {
-  background: #1E293B;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #334155;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Dark mode support */
-:root.dark .avatar-placeholder {
-  background: rgba(59, 130, 246, 0.2);
-}
-
-:root.dark .form-input,
-:root.dark .form-textarea {
-  background-color: var(--color-bg-card);
-  border-color: var(--color-border);
-  color: var(--text-primary);
-}
-
-:root.dark .form-input.disabled {
-  background-color: var(--color-bg-secondary);
+.profile-edit-form { display: flex; flex-direction: column; gap: 20px; letter-spacing: var(--tracking-body); }
+.form-group { display: flex; flex-direction: column; gap: 8px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.avatar-section { display: flex; align-items: center; gap: 16px; }
+.avatar-wrapper { width: 64px; height: 64px; border-radius: 50%; overflow: hidden; flex-shrink: 0; }
+.avatar-image { width: 100%; height: 100%; object-fit: cover; }
+.avatar-placeholder { width: 100%; height: 100%; display: grid; place-items: center; background: var(--color-accent-primary-light); color: var(--color-accent-primary); }
+.form-input,
+.form-textarea { padding: 12px 20px; border: 1px solid var(--color-border-default); font: inherit; font-size: 15px; color: var(--color-text-primary); background: var(--color-bg-card); transition: border-color var(--duration-micro) ease; }
+.form-input { min-height: var(--hit-min); border-radius: var(--radius-pill); }
+.form-textarea { min-height: 100px; border-radius: var(--radius-card); resize: vertical; }
+.form-input.disabled { background: var(--color-bg-tertiary); color: var(--color-text-tertiary); cursor: not-allowed; }
+.form-input:focus-visible,
+.form-textarea:focus-visible,
+.checkbox-input:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
+.form-hint { margin: 0; font-size: 13px; color: var(--color-text-secondary); }
+.char-count { text-align: right; font-variant-numeric: tabular-nums; }
+.checkbox-label { display: flex; align-items: center; gap: 10px; min-height: var(--hit-min); cursor: pointer; font-size: 15px; color: var(--color-text-primary); }
+.checkbox-input { width: 18px; height: 18px; accent-color: var(--color-accent-primary); cursor: pointer; }
+.checkbox-hint { margin-left: 28px; }
+.modal-footer-content { display: flex; justify-content: flex-end; gap: 8px; width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .form-input,
+  .form-textarea { transition: none; }
 }
 </style>

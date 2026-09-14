@@ -166,6 +166,9 @@ test('PageLayout preserves PageHeader notification fallback when no custom actio
       onBack: { type: Function, default: null },
       scrollAreaClass: { type: String, default: '' },
       showFloatingNav: { type: Boolean, default: true },
+      density: { type: String, default: 'standard' },
+      hidden: { type: Boolean, default: false },
+      interceptPlan: { type: Boolean, default: false },
     },
     setup(props) {
       const slots = useSlots();

@@ -39,6 +39,7 @@ export function usePlanApi() {
   // 중복 호출 방지 플래그
   const isFetchingUserPlans = ref(false);
   const isFetchingSubscriptions = ref(false);
+  let pendingSubscriptions = 0;
 
   /**
    * 사용자 플랜 정보 조회 (구독 목록 + 구독 가능한 플랜)
@@ -67,8 +68,13 @@ export function usePlanApi() {
    * 사용자 구독 정보만 조회 (간소화된 형태)
    * BibleScheduleContent에서 사용
    */
-  async function fetchSubscriptions(): Promise<SubscriptionSummary[]> {
-    if (isFetchingSubscriptions.value) return [];
+  async function fetchSubscriptions(
+    options: { throwOnError?: boolean } = {},
+  ): Promise<SubscriptionSummary[]> {
+    // Preserve legacy suppression, but strict reads must resolve their own
+    // identity's request instead of receiving a fabricated empty collection.
+    if (isFetchingSubscriptions.value && !options.throwOnError) return [];
+    pendingSubscriptions++;
     isFetchingSubscriptions.value = true;
 
     try {
@@ -77,12 +83,27 @@ export function usePlanApi() {
       if (Array.isArray(data)) {
         return data;
       }
+      if (options.throwOnError) throw new TypeError('Expected a subscription collection');
       return [];
     } catch (error) {
       handleApiError(error, '구독 정보 조회', { silent: true });
+      if (options.throwOnError) throw error;
       return [];
     } finally {
-      isFetchingSubscriptions.value = false;
+      isFetchingSubscriptions.value = --pendingSubscriptions > 0;
+    }
+  }
+
+  /** Whole-plan progress. The resource ID is a subscription ID, not a plan ID. */
+  async function fetchPlanSummary(subscriptionId: number) {
+    try {
+      const { data } = await api.GET(
+        api.path('/api/v1/todos/plan/{id}/summary/', { id: subscriptionId })
+      );
+      return data;
+    } catch (error) {
+      handleApiError(error, '플랜 진도 조회', { silent: true });
+      return null;
     }
   }
 
@@ -135,6 +156,7 @@ export function usePlanApi() {
     // API 메서드
     fetchUserPlans,
     fetchSubscriptions,
+    fetchPlanSummary,
     subscribeToPlan,
     togglePlanActive,
     deletePlanSubscription,

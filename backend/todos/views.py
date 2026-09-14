@@ -3031,7 +3031,7 @@ def sync_hasena_entries_from_cron(request):
             description='Generate a missing summary. Only the case-insensitive literal `true` enables generation; every other value is treated as false. Staff authentication is required when enabled.',
         ),
     ],
-    responses={200: openapi.HasenaSummaryResponseSerializer},
+    responses={200: openapi.HasenaSummaryResponseSerializer, 404: openapi.HasenaSummaryFailureResponseSerializer},
 )
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
@@ -3072,6 +3072,9 @@ def get_hasena_summary(request):
 
         if generate:
             result = fetch_summary(video_id, video_date=parsed_date)
+        elif request.user.is_authenticated and request.user.is_staff:
+            from .services.hasena_summary_service import get_admin_summary
+            result = get_admin_summary(video_id)
         else:
             result = get_existing_summary(video_id)
         
@@ -3233,6 +3236,11 @@ def generate_hasena_summary_from_cron(request):
             default=20,
             description='Results per page (1-100).',
         ),
+        OpenApiParameter(
+            'status', str, required=False, default='all',
+            enum=['all', 'review_needed', 'failed'],
+            description='Filter before count and pagination. Failed includes videos without a summary. Saved reviews appear in all only.',
+        ),
     ],
     responses={200: openapi.HasenaSummaryListResponseSerializer},
 )
@@ -3261,21 +3269,28 @@ def list_hasena_summaries(request):
             'error': 'page_size는 100 이하여야 합니다.',
         }, status=status.HTTP_400_BAD_REQUEST)
 
+    review_status = request.query_params.get('status', 'all')
+    if review_status not in ('all', 'review_needed', 'failed'):
+        return Response({'success': False, 'error': '유효하지 않은 status입니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         from .services.hasena_summary_service import list_summaries
 
-        result = list_summaries(page=page, page_size=page_size)
+        result = list_summaries(page=page, page_size=page_size, status=review_status)
         return Response(result)
         
     except Exception as e:
-        logger.error(f"Error in list_hasena_summaries: {str(e)}", exc_info=True)
+        logger.error('Error in list_hasena_summaries')
         return Response({
             'success': False,
             'error': '요약 목록 조회 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@extend_schema(responses={200: openapi.HasenaSummaryRegenerateResponseSerializer})
+@extend_schema(
+    request=openapi.HasenaSummaryRegenerateRequestSerializer,
+    responses={200: openapi.HasenaSummaryRegenerateResponseSerializer, 400: openapi.HasenaSummaryFailureResponseSerializer},
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def regenerate_hasena_summary(request):
@@ -3285,13 +3300,11 @@ def regenerate_hasena_summary(request):
             'error': '관리자 권한이 필요합니다.'
         }, status=status.HTTP_403_FORBIDDEN)
     
-    video_id = request.data.get('video_id')
-    if not video_id:
-        return Response({
-            'success': False,
-            'error': 'video_id가 필요합니다.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
+    payload = openapi.HasenaSummaryRegenerateRequestSerializer(data=request.data)
+    if not payload.is_valid() or not isinstance(request.data.get('video_id'), str):
+        return Response({'success': False, 'error': '유효한 video_id가 필요합니다.'}, status=status.HTTP_400_BAD_REQUEST)
+    video_id = payload.validated_data['video_id']
+
     try:
         from .services.hasena_summary_service import regenerate_summary_for_video
         
@@ -3303,14 +3316,17 @@ def regenerate_hasena_summary(request):
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
             
     except Exception as e:
-        logger.error(f"Error in regenerate_hasena_summary: {str(e)}", exc_info=True)
+        logger.error('Error in regenerate_hasena_summary')
         return Response({
             'success': False,
             'error': '요약 재생성 중 오류가 발생했습니다.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@extend_schema(responses={200: openapi.HasenaSummaryUpdateResponseSerializer})
+@extend_schema(
+    request=openapi.HasenaSummaryUpdateRequestSerializer,
+    responses={200: openapi.HasenaSummaryUpdateResponseSerializer, 400: openapi.HasenaSummaryFailureResponseSerializer, 404: openapi.HasenaSummaryFailureResponseSerializer, 500: openapi.HasenaSummaryFailureResponseSerializer},
+)
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_hasena_summary(request, video_id):
@@ -3320,27 +3336,23 @@ def update_hasena_summary(request, video_id):
             'error': '관리자 권한이 필요합니다.'
         }, status=status.HTTP_403_FORBIDDEN)
     
-    summary = request.data.get('summary')
-    title = request.data.get('title')
-    
-    if not summary:
-        return Response({
-            'success': False,
-            'error': 'summary가 필요합니다.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
+    payload = openapi.HasenaSummaryUpdateRequestSerializer(data=request.data)
+    if not payload.is_valid():
+        return Response({'success': False, 'error': '유효한 summary와 title이 필요합니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         from .services.hasena_summary_service import update_summary
-        
-        result = update_summary(video_id, summary=summary, title=title)
+
+        result = update_summary(video_id, **payload.validated_data)
         
         if result['success']:
             return Response(result)
         else:
-            return Response(result, status=status.HTTP_404_NOT_FOUND)
-            
+            failure_status = status.HTTP_500_INTERNAL_SERVER_ERROR if result.get('error_code') == 'storage_failed' else status.HTTP_404_NOT_FOUND
+            return Response(result, status=failure_status)
+
     except Exception as e:
-        logger.error(f"Error in update_hasena_summary: {str(e)}", exc_info=True)
+        logger.error('Error in update_hasena_summary')
         return Response({
             'success': False,
             'error': '요약 수정 중 오류가 발생했습니다.'

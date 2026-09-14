@@ -1,0 +1,173 @@
+# Standalone configuration, never an override for either production or legacy beta.
+name: maeil1dok-beta-isolated
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  mysql-beta:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: maeil1dok_beta
+      MYSQL_USER: maeil1dok_beta
+      MYSQL_PASSWORD: ${BETA_DB_PASSWORD:?Set a new beta database password}
+      MYSQL_ROOT_PASSWORD: ${BETA_DB_ROOT_PASSWORD:?Set a new beta root password}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--innodb-buffer-pool-size=128M", "--max-connections=40", "--performance-schema=OFF"]
+    volumes:
+      - mysql-beta-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    mem_limit: 640m
+    cpus: 0.75
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-data]
+
+  redis-beta:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-beta-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
+    cpus: 0.25
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-data]
+
+  web-beta:
+    image: maeil1dok-web-beta-isolated:${COMMIT_SHA:?Set the reviewed source SHA}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: [.env.backend.beta]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.beta_settings
+      DEBUG: "False"
+      SECRET_KEY: ${BETA_SECRET_KEY:?Generate a new beta-only signing key}
+      BETA_SECRET_KEY: ${BETA_SECRET_KEY:?Generate a new beta-only signing key}
+      DB_HOST: mysql-beta
+      DB_PORT: "3306"
+      DB_NAME: maeil1dok_beta
+      DB_USER: maeil1dok_beta
+      DB_PASSWORD: ${BETA_DB_PASSWORD:?Set a new beta database password}
+      REDIS_URL: redis://redis-beta:6379/1
+      CELERY_BROKER_URL: redis://redis-beta:6379/0
+      CELERY_RESULT_BACKEND: redis://redis-beta:6379/0
+      FRONTEND_URL: https://beta.maeil1dok.app
+      KAKAO_REDIRECT_URI: https://beta.maeil1dok.app/auth/kakao/callback
+      GOOGLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/google/callback
+      APPLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/apple/callback
+      PORT: "8000"
+      GUNICORN_WORKERS: "1"
+      SENTRY_DSN: ""
+      SENTRY_ENVIRONMENT: beta
+      RESEND_API_KEY: ""
+      CRON_SECRET: ""
+      HASENA_CRON_SECRET: ""
+      GEMINI_API_KEY: ""
+      YOUTUBE_API_KEY: ""
+      WEB_PUSH_VAPID_PRIVATE_KEY: ""
+      WEB_PUSH_VAPID_PUBLIC_KEY: ""
+    volumes:
+      - type: bind
+        source: ./.beta-test-mail
+        target: /var/lib/maeil1dok-beta/test-mail
+        bind:
+          create_host_path: false
+    depends_on:
+      mysql-beta:
+        condition: service_healthy
+      redis-beta:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/health/', headers={'Host':'beta.maeil1dok.app','X-Forwarded-Proto':'https'}); urllib.request.urlopen(r, timeout=4).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    mem_limit: 512m
+    cpus: 0.75
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-app, beta-data]
+
+  frontend-beta:
+    image: maeil1dok-frontend-beta-isolated:${COMMIT_SHA:?Set the reviewed source SHA}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.beta-isolated
+      args:
+        COMMIT_SHA: ${COMMIT_SHA:?Set the reviewed source SHA}
+    env_file: [.env.frontend.beta]
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      NUXT_PUBLIC_API_BASE: https://beta.maeil1dok.app
+      NUXT_PUBLIC_BIBLE_CACHE_URL: https://beta.maeil1dok.app
+      NUXT_INTERNAL_API_BASE: https://beta.maeil1dok.app
+      NUXT_PUBLIC_CSRF_COOKIE_NAME: beta_csrftoken
+      NUXT_PUBLIC_TEST_MAIL_TRANSPORT: beta-spool
+      NUXT_PUBLIC_KAKAO_REDIRECT_URI: https://beta.maeil1dok.app/auth/kakao/callback
+      NUXT_PUBLIC_GOOGLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/google/callback
+      NUXT_PUBLIC_APPLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/apple/callback
+      NUXT_PUBLIC_SENTRY_DSN: ""
+      NUXT_PUBLIC_SENTRY_ENVIRONMENT: beta
+      NUXT_PUBLIC_SENTRY_RELEASE: ${COMMIT_SHA}
+      CRON_SECRET: ""
+      HASENA_CRON_SECRET: ""
+      GEMINI_API_KEY: ""
+      YOUTUBE_API_KEY: ""
+      NUXT_CRON_SECRET: ""
+      NUXT_HASENA_CRON_SECRET: ""
+      NUXT_GEMINI_API_KEY: ""
+      NUXT_YOUTUBE_API_KEY: ""
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    mem_limit: 700m
+    cpus: 1.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-app]
+
+  cloudflared-beta:
+    image: cloudflare/cloudflared:2025.7.0
+    command: ["tunnel", "--config", "/etc/cloudflared/config.yml", "--no-autoupdate", "run"]
+    volumes:
+      - ./.beta-tunnel/config.yml:/etc/cloudflared/config.yml:ro
+      - ./.beta-tunnel/credentials.json:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      web-beta:
+        condition: service_healthy
+      frontend-beta:
+        condition: service_healthy
+    mem_limit: 128m
+    cpus: 0.25
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-app]
+
+networks:
+  beta-app: {}
+  beta-data:
+    internal: true
+
+volumes:
+  mysql-beta-data: {}
+  redis-beta-data: {}

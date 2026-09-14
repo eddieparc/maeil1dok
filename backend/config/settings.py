@@ -251,6 +251,10 @@ SPECTACULAR_SETTINGS = {
     'OAS_VERSION': '3.0.3',
     'SORT_OPERATIONS': True,
     'SORT_OPERATION_PARAMETERS': True,
+    'ENUM_NAME_OVERRIDES': {
+        'MemberStatusEnum': ['active', 'dormant', 'inactive', 'deletion'],
+        'HasenaReviewStatusEnum': ['reviewed', 'review_needed', 'failed'],
+    },
     'POSTPROCESSING_HOOKS': [
         'drf_spectacular.hooks.postprocess_schema_enums',
         'config.openapi.normalize_database_integer_ranges',

@@ -1,0 +1,23 @@
+# New isolated pair only. Keep Dockerfile.beta as the historical baseline.
+FROM node:20-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY . .
+ARG COMMIT_SHA
+ENV COMMIT_SHA=$COMMIT_SHA \
+    NUXT_PUBLIC_API_BASE=https://beta.maeil1dok.app \
+    NUXT_PUBLIC_BIBLE_CACHE_URL=https://beta.maeil1dok.app \
+    NUXT_INTERNAL_API_BASE=https://beta.maeil1dok.app \
+    NUXT_PUBLIC_CSRF_COOKIE_NAME=beta_csrftoken \
+    NUXT_PUBLIC_TEST_MAIL_TRANSPORT=beta-spool \
+    NUXT_PUBLIC_SENTRY_DSN="" \
+    NUXT_PUBLIC_SENTRY_ENVIRONMENT=beta
+RUN npm run build && find .output -type f -name '*.map' -delete
+
+FROM node:20-slim
+WORKDIR /app
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 NITRO_PORT=3000
+COPY --from=build /app/.output ./.output
+EXPOSE 3000
+CMD ["node", ".output/server/index.mjs"]

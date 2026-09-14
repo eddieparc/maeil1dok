@@ -1,10 +1,15 @@
 <template>
-  <PageLayout title="프로필">
+  <PageLayout title="내 정보">
+    <template #header-action>
+      <button v-if="isOwnProfile" type="button" class="settings-button" aria-label="계정 설정" @click="navigateToAccountSettings">
+        <SettingsIcon :size="20" aria-hidden="true" />
+      </button>
+    </template>
     <div class="content-wrapper">
       <!-- 로딩 상태 -->
       <div v-if="isLoading" class="profile-card fade-in">
         <SkeletonProfileHeader />
-        <SkeletonStats :count="3" />
+      <SkeletonStats :count="4" :announce="false" />
       </div>
 
       <template v-else-if="profile">
@@ -27,87 +32,87 @@
               </div>
               <div class="profile-info">
                 <h2 class="profile-name">{{ profile.user.nickname }}</h2>
-                <p class="profile-meta">가입일: {{ formatDate(profile.joined_date) }}</p>
+                <!-- TODO(handoff-v2): UserProfileResponse has no church field; show only the real join date. -->
+                <p class="profile-meta">{{ formatDate(profile.joined_date) }}부터</p>
                 <p v-if="profile.bio" class="profile-bio">{{ profile.bio }}</p>
+                <div class="follow-stats">
+                  <button @click="showFollowers = true" class="follow-button">
+                    팔로워 <span class="follow-count">{{ profile.followers_count }}</span>
+                  </button>
+                  <button @click="showFollowing = true" class="follow-button">
+                    팔로잉 <span class="follow-count">{{ profile.following_count }}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div class="profile-actions">
-              <button
-                v-if="isOwnProfile"
-                @click="showEditModal = true"
-                class="btn-action btn-secondary"
-              >
-                프로필 편집
-              </button>
-              <button
-                v-if="isOwnProfile"
-                @click="navigateToAccountSettings"
-                class="btn-action btn-secondary"
-              >
-                계정 설정
-              </button>
-              <button
-                v-if="isOwnProfile"
-                @click="navigateToNotificationSettings"
-                class="btn-action btn-secondary"
-              >
-                알림 설정
-              </button>
-              <button
-                v-else-if="isAuthenticated"
-                @click="toggleFollow"
-                :class="[
-                  'btn-action',
-                  profile.is_following ? 'btn-secondary' : 'btn-primary'
-                ]"
-              >
-                {{ profile.is_following ? '언팔로우' : '팔로우' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- 팔로워/팔로잉 -->
-          <div class="follow-stats">
-            <button @click="showFollowers = true" class="follow-button">
-              <span class="follow-count">{{ profile.followers_count }}</span> 팔로워
-            </button>
-            <button @click="showFollowing = true" class="follow-button">
-              <span class="follow-count">{{ profile.following_count }}</span> 팔로잉
-            </button>
             <div v-if="profile.is_mutual_follow" class="mutual-follow">
-              <UserRoundCheckIcon :size="16" />
+              <UserRoundCheckIcon :size="16" aria-hidden="true" />
               서로 팔로우 중
             </div>
+            <div class="profile-actions">
+              <AppButton
+                v-if="isOwnProfile"
+                variant="secondary"
+                size="md"
+                @click="showEditModal = true"
+              >
+                프로필 편집
+              </AppButton>
+              <AppButton
+                v-else-if="isAuthenticated"
+                :variant="profile.is_following ? 'secondary' : 'primary'"
+                size="md"
+                @click="toggleFollow"
+              >
+                {{ profile.is_following ? '팔로잉' : '팔로우' }}
+              </AppButton>
+              <AppButton variant="secondary" size="md" @click="shareProfile">공유</AppButton>
+            </div>
+            <div v-if="isOwnProfile" class="settings-links">
+              <button type="button" @click="navigateToAccountSettings">계정 설정</button>
+              <button type="button" @click="navigateToNotificationSettings">알림 설정</button>
+            </div>
           </div>
 
-          <!-- 통계 그리드 -->
+        </div>
+
+        <div class="statistics-card fade-in delay-200">
+          <RingProgress :size="96" :thickness="8" :value="Math.round(completionRate)" sublabel="완료율" />
           <div class="stats-grid">
             <div class="stat-item">
               <div class="stat-label">완료한 일수</div>
-              <div class="stat-value primary">{{ profile.total_completed_days }}일</div>
+              <div class="stat-value">{{ profile.total_completed_days }}<span class="stat-unit">일</span></div>
             </div>
             <div class="stat-item">
               <div class="stat-label">현재 연속</div>
-              <div class="stat-value success">{{ profile.current_streak }}일</div>
+              <div class="stat-value accent">{{ profile.current_streak }}<span class="stat-unit">일</span></div>
             </div>
             <div class="stat-item">
               <div class="stat-label">최장 연속</div>
-              <div class="stat-value purple">{{ profile.longest_streak }}일</div>
+              <div class="stat-value">{{ profile.longest_streak }}<span class="stat-unit">일</span></div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">완료율</div>
-              <div class="stat-value orange">{{ completionRate.toFixed(1) }}%</div>
+              <div class="stat-label">하세나</div>
+              <!-- TODO(handoff-v2): Profile API has no Hasena total; do not substitute synthetic stats. -->
+              <div class="stat-value" aria-label="하세나 기록 제공 안 됨" title="프로필에서 하세나 기록을 제공하지 않습니다">-<span class="stat-unit">회</span></div>
             </div>
           </div>
         </div>
 
         <!-- 탭 네비게이션 -->
-        <div class="tab-section fade-in delay-200">
-          <nav class="tab-nav">
+        <div class="tab-section fade-in delay-300">
+          <nav class="tab-nav" role="tablist" aria-label="프로필 정보">
             <button
               v-for="tab in tabs"
               :key="tab.id"
+              :id="`profile-tab-${tab.id}`"
+              type="button"
+              role="tab"
+              :aria-selected="activeTab === tab.id"
+              :aria-controls="`profile-panel-${tab.id}`"
+              :tabindex="activeTab === tab.id ? 0 : -1"
+              @keydown="handleTabKeydown($event, tab.id)"
               @click="activeTab = tab.id"
               :class="[
                 'tab-button',
@@ -119,7 +124,7 @@
           </nav>
 
           <!-- 탭 컨텐츠 -->
-          <div class="tab-content">
+          <div :id="`profile-panel-${activeTab}`" class="tab-content" role="tabpanel" :aria-labelledby="`profile-tab-${activeTab}`">
             <!-- 달력 탭 -->
             <div v-if="activeTab === 'calendar'" class="calendar-tab-content">
               <SkeletonCalendar v-if="loadingStates.calendar" />
@@ -151,13 +156,14 @@
               <ProfileGroups
                 v-else-if="profile"
                 :groups-data="groupsData"
+                :is-own-profile="isOwnProfile"
               />
             </div>
           </div>
         </div>
       </template>
 
-      <ErrorState v-else-if="error" :message="error" />
+      <ErrorState v-else-if="error" :message="error" @retry="loadInitialData" />
 
       <!-- 팔로워 모달 -->
       <FollowersModal
@@ -194,7 +200,9 @@
 import { useAuthService } from '~/composables/useAuthService'
 import { useProfilePageData } from '~/composables/useProfilePageData'
 import PageLayout from '~/components/common/PageLayout.vue'
-import LoadingState from '~/components/LoadingState.vue'
+import AppButton from '~/components/ui/AppButton.vue'
+import RingProgress from '~/components/ui/RingProgress.vue'
+import { useToast } from '~/composables/useToast'
 import ErrorState from '~/components/ErrorState.vue'
 import ProfileCalendar from '~/components/profile/ProfileCalendar.vue'
 import ProfileAchievements from '~/components/profile/ProfileAchievements.vue'
@@ -207,10 +215,26 @@ import SkeletonProfileHeader from '~/components/ui/skeleton/SkeletonProfileHeade
 import SkeletonStats from '~/components/ui/skeleton/SkeletonStats.vue'
 import SkeletonCalendar from '~/components/ui/skeleton/SkeletonCalendar.vue'
 import SkeletonGroupCard from '~/components/ui/skeleton/SkeletonGroupCard.vue'
-import { UserIcon, UserRoundCheckIcon } from '@lucide/vue'
+import { SettingsIcon, UserIcon, UserRoundCheckIcon } from '@lucide/vue'
 
 const route = useRoute()
 const auth = useAuthService()
+const toast = useToast()
+
+const shareProfile = async () => {
+  const url = new URL(`/profile/${userId.value}`, window.location.origin).href
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: `${profile.value?.user.nickname}님의 프로필`, url })
+    } else {
+      await navigator.clipboard.writeText(url)
+      toast.success('프로필 링크를 복사했습니다')
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return
+    toast.error('프로필을 공유하지 못했습니다. 다시 시도해주세요.')
+  }
+}
 
 const userId = computed(() => parseInt(route.params.id as string))
 
@@ -274,6 +298,17 @@ const tabs = [
   { id: 'groups', label: '그룹' }
 ]
 
+const handleTabKeydown = (event: KeyboardEvent, id: string) => {
+  const index = tabs.findIndex(tab => tab.id === id)
+  const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length
+    : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+      : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null
+  if (next === null) return
+  event.preventDefault()
+  activeTab.value = tabs[next]!.id
+  document.getElementById(`profile-tab-${activeTab.value}`)?.focus()
+}
+
 // 초기 로드
 onMounted(() => {
   loadInitialData()
@@ -318,8 +353,7 @@ const handleUnfollow = (user: any) => {
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('ko-KR', {
     year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    month: 'long'
   })
 }
 
@@ -341,476 +375,111 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* ========================================
-   프로필 페이지 - 홈 디자인 시스템 통일
-   ======================================== */
-
 .content-wrapper {
-  padding: 1rem;
+  padding: var(--screen-gutter);
   max-width: 768px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 14px;
+  letter-spacing: var(--tracking-body);
 }
-
-/* ========================================
-   프로필 카드
-   ======================================== */
-.profile-card {
-  background: var(--color-bg-card, #fff);
-  border-radius: 20px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.02);
-}
-
-[data-theme="dark"] .profile-card {
-  background: var(--color-bg-card);
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: none;
-}
-
-/* 프로필 헤더 - 모바일 퍼스트 */
-.profile-header {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.profile-user {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.avatar-wrapper {
-  flex-shrink: 0;
-}
-
-.profile-avatar {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid var(--color-bg-card, #fff);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] .profile-avatar {
-  border-color: var(--color-bg-tertiary);
-}
-
+.profile-card { padding-block: 4px; }
+.profile-header { display: flex; flex-direction: column; gap: 12px; }
+.profile-user { display: flex; align-items: center; gap: 16px; }
+.avatar-wrapper { flex-shrink: 0; }
+.profile-avatar,
+.profile-avatar-placeholder { width: 64px; height: 64px; border-radius: 50%; }
+.profile-avatar { display: block; object-fit: cover; }
 .profile-avatar-placeholder {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--color-accent-primary, #4A5D53) 0%, var(--color-accent-primary-hover) 100%);
-  color: white;
-  font-size: 1.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] .profile-avatar-placeholder {
-  background: linear-gradient(135deg, var(--color-accent-primary, #2A1111) 0%, #4A9D6E 100%);
-}
-
-.profile-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.profile-name {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text-primary, #2C3333);
-  margin: 0 0 0.25rem 0;
-  font-family: 'Pretendard', sans-serif;
-  letter-spacing: -0.02em;
-}
-
-[data-theme="dark"] .profile-name {
-  color: var(--color-text-primary, #f3f4f6);
-}
-
-.profile-meta {
-  color: var(--color-text-secondary, #6B7280);
-  font-size: 0.8125rem;
-  margin: 0;
-}
-
-[data-theme="dark"] .profile-meta {
-  color: var(--color-text-secondary);
-}
-
-.profile-bio {
-  color: var(--color-text-secondary, #6B7280);
-  margin: 0.5rem 0 0 0;
-  line-height: 1.5;
-  font-size: 0.875rem;
-}
-
-[data-theme="dark"] .profile-bio {
-  color: var(--color-text-secondary);
-}
-
-.profile-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-action {
-  flex: 1;
-  padding: 0.625rem 1rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  border: none;
-  cursor: pointer;
-  font-family: 'Pretendard', sans-serif;
-}
-
-.btn-primary {
-  background: var(--color-accent-primary, #4A5D53);
-  color: white;
-}
-
-[data-theme="dark"] .btn-primary {
-  background: var(--color-accent-primary, #2A1111);
+  background: var(--color-accent-primary);
   color: var(--color-text-inverse);
 }
-
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: var(--color-bg-tertiary, #F3F4F6);
-  border: 1px solid var(--color-border-default, #E5E7EB);
-  color: var(--color-text-primary, #2C3333);
-}
-
-[data-theme="dark"] .btn-secondary {
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-border-default);
+.profile-info { flex: 1; min-width: 0; }
+.profile-name {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: var(--tracking-display);
   color: var(--color-text-primary);
+  overflow-wrap: anywhere;
 }
-
-.btn-secondary:hover {
-  background: var(--color-bg-hover, #E5E7EB);
-}
-
-[data-theme="dark"] .btn-secondary:hover {
-  background: var(--color-bg-hover);
-}
-
-/* ========================================
-   팔로우 통계
-   ======================================== */
-.follow-stats {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  padding: 1rem 0;
-  border-top: 1px solid var(--color-border-light, #F1F5F9);
-  border-bottom: 1px solid var(--color-border-light, #F1F5F9);
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
-}
-
-[data-theme="dark"] .follow-stats {
-  border-color: var(--color-border-default);
-}
-
-.follow-button {
-  background: none;
+.profile-meta,
+.profile-bio { margin: 0; font-size: 13px; line-height: 1.5; color: var(--color-text-secondary); }
+.profile-bio { margin-top: 4px; overflow-wrap: anywhere; }
+.follow-stats { display: flex; flex-wrap: wrap; gap: 12px; }
+.follow-button,
+.settings-links button,
+.settings-button {
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+  padding: 0;
   border: none;
-  color: var(--color-text-secondary, #6B7280);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
   cursor: pointer;
-  transition: color 0.2s ease;
-  padding: 0.25rem 0;
-  font-size: 0.875rem;
-  font-family: 'Pretendard', sans-serif;
+  transition: color var(--duration-micro) ease, background-color var(--duration-micro) ease, transform var(--duration-micro) ease;
 }
-
-[data-theme="dark"] .follow-button {
-  color: var(--color-text-secondary);
-}
-
-.follow-button:hover {
-  color: var(--color-text-primary, #2C3333);
-}
-
-[data-theme="dark"] .follow-button:hover {
-  color: var(--color-text-primary);
-}
-
-.follow-count {
-  font-weight: 700;
-  color: var(--color-text-primary, #2C3333);
-  margin-right: 0.25rem;
-}
-
-[data-theme="dark"] .follow-count {
-  color: var(--color-text-primary);
-}
-
-.mutual-follow {
-  color: var(--color-success-text);
-  font-size: 0.75rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-left: auto;
-  background: var(--color-success-bg);
-  padding: 0.375rem 0.625rem;
-  border-radius: 999px;
-}
-
-/* ========================================
-   통계 그리드
-   ======================================== */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem 0.5rem;
-  background: var(--color-bg-tertiary, #F9FAFB);
-  border-radius: 12px;
-  transition: transform 0.2s ease;
-}
-
-.stat-item:hover {
-  transform: translateY(-2px);
-}
-
-[data-theme="dark"] .stat-item {
-  background: var(--color-bg-tertiary);
-}
-
-.stat-value {
-  font-size: 1.125rem;
-  font-weight: 700;
-  font-family: 'Pretendard', sans-serif;
-}
-
-.stat-value.primary { 
-  color: var(--color-text-primary, #2C3333); 
-}
-[data-theme="dark"] .stat-value.primary { 
-  color: var(--color-text-primary); 
-}
-
-.stat-value.success {
-  color: var(--color-success);
-}
-
-.stat-value.purple {
-  color: var(--color-accent-secondary);
-}
-
-.stat-value.orange {
-  color: var(--color-warning);
-}
-
-.stat-label {
-  font-size: 0.6875rem;
-  color: var(--color-text-secondary, #6B7280);
-  font-weight: 500;
-  text-align: center;
-}
-
-[data-theme="dark"] .stat-label {
-  color: var(--color-text-secondary);
-}
-
-/* ========================================
-   탭 섹션
-   ======================================== */
+.follow-count { color: var(--color-text-primary); font-weight: 700; font-variant-numeric: tabular-nums; }
+.mutual-follow { display: flex; align-items: center; gap: 4px; color: var(--color-accent-primary); font-size: 12px; }
+.profile-actions { display: flex; gap: 8px; }
+.profile-actions > * { flex: 1; }
+.settings-links { display: flex; gap: 20px; }
+.settings-button { display: grid; place-items: center; border-radius: 50%; }
+.settings-button:hover { background: var(--color-bg-hover); }
+.follow-button:hover,
+.settings-links button:hover { color: var(--color-accent-primary); }
+.statistics-card,
 .tab-section {
-  background: var(--color-bg-card, #fff);
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(44, 51, 51, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.02);
-}
-
-[data-theme="dark"] .tab-section {
   background: var(--color-bg-card);
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
-
-.tab-nav {
-  display: flex;
-  padding: 0.5rem;
-  gap: 0.25rem;
-  background: var(--color-bg-tertiary, #F9FAFB);
-}
-
-[data-theme="dark"] .tab-nav {
-  background: var(--color-bg-tertiary);
-}
-
+.statistics-card { display: flex; align-items: center; gap: 24px; padding: 18px 20px; }
+.stats-grid { flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px 8px; }
+.stat-item { display: flex; flex-direction: column; gap: 6px; }
+.stat-label { color: var(--color-text-secondary); font-size: 11px; font-weight: 600; }
+.stat-value { color: var(--color-text-primary); font-size: 20px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-display); }
+.stat-value.accent { color: var(--color-accent-primary); }
+.stat-unit { margin-left: 2px; font-size: 13px; font-weight: 600; }
+.tab-section { overflow: hidden; }
+.tab-nav { display: flex; border-bottom: 1px solid var(--color-border-light); }
 .tab-button {
   flex: 1;
-  padding: 0.625rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--color-text-secondary, #6B7280);
-  background: transparent;
+  min-height: var(--hit-min);
+  padding: 0 12px;
   border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: 'Pretendard', sans-serif;
-}
-
-[data-theme="dark"] .tab-button {
+  border-bottom: 2px solid transparent;
+  background: transparent;
   color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--duration-micro) ease, background-color var(--duration-micro) ease, border-color var(--duration-standard) ease, transform var(--duration-micro) ease;
 }
-
-.tab-button:hover:not(.active) {
-  color: var(--color-text-primary, #2C3333);
-  background: rgba(0, 0, 0, 0.03);
-}
-
-[data-theme="dark"] .tab-button:hover:not(.active) {
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.tab-button.active {
-  color: var(--color-text-primary, #2C3333);
-  background: var(--color-bg-card, #fff);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="dark"] .tab-button.active {
-  color: var(--color-text-primary);
-  background: var(--color-bg-card);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.tab-content {
-  min-height: 280px;
-  padding: 0;
-}
-
-.calendar-tab-content {
-  position: relative;
-}
-
-/* ========================================
-   애니메이션
-   ======================================== */
-.fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
-  opacity: 0;
-}
-
-.delay-100 { animation-delay: 0.05s; }
-.delay-200 { animation-delay: 0.1s; }
-
-@keyframes fadeIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(8px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
-}
-
-/* ========================================
-   반응형 - 태블릿/데스크탑
-   ======================================== */
-@media (min-width: 480px) {
-  .profile-header {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
-
-  .profile-user {
-    flex: 1;
-  }
-
-  .profile-actions {
-    flex-shrink: 0;
-    flex: none;
-  }
-
-  .btn-action {
-    flex: none;
-    padding: 0.625rem 1.25rem;
-  }
-
-  .profile-avatar,
-  .profile-avatar-placeholder {
-    width: 80px;
-    height: 80px;
-  }
-
-  .profile-avatar-placeholder {
-    font-size: 2rem;
-  }
-}
-
-/* 좁은 화면 최적화 */
+.tab-button:hover { background: var(--color-bg-hover); }
+.tab-button.active { color: var(--color-text-primary); font-weight: 700; border-bottom: 2px solid var(--color-accent-primary); }
+.tab-content { min-height: 280px; }
+.calendar-tab-content { position: relative; }
+button:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: -3px; }
+button:active { transform: scale(0.97); }
+.delay-100 { animation-delay: var(--stagger); }
+.delay-200 { animation-delay: calc(var(--stagger) * 2); }
+.delay-300 { animation-delay: calc(var(--stagger) * 3); }
 @media (max-width: 359px) {
-  .content-wrapper {
-    padding: 0.75rem;
-  }
-
-  .profile-card,
-  .tab-section {
-    padding: 1rem;
-    border-radius: 16px;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-  }
-
-  .stat-item {
-    padding: 0.625rem 0.375rem;
-  }
-
-  .stat-value {
-    font-size: 1rem;
-  }
-
-  .stat-label {
-    font-size: 0.625rem;
-  }
-
-  .follow-stats {
-    gap: 0.75rem;
-  }
-
-  .mutual-follow {
-    width: 100%;
-    justify-content: center;
-    margin-left: 0;
-    margin-top: 0.5rem;
-  }
+  .statistics-card { gap: 12px; padding-inline: 12px; }
+  .follow-stats { gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none; }
+  button:active { transform: none; }
 }
 </style>

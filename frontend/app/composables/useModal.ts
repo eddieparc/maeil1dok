@@ -1,4 +1,4 @@
-import { computed, defineAsyncComponent, type Component } from 'vue'
+import { defineAsyncComponent, type Component } from 'vue'
 import { useModalState } from './useModalState'
 import type { ModalOptions, ConfirmOptions, AlertOptions, UseModalReturn } from '~/types/modal'
 
@@ -14,8 +14,8 @@ export function useModal(): UseModalReturn {
       const result = await state.open<boolean>(ConfirmModal, {
         size: 'sm',
         position: 'center',
-        closeOnEsc: false,
-        closeOnOverlay: false,
+        closeOnEsc: true,
+        closeOnOverlay: true,
         showCloseButton: false,
         props: {
           title: options.title,
@@ -37,8 +37,8 @@ export function useModal(): UseModalReturn {
       await state.open<void>(AlertModal, {
         size: 'sm',
         position: 'center',
-        closeOnEsc: false,
-        closeOnOverlay: false,
+        closeOnEsc: true,
+        closeOnOverlay: true,
         showCloseButton: false,
         props: {
           title: options.title,

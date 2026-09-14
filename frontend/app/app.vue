@@ -21,7 +21,7 @@
       <ToastHost />
     </ClientOnly>
 
-    <!-- Legacy Toast (마이그레이션 완료 후 제거 예정) -->
+    <!-- Nonrendering legacy adapter for injected/template-ref callers -->
     <Toast ref="legacyToast" />
   </div>
 </template>
@@ -34,8 +34,8 @@ import ToastHost from '~/components/ui/toast/ToastHost.vue'
 import EmailVerificationBanner from '~/components/auth/EmailVerificationBanner.vue'
 import SessionUnknownBanner from '~/components/auth/SessionUnknownBanner.vue'
 
-// Legacy toast 인스턴스 (마이그레이션 완료 후 제거 예정)
-const legacyToast = ref()
+// Preserve inject('toast').value.show without mounting another host.
+const legacyToast = ref<InstanceType<typeof Toast> | null>(null)
 provide('toast', legacyToast)
 
 // Auth initialization moved to plugins/auth-init.ts

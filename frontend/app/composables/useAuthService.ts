@@ -5,6 +5,7 @@
  */
 
 import { computed, readonly } from 'vue'
+import { readCsrfToken, storeCsrfToken } from './csrfCookie'
 import {
   fetchInitialAuthUser,
   fetchUserWithRefreshPolicy,
@@ -85,21 +86,14 @@ function getBaseUrl(): string {
   return config.public.apiBase as string
 }
 
-const CSRF_TOKEN_KEY = 'csrfToken'
-
 function getCsrfToken(): string | null {
   if (typeof window === 'undefined') return null
-  
-  const storedToken = localStorage.getItem(CSRF_TOKEN_KEY)
-  if (storedToken) return storedToken
-  
-  const match = document.cookie.match(/csrftoken=([^;]+)/)
-  return match?.[1] ?? null
+  return readCsrfToken(useRuntimeConfig().public.csrfCookieName)
 }
 
 function saveCsrfToken(token: string): void {
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(CSRF_TOKEN_KEY, token)
+    storeCsrfToken(token, useRuntimeConfig().public.csrfCookieName)
   }
 }
 
@@ -482,7 +476,7 @@ export function useAuthService() {
 
   async function loginWithSocial(
     provider: 'kakao' | 'google',
-    payload: { code?: string; access_token?: string }
+    payload: { code?: string; access_token?: string; redirect_uri?: string }
   ): Promise<SocialLoginResult> {
     try {
       const result = await apiRequest<{
@@ -623,8 +617,11 @@ export function useAuthService() {
     }
   }
 
-  async function socialLogin(provider: string, code: string): Promise<any> {
-    const result = await loginWithSocial(provider as 'kakao' | 'google', { code })
+  async function socialLogin(provider: string, code: string, redirectUri?: string): Promise<any> {
+    const result = await loginWithSocial(provider as 'kakao' | 'google', {
+      code,
+      redirect_uri: redirectUri,
+    })
     
     if (result.success) {
       return {

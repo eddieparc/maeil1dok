@@ -9,6 +9,7 @@ from datetime import date, datetime, timezone
 from typing import Final
 from zoneinfo import ZoneInfo
 from django.conf import settings
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +274,7 @@ def get_youtube_transcript(video_id: str, languages: list = None) -> str | None:
         logger.warning(f"Video unavailable: {video_id}")
         return None
     except Exception as e:
-        logger.exception("Error fetching transcript: video_id=%s", video_id)
+        logger.error("Error fetching transcript: video_id=%s", video_id)
         return None
 
 
@@ -330,7 +331,7 @@ def summarize_with_gemini(transcript: str) -> dict | None:
         
     except Exception as e:
         error_str = str(e)
-        logger.exception("Error calling Gemini API")
+        logger.error("Error calling Gemini API")
         
         # 할당량 초과 에러인 경우 특별 처리
         if '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
@@ -441,12 +442,49 @@ def summarize_youtube_video_with_gemini(video_id: str) -> dict | None:
         }
     except Exception as e:
         error_str = str(e)
-        logger.exception("Error calling Gemini video API")
+        logger.error("Error calling Gemini video API")
 
         if _is_quota_exceeded_gemini_error(error_str):
             return {'error': 'quota_exceeded', 'message': 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.'}
 
         return None
+
+
+FAILURE_MESSAGES = {
+    'transcript_unavailable': '영상 자막을 가져올 수 없습니다.',
+    'generation_failed': 'AI 요약을 생성할 수 없습니다.',
+    'quota_exceeded': 'API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.',
+    'storage_failed': 'AI 요약 저장 중 오류가 발생했습니다.',
+}
+
+
+def _summary_data(summary) -> dict:
+    return {
+        'success': True,
+        'video_id': summary.video_id,
+        'summary': summary.summary,
+        'model': summary.model_used,
+        'is_edited': summary.is_edited,
+        'video_date': summary.video_date.isoformat() if summary.video_date else None,
+        'title': summary.title,
+        'persisted': True,
+        'cacheable': True,
+    }
+
+
+def get_admin_summary(video_id: str) -> dict:
+    from ..models import HasenaSummaryFailure
+
+    result = get_existing_summary(video_id)
+    failure = HasenaSummaryFailure.objects.filter(video_id=video_id).first()
+    if result['success'] or failure:
+        result.update({
+            'has_summary': result['success'],
+            'status': 'failed' if failure else ('reviewed' if result['is_edited'] else 'review_needed'),
+            'error_code': failure.error_code if failure else None,
+            'error_message': FAILURE_MESSAGES[failure.error_code] if failure else None,
+        })
+    return result
 
 
 def get_existing_summary(video_id: str) -> dict:
@@ -455,17 +493,7 @@ def get_existing_summary(video_id: str) -> dict:
     try:
         existing = HasenaSummary.objects.filter(video_id=video_id).first()
         if existing:
-            return {
-                'success': True,
-                'video_id': video_id,
-                'summary': existing.summary,
-                'model': existing.model_used,
-                'is_edited': existing.is_edited,
-                'video_date': existing.video_date.isoformat() if existing.video_date else None,
-                'title': existing.title,
-                'persisted': True,
-                'cacheable': True,
-            }
+            return _summary_data(existing)
         return {
             'success': False,
             'error': '요약이 아직 준비되지 않았습니다.',
@@ -500,202 +528,192 @@ def require_cacheable_hasena_summary_result(result: dict) -> dict:
     return normalized
 
 
+def _record_generation_failure(video_id, error_code, video_date=None, title=None):
+    from ..models import HasenaSummaryFailure
+
+    result = {
+        'success': False,
+        'video_id': video_id,
+        'error': FAILURE_MESSAGES[error_code],
+        'error_code': error_code,
+        'persisted': False,
+        'cacheable': False,
+        'failure_persisted': False,
+    }
+    if error_code == 'quota_exceeded':
+        result['retry_after'] = 60
+    try:
+        defaults = {'error_code': error_code}
+        if video_date is not None:
+            defaults['video_date'] = video_date
+        if title is not None:
+            defaults['title'] = title
+        with transaction.atomic():
+            HasenaSummaryFailure.objects.update_or_create(video_id=video_id, defaults=defaults)
+        result.update(status='failed', failure_persisted=True)
+    except Exception:
+        # No exception text: provider/DB exceptions can contain credentials or content.
+        logger.error('Could not persist Hasena generation failure')
+    return result
+
+
 def get_hasena_summary(video_id: str, video_date: date = None, title: str = None) -> dict:
     from ..models import HasenaSummary
-    
+
     try:
         existing = HasenaSummary.objects.filter(video_id=video_id).first()
         if existing:
-            return {
-                'success': True,
-                'video_id': video_id,
-                'summary': existing.summary,
-                'model': existing.model_used,
-                'is_edited': existing.is_edited,
-                'video_date': existing.video_date.isoformat() if existing.video_date else None,
-                'title': existing.title,
-                'persisted': True,
-                'cacheable': True,
-            }
-    except Exception as e:
-        logger.exception("Error checking existing summary")
-    
-    transcript = get_youtube_transcript(video_id)
-    summary_result = summarize_with_gemini(transcript) if transcript else summarize_youtube_video_with_gemini(video_id)
-    if not summary_result:
-        return {
-            'success': False,
-            'error': 'AI 요약을 생성할 수 없습니다.',
-            'video_id': video_id
-        }
-    
-    # 할당량 초과 에러 처리
-    if summary_result.get('error') == 'quota_exceeded':
-        return {
-            'success': False,
-            'error': summary_result.get('message', 'API 할당량 초과'),
-            'video_id': video_id,
-            'retry_after': 60
-        }
-    
+            return _summary_data(existing)
+    except Exception:
+        logger.error('Error checking existing summary')
+        return _record_generation_failure(video_id, 'storage_failed', video_date, title)
+    return _generate_summary(video_id, video_date=video_date, title=title)
+
+
+def _generate_summary(video_id, *, regenerate=False, video_date=None, title=None):
+    from ..models import HasenaSummary, HasenaSummaryFailure
+
     try:
-        summary_obj, created = HasenaSummary.objects.update_or_create(
-            video_id=video_id,
-            defaults={
+        transcript = get_youtube_transcript(video_id)
+        if regenerate and not transcript:
+            return _record_generation_failure(video_id, 'transcript_unavailable')
+        summary_result = summarize_with_gemini(transcript) if transcript else summarize_youtube_video_with_gemini(video_id)
+    except Exception:
+        logger.error('Error generating Hasena summary')
+        return _record_generation_failure(video_id, 'generation_failed', video_date, title)
+    if summary_result and summary_result.get('error') == 'quota_exceeded':
+        return _record_generation_failure(video_id, 'quota_exceeded', video_date, title)
+    # The provider is a trust boundary: empty/malformed output is not a valid summary.
+    if (not summary_result
+            or not isinstance(summary_result.get('summary'), str)
+            or not summary_result['summary'].strip()
+            or not isinstance(summary_result.get('model'), str)
+            or not 1 <= len(summary_result['model']) <= 50):
+        return _record_generation_failure(video_id, 'generation_failed', video_date, title)
+
+    try:
+        with transaction.atomic():
+            defaults = {
                 'summary': summary_result['summary'],
                 'transcript': transcript or '',
                 'model_used': summary_result['model'],
-                'video_date': video_date,
-                'title': title or '',
                 'is_edited': False,
             }
-        )
-        
-        return {
-            'success': True,
-            'video_id': video_id,
-            'summary': summary_obj.summary,
-            'model': summary_obj.model_used,
-            'is_edited': summary_obj.is_edited,
-            'video_date': summary_obj.video_date.isoformat() if summary_obj.video_date else None,
-            'title': summary_obj.title,
-            'created': created,
-            'persisted': True,
-            'cacheable': True,
-        }
-        
-    except Exception as e:
-        logger.exception("Error saving summary")
-        return {
-            'success': False,
-            'video_id': video_id,
-            'error': 'AI 요약 저장 중 오류가 발생했습니다.',
-            'persisted': False,
-            'cacheable': False,
-        }
+            # Regeneration retains real metadata; failure-only videos may have metadata
+            # supplied by cron. No title or publication date is inferred from attempt time.
+            failure = HasenaSummaryFailure.objects.filter(video_id=video_id).first()
+            create_defaults = {
+                **defaults,
+                'video_date': video_date if video_date is not None else (failure.video_date if failure else None),
+                'title': title if title is not None else (failure.title if failure else ''),
+            }
+            summary_obj, created = HasenaSummary.objects.update_or_create(
+                video_id=video_id, defaults=defaults, create_defaults=create_defaults,
+            )
+            HasenaSummaryFailure.objects.filter(video_id=video_id).delete()
+        result = _summary_data(summary_obj)
+        result['created'] = created
+        if regenerate:
+            result['status'] = 'review_needed'
+        return result
+    except Exception:
+        logger.error('Error saving Hasena summary')
+        return _record_generation_failure(video_id, 'storage_failed', video_date, title)
 
 
 def regenerate_summary_for_video(video_id: str) -> dict:
-    from ..models import HasenaSummary
-    
-    transcript = get_youtube_transcript(video_id)
-    if not transcript:
-        return {
-            'success': False,
-            'error': '영상 자막을 가져올 수 없습니다.',
-            'video_id': video_id
-        }
-    
-    summary_result = summarize_with_gemini(transcript)
-    if not summary_result:
-        return {
-            'success': False,
-            'error': 'AI 요약을 생성할 수 없습니다.',
-            'video_id': video_id
-        }
-    
-    try:
-        existing = HasenaSummary.objects.filter(video_id=video_id).first()
-        
-        if existing:
-            existing.summary = summary_result['summary']
-            existing.transcript = transcript
-            existing.model_used = summary_result['model']
-            existing.is_edited = False
-            existing.save()
-            summary_obj = existing
-        else:
-            summary_obj = HasenaSummary.objects.create(
-                video_id=video_id,
-                summary=summary_result['summary'],
-                transcript=transcript,
-                model_used=summary_result['model'],
-            )
-        
-        return {
-            'success': True,
-            'video_id': video_id,
-            'summary': summary_obj.summary,
-            'model': summary_obj.model_used,
-        }
-        
-    except Exception as e:
-        logger.exception("Error regenerating summary")
-        return {
-            'success': False,
-            'error': str(e),
-            'video_id': video_id
-        }
+    return _generate_summary(video_id, regenerate=True)
 
 
 def update_summary(video_id: str, summary: str, title: str = None) -> dict:
-    from ..models import HasenaSummary
-    
+    from ..models import HasenaSummary, HasenaSummaryFailure
+
     try:
-        existing = HasenaSummary.objects.filter(video_id=video_id).first()
-        
-        if not existing:
-            return {
-                'success': False,
-                'error': '해당 영상의 요약을 찾을 수 없습니다.',
-                'video_id': video_id
-            }
-        
-        existing.summary = summary
-        existing.is_edited = True
-        if title:
-            existing.title = title
-        existing.save()
-        
+        with transaction.atomic():
+            existing = HasenaSummary.objects.select_for_update().filter(video_id=video_id).first()
+            if not existing:
+                return {
+                    'success': False,
+                    'error': '해당 영상의 요약을 찾을 수 없습니다.',
+                    'video_id': video_id,
+                }
+            existing.summary = summary
+            existing.is_edited = True
+            if title is not None:
+                existing.title = title
+            existing.save()
+            HasenaSummaryFailure.objects.filter(video_id=video_id).delete()
         return {
             'success': True,
             'video_id': video_id,
             'summary': existing.summary,
             'title': existing.title,
             'is_edited': True,
+            'status': 'reviewed',
         }
-        
-    except Exception as e:
-        logger.exception("Error updating summary")
+    except Exception:
+        logger.error('Error updating Hasena summary')
         return {
             'success': False,
-            'error': str(e),
-            'video_id': video_id
+            'error': '요약 수정 중 오류가 발생했습니다.',
+            'error_code': 'storage_failed',
+            'video_id': video_id,
         }
 
 
-def list_summaries(page: int = 1, page_size: int = 20) -> dict:
-    from ..models import HasenaSummary
-    
-    try:
-        total = HasenaSummary.objects.count()
-        offset = (page - 1) * page_size
-        
-        summaries = HasenaSummary.objects.all()[offset:offset + page_size]
-        
-        return {
-            'success': True,
-            'total': total,
-            'page': page,
-            'page_size': page_size,
-            'summaries': [
-                {
-                    'id': s.id,
-                    'video_id': s.video_id,
-                    'video_date': s.video_date.isoformat() if s.video_date else None,
-                    'title': s.title,
-                    'summary_preview': s.summary[:200] + '...' if len(s.summary) > 200 else s.summary,
-                    'is_edited': s.is_edited,
-                    'model_used': s.model_used,
-                    'updated_at': s.updated_at.isoformat(),
-                }
-                for s in summaries
-            ]
-        }
-        
-    except Exception as e:
-        logger.exception("Error listing summaries")
-        return {
-            'success': False,
-            'error': str(e)
-        }
+def list_summaries(page: int = 1, page_size: int = 20, status: str = 'all') -> dict:
+    from django.db.models import BooleanField, Case, CharField, F, IntegerField, OuterRef, Subquery, TextField, Value, When
+    from django.db.models.functions import Coalesce, Substr
+    from ..models import HasenaSummary, HasenaSummaryFailure
+
+    failure = HasenaSummaryFailure.objects.filter(video_id=OuterRef('video_id'))
+    summaries = HasenaSummary.objects.order_by().annotate(
+        row_id=F('id'),
+        summary_text=Substr('summary', 1, 201),
+        has_summary=Value(True, output_field=BooleanField()),
+        error_code=Subquery(failure.values('error_code')[:1]),
+        activity_at=Coalesce(Subquery(failure.values('updated_at')[:1]), 'updated_at'),
+        sort_created=F('created_at'),
+    ).annotate(status=Case(
+        When(error_code__isnull=False, then=Value('failed')),
+        When(is_edited=True, then=Value('reviewed')),
+        default=Value('review_needed'), output_field=CharField(),
+    ))
+    failures = HasenaSummaryFailure.objects.exclude(
+        video_id__in=HasenaSummary.objects.order_by().values('video_id'),
+    ).annotate(
+        row_id=Value(None, output_field=IntegerField()),
+        summary_text=Value(None, output_field=TextField()),
+        is_edited=Value(None, output_field=BooleanField()),
+        model_used=Value(None, output_field=CharField()),
+        has_summary=Value(False, output_field=BooleanField()),
+        status=Value('failed', output_field=CharField()),
+        activity_at=F('updated_at'),
+        sort_created=F('created_at'),
+    )
+    if status != 'all':
+        summaries = summaries.filter(status=status)
+        failures = failures.filter(status=status)
+    fields = (
+        'row_id', 'video_id', 'video_date', 'title', 'summary_text', 'is_edited',
+        'model_used', 'has_summary', 'status', 'error_code', 'activity_at', 'sort_created',
+    )
+    rows = summaries.values(*fields).union(failures.values(*fields), all=True).order_by(
+        '-video_date', '-sort_created', 'video_id',
+    )
+    total = rows.count()
+    offset = (page - 1) * page_size
+    items = []
+    for row in rows[offset:offset + page_size]:
+        preview = row.pop('summary_text')
+        row['summary_preview'] = preview[:200] + '...' if preview is not None and len(preview) > 200 else preview
+        row['id'] = row.pop('row_id')
+        row['video_date'] = row['video_date'].isoformat() if row['video_date'] else None
+        row['updated_at'] = row.pop('activity_at').isoformat()
+        row.pop('sort_created')
+        row['error_message'] = FAILURE_MESSAGES[row['error_code']] if row['error_code'] else None
+        items.append(row)
+    return {
+        'success': True, 'total': total, 'page': page, 'page_size': page_size,
+        'summaries': items,
+    }

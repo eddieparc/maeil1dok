@@ -418,6 +418,64 @@ class BibleCacheAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data['cached'])
 
+    def test_search_cached_content_accepts_one_character(self):
+        scripture = '하나님이 이르시되 빛이 있으라 하시니 빛이 있었고'
+        for version in ('GAE', 'KNT'):
+            BibleContentCache.save_to_cache(
+                version=version,
+                book='gen',
+                chapter=1,
+                content=f'<p><span>3 {scripture}</span></p>',
+                content_type='html',
+            )
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=2,
+            content='<p><span>1 천지와 만물이 다 이루어지니라</span></p>',
+            content_type='html',
+        )
+
+        for query in ('빛', ' \t빛\n '):
+            for version, expected_versions in ((None, ['GAE', 'KNT']), ('GAE', ['GAE'])):
+                with self.subTest(query=query, version=version):
+                    params = {'q': query}
+                    if version:
+                        params['version'] = version
+                    response = self.client.get('/api/v1/bible-cache/search/', params)
+
+                    self.assertEqual(response.status_code, status.HTTP_200_OK)
+                    payload = response.json()
+                    self.assertTrue(payload['success'])
+                    self.assertEqual(payload['query'], '빛')
+                    self.assertEqual(payload['count'], len(expected_versions))
+                    self.assertEqual(
+                        [
+                            (hit['version'], hit['book'], hit['chapter'], hit['verse'], hit['snippet'])
+                            for hit in payload['results']
+                        ],
+                        [(version, 'gen', 1, 3, scripture) for version in expected_versions],
+                    )
+
+    def test_search_cached_content_rejects_missing_or_blank_query(self):
+        for params in ({}, {'q': ''}, {'q': ' \t\n '}, {'q': '\u3000'}):
+            with self.subTest(params=params):
+                response = self.client.get('/api/v1/bible-cache/search/', params)
+
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertFalse(response.json()['success'])
+                self.assertIsInstance(response.json()['error'], str)
+                self.assertNotIn('results', response.json())
+
+    def test_search_cached_content_rejects_invalid_version_for_one_character(self):
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': '빛', 'version': 'INVALID'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response.json()['success'])
+        self.assertIn('GAE', response.json()['supported_versions'])
+
     def test_search_cached_content(self):
         BibleContentCache.save_to_cache(
             version='GAE',

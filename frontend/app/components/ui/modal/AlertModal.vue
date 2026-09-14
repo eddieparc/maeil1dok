@@ -103,35 +103,35 @@ function handleConfirm() {
 }
 
 .alert-icon-warning {
-  background: #fef3c7;
-  color: #d97706;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .alert-icon-error {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .alert-icon-info {
-  background: #dbeafe;
-  color: #3A1A1A;
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
 }
 
 .alert-icon-success {
-  background: #d1fae5;
-  color: #1F0C0C;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .alert-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--color-text-primary, #111827);
+  color: var(--color-text-primary);
   margin: 0 0 0.5rem;
 }
 
 .alert-description {
   font-size: 0.9375rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary);
   margin: 0 0 1.5rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -141,19 +141,20 @@ function handleConfirm() {
 }
 
 .alert-copy-btn {
+  min-height: var(--hit-min);
   margin: -0.5rem auto 1.25rem;
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border-default, #d1d5db);
-  border-radius: 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary);
   cursor: pointer;
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .alert-copy-btn:hover {
-  background: var(--color-bg-muted, #f3f4f6);
+  background: var(--color-bg-hover);
 }
 
 .alert-actions {
@@ -162,49 +163,31 @@ function handleConfirm() {
 
 .alert-btn {
   flex: 1;
+  min-height: var(--hit-min);
   padding: 0.75rem 1rem;
   font-size: 0.9375rem;
   font-weight: 600;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   border: none;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: var(--color-primary, #2A1111);
-  color: white;
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
 }
 
 .alert-btn:hover {
-  background: var(--color-primary-dark, #3A1A1A);
+  background: var(--color-accent-primary-hover);
 }
 
-/* Dark mode */
-[data-theme="dark"] .alert-modal,
-.dark .alert-modal {
-  --color-text-primary: #f9fafb;
-  --color-text-secondary: #9ca3af;
+/* Shared semantic tokens supply both themes. */
+.alert-btn:focus-visible,
+.alert-copy-btn:focus-visible {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--color-accent-primary);
 }
 
-[data-theme="dark"] .alert-icon-warning,
-.dark .alert-icon-warning {
-  background: #78350f;
-  color: #fbbf24;
-}
-
-[data-theme="dark"] .alert-icon-error,
-.dark .alert-icon-error {
-  background: #7f1d1d;
-  color: #f87171;
-}
-
-[data-theme="dark"] .alert-icon-info,
-.dark .alert-icon-info {
-  background: #1e3a8a;
-  color: #2A1111;
-}
-
-[data-theme="dark"] .alert-icon-success,
-.dark .alert-icon-success {
-  background: #064e3b;
-  color: #3A1A1A;
+@media (prefers-reduced-motion: reduce) {
+  .alert-btn { transition: none; }
 }
 </style>

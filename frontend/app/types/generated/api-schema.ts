@@ -1040,6 +1040,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/members/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin_members_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/members/bulk/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["admin_members_bulk_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/members/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin_members_export.csv_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/members/stats/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin_members_stats_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/members/{user_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin_members_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/members/{user_id}/actions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["admin_members_actions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/members/{user_id}/activity/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin_members_activity_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/account-email/": {
         parameters: {
             query?: never;
@@ -1988,6 +2100,23 @@ export interface paths {
         get: operations["bible_cache_status_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/inquiries/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Persist an inquiry from an anonymous visitor or authenticated member. The receipt acknowledges database storage only, not email delivery or a reply. Cookie-authenticated requests require the existing CSRF header. Unknown fields, including caller-supplied user identity, are rejected. */
+        post: operations["support_inquiries_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3300,6 +3429,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/todos/plan/{id}/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Whole-plan summary owned by the authenticated user. The path id is a PlanSubscription.id (subscriptions[].id from /plans/user/), not a BibleReadingPlan.id; it is the same resource ID used by /plan/{id}/ delete and toggle-active. Hidden subscriptions and inactive plans remain readable. */
+        get: operations["todos_plan_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/todos/plan/{id}/toggle-active/": {
         parameters: {
             query?: never;
@@ -4161,7 +4307,7 @@ export interface components {
              * @description 주말 읽기량 배수 (예: 1.5 = 평일의 1.5배)
              */
             weekend_multiplier?: string;
-            readonly status: components["schemas"]["StatusEnum"];
+            readonly status: components["schemas"]["CatchupSessionResponseStatusEnum"];
             /** Format: date-time */
             readonly completed_at: string | null;
             progress_percentage: number;
@@ -4173,6 +4319,13 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        /**
+         * @description * `active` - 진행 중
+         *     * `completed` - 완료
+         *     * `abandoned` - 포기
+         * @enum {string}
+         */
+        CatchupSessionResponseStatusEnum: "active" | "completed" | "abandoned";
         CatchupSessionScheduleDay: {
             /** Format: date */
             date: string;
@@ -4323,6 +4476,14 @@ export interface components {
             /** Format: date-time */
             scheduled_deletion_at: string;
         };
+        /**
+         * @description * `transcript_unavailable` - transcript_unavailable
+         *     * `generation_failed` - generation_failed
+         *     * `quota_exceeded` - quota_exceeded
+         *     * `storage_failed` - storage_failed
+         * @enum {string}
+         */
+        ErrorCodeEnum: "transcript_unavailable" | "generation_failed" | "quota_exceeded" | "storage_failed";
         ErrorResponse: {
             error: string;
         };
@@ -4554,6 +4715,13 @@ export interface components {
             success: boolean;
             data: components["schemas"]["HasenaRecordResponse"];
         };
+        /**
+         * @description * `reviewed` - reviewed
+         *     * `review_needed` - review_needed
+         *     * `failed` - failed
+         * @enum {string}
+         */
+        HasenaReviewStatusEnum: "reviewed" | "review_needed" | "failed";
         HasenaStatsData: {
             total_completed: number;
             current_streak: number;
@@ -4573,17 +4741,35 @@ export interface components {
             success: boolean;
             data: components["schemas"]["HasenaStatusData"];
         };
+        HasenaSummaryFailureResponse: {
+            success: boolean;
+            error: string;
+            video_id?: string;
+            error_code?: components["schemas"]["ErrorCodeEnum"];
+            error_message?: string | null;
+            status?: components["schemas"]["HasenaReviewStatusEnum"];
+            has_summary?: boolean;
+            failure_persisted?: boolean;
+            persisted?: boolean;
+            cacheable?: boolean;
+            retry_after?: number;
+        };
         HasenaSummaryListItem: {
-            id: number;
+            /** @description Summary ID, null for failure-only videos. Use video_id as row identity. */
+            id: number | null;
             video_id: string;
             /** Format: date */
             video_date: string | null;
             title: string;
-            summary_preview: string;
-            is_edited: boolean;
-            model_used: string;
+            summary_preview: string | null;
+            is_edited: boolean | null;
+            model_used: string | null;
             /** Format: date-time */
             updated_at: string;
+            has_summary: boolean;
+            status: components["schemas"]["HasenaReviewStatusEnum"];
+            error_code: (components["schemas"]["ErrorCodeEnum"] | components["schemas"]["NullEnum"]) | null;
+            error_message: string | null;
         };
         HasenaSummaryListResponse: {
             success: boolean;
@@ -4600,11 +4786,25 @@ export interface components {
             date: string;
             error: string;
         };
+        HasenaSummaryRegenerateRequest: {
+            video_id: string;
+        };
         HasenaSummaryRegenerateResponse: {
             success: boolean;
             video_id: string;
             summary: string;
             model: string;
+            is_edited: boolean;
+            /** Format: date */
+            video_date: string | null;
+            title: string;
+            created?: boolean;
+            persisted: boolean;
+            cacheable: boolean;
+            status: components["schemas"]["HasenaReviewStatusEnum"];
+            has_summary?: boolean;
+            error_code?: (components["schemas"]["ErrorCodeEnum"] | components["schemas"]["NullEnum"]) | null;
+            error_message?: string | null;
         };
         HasenaSummaryResponse: {
             success: boolean;
@@ -4618,6 +4818,21 @@ export interface components {
             created?: boolean;
             persisted: boolean;
             cacheable: boolean;
+            /**
+             * @description Staff detail only. Save means reviewed; successful regeneration means review_needed; unresolved failure takes precedence.
+             *
+             *     * `reviewed` - reviewed
+             *     * `review_needed` - review_needed
+             *     * `failed` - failed
+             */
+            status?: components["schemas"]["HasenaReviewStatusEnum"];
+            has_summary?: boolean;
+            error_code?: (components["schemas"]["ErrorCodeEnum"] | components["schemas"]["NullEnum"]) | null;
+            error_message?: string | null;
+        };
+        HasenaSummaryUpdateRequest: {
+            summary: string;
+            title?: string | null;
         };
         HasenaSummaryUpdateResponse: {
             success: boolean;
@@ -4625,6 +4840,7 @@ export interface components {
             summary: string;
             title: string;
             is_edited: boolean;
+            status: components["schemas"]["HasenaReviewStatusEnum"];
         };
         HasenaSyncResponse: {
             success: boolean;
@@ -4640,6 +4856,14 @@ export interface components {
             success: boolean;
             invitations: components["schemas"]["GroupInvitation"][];
         };
+        /**
+         * @description * `bug` - Bug report
+         *     * `feature` - Feature request
+         *     * `account` - Account question
+         *     * `other` - Other
+         * @enum {string}
+         */
+        KindEnum: "bug" | "feature" | "account" | "other";
         LastIncompletePosition: {
             plan_id: number;
             plan_name: string;
@@ -4673,6 +4897,14 @@ export interface components {
             /** Format: date-time */
             joined_at?: string;
         };
+        LinkSocialAccountRequest: {
+            provider: components["schemas"]["ProviderEnum"];
+            state: string;
+            code?: string;
+            access_token?: string;
+            id_token?: string;
+            redirect_uri?: string;
+        };
         LinkedAccountsResponse: {
             has_password: boolean;
             email: (string) | null;
@@ -4688,6 +4920,233 @@ export interface components {
             /** Format: date-time */
             linked_at: string;
             can_unlink: boolean;
+        };
+        MemberAction: {
+            action: components["schemas"]["MemberActionActionEnum"];
+            provider?: components["schemas"]["ProviderEnum"];
+        };
+        /**
+         * @description * `verify_email` - verify_email
+         *     * `unverify_email` - unverify_email
+         *     * `resend_verification` - resend_verification
+         *     * `send_password_reset` - send_password_reset
+         *     * `revoke_sessions` - revoke_sessions
+         *     * `grant_staff` - grant_staff
+         *     * `revoke_staff` - revoke_staff
+         *     * `set_dormant` - set_dormant
+         *     * `clear_dormant` - clear_dormant
+         *     * `deactivate` - deactivate
+         *     * `activate` - activate
+         *     * `schedule_deletion` - schedule_deletion
+         *     * `cancel_deletion` - cancel_deletion
+         *     * `unlink_social` - unlink_social
+         * @enum {string}
+         */
+        MemberActionActionEnum: "verify_email" | "unverify_email" | "resend_verification" | "send_password_reset" | "revoke_sessions" | "grant_staff" | "revoke_staff" | "set_dormant" | "clear_dormant" | "deactivate" | "activate" | "schedule_deletion" | "cancel_deletion" | "unlink_social";
+        MemberActionResult: {
+            id: number;
+            success: boolean;
+            error: string | null;
+            token_version: number | null;
+        };
+        MemberActivity: {
+            count: number;
+            next: number | null;
+            previous: number | null;
+            results: components["schemas"]["MemberActivityItem"][];
+        };
+        MemberActivityItem: {
+            /** Format: date-time */
+            at: string;
+            kind: string;
+            text: string;
+            source_id: number;
+        };
+        MemberBulk: {
+            action: components["schemas"]["MemberBulkActionEnum"];
+            ids: number[];
+        };
+        /**
+         * @description * `resend_verification` - resend_verification
+         *     * `revoke_sessions` - revoke_sessions
+         *     * `deactivate` - deactivate
+         * @enum {string}
+         */
+        MemberBulkActionEnum: "resend_verification" | "revoke_sessions" | "deactivate";
+        MemberBulkResult: {
+            results: components["schemas"]["MemberActionResult"][];
+        };
+        MemberDeltas: {
+            total: number | null;
+            weekly_active: number | null;
+            unverified: number | null;
+            scheduled_deletion: number | null;
+        };
+        MemberDetail: {
+            id: number;
+            nickname: string;
+            email: (string) | null;
+            email_verified: boolean;
+            is_staff: boolean;
+            is_active: boolean;
+            status: components["schemas"]["MemberStatusEnum"];
+            providers: string[];
+            /** Format: date-time */
+            joined_at: string;
+            /** Format: date-time */
+            last_active_at: string | null;
+            plan: components["schemas"]["MemberPlan"] | null;
+            current_streak: number;
+            total_completed_days: number;
+            longest_streak: number;
+            is_public: boolean;
+            has_password: boolean;
+            token_version: number;
+            /** Format: date-time */
+            scheduled_deletion_at: string | null;
+            is_dormant: boolean;
+            /** Format: date-time */
+            dormancy_cleared_at: string | null;
+            social_accounts: components["schemas"]["MemberSocial"][];
+            subscriptions: components["schemas"]["MemberSubscription"][];
+            reading_settings: components["schemas"]["MemberReadingSettings"];
+            notification_settings: components["schemas"]["MemberNotificationSettings"];
+        };
+        MemberList: {
+            count: number;
+            next: number | null;
+            previous: number | null;
+            results: components["schemas"]["MemberListItem"][];
+        };
+        MemberListItem: {
+            id: number;
+            nickname: string;
+            email: (string) | null;
+            email_verified: boolean;
+            is_staff: boolean;
+            is_active: boolean;
+            status: components["schemas"]["MemberStatusEnum"];
+            providers: string[];
+            /** Format: date-time */
+            joined_at: string;
+            /** Format: date-time */
+            last_active_at: string | null;
+            plan: components["schemas"]["MemberPlan"] | null;
+            current_streak: number;
+        };
+        MemberNotificationSettings: {
+            readonly notifications_enabled: boolean;
+            readonly reading_reminders_enabled: boolean;
+            readonly hasena_reminders_enabled: boolean;
+            readonly friend_activity_enabled: boolean;
+            readonly weekly_summary_enabled: boolean;
+            readonly service_notice_enabled: boolean;
+            /** Format: time */
+            readonly reading_reminder_time: string;
+            /** Format: time */
+            readonly hasena_reminder_time: string;
+            readonly timezone: string;
+        };
+        MemberPlan: {
+            id: number;
+            name: string;
+            /** Format: double */
+            percent: number;
+            completed_days: number;
+            total_days: number;
+        };
+        MemberReadingSettings: {
+            /**
+             * @description 화면 테마
+             *
+             *     * `light` - 라이트
+             *     * `dark` - 다크
+             *     * `system` - 시스템
+             */
+            readonly theme: components["schemas"]["ThemeEnum"];
+            /**
+             * @description 글꼴
+             *
+             *     * `ridi-batang` - RIDI 바탕
+             *     * `noto-serif` - Noto Serif KR
+             *     * `kopub-batang` - KoPub 바탕
+             *     * `pretendard` - Pretendard
+             *     * `noto-sans` - Noto Sans KR
+             *     * `system` - 시스템 기본
+             */
+            readonly font_family: components["schemas"]["FontFamilyEnum"];
+            /** @description 글자 크기 (14-24) */
+            readonly font_size: number;
+            /**
+             * @description 글자 두께
+             *
+             *     * `normal` - 보통
+             *     * `medium` - 중간
+             *     * `bold` - 굵게
+             */
+            readonly font_weight: components["schemas"]["FontWeightEnum"];
+            /**
+             * Format: double
+             * @description 줄 간격 (1.4-2.4)
+             */
+            readonly line_height: number;
+            /**
+             * @description 텍스트 정렬
+             *
+             *     * `left` - 왼쪽
+             *     * `justify` - 양쪽 정렬
+             */
+            readonly text_align: components["schemas"]["TextAlignEnum"];
+            /** @description 절을 문단으로 연결하여 표시 */
+            readonly verse_joining: boolean;
+            /** @description 절 번호 표시 */
+            readonly show_verse_numbers: boolean;
+            /** @description 시편 머리말 표시 (새한글) */
+            readonly show_description: boolean;
+            /** @description 교차 참조 표시 (새한글) */
+            readonly show_cross_ref: boolean;
+            /** @description 인명/지명 강조 표시 */
+            readonly highlight_names: boolean;
+            /** @description 각주 표시 (새한글) */
+            readonly show_footnotes: boolean;
+            /** @description 통독모드 자동 완료 */
+            readonly tongdok_auto_complete: boolean;
+        };
+        MemberSocial: {
+            readonly provider: components["schemas"]["ProviderEnum"];
+            /** @description 소셜 제공자의 고유 ID */
+            readonly provider_id: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        MemberStats: {
+            total: number;
+            weekly_active: number;
+            unverified: number;
+            scheduled_deletion: number;
+            new_this_week: number;
+            deltas: components["schemas"]["MemberDeltas"];
+            deltas_unavailable_reason: string;
+        };
+        /**
+         * @description * `active` - active
+         *     * `dormant` - dormant
+         *     * `inactive` - inactive
+         *     * `deletion` - deletion
+         * @enum {string}
+         */
+        MemberStatusEnum: "active" | "dormant" | "inactive" | "deletion";
+        MemberSubscription: {
+            id: number;
+            name: string;
+            /** Format: double */
+            percent: number;
+            completed_days: number;
+            total_days: number;
+            plan_id: number;
+            is_default: boolean;
+            is_active: boolean;
+            is_hidden: boolean;
         };
         MergedAccountUser: {
             id: number;
@@ -4742,6 +5201,8 @@ export interface components {
             success: boolean;
             settings: components["schemas"]["TodoNotificationSettings"];
         };
+        /** @enum {unknown} */
+        NullEnum: null;
         OAuthLinkStateResponse: {
             state: string;
         };
@@ -4960,6 +5421,17 @@ export interface components {
             readonly start_date: string;
         };
         PlanSubscriptionListResponse: components["schemas"]["PublicPlanSubscription"] | components["schemas"]["PlanSubscription"];
+        PlanSummary: {
+            /** @description Distinct dates where every scheduled row is complete for this subscription. */
+            completed_days: number;
+            /** @description All distinct scheduled dates in the plan, including past and future dates. */
+            total_days: number;
+            /**
+             * Format: double
+             * @description Completed days / total days * 100, rounded to two decimals; zero if empty.
+             */
+            percent: number;
+        };
         ProfileCalendarData: {
             calendar: components["schemas"]["ProfileCalendarEntry"][];
             plans: components["schemas"]["ProfileCalendarPlan"][];
@@ -5224,13 +5696,6 @@ export interface components {
             signup_token: string;
         };
         /**
-         * @description * `active` - 진행 중
-         *     * `completed` - 완료
-         *     * `abandoned` - 포기
-         * @enum {string}
-         */
-        StatusEnum: "active" | "completed" | "abandoned";
-        /**
          * @description * `parallel` - 동시 진행
          *     * `sequential` - 순차 복귀
          * @enum {string}
@@ -5243,6 +5708,24 @@ export interface components {
         SuccessMessageResponse: {
             success: boolean;
             message: string;
+        };
+        SupportInquiryError: {
+            readonly detail: string;
+        };
+        SupportInquiryReceipt: {
+            /** Format: uuid */
+            readonly receipt_id: string;
+            readonly status: components["schemas"]["SupportInquiryReceiptStatusEnum"];
+        };
+        /**
+         * @description * `received` - Received
+         * @enum {string}
+         */
+        SupportInquiryReceiptStatusEnum: "received";
+        SupportInquiryRequest: {
+            kind: components["schemas"]["KindEnum"];
+            message: string;
+            email?: string;
         };
         SupportedVersion: {
             code: string;
@@ -5802,7 +6285,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkSocialAccountRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LinkSocialAccountRequest"];
+                "multipart/form-data": components["schemas"]["LinkSocialAccountRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -6541,6 +7030,219 @@ export interface operations {
             };
         };
     };
+    admin_members_list: {
+        parameters: {
+            query?: {
+                /**
+                 * @description * `all` - all
+                 *     * `unverified` - unverified
+                 *     * `staff` - staff
+                 *     * `dormant` - dormant
+                 *     * `deletion` - deletion
+                 */
+                filter?: "all" | "unverified" | "staff" | "dormant" | "deletion";
+                masked?: boolean;
+                page?: number;
+                q?: string;
+                /**
+                 * @description * `recent` - recent
+                 *     * `joined` - joined
+                 *     * `streak` - streak
+                 */
+                sort?: "recent" | "joined" | "streak";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberList"];
+                };
+            };
+        };
+    };
+    admin_members_bulk_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberBulk"];
+                "application/x-www-form-urlencoded": components["schemas"]["MemberBulk"];
+                "multipart/form-data": components["schemas"]["MemberBulk"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberBulkResult"];
+                };
+            };
+        };
+    };
+    "admin_members_export.csv_retrieve": {
+        parameters: {
+            query?: {
+                /**
+                 * @description * `all` - all
+                 *     * `unverified` - unverified
+                 *     * `staff` - staff
+                 *     * `dormant` - dormant
+                 *     * `deletion` - deletion
+                 */
+                filter?: "all" | "unverified" | "staff" | "dormant" | "deletion";
+                masked?: boolean;
+                page?: number;
+                q?: string;
+                /**
+                 * @description * `recent` - recent
+                 *     * `joined` - joined
+                 *     * `streak` - streak
+                 */
+                sort?: "recent" | "joined" | "streak";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    admin_members_stats_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberStats"];
+                };
+            };
+        };
+    };
+    admin_members_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberDetail"];
+                };
+            };
+        };
+    };
+    admin_members_actions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberAction"];
+                "application/x-www-form-urlencoded": components["schemas"]["MemberAction"];
+                "multipart/form-data": components["schemas"]["MemberAction"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberActionResult"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberActionResult"];
+                };
+            };
+        };
+    };
+    admin_members_activity_retrieve: {
+        parameters: {
+            query?: {
+                /**
+                 * @description * `all` - all
+                 *     * `unverified` - unverified
+                 *     * `staff` - staff
+                 *     * `dormant` - dormant
+                 *     * `deletion` - deletion
+                 */
+                filter?: "all" | "unverified" | "staff" | "dormant" | "deletion";
+                masked?: boolean;
+                page?: number;
+                q?: string;
+                /**
+                 * @description * `recent` - recent
+                 *     * `joined` - joined
+                 *     * `streak` - streak
+                 */
+                sort?: "recent" | "joined" | "streak";
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberActivity"];
+                };
+            };
+        };
+    };
     auth_account_email_retrieve: {
         parameters: {
             query?: never;
@@ -6848,7 +7550,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkSocialAccountRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LinkSocialAccountRequest"];
+                "multipart/form-data": components["schemas"]["LinkSocialAccountRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -7590,7 +8298,7 @@ export interface operations {
     bible_cache_search_retrieve: {
         parameters: {
             query: {
-                /** @description Search text (minimum two characters after trimming). */
+                /** @description Search text (minimum one character after trimming). */
                 q: string;
                 /** @description Bible translation code. Surrounding whitespace is ignored. */
                 version?: "ASV" | "COG" | "COGNEW" | "GAE" | "GRK" | "HAN" | "HEB" | "KJV" | "KNT" | "SAE" | "SAENEW" | "WEB" | "WOORI";
@@ -7715,6 +8423,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BibleCacheErrorResponse"];
+                };
+            };
+        };
+    };
+    support_inquiries_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportInquiryRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportInquiryReceipt"];
+                };
+            };
+            /** @description Invalid JSON or field validation errors. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportInquiryError"];
+                };
+            };
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportInquiryError"];
+                };
+            };
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportInquiryError"];
+                };
+            };
+            /** @description Intake limit reached; Retry-After header in seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportInquiryError"];
+                };
+            };
+            /** @description Storage failed; no receipt was issued. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportInquiryError"];
                 };
             };
         };
@@ -9362,6 +10146,8 @@ export interface operations {
                 page?: number;
                 /** @description Results per page (1-100). */
                 page_size?: number;
+                /** @description Filter before count and pagination. Failed includes videos without a summary. Saved reviews appear in all only. */
+                status?: "all" | "failed" | "review_needed";
             };
             header?: never;
             path?: never;
@@ -9386,7 +10172,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HasenaSummaryRegenerateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["HasenaSummaryRegenerateRequest"];
+                "multipart/form-data": components["schemas"]["HasenaSummaryRegenerateRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -9394,6 +10186,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HasenaSummaryRegenerateResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HasenaSummaryFailureResponse"];
                 };
             };
         };
@@ -9407,7 +10207,13 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HasenaSummaryUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["HasenaSummaryUpdateRequest"];
+                "multipart/form-data": components["schemas"]["HasenaSummaryUpdateRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -9415,6 +10221,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HasenaSummaryUpdateResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HasenaSummaryFailureResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HasenaSummaryFailureResponse"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HasenaSummaryFailureResponse"];
                 };
             };
         };
@@ -9441,6 +10271,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HasenaSummaryResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HasenaSummaryFailureResponse"];
                 };
             };
         };
@@ -9822,6 +10660,42 @@ export interface operations {
         responses: {
             /** @description No response body */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    todos_plan_summary_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Owned PlanSubscription ID, not the reading plan ID. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSummary"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Subscription missing or owned by another user. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

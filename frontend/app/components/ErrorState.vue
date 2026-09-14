@@ -71,20 +71,9 @@ defineEmits<{
   background: var(--color-accent-primary);
   color: var(--color-text-inverse);
   border: none;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-pill);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.retry-button:hover {
-  background: var(--color-accent-primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.retry-button:active {
-  transform: translateY(0);
 }
 </style>

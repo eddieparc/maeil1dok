@@ -1,7 +1,16 @@
-type CertificationShareResult = 'shared' | 'downloaded' | 'copied';
+export type CertificationShareResult = 'shared' | 'downloaded' | 'copied';
+export interface PreparedCertificationImage {
+  readonly file: File;
+  readonly dataUrl: string;
+  readonly width: number;
+  readonly height: number;
+}
 type CertificationImageAction = 'share' | 'save';
 
 export interface CertificationSharePayload {
+  /** Prepared before the user tap; no asynchronous rendering in native transport. */
+  preparedImage?: PreparedCertificationImage;
+  shareUrl?: string;
   title?: string;
   subtitle?: string;
   readingRange?: string;
@@ -43,15 +52,8 @@ class CertificationImageError extends Error {
 }
 
 const FILE_NAME = 'maeil1dok-tongdok-certification.png';
-const SHARE_TITLE = '매일일독 통독 인증 카드';
-const SHARE_TEXT = '오늘도 말씀을 읽었습니다';
-const DEFAULT_SHARE_PAYLOAD: Required<Pick<CertificationSharePayload, 'title' | 'subtitle' | 'footer'>> = {
-  title: '오늘 통독 완료',
-  subtitle: '오늘도 말씀을 읽었습니다',
-  footer: '매일 말씀을 읽는 작은 습관',
-};
-
 const getCertificationLink = (payload?: CertificationSharePayload): string => {
+  if (payload?.shareUrl) return payload.shareUrl;
   const path = '/bible/history';
   const origin = typeof window === 'undefined' ? 'https://maeil1dok.app' : window.location.origin;
   const url = new URL(path, origin);
@@ -68,147 +70,10 @@ const getCertificationLink = (payload?: CertificationSharePayload): string => {
   return url.toString();
 };
 
-const readCssToken = (tokenName: string, fallback: string): string => {
-  if (typeof window === 'undefined') return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(tokenName).trim();
-  return value || fallback;
+const requirePreparedImage = (payload?: CertificationSharePayload): PreparedCertificationImage => {
+  if (!payload?.preparedImage) throw new CertificationImageError('공유 카드 이미지가 아직 준비되지 않았습니다.');
+  return payload.preparedImage;
 };
-
-const canvasToPngBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
-  new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-        return;
-      }
-      reject(new CertificationImageError('인증 카드 이미지를 만들 수 없습니다.'));
-    }, 'image/png');
-  });
-
-const canvasToPngFile = (canvas: HTMLCanvasElement): File => {
-  const dataUrl = canvas.toDataURL('image/png');
-  const encoded = dataUrl.split(',', 2)[1];
-  if (!encoded) {
-    throw new CertificationImageError('인증 카드 이미지 데이터를 만들 수 없습니다.');
-  }
-
-  const binary = atob(encoded);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new File([bytes], FILE_NAME, { type: 'image/png' });
-};
-
-const drawCenteredText = (
-  context: CanvasRenderingContext2D,
-  text: string,
-  y: number,
-  font: string,
-  color: string,
-): void => {
-  context.font = font;
-  context.fillStyle = color;
-  context.textAlign = 'center';
-  context.fillText(text, 540, y);
-};
-
-const drawRoundedRect = (
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-): void => {
-  if ('roundRect' in context) {
-    context.roundRect(x, y, width, height, radius);
-    return;
-  }
-
-  context.moveTo(x + radius, y);
-  context.lineTo(x + width - radius, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + radius);
-  context.lineTo(x + width, y + height - radius);
-  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  context.lineTo(x + radius, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - radius);
-  context.lineTo(x, y + radius);
-  context.quadraticCurveTo(x, y, x + radius, y);
-};
-
-const createCertificationCanvas = (payload?: CertificationSharePayload): HTMLCanvasElement => {
-  if (typeof document === 'undefined') {
-    throw new CertificationImageError('브라우저에서만 인증 카드를 만들 수 있습니다.');
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1350;
-
-  const context = canvas.getContext('2d');
-  if (!context) {
-    throw new CertificationImageError('인증 카드 캔버스를 열 수 없습니다.');
-  }
-
-  const paper = readCssToken('--color-bg-primary', '#faf8f6');
-  const card = readCssToken('--color-bg-card', '#ffffff');
-  const accent = readCssToken('--color-accent-primary', '#2A1111');
-  const textPrimary = readCssToken('--color-text-primary', '#1f2937');
-  const textSecondary = readCssToken('--color-text-secondary', '#4b5563');
-  const border = readCssToken('--color-border-default', '#e5e7eb');
-
-  context.fillStyle = paper;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  context.fillStyle = card;
-  context.strokeStyle = border;
-  context.lineWidth = 3;
-  context.beginPath();
-  drawRoundedRect(context, 96, 120, 888, 1110, 44);
-  context.fill();
-  context.stroke();
-
-  context.fillStyle = accent;
-  context.beginPath();
-  context.arc(540, 390, 88, 0, Math.PI * 2);
-  context.fill();
-
-  context.strokeStyle = '#ffffff';
-  context.lineWidth = 14;
-  context.lineCap = 'round';
-  context.lineJoin = 'round';
-  context.beginPath();
-  context.moveTo(492, 390);
-  context.lineTo(528, 426);
-  context.lineTo(596, 348);
-  context.stroke();
-
-  const title = payload?.title || DEFAULT_SHARE_PAYLOAD.title;
-  const subtitle = payload?.subtitle || DEFAULT_SHARE_PAYLOAD.subtitle;
-  const footer = payload?.footer || DEFAULT_SHARE_PAYLOAD.footer;
-  const readingRange = payload?.readingRange;
-  const progressLine = payload?.progressLine;
-
-  drawCenteredText(context, '매일일독', 250, '600 42px Pretendard, system-ui, sans-serif', accent);
-  drawCenteredText(context, title, 590, '700 76px Pretendard, system-ui, sans-serif', textPrimary);
-  drawCenteredText(context, subtitle, 700, '500 42px Pretendard, system-ui, sans-serif', textSecondary);
-  if (readingRange) {
-    drawCenteredText(context, readingRange, 790, '600 38px Pretendard, system-ui, sans-serif', textPrimary);
-  }
-  if (progressLine) {
-    drawCenteredText(context, progressLine, 870, '500 34px Pretendard, system-ui, sans-serif', textSecondary);
-  }
-  drawCenteredText(context, footer, 1090, '500 34px Pretendard, system-ui, sans-serif', textSecondary);
-
-  return canvas;
-};
-
-const createCertificationPngBlob = (payload?: CertificationSharePayload): Promise<Blob> =>
-  canvasToPngBlob(createCertificationCanvas(payload));
-
-const createCertificationPngFile = (payload?: CertificationSharePayload): File =>
-  canvasToPngFile(createCertificationCanvas(payload));
 
 const isAndroidNativeWebView = (): boolean => (
   typeof window !== 'undefined'
@@ -242,7 +107,7 @@ const postAndroidCertificationImage = (
     throw new CertificationImageError('Android 앱 이미지 브리지를 사용할 수 없습니다.');
   }
 
-  const dataUrl = createCertificationCanvas(payload).toDataURL('image/png');
+  const dataUrl = requirePreparedImage(payload).dataUrl;
   Reflect.apply(postMessage, bridge, [JSON.stringify({
     type: 'certification:image',
     action,
@@ -277,7 +142,7 @@ export const useCertificationShare = () => {
 
     if (isIosNativeWebView()) {
       try {
-        const file = createCertificationPngFile(payload);
+        const file = requirePreparedImage(payload).file;
         await shareCertificationFile(file);
         return 'shared';
       } catch (error) {
@@ -292,10 +157,10 @@ export const useCertificationShare = () => {
       }
     }
 
-    let blob: Blob;
+    let file: File;
 
     try {
-      blob = await createCertificationPngBlob(payload);
+      file = requirePreparedImage(payload).file;
     } catch (error) {
       if (error instanceof Error) {
         await copyCertificationLink(link);
@@ -304,11 +169,8 @@ export const useCertificationShare = () => {
       throw error;
     }
 
-    const file = new File([blob], FILE_NAME, { type: 'image/png' });
+    // SNS 공유는 이미지만 전달한다(링크·텍스트 제외).
     const shareData: ShareData = {
-      title: SHARE_TITLE,
-      text: SHARE_TEXT,
-      url: link,
       files: [file],
     };
 
@@ -324,7 +186,7 @@ export const useCertificationShare = () => {
     }
 
     try {
-      await downloadCertificationImage(blob);
+      await downloadCertificationImage(file);
       return 'downloaded';
     } catch (error) {
       if (error instanceof Error) {
@@ -345,7 +207,7 @@ export const useCertificationShare = () => {
 
     if (isIosNativeWebView()) {
       try {
-        await shareCertificationFile(createCertificationPngFile(payload));
+        await shareCertificationFile(requirePreparedImage(payload).file);
       } catch (error) {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           throw error;
@@ -354,7 +216,7 @@ export const useCertificationShare = () => {
       return;
     }
 
-    const blob = existingBlob ?? await createCertificationPngBlob(payload);
+    const blob = existingBlob ?? requirePreparedImage(payload).file;
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     try {

@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views, scoreboard_views, group_views, calendar_views, catchup_views, notification_views
+from .plan_summary_views import plan_summary
 
 router = DefaultRouter()
 router.register(r'bible-plans', views.BibleReadingPlanViewSet)
@@ -34,6 +35,7 @@ urlpatterns = [
 
     path('plan/', views.plan_subscription_list, name='plan-subscription-list'),
     path('plan/<int:pk>/', views.plan_subscription_detail, name='plan-subscription-detail'),
+    path('plan/<int:pk>/summary/', plan_summary, name='plan-subscription-summary'),
     path('plan/<int:pk>/toggle-active/', views.plan_subscription_toggle_active, name='plan-subscription-toggle-active'),
     
     path('detail/', views.get_chapter_detail, name='chapter-detail'),

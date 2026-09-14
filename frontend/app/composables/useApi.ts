@@ -1,4 +1,5 @@
 import { useRuntimeConfig } from '#app'
+import { readCsrfToken, storeCsrfToken } from './csrfCookie'
 import { useAuthService } from '~/composables/useAuthService'
 import { buildClientObservationHeaders } from '~/composables/clientObservationHeaders'
 import type {
@@ -14,8 +15,6 @@ type AxiosConfig = {
 }
 
 type AxiosRequestConfig = AxiosConfig;
-
-const CSRF_TOKEN_KEY = 'csrfToken'
 
 type PathParameterNames<Path extends string> =
   Path extends `${string}{${infer Parameter}}${infer Rest}`
@@ -39,11 +38,7 @@ const apiPath = <Path extends ApiPath>(
   return result as Path
 }
 
-export const saveCsrfToken = (token: string): void => {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(CSRF_TOKEN_KEY, token)
-  }
-}
+export const saveCsrfToken = storeCsrfToken
 
 // 204/205(No Content) 응답은 본문이 비어 있어 response.json() 호출 시
 // "Unexpected end of JSON input" SyntaxError가 발생한다. 삭제(DELETE)류
@@ -70,15 +65,7 @@ export const useApi = () => {
     return config.public.apiBase as string
   }
 
-  const getCsrfToken = (): string | null => {
-    if (typeof window === 'undefined') return null
-    
-    const storedToken = localStorage.getItem(CSRF_TOKEN_KEY)
-    if (storedToken) return storedToken
-    
-    const match = document.cookie.match(/csrftoken=([^;]+)/)
-    return match?.[1] ?? null
-  }
+  const getCsrfToken = (): string | null => readCsrfToken(config.public.csrfCookieName)
 
   const getHeaders = (includeCsrf: boolean = false): Record<string, string> => {
     const shellWindow = typeof window === 'undefined'
@@ -134,7 +121,7 @@ export const useApi = () => {
 
     const csrfTokenFromHeader = response.headers.get('X-CSRFToken')
     if (csrfTokenFromHeader) {
-      saveCsrfToken(csrfTokenFromHeader)
+      saveCsrfToken(csrfTokenFromHeader, config.public.csrfCookieName)
     }
 
     if (response.status === 401) {
@@ -178,7 +165,7 @@ export const useApi = () => {
           
           const retryTokenFromHeader = response.headers.get('X-CSRFToken')
           if (retryTokenFromHeader) {
-            saveCsrfToken(retryTokenFromHeader)
+            saveCsrfToken(retryTokenFromHeader, config.public.csrfCookieName)
           }
         } else {
           if (refreshRejected && auth.isAuthenticated.value) {
@@ -234,9 +221,24 @@ export const useApi = () => {
                            url.includes('/api/v1/todos/plans/user/') ||  // 사용자 플랜 목록
                            url.includes('/api/v1/todos/certification/progress/') ||
                            url.includes('/api/v1/todos/notifications/') ||
+                           url.includes('/api/v1/todos/bible/notes/') ||
+                           url.includes('/api/v1/todos/bible/bookmarks/') ||
+                           url.includes('/api/v1/todos/bible/highlights/') ||
+                           url.includes('/api/v1/todos/bible/personal-records/') ||
+                           url.includes('/api/v1/todos/bible/reading-position/') ||
                            (url.includes('/api/v1/todos/user/') && !isVideoIntroAPI);
 
       const auth = useAuthService();
+      // The selector returns subscriptions for members and public plans for guests.
+      // Wait for identity restoration without requiring login for the public read.
+      if (
+        (requiresAuth || url === '/api/v1/todos/plan/') &&
+        !isAuthCheckEndpoint &&
+        (!auth.isInitialized.value || auth.isLoading.value)
+      ) {
+        await auth.initialize();
+      }
+
       // 인증 확인 엔드포인트는 항상 서버로 요청 (쿠키 기반 인증 지원)
       if (requiresAuth && !isAuthCheckEndpoint && !auth.isAuthenticated.value) {
         return { data: { success: false, message: 'Authentication required' } };
@@ -247,7 +249,11 @@ export const useApi = () => {
         credentials: 'include'
       }, requiresAuth && !isAuthCheckEndpoint)
 
-      const data = await readJsonBody(response)
+      const contentType = response.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase()
+      // Only CSV opts into text decoding; other bodies retain JSON validation.
+      const data = response.status !== 204 && response.status !== 205 && contentType === 'text/csv'
+        ? await response.text()
+        : await readJsonBody(response)
       return { data }
     } catch (error) {
       throw error
@@ -283,7 +289,9 @@ export const useApi = () => {
         '/api/v1/auth/reset-password/'
       ];
 
-      const requiresAuth = !publicEndpoints.some(endpoint => url.includes(endpoint));
+      // Only the exact support creation path is public, not nested support routes.
+      const requiresAuth = url !== '/api/v1/support/inquiries/' &&
+                           !publicEndpoints.some(endpoint => url.includes(endpoint));
 
       const response = await fetchWithRetry(fullUrl, {
         method: 'POST',

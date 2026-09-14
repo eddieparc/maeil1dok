@@ -35,12 +35,15 @@ export const usePersonalRecord = () => {
    * 특정 책의 읽은 장 목록 조회
    */
   const fetchReadChapters = async (book: string): Promise<void> => {
-    if (!auth.isAuthenticated.value) return;
-
     isLoading.value = true;
     error.value = null;
 
     try {
+      if (!auth.isInitialized.value || auth.isLoading.value) {
+        await auth.initialize();
+      }
+      if (!auth.isAuthenticated.value) return;
+
       const response = await api.GET('/api/v1/todos/bible/personal-records/by-book/', {
         params: { book }
       });

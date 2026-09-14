@@ -16,9 +16,9 @@ class InactiveUserTokenError(Exception):
     pass
 
 
-ACCESS_TOKEN_COOKIE = 'access_token'
-REFRESH_TOKEN_COOKIE = 'refresh_token'
-SOCIAL_SIGNUP_COOKIE = 'social_signup'
+ACCESS_TOKEN_COOKIE = getattr(settings, 'ACCESS_TOKEN_COOKIE_NAME', 'access_token')
+REFRESH_TOKEN_COOKIE = getattr(settings, 'REFRESH_TOKEN_COOKIE_NAME', 'refresh_token')
+SOCIAL_SIGNUP_COOKIE = getattr(settings, 'SOCIAL_SIGNUP_COOKIE_NAME', 'social_signup')
 SOCIAL_SIGNUP_COOKIE_MAX_AGE = 10 * 60
 TOKEN_VERSION_CLAIM = 'token_version'
 

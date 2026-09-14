@@ -216,8 +216,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: var(--hit-min);
+  height: var(--hit-min);
   background: none;
   border: none;
   padding: 0;
@@ -261,15 +261,18 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-/* Fade transition (center) */
+/* Fade transition (center) — 부드러운 스프링 곡선 */
 .modal-fade-enter-active,
 .modal-fade-leave-active {
-  transition: opacity 0.25s ease;
+  transition: opacity 0.28s ease;
 }
 
-.modal-fade-enter-active .base-modal-content,
+.modal-fade-enter-active .base-modal-content {
+  transition: transform 0.34s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
 .modal-fade-leave-active .base-modal-content {
-  transition: transform 0.25s ease;
+  transition: transform 0.2s ease-in;
 }
 
 .modal-fade-enter-from,
@@ -277,20 +280,26 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.modal-fade-enter-from .base-modal-content,
+.modal-fade-enter-from .base-modal-content {
+  transform: scale(0.96) translateY(14px);
+}
+
 .modal-fade-leave-to .base-modal-content {
-  transform: scale(0.95) translateY(10px);
+  transform: scale(0.97) translateY(8px);
 }
 
 /* Slide up transition (bottom) */
 .modal-slide-up-enter-active,
 .modal-slide-up-leave-active {
-  transition: opacity 0.25s ease;
+  transition: opacity 0.28s ease;
 }
 
-.modal-slide-up-enter-active .base-modal-content,
+.modal-slide-up-enter-active .base-modal-content {
+  transition: transform 0.38s cubic-bezier(0.22, 1.1, 0.36, 1);
+}
+
 .modal-slide-up-leave-active .base-modal-content {
-  transition: transform 0.25s ease;
+  transition: transform 0.22s ease-in;
 }
 
 .modal-slide-up-enter-from,
@@ -330,6 +339,7 @@ onUnmounted(() => {
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
+  .base-modal-close,
   .modal-fade-enter-active,
   .modal-fade-leave-active,
   .modal-slide-up-enter-active,
@@ -338,7 +348,7 @@ onUnmounted(() => {
   .modal-fade-leave-active .base-modal-content,
   .modal-slide-up-enter-active .base-modal-content,
   .modal-slide-up-leave-active .base-modal-content {
-    transition: opacity 100ms;
+    transition: none;
   }
 
   .modal-fade-enter-from .base-modal-content,

@@ -6,6 +6,7 @@ from django.utils import timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from accounts.models import Follow
+from accounts.services.member_activity import eligible_members
 from todos.models import (
     DailyBibleSchedule,
     HasenaRecord,
@@ -22,6 +23,8 @@ def get_notification_settings(user):
 
 
 def ensure_reminder_notifications(user):
+    if not eligible_members().filter(pk=user.pk).exists():
+        return
     settings = get_notification_settings(user)
     _send_reminders_for_settings_batch([settings])
 
@@ -29,6 +32,7 @@ def ensure_reminder_notifications(user):
 def send_due_reminder_notifications():
     settings_iterable = NotificationSettings.objects.filter(
         notifications_enabled=True,
+        user_id__in=eligible_members().values('pk'),
     ).select_related('user')
     return _send_reminders_for_settings_batch(settings_iterable)
 
@@ -245,7 +249,7 @@ def _friend_recipients(actor):
     ).values_list('follower_id', flat=True)
 
     return list(
-        actor.__class__.objects.filter(id__in=recipient_ids).filter(
+        eligible_members(actor.__class__.objects.filter(id__in=recipient_ids)).filter(
             Q(notification_settings__isnull=True)
             | Q(
                 notification_settings__notifications_enabled=True,

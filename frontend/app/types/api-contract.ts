@@ -18,16 +18,18 @@ type SuccessResponse<Operation> = Operation extends { responses: infer Responses
   ? Responses[Extract<keyof Responses, SuccessStatus>]
   : never
 
-type JsonBody<Response> = Response extends { content: infer Content }
+type ResponseBody<Response> = Response extends { content: infer Content }
   ? Content extends { 'application/json': infer Body }
     ? Body
-    : never
+    : Content extends { 'text/csv': infer Body }
+      ? Body
+      : never
   : never
 
 type GeneratedResponseBody<
   Path extends ApiPathFor<Method>,
   Method extends HttpMethod,
-> = JsonBody<SuccessResponse<ApiOperation<Path, Method>>>
+> = ResponseBody<SuccessResponse<ApiOperation<Path, Method>>>
 
 type GeneratedQueryParameters<
   Path extends ApiPathFor<Method>,
@@ -37,11 +39,11 @@ type GeneratedQueryParameters<
   : never
 
 /**
- * Successful JSON body declared by the generated OpenAPI contract.
+ * Successful JSON or CSV body declared by the generated OpenAPI contract.
  *
  * Function-based Django views that still have "No response body" in the
  * schema intentionally remain `unknown` until their response annotations are
- * completed. Paths with a declared JSON schema remain fully checked.
+ * completed. Paths with a declared JSON or CSV schema remain fully checked.
  */
 export type ApiResponseBody<
   Path extends ApiPathFor<Method>,

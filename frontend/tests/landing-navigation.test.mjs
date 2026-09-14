@@ -5,6 +5,7 @@ import { build } from 'esbuild';
 import { compileScript, parse } from '@vue/compiler-sfc';
 import * as Vue from 'vue';
 import { renderToString } from '@vue/server-renderer';
+import postcss from 'postcss';
 
 const quickAccessSource = await readFile(
   new URL('../app/components/home-v2/QuickAccessGrid.vue', import.meta.url),
@@ -13,6 +14,14 @@ const quickAccessSource = await readFile(
 
 const floatingNavSource = await readFile(
   new URL('../app/components/home-v2/FloatingNav.vue', import.meta.url),
+  'utf8',
+);
+
+// LAB-124: FloatingNav 는 5탭 하단 탭바(BottomNavigation)로 위임하는 래퍼가 되었다.
+// 탭 구성 자체의 계약은 tests/app-shell-nav-contract.test.mjs 가 소유하고,
+// 여기서는 랜딩에서 보이는 표면(불투명 배경 등)만 실제 탭바 소스로 확인한다.
+const bottomNavSource = await readFile(
+  new URL('../app/components/BottomNavigation.vue', import.meta.url),
   'utf8',
 );
 
@@ -46,6 +55,7 @@ const landingPageSource = await readFile(
   'utf8',
 );
 
+const authShellSource = await readFile(new URL('../app/components/auth/AuthShell.vue', import.meta.url), 'utf8');
 const logoSurfaceSources = await Promise.all([
   '../app/components/Header.vue',
   '../app/pages/login.vue',
@@ -56,10 +66,11 @@ const logoSurfaceSources = await Promise.all([
   '../app/pages/auth/kakao/setup.vue',
   '../app/pages/auth/reset-password.vue',
   '../app/pages/auth/verify-email.vue',
-].map(async (path) => ({
-  path,
-  source: await readFile(new URL(path, import.meta.url), 'utf8'),
-})));
+].map(async (path) => {
+  const source = await readFile(new URL(path, import.meta.url), 'utf8');
+  // Auth route templates now render the common shell's eager logo.
+  return { path, source: /<AuthShell|<AuthSocialSignupForm/.test(source) ? `${source}\n${authShellSource}` : source };
+}));
 
 const nuxtConfigSource = await readFile(
   new URL('../nuxt.config.ts', import.meta.url),
@@ -249,12 +260,10 @@ test('renders hasena card on landing quick access', async () => {
   assert.match(html, /<a[^>]*href="\/hasena"[^>]*>[\s\S]*?하세나하시조[\s\S]*?<\/a>/, 'landing quick access should render a /hasena link labeled 하세나하시조');
 });
 
-test('does not render tongdok plan item in landing floating nav', async () => {
-  useVisitorLandingState();
-  const html = await renderLandingComponent(FloatingNav);
-
-  assert.doesNotMatch(html, /href="\/plan"/, 'landing floating nav should not include /plan');
-  assert.doesNotMatch(html, />통독표</, 'landing floating nav should not include 통독표');
+test('하단 탭바는 LAB-124 명세대로 통독표 탭을 포함한다', () => {
+  // 이전 계약(통독표는 nav 에 없음)은 디자인 리프레시 명세가 5탭(홈·성경·통독표·함께·내 정보)으로 대체했다.
+  assert.match(bottomNavSource, /to="\/plan"/, '하단 탭바는 /plan 탭을 가진다');
+  assert.match(bottomNavSource, />\s*통독표\s*</, '하단 탭바는 통독표 라벨을 가진다');
 });
 
 test('landing quick access folds plan management into tongdok card', async () => {
@@ -276,13 +285,12 @@ test('removes bible and search from landing quick access', async () => {
 test('exposes leaderboard and friends on landing', async () => {
   useVisitorLandingState();
   const quickAccessHtml = await renderLandingComponent(QuickAccessGrid);
-  const floatingNavHtml = await renderLandingComponent(FloatingNav);
 
   assert.match(quickAccessHtml, /href="\/scoreboard"/, 'landing quick access should link to leaderboard');
   assert.match(quickAccessHtml, /href="\/friends"/, 'landing quick access should link to friends');
-  assert.doesNotMatch(floatingNavHtml, /href="\/scoreboard"/, 'landing floating nav should not include leaderboard');
-  assert.doesNotMatch(floatingNavHtml, /href="\/friends"/, 'landing floating nav should not include friends');
-  assert.match(floatingNavHtml, /href="\/bible"/, 'landing floating nav should keep Bible');
+  assert.doesNotMatch(bottomNavSource, /to="\/scoreboard"/, '하단 탭바는 리더보드를 탭으로 두지 않는다');
+  assert.doesNotMatch(bottomNavSource, /to="\/friends"/, '하단 탭바는 친구를 탭으로 두지 않는다');
+  assert.match(bottomNavSource, /to="\/bible"/, '하단 탭바는 성경 탭을 유지한다');
 });
 
 test('removes landing quick access description copy', async () => {
@@ -303,10 +311,17 @@ test('removes landing quick access description copy', async () => {
 });
 
 test('floating nav uses an opaque background', () => {
-  const floatingNavBlock = floatingNavSource.match(/\.floating-nav\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+  const floatingNavBlock = bottomNavSource.match(/\.bottom-nav(?:-container)?\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
   const floatingBottomBarBlock = floatingBottomBarSource.match(/\.floating-bottom-area\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
 
-  assert.doesNotMatch(floatingNavSource, /backdrop-filter/, 'landing floating nav should not use glass blur');
+  const styles = postcss.parse(parse(bottomNavSource).descriptor.styles.map(style => style.content).join('\n'));
+  const defaultTabs = styles.nodes.find(node => node.type === 'rule' && node.selector === '.bottom-nav-tabs');
+  assert.equal(defaultTabs?.nodes.find(node => node.prop === 'background')?.value, 'var(--color-bg-card)', 'default tabs retain an opaque card background');
+  styles.walkDecls(/^(?:-webkit-)?backdrop-filter$/, declaration => {
+    for (const selector of declaration.parent.selectors) {
+      assert.match(selector, /^\.bottom-nav-container\[data-density=["']reader["']\](?:\s|[.:#])/, 'glass blur is restricted to the explicit reader variant');
+    }
+  });
   assert.doesNotMatch(floatingNavBlock, /background:\s*rgba\(/, 'landing floating nav container should not use a translucent background');
   assert.doesNotMatch(floatingBottomBarSource, /backdrop-filter/, 'common floating bottom bar should not use glass blur');
   assert.doesNotMatch(floatingBottomBarBlock, /background:\s*rgba\(/, 'common floating bottom bar should not use a translucent background');

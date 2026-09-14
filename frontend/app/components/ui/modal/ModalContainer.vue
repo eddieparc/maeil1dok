@@ -1,61 +1,67 @@
 <template>
-  <Transition :name="transitionName">
+  <div class="modal-wrapper" :style="{ zIndex }" :inert="!isTopmost">
     <div
-      v-if="modal"
-      ref="containerRef"
-      class="modal-container"
-      :class="[sizeClass, positionClass]"
-      :style="containerStyle"
-      role="dialog"
-      aria-modal="true"
-      :aria-labelledby="`modal-title-${modal.id}`"
-      :aria-describedby="modal.options.props?.description ? `modal-description-${modal.id}` : undefined"
-      tabindex="-1"
-    >
-      <!-- Close button (optional) -->
-      <button
-        v-if="modal.options.showCloseButton"
-        type="button"
-        class="modal-close-btn"
-        aria-label="닫기"
-        @click="$emit('close')"
+      v-if="modal.options.showOverlay"
+      class="modal-overlay"
+      @click="isTopmost && modal.options.closeOnOverlay && emit('close')"
+    />
+    <Transition :name="transitionName">
+      <div
+        v-if="modal"
+        ref="containerRef"
+        class="modal-container"
+        :class="[sizeClass, positionClass]"
+        role="dialog"
+        :aria-modal="isTopmost || undefined"
+        :aria-hidden="!isTopmost || undefined"
+        :inert="!isTopmost"
+        :aria-labelledby="`modal-title-${modal.id}`"
+        :aria-describedby="modal.options.props?.description ? `modal-description-${modal.id}` : undefined"
+        tabindex="-1"
       >
-        <XIcon :size="20" />
-      </button>
+        <!-- Close button (optional) -->
+        <button
+          v-if="modal.options.showCloseButton"
+          type="button"
+          class="modal-close-btn"
+          aria-label="닫기"
+          @click="isTopmost && emit('close')"
+        >
+          <XIcon :size="20" />
+        </button>
 
-      <!-- Dynamic component -->
-      <component
-        :is="modal.component"
-        v-bind="modal.options.props"
-      />
-    </div>
-  </Transition>
+        <!-- Dynamic component -->
+        <component
+          :is="modal.component"
+          v-bind="modal.options.props"
+        />
+      </div>
+    </Transition>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { XIcon } from '@lucide/vue'
-import { ref, computed, onMounted, type CSSProperties } from 'vue'
+import { ref, computed } from 'vue'
 import { useFocusTrap } from '~/composables/useFocusTrap'
+import { useModalState } from '~/composables/useModalState'
 import type { ModalInstance } from '~/types/modal'
 
 const props = defineProps<{
   modal: ModalInstance
 }>()
 
-// z-index 스타일 (overlay 위에 표시되도록)
-const containerStyle = computed<CSSProperties>(() => ({
-  zIndex: (props.modal?.options.zIndex || 1000) + 1
-}))
-
-defineEmits<{
+const emit = defineEmits<{
   close: []
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
 
 // Focus trap
-useFocusTrap(containerRef, {
-  enabled: computed(() => !!props.modal),
+const state = useModalState()
+const { isTopmost, zIndex } = useFocusTrap(containerRef, {
+  enabled: computed(() => state.isModalOpen(props.modal.id)),
+  onEscape: () => { if (props.modal.options.closeOnEsc) emit('close') },
   autoFocus: true,
   returnFocusOnDeactivate: true
 })
@@ -82,15 +88,17 @@ const transitionName = computed(() => {
 <style scoped>
 .modal-container {
   position: relative;
-  z-index: 1; /* 부모에서 전달되는 인라인 z-index와 함께 사용 */
-  background: var(--color-bg-card, #ffffff);
+  z-index: 1; /* Above the scrim inside the shared ownership layer. */
+  background: var(--color-bg-card);
   border-radius: var(--modal-radius);
   max-height: calc(100vh - 2rem);
   max-width: calc(100vw - 2rem);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-body);
   pointer-events: auto;
 }
 
@@ -145,19 +153,19 @@ const transitionName = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: var(--hit-min);
+  height: var(--hit-min);
   border: none;
-  background: var(--color-bg-secondary, #f3f4f6);
-  color: var(--color-text-secondary, #6b7280);
-  border-radius: 8px;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .modal-close-btn:hover {
-  background: var(--color-bg-tertiary, #e5e7eb);
-  color: var(--color-text-primary, #111827);
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
 /* Scale transition (center) */
@@ -204,14 +212,10 @@ const transitionName = computed(() => {
   }
 }
 
-/* Dark mode */
-[data-theme="dark"] .modal-container,
-.dark .modal-container {
-  --color-bg-card: #1f2937;
-  --color-bg-secondary: #374151;
-  --color-bg-tertiary: #4b5563;
-  --color-text-primary: #f9fafb;
-  --color-text-secondary: #9ca3af;
+.modal-close-btn:focus-visible {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--color-accent-primary);
 }
 
 /* Reduced motion */
@@ -220,7 +224,7 @@ const transitionName = computed(() => {
   .modal-scale-leave-active,
   .modal-slide-up-enter-active,
   .modal-slide-up-leave-active {
-    transition: opacity 100ms;
+    transition: none;
     transform: none;
   }
 }

@@ -9,6 +9,7 @@ from django.utils import timezone
 from config.observability import capture_observability_event
 
 from todos.models import Notification, NotificationPushSubscription, NotificationSettings
+from accounts.services.member_activity import eligible_members
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,9 @@ def deliver_push_notification(notification_id):
     notification = Notification.objects.filter(id=notification_id).select_related('recipient').first()
     if notification is None:
         return {'sent': 0, 'failed': 0, 'skipped': 'missing_notification'}
+
+    if not eligible_members().filter(pk=notification.recipient_id).exists():
+        return {'sent': 0, 'failed': 0, 'skipped': 'account_paused'}
 
     settings, _created = NotificationSettings.objects.get_or_create(user=notification.recipient)
     if not _notification_type_enabled(settings, notification.type):

@@ -377,6 +377,8 @@ function useNotificationFixtures() {
     settings,
     isLoading: false,
     isSaving: false,
+    hasLoadedInbox: true,
+    hasLoadedSettings: true,
     error: null,
     devicePush: {
       supported: false,
@@ -506,6 +508,46 @@ test('notification store applies API responses, rollbacks failed reads, and reje
   await unauthenticatedStore.fetchInbox();
   assert.equal(unauthenticatedStore.error, 'Authentication required');
   assert.equal(unauthenticatedStore.notifications.length, 0);
+});
+
+test('notification pending lifecycle distinguishes unresolved, loaded-empty, and error states', async () => {
+  const { useNotificationsStore } = await loadNotificationsStore();
+  const store = useNotificationsStore();
+  let resolveInbox;
+  const inboxResponse = new Promise(resolve => {
+    resolveInbox = resolve;
+  });
+
+  globalThis.__notificationApiMock = {
+    GET: () => inboxResponse,
+  };
+
+  assert.equal(store.hasLoadedInbox, false, 'the initial inbox must remain unresolved before the first request');
+  const pendingInbox = store.fetchInbox();
+  assert.equal(store.isLoading, true, 'the first unresolved request must expose pending state');
+  assert.equal(store.hasLoadedInbox, false, 'pending must not be mistaken for loaded-empty');
+
+  resolveInbox({
+    data: {
+      success: true,
+      unread_count: 0,
+      notifications: [],
+      settings,
+    },
+  });
+  await pendingInbox;
+
+  assert.equal(store.isLoading, false);
+  assert.equal(store.hasLoadedInbox, true, 'an empty response is loaded-empty only after settlement');
+  assert.deepEqual(store.notifications, []);
+
+  globalThis.__notificationApiMock.GET = async () => {
+    throw new Error('offline');
+  };
+  await store.fetchSettings();
+
+  assert.equal(store.hasLoadedSettings, true, 'a rejected first settings request must settle the initial pending state');
+  assert.equal(store.error, 'offline');
 });
 
 test('notification pages render CJK-safe Korean inbox and settings controls', async () => {

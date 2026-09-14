@@ -134,9 +134,13 @@ export const useReadingPosition = () => {
 
   const loadReadingPosition = async (): Promise<ReadingPosition | null> => {
     const localPosition = loadFromLocalStorage();
+    lastReadingPosition.value = localPosition;
+
+    if (!auth.isInitialized.value || auth.isLoading.value) {
+      await auth.initialize();
+    }
 
     if (!auth.isAuthenticated.value) {
-      lastReadingPosition.value = localPosition;
       return lastReadingPosition.value;
     }
 

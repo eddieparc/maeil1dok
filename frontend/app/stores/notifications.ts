@@ -37,6 +37,8 @@ export const useNotificationsStore = defineStore('notifications', {
     unreadCount: 0,
     isLoading: false,
     isSaving: false,
+    hasLoadedInbox: false,
+    hasLoadedSettings: false,
     error: null as string | null,
     devicePush: {
       supported: false,
@@ -69,6 +71,7 @@ export const useNotificationsStore = defineStore('notifications', {
       } catch (error) {
         this.error = getErrorMessage(error, '알림을 불러올 수 없습니다.')
       } finally {
+        this.hasLoadedInbox = true
         this.isLoading = false
       }
     },
@@ -86,6 +89,7 @@ export const useNotificationsStore = defineStore('notifications', {
       } catch (error) {
         this.error = getErrorMessage(error, '알림 설정을 불러올 수 없습니다.')
       } finally {
+        this.hasLoadedSettings = true
         this.isLoading = false
       }
     },

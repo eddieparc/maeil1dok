@@ -1,0 +1,16 @@
+# Replace the UUID only after the parent provisions a separate free beta tunnel.
+# Never use the primary tunnel ID or its credentials.
+tunnel: REPLACE_WITH_NEW_BETA_TUNNEL_UUID
+credentials-file: /etc/cloudflared/credentials.json
+originRequest:
+  httpHostHeader: beta.maeil1dok.app
+ingress:
+  - hostname: beta.maeil1dok.app
+    path: ^/api/v1/.*$
+    service: http://web-beta:8000
+  - hostname: beta.maeil1dok.app
+    path: ^/health/$
+    service: http://web-beta:8000
+  - hostname: beta.maeil1dok.app
+    service: http://frontend-beta:3000
+  - service: http_status:404

@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "covered_route_count": 195,
+    "covered_route_count": 204,
     "excluded_route_count": 23,
     "personas": [
       "anonymous",
       "owner",
       "non_owner"
     ],
-    "route_count": 218,
+    "route_count": 227,
     "schema_version": 1
   },
   "excluded": {
@@ -1526,6 +1526,111 @@
             "user": "<id>"
           },
           "status": 200
+        }
+      }
+    },
+    "api/v1/admin/members/": {
+      "method": "GET",
+      "name": "admin-member-list",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/<int:user_id>/": {
+      "method": "GET",
+      "name": "admin-member-detail",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/<int:user_id>/actions/": {
+      "method": "POST",
+      "name": "admin-member-actions",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/<int:user_id>/activity/": {
+      "method": "GET",
+      "name": "admin-member-activity",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/bulk/": {
+      "method": "POST",
+      "name": "admin-member-bulk",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/export.csv": {
+      "method": "GET",
+      "name": "admin-member-export",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/stats/": {
+      "method": "GET",
+      "name": "admin-member-stats",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
         }
       }
     },
@@ -3154,6 +3259,21 @@
             }
           },
           "status": 200
+        }
+      }
+    },
+    "api/v1/support/inquiries/": {
+      "method": "POST",
+      "name": "support-inquiry-create",
+      "personas": {
+        "anonymous": {
+          "status": 201
+        },
+        "non_owner": {
+          "status": 201
+        },
+        "owner": {
+          "status": 201
         }
       }
     },
@@ -6875,6 +6995,26 @@
             "plan_id": "<id>",
             "plan_name": "<string>",
             "start_date": "<date>"
+          },
+          "status": 200
+        }
+      }
+    },
+    "api/v1/todos/plan/<int:pk>/summary/": {
+      "method": "GET",
+      "name": "plan-subscription-summary",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 404
+        },
+        "owner": {
+          "shape": {
+            "completed_days": "<integer>",
+            "percent": "<number>",
+            "total_days": "<integer>"
           },
           "status": 200
         }

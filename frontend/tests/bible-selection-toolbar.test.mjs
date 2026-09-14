@@ -23,6 +23,10 @@ const floatingBottomBarSource = await readFile(
   new URL('../app/components/common/FloatingBottomBar.vue', import.meta.url),
   'utf8',
 );
+const bottomNavigationSource = await readFile(
+  new URL('../app/components/BottomNavigation.vue', import.meta.url),
+  'utf8',
+);
 const importTypescriptModule = async (path) => {
   const source = await readFile(new URL(path, import.meta.url), 'utf8');
   const { code } = await esbuild.transform(source, {
@@ -56,28 +60,48 @@ const iconStub = defineComponent({
 });
 const nuxtLinkStub = defineComponent({
   name: 'NuxtLink',
-  props: { to: { type: [String, Object], required: true } },
+  props: { to: { type: [String, Object], required: true }, custom: Boolean },
   setup(props, { slots }) {
-    return () => h('a', {
-      href: typeof props.to === 'string' ? props.to : props.to.path,
-    }, slots.default?.());
+    return () => {
+      const href = typeof props.to === 'string' ? props.to : props.to.path;
+      return props.custom
+        ? slots.default?.({ href, navigate: () => {} })
+        : h('a', { href }, slots.default?.());
+    };
   },
 });
 
 const renderTongdokReader = async () => {
-  const FloatingBottomBar = defineComponent({
-    name: 'FloatingBottomBar',
+  const emptyStub = defineComponent({ setup: () => () => h('div') });
+  const BottomNavigation = defineComponent({
+    name: 'BottomNavigation',
+    props: {
+      density: { type: String, default: 'standard' },
+      hidden: Boolean,
+      interceptPlan: Boolean,
+    },
     components: {
-      HomeIcon: iconStub,
       NuxtLink: nuxtLinkStub,
+      HouseIcon: iconStub,
+      BookOpenIcon: iconStub,
+      CalendarIcon: iconStub,
+      UsersIcon: iconStub,
       UserIcon: iconStub,
     },
     setup() {
-      return { profileLink: '/login' };
+      return { profileLink: '/login', isActive: () => false, onPlanClick: () => {} };
+    },
+    render: compileSfcTemplate(bottomNavigationSource, 'BottomNavigation.vue'),
+  });
+  const FloatingBottomBar = defineComponent({
+    name: 'FloatingBottomBar',
+    inheritAttrs: false,
+    components: {
+      BottomNavigation,
+      SidebarNav: emptyStub,
     },
     render: compileSfcTemplate(floatingBottomBarSource, 'FloatingBottomBar.vue'),
   });
-  const emptyStub = defineComponent({ setup: () => () => h('div') });
   const audioStub = defineComponent({
     name: 'TongdokAudioPlayer',
     setup: () => () => h('section', { 'aria-label': '통독 오디오 재생 진행률' }),
@@ -98,6 +122,7 @@ const renderTongdokReader = async () => {
       ClientOnly: emptyStub,
       ChevronLeftIcon: iconStub,
       ChevronRightIcon: iconStub,
+      ChevronDownIcon: iconStub,
       FloatingBottomBar,
       HeadphonesIcon: iconStub,
       SelectionFloatingControls: emptyStub,
@@ -111,6 +136,14 @@ const renderTongdokReader = async () => {
         content: '<div>본문</div>',
         currentBookName: '요한복음',
         currentChapter: 3,
+        currentVersionName: '개역개정',
+        tabsHidden: false,
+        bottomControlsHeight: 88,
+        boundAudioContextKey: 'fixture-chapter',
+        tongdokDone: 0,
+        isTongdokComplete: false,
+        handleScrollPixels: noop,
+        handleAudioEnded: noop,
         handleSelectionClose: noop,
         handleSelectionCopy: noop,
         handleSelectionCopyClose: noop,
@@ -190,14 +223,20 @@ test('preserves adjacent bottom bar and event wiring', async () => {
   const html = await renderTongdokReader();
   const audioIndex = html.indexOf('aria-label="통독 오디오 재생 진행률"');
   const progressIndex = html.indexOf('class="tongdok-progress-area"');
-  const navigationIndex = html.indexOf('class="floating-bottom-navigation"');
-  const previousIndex = html.indexOf('aria-label="이전 장"', navigationIndex);
-  const chapterIndex = html.indexOf('class="chapter-info is-tongdok"', navigationIndex);
-  const nextIndex = html.indexOf('aria-label="다음 장"', navigationIndex);
+  const navigationIndex = html.indexOf('class="bottom-nav"');
+  const header = html.slice(html.indexOf('<header'), html.indexOf('</header>'));
+  const previousIndex = header.indexOf('aria-label="이전 장"');
+  const chapterIndex = header.indexOf('class="book-selector-trigger"');
+  const nextIndex = header.indexOf('aria-label="다음 장"');
 
   assert.ok(audioIndex >= 0 && audioIndex < navigationIndex, 'tongdok audio should render above navigation');
   assert.ok(progressIndex > audioIndex && progressIndex < navigationIndex, 'tongdok progress should render above navigation after audio');
-  assert.ok(previousIndex < chapterIndex && chapterIndex < nextIndex, 'previous, chapter, and next controls should keep DOM order');
+  assert.ok(previousIndex >= 0 && previousIndex < chapterIndex && chapterIndex < nextIndex, 'header previous, chapter, and next controls should keep DOM order');
+  const navigation = html.slice(navigationIndex, html.indexOf('</nav>', navigationIndex));
+  assert.equal(navigation.match(/<a\b/g)?.length, 5, 'reader uses exactly five shared tabs');
+  for (const route of ['/', '/bible', '/plan', '/groups', '/login']) {
+    assert.ok(navigation.includes(`href="${route}"`), `shared navigation retains ${route}`);
+  }
 
   for (const eventName of ['highlight', 'highlight-delete', 'copy', 'share']) {
     assert.ok(

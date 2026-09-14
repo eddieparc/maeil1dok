@@ -8,13 +8,14 @@
     empty-description="다른 사용자들과 교류해보세요!"
     @close="handleClose"
   >
-    <template #action="{ user, loading }">
-      <FollowButton
+    <template #action="{ user }">
+      <AppButton
         v-if="!user.is_me"
-        :is-following="user.is_following"
-        :is-loading="loadingIds[user.id]"
-        @click="toggleFollow(user)"
-      />
+        :variant="user.is_following ? 'secondary' : 'primary'"
+        size="sm"
+        :loading="loadingIds[user.id]"
+        @click.stop="toggleFollow(user)"
+      >{{ user.is_following ? '팔로잉' : '팔로우' }}</AppButton>
     </template>
   </UserListModal>
 </template>
@@ -22,7 +23,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import UserListModal from '../common/UserListModal.vue'
-import FollowButton from '../common/FollowButton.vue'
+import AppButton from '../ui/AppButton.vue'
 
 interface Follower {
   id: number

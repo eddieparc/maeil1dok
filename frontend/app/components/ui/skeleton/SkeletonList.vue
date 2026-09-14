@@ -3,7 +3,7 @@ import SkeletonListItem from './SkeletonListItem.vue'
 
 interface Props {
   count?: number
-  variant?: 'note' | 'bookmark' | 'highlight' | 'history' | 'user' | 'plan' | 'schedule'
+  variant?: 'default' | 'note' | 'bookmark' | 'highlight' | 'history' | 'user' | 'plan' | 'schedule' | 'summary' | 'video'
   gap?: string
   class?: string
 }

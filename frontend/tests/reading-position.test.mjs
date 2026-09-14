@@ -61,7 +61,12 @@ const importReadingPositionModule = async () => {
     )
     .replace(
       "import { useAuthService } from '~/composables/useAuthService';",
-      'const useAuthService = () => ({ isAuthenticated: { value: false } });',
+      `const useAuthService = () => ({
+        isAuthenticated: { value: false },
+        isInitialized: { value: true },
+        isLoading: { value: false },
+        initialize: async () => undefined,
+      });`,
     )
     .replace(
       "import { BIBLE_BOOKS, VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';",

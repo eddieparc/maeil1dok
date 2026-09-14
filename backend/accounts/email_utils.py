@@ -38,6 +38,28 @@ def send_email(
     Returns:
         bool: 발송 성공 여부
     """
+    transport = getattr(settings, 'ACCOUNT_MAIL_TRANSPORT', 'resend')
+    if transport == 'beta-spool':
+        from accounts.beta_test_mail import capture_message, record_capture_result
+
+        try:
+            capture_message({
+                'from': f'{FROM_NAME} <{FROM_EMAIL}>',
+                'to': [to_email],
+                'subject': subject,
+                'html': html_content,
+            }, purpose)
+        except (OSError, ValueError):
+            record_capture_result(False)
+            logger.warning('Beta test mail capture failed; no email delivered')
+            return False
+        record_capture_result(True)
+        logger.info('Beta test mail captured; no email delivered')
+        return True
+    if transport != 'resend':
+        logger.warning('Account mail transport is invalid; no email delivered')
+        return False
+
     if not resend.api_key:
         logger.warning("Email delivery failed purpose=%s reason=missing_api_key", purpose)
         capture_observability_event(
@@ -92,7 +114,7 @@ def send_email(
         return False
 
 
-def send_verification_email(to_email: str, token: str, nickname: str = None) -> bool:
+def send_verification_email(to_email: str, token: str, nickname: str = None, *, expiry_minutes: int = 1440) -> bool:
     """
     이메일 인증 메일 발송
     
@@ -146,7 +168,7 @@ def send_verification_email(to_email: str, token: str, nickname: str = None) -> 
                         <a href="{verification_url}" style="color: #4F46E5; word-break: break-all;">{verification_url}</a>
                     </p>
                     <p style="color: #9CA3AF; font-size: 14px; margin: 20px 0 0 0;">
-                        ⏰ 이 링크는 24시간 동안만 유효합니다.
+                        ⏰ 이 링크는 {'24시간' if expiry_minutes == 1440 else f'{expiry_minutes}분'} 동안만 유효합니다.
                     </p>
                 </td>
             </tr>

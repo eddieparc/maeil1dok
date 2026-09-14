@@ -130,6 +130,7 @@ PROTECTED_ROUTE_NAMES = frozenset({
     "personal-record-list",
     "personal-record-stats",
     "plan-subscription-detail",
+    "plan-subscription-summary",
     "plan-subscription-toggle-active",
     "reading-position",
     "reflection-note-by-chapter",
