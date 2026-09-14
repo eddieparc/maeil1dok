@@ -202,7 +202,7 @@
             title="통독 모드 종료"
             aria-label="통독 모드 종료"
           >
-            <span class="tongdok-mode-pill-label">통독</span>
+            <span class="tongdok-mode-pill-label">통독중</span>
             <XMarkIcon :size="12" aria-hidden="true" />
           </button>
           <div class="story-progress-bar">
@@ -230,7 +230,7 @@
             aria-label="통독 완료"
           >
             <CheckIcon :size="15" :stroke-width="2.25" />
-            <span class="tongdok-complete-label">{{ isTongdokComplete ? '완료됨' : '통독 완료' }}</span>
+            <span class="tongdok-complete-label">{{ isTongdokComplete ? '통독 완료됨' : '통독 완료' }}</span>
           </button>
         </div>
 
@@ -1610,14 +1610,14 @@ defineExpose({
   align-items: center;
   gap: 0.2rem;
   flex-shrink: 0;
-  height: var(--hit-min);
-  padding: 0 0.4rem 0 0.6rem;
-  border: 1px solid rgba(42, 17, 17, 0.14);
+  height: 1.75rem;
+  padding: 0 0.45rem 0 0.6rem;
+  border: 1px solid var(--color-border-default, rgba(42, 17, 17, 0.14));
   border-radius: var(--radius-control, 10px);
-  background: rgba(42, 17, 17, 0.08);
-  color: var(--color-accent-primary, #2A1111);
+  background: var(--color-bg-subtle, rgba(42, 17, 17, 0.05));
+  color: var(--color-text-secondary, #6b7280);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
@@ -1647,20 +1647,20 @@ defineExpose({
   gap: 0.25rem;
   justify-content: center;
   width: auto;
-  min-width: var(--hit-min);
-  height: var(--hit-min);
-  padding: 0 0.45rem;
-  border-radius: 999px;
-  color: var(--color-accent-primary, #2A1111);
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(42, 17, 17, 0.14);
+  min-width: 0;
+  height: 1.75rem;
+  padding: 0 0.7rem;
+  border-radius: var(--radius-control, 10px);
+  color: var(--color-text-inverse, #fff);
+  background: var(--color-accent-primary, #2A1111);
+  border: 1px solid var(--color-accent-primary, #2A1111);
   flex-shrink: 0;
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .tongdok-complete-status:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--color-accent-primary, #2A1111);
+  background: var(--color-accent-primary-hover, var(--color-accent-primary, #2A1111));
+  color: var(--color-text-inverse, #fff);
 }
 
 .tongdok-complete-status:active:not(:disabled) {
@@ -1855,6 +1855,7 @@ defineExpose({
 [data-theme="dark"] .tongdok-complete-status.is-complete {
   color: var(--color-accent-primary);
   background: var(--color-accent-primary-light);
+  border-color: var(--color-accent-primary-light);
 }
 
 .progress-segment,

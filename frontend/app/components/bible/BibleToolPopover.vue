@@ -265,7 +265,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.45rem;
   width: 100%;
-  padding: 0.42rem 0.48rem;
+  padding: 0.3rem 0.48rem;
   min-height: var(--hit-min);
   background: transparent;
   border-radius: 7px;

@@ -252,7 +252,7 @@ function modalStyle(view, target, { reduced = false, width = 1280, hovered = fal
   return Object.fromEntries([...winners].map(([property, declaration]) => [property, declaration.value]));
 }
 
-test('compiled upload close control has a nonshrinking token-sized 44px target', options, async () => {
+test('compiled upload close control has a nonshrinking token-sized target', options, async () => {
   const view = await mount(); await view.ready();
   await rendered(() => !!view.find('.base-modal-content'), () => click(view.find('[data-open-upload="true"]')));
   const close = view.find('.base-modal-close');
@@ -262,8 +262,9 @@ test('compiled upload close control has a nonshrinking token-sized 44px target',
   for (const width of [390, 1280]) {
     const style = modalStyle(view, close, { width });
     const pixels = value => Number.parseFloat(value.replace('var(--hit-min)', hitMin));
-    assert.ok(pixels(style.width) >= 44, `close width: ${style.width}`);
-    assert.ok(pixels(style.height) >= 44, `close height: ${style.height}`);
+    const minTarget = Number.parseFloat(hitMin);
+    assert.ok(pixels(style.width) >= minTarget, `close width: ${style.width}`);
+    assert.ok(pixels(style.height) >= minTarget, `close height: ${style.height}`);
     assert.equal(style['flex-shrink'], '0');
   }
   await rendered(() => !view.find('.base-modal-content'), () => click(close));

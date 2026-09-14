@@ -308,10 +308,15 @@ test('promise-returning Nuxt context loads reader and completion verse text', { 
   assert.equal(view.state.modal.stack.value.at(-1).options.props.highlights[0].text, 'gen 49 actual verse');
 });
 
-test('next at the final scheduled chapter navigates across the book boundary without completing', { timeout: 10000 }, async t => {
+test('next at the final scheduled chapter asks to complete, and cancelling navigates across the book boundary', { timeout: 10000 }, async t => {
   const view = await mount('/bible?book=gen&chapter=50&plan=7&schedule=1&tongdok=true&date=2026-09-06');
   t.after(view.close); await view.ready();
-  await view.state.goToNextChapter(); await settled();
+  const opened = signal(view.state.modal.stack, stack => stack.length > 0);
+  const navigating = view.state.goToNextChapter();
+  await opened; // 통독 완료 확인 모달이 뜬다
+  const confirmModal = view.state.modal.stack.value.at(-1);
+  await view.state.modal.close(confirmModal.id, false); // "계속 읽기"
+  await navigating; await settled();
   assert.equal(view.state.currentBook.value, 'exo');
   assert.equal(view.state.currentChapter.value, 1);
   assert.equal(view.router.currentRoute.value.query.chapter, '1');

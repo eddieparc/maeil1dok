@@ -92,6 +92,8 @@ function environment() {
   globalThis.document = { addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name) };
   runtime.selection = { isCollapsed: true, removeAllRanges() { this.isCollapsed = true; } };
   globalThis.window = { getSelection: () => runtime.selection };
+  globalThis.requestAnimationFrame = cb => setTimeout(cb, 0);
+  globalThis.cancelAnimationFrame = id => clearTimeout(id);
   const storage = new Map([['highlightCustomColors', '["#123456"]']]);
   globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
   runtime.auth = { isInitialized: Vue.ref(true), isLoading: Vue.ref(false), isAuthenticated: Vue.ref(true), initialize: async () => {} };

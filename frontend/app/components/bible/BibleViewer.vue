@@ -244,21 +244,20 @@ const renderedContent = computed(() => {
   return sanitize(content);
 });
 
-// 스크롤 핸들러 (throttle 적용)
-let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
+// 스크롤 핸들러 — 진행바는 프레임마다 갱신(rAF), 위치 저장은下游에서 debounce.
+let scrollRaf = 0;
 const handleScroll = () => {
   if (viewerRef.value) emit('scroll-pixels', viewerRef.value.scrollTop);
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout);
-  }
-  scrollTimeout = setTimeout(() => {
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0;
     if (viewerRef.value) {
       const { scrollTop, scrollHeight, clientHeight } = viewerRef.value;
       const maxScroll = scrollHeight - clientHeight;
       const position = maxScroll > 0 ? scrollTop / maxScroll : 0;
       emit('scroll', position);
     }
-  }, TIMING.SCROLL_THROTTLE);
+  });
 };
 
 // ====== 절 클릭 선택 기능 (reading.vue 방식) ======
@@ -766,8 +765,9 @@ onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick);
   document.removeEventListener('mouseup', handleTextSelection);
   document.removeEventListener('touchend', handleTextSelection);
-  if (scrollTimeout) {
-    clearTimeout(scrollTimeout);
+  if (scrollRaf) {
+    cancelAnimationFrame(scrollRaf);
+    scrollRaf = 0;
   }
   // 검색 강조 타이머 정리
   if (searchHighlightTimeout) {

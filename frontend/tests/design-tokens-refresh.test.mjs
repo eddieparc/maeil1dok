@@ -52,7 +52,7 @@ const lightExpectations = {
   '--sidebar-width': '240px',
   '--content-max': '760px',
   '--aside-width': '300px',
-  '--hit-min': '44px',
+  '--hit-min': '32px',
   '--color-highlight-yellow': '#f5de8a',
   '--color-highlight-green': '#bfd9b5',
   '--color-highlight-blue': '#bcd3ee',

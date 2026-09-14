@@ -634,6 +634,19 @@ const goToPrevChapter = async () => {
   else readerReady.value = true;
 };
 const goToNextChapter = async () => {
+  // 통독 모드에서 마지막 장이면 완료 여부를 먼저 묻는다.
+  if (isTongdokMode.value && isAtLastTongdokChapter.value) {
+    const confirmed = await modal.confirm({
+      title: '오늘 통독을 완료할까요?',
+      description: `${fullTongdokRange.value || '오늘 일정'}을 다 읽으셨다면 완료로 기록해요.`,
+      confirmText: '통독 완료',
+      cancelText: '계속 읽기',
+    });
+    if (confirmed) {
+      await handleTongdokComplete();
+      return;
+    }
+  }
   await saveCurrentReadingPosition(true);
   readerReady.value = false;
   const position = goToNextChapterBase();
