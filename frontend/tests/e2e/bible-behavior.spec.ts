@@ -107,14 +107,18 @@ test('copy action writes the selected verse and location to the browser clipboar
   const verseText = (await selectedVerse.locator('.verse-text').innerText()).trim();
   await selectedVerse.click();
 
-  // v2 has no copy-format submenu: the action menu's copy button writes
-  // "책 장:절 본문 (역본)" directly to the clipboard.
+  // v2 opens a copy-format menu (위치 포함/절 번호만/내용만); choosing
+  // "위치 포함" writes "[책장:절] 본문" to the clipboard.
   const actionToolbar = page.getByTestId('selection-action-menu');
   await actionToolbar.getByRole('button', { name: '구절 복사' }).click();
 
+  const copyMenu = page.getByTestId('selection-copy-menu');
+  await expect(copyMenu).toBeVisible();
+  await copyMenu.getByRole('button', { name: '위치 포함' }).click();
+
   await expect(page.locator('.toast-container').getByText('복사 완료')).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    `요한복음 3:4 ${verseText} (개역개정)`,
+    `[요한복음3:4] ${verseText}`,
   );
 });
 
