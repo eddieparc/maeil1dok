@@ -589,15 +589,27 @@ const handleHighlightOrRemove = () => {
 };
 
 const handleCopy = async () => {
-  const payload = getSelectionPayload();
-  if (!payload) return;
-  const selection = selectedVerses.value;
-  const range = payload.start === payload.end ? `${payload.start}` : `${payload.start}-${payload.end}`;
-  const version = payload.version ? ` (${payload.version})` : '';
-  const text = `${payload.book} ${payload.chapter}:${range} ${payload.text}${version}`;
-  const copied = await writeCopyText(text);
-  // A clipboard promise must not clear a newer selection or chapter.
-  if (copied && selection === selectedVerses.value) clearAllSelections();
+  // 복사 버튼은 즉시 복사하지 않고 형식 메뉴(위치 포함/절 번호만/내용만)를 연다.
+  hideActionMenu();
+  if (!clickSelectedVerses.value.length) {
+    // 드래그 선택을 클릭 선택 형식으로 변환해 형식 메뉴가 동작하게 한다.
+    const { start, end } = selectedVerses.value;
+    if (!start) return;
+    clickSelectedStart.value = start;
+    clickSelectedEnd.value = start === end ? null : end;
+    const versesArray: Array<{ number: number; text: string }> = [];
+    viewerRef.value?.querySelectorAll('.verse').forEach((el) => {
+      const nEl = el.querySelector('.verse-number');
+      const tEl = el.querySelector('.verse-text');
+      if (!nEl || !tEl) return;
+      const n = parseInt(nEl.textContent?.trim() || '0', 10);
+      if (n >= start && n <= end) versesArray.push({ number: n, text: tEl.textContent?.trim() || '' });
+    });
+    clickSelectedVerses.value = versesArray;
+    selectionMode.value = 'click';
+  }
+  showCopyMenu.value = true;
+  emitSelectionMenuChange();
 };
 
 const handleShare = () => {

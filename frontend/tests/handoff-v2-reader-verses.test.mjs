@@ -168,11 +168,15 @@ test('direct-save carries selection, chosen API color and existing custom highli
   assert.deepEqual(view.events.find(([kind]) => kind === 'delete'), ['delete', 91]);
 });
 
-test('drag selects intersected verses only and direct copy includes actual location, all text and version', async t => {
+test('drag selects intersected verses only and copy opens the format menu then copies the chosen format', async t => {
   const view = setupViewer(t); drag(view, 2, 3);
   assert.equal(view.state().selection?.start, 2); assert.equal(view.state().selection?.end, 3);
   await view.api().handleCopy();
-  assert.deepEqual(runtime.writes, ['Test Book 7:2-3 Beta name Gamma continued (KNT)']);
+  // 복사 버튼은 즉시 복사하지 않고 형식 메뉴를 연다.
+  assert.equal(view.state().mode, 'copy'); assert.equal(view.state().visible, true);
+  assert.deepEqual(runtime.writes, []);
+  await view.api().handleClickCopy('includeLocationRange');
+  assert.deepEqual(runtime.writes, ['[Test Book7:2-3]\n2 Beta name\n3 Gamma continued']);
   assert.equal(view.state().visible, false);
   assert.equal(runtime.selection.isCollapsed, true);
 });
@@ -181,8 +185,8 @@ test('copy snapshots selection across deferred clipboard completion and leaves n
   const view = setupViewer(t); view.tap(1);
   const accepted = deferred(), complete = deferred();
   navigator.clipboard.writeText = text => { accepted.resolve(text); return complete.promise; };
-  const copying = view.api().handleCopy();
-  assert.equal(await accepted.promise, 'Test Book 7:1 Alpha & one (KNT)');
+  const copying = view.api().handleClickCopy('includeLocation');
+  assert.equal(await accepted.promise, '[Test Book7:1] Alpha & one');
   view.tap(2); complete.resolve(); await copying;
   assert.equal(view.state().visible, true); assert.equal(view.state().selection.end, 2);
 });
@@ -266,7 +270,7 @@ test('failed clipboard fallback reports failure rather than emitting a false cop
   document.createElement = () => ({ value: '', style: {}, setAttribute() {}, select() {} });
   document.body = { appendChild() {}, removeChild() { removed = true; } };
   document.execCommand = () => false;
-  await view.api().handleCopy();
+  await view.api().handleClickCopy('includeLocation');
   assert.equal(view.events.some(([kind]) => kind === 'copy'), false);
   assert.equal(errors.length, 1); assert.equal(removed, true);
   assert.equal(view.state().visible, true);
