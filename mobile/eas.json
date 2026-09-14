@@ -43,7 +43,7 @@
       "env": {
         "EXPO_PUBLIC_ENV": "production"
       },
-      "credentialsSource": "local"
+      "credentialsSource": "remote"
     },
     "diagnostic": {
       "extends": "preview",
@@ -89,9 +89,12 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "FILL_ME_apple_account_email",
+        "appleId": "jgp3620@gmail.com",
         "ascAppId": "6758072829",
-        "appleTeamId": "F42N2AFRM6"
+        "appleTeamId": "F42N2AFRM6",
+        "ascApiKeyPath": "/Users/jgp/.appstoreconnect/private_keys/AuthKey_FJZ7WU2KJX.p8",
+        "ascApiKeyId": "FJZ7WU2KJX",
+        "ascApiKeyIssuerId": "7ee7043d-5389-4556-8b14-c996a1ad76ca"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
