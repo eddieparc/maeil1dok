@@ -93,7 +93,13 @@ Loki는 앱 컨테이너와 외부에 노출하지 않는다. 두 관측성 netw
 
 아래 값은 VM `.env.oci` 또는 EAS 환경에만 두며 Git에 넣지 않는다.
 
+- Sentry 조직: `c919d9f9be39` (매일일독, EU 리전 — de.sentry.io). 프로젝트:
+  `maeil1dok-backend` / `maeil1dok-frontend` / `maeil1dok-mobile`.
+  구 `jgplabs` org(US)의 DSN은 2026-09-14에 전 서피스에서 교체됐다.
 - Backend/frontend Sentry: `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`
+  (`.env.oci` = 백엔드 DSN + 빌드용 org token, `.env.frontend.oci` = 프론트 DSN)
 - Mobile Sentry: EAS production의 `EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`,
   `SENTRY_ORG`, `SENTRY_PROJECT`
+- 베타 스택: `docker-compose.beta-isolated.yml`의 `SENTRY_DSN`/`NUXT_PUBLIC_SENTRY_DSN`
+  (environment=beta, 동일 프로젝트로 수신)
 - Email alert: `RESEND_API_KEY`, `OPS_ALERT_EMAIL`, `OPS_ALERT_FROM`
