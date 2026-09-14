@@ -118,9 +118,13 @@ test('copy action writes the selected verse and location to the browser clipboar
   );
 });
 
-test('sharing a selected verse range copies the range deep link', async ({ api, page }) => {
+test('sharing a selected verse range shares the [매일일독] deep-link text', async ({ api, page }) => {
   await grantClipboardPermissions(page);
   mockBibleChapter(api, { book: 'jhn', chapter: 3 });
+  // Force the clipboard fallback so the shared text is observable.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+  });
   await page.goto('/bible?book=jhn&chapter=3');
 
   await expect(page.locator('.bible-content .verse')).toHaveCount(24);
@@ -128,18 +132,14 @@ test('sharing a selected verse range copies the range deep link', async ({ api, 
   await verse(page, 8).click();
   await expect(page.locator('.verse.selected-verse')).toHaveCount(3);
 
-  // v2 opens the share sheet; its "링크 복사" action copies the deep link
-  // without waiting on share-image preparation.
+  // v2 shares the selection as a "[매일일독] <ref>\n<deep link>" text payload.
   await page.getByTestId('selection-action-menu').getByRole('button', { name: '구절 공유' }).click();
-  const shareSheet = page.getByTestId('bible-share-sheet');
-  await expect(shareSheet).toBeVisible();
-  await shareSheet.getByRole('button', { name: '링크 복사' }).click();
 
-  await expect(page.locator('.toast-container').getByText('링크가 복사되었습니다')).toBeVisible();
+  await expect(page.locator('.toast-container').getByText('링크를 복사했습니다')).toBeVisible();
 
   const origin = new URL(page.url()).origin;
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    `${origin}/bible?book=jhn&chapter=3&verse=6-8`,
+    `[매일일독] 요한복음 3:6-8\n${origin}/bible?book=jhn&chapter=3&verse=6-8`,
   );
 });
 

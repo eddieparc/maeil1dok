@@ -202,13 +202,9 @@ test('completion opens a token-styled certification modal with usable actions', 
   await expect(page.locator('.bible-viewer')).toBeVisible();
 });
 
-test('verse sharing sends only the Bible selection payload', async ({ api, page }) => {
+test('verse sharing sends the [매일일독] reference and deep-link text', async ({ api, page }) => {
   mockBibleChapter(api, { book: 'jhn', chapter: 3 });
   await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'canShare', {
-      configurable: true,
-      value: () => true,
-    });
     Object.defineProperty(navigator, 'share', {
       configurable: true,
       value: async (data: ShareData) => {
@@ -220,28 +216,7 @@ test('verse sharing sends only the Bible selection payload', async ({ api, page 
         });
       },
     });
-    // The share sheet loads its card font from a CDN that is unreachable in
-    // tests; a stub FontFace keeps image preparation deterministic.
-    class FakeFontFace {
-      family: string;
-      constructor(family: string, _source: unknown, _descriptors?: unknown) {
-        this.family = family;
-      }
-      async load(): Promise<FakeFontFace> {
-        return this;
-      }
-    }
-    Object.defineProperty(window, 'FontFace', { configurable: true, value: FakeFontFace });
-    Object.defineProperty(document.fonts, 'add', {
-      configurable: true,
-      value: () => document.fonts,
-    });
   });
-  await page.route('https://cdn.jsdelivr.net/**', (route) => route.fulfill({
-    status: 200,
-    contentType: 'font/woff2',
-    body: Buffer.from('playwright-font-bytes'),
-  }));
 
   await page.goto('/bible?book=jhn&chapter=3');
   const verse = page.locator('.bible-content .verse').nth(15);
@@ -252,14 +227,7 @@ test('verse sharing sends only the Bible selection payload', async ({ api, page 
   await expect(selectionToolbar).toBeVisible();
   await selectionToolbar.getByRole('button', { name: '구절 공유' }).click();
 
-  // v2 shares through the sheet: "공유하기" stays disabled until the card
-  // image is prepared, then calls navigator.share with the image file.
-  const shareSheet = page.getByTestId('bible-share-sheet');
-  await expect(shareSheet).toBeVisible();
-  const sendButton = shareSheet.getByTestId('share-send');
-  await expect(sendButton).toBeEnabled();
-  await sendButton.click();
-
+  // v2 shares the selection directly as "[매일일독] <ref>\n<deep link>" text.
   await expect(page.locator('html')).toHaveAttribute('data-bible-share-payload', /.+/);
 
   const payload = await page.locator('html').getAttribute('data-bible-share-payload');
@@ -270,11 +238,11 @@ test('verse sharing sends only the Bible selection payload', async ({ api, page 
     url?: string;
     fileCount?: number;
   };
-  expect(shareData.title).toBe('요한복음 3:16');
-  expect(shareData.text).toContain('브라우저 말씀 16');
-  expect(shareData.fileCount).toBe(1);
+  expect(shareData.title).toBeUndefined();
+  expect(shareData.fileCount).toBe(0);
+  expect(shareData.text).toContain('[매일일독] 요한복음 3:16');
 
-  const shareUrl = new URL(shareData.url ?? 'about:blank');
+  const shareUrl = new URL((shareData.text ?? '').split('\n').at(-1) ?? 'about:blank');
   expect(shareUrl.pathname).toBe('/bible');
   expect(shareUrl.searchParams.get('book')).toBe('jhn');
   expect(shareUrl.searchParams.get('chapter')).toBe('3');
