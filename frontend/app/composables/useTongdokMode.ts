@@ -9,6 +9,7 @@ import { ref, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { BIBLE_BOOKS, useBibleData } from './useBibleData';
 import { useApi } from './useApi';
+import { useErrorHandler } from './useErrorHandler';
 import type { paths } from '~/types/generated/api-schema';
 import {
   selectTongdokAudioLink,
@@ -430,11 +431,28 @@ export const useTongdokMode = () => {
 
     isCompleting.value = true;
     try {
-      await api.POST('/api/v1/todos/reading/update/', {
+      const response = await api.POST('/api/v1/todos/reading/update/', {
         plan_id: planId,
         schedule_ids: scheduleIds,
         action: 'complete'
       });
+
+      // 200이어도 서버가 요청한 스케줄을 전부 완료했는지 대조한다.
+      // API는 성공인데 결과가 틀린 경우(과거 다중 스케줄 미완료 버그)를
+      // Sentry에 남기기 위한 검증이다.
+      const acknowledgedIds = Array.isArray(response?.schedule_ids)
+        ? response.schedule_ids.map((id: unknown) => Number(id)).filter((id: number) => Number.isInteger(id) && id > 0)
+        : [];
+      const exactAcknowledgement = response?.success === true &&
+        acknowledgedIds.length === scheduleIds.length &&
+        scheduleIds.every(id => acknowledgedIds.includes(id));
+      if (!exactAcknowledgement) {
+        useErrorHandler().handleSilentError(
+          new Error(`통독 완료 응답 불일치: sent=[${scheduleIds}] ack=[${acknowledgedIds}]`),
+          '통독 완료',
+        );
+        return false;
+      }
 
       clearTongdokState();
       tongdokMode.value = false;
@@ -443,7 +461,7 @@ export const useTongdokMode = () => {
 
       return true;
     } catch (error) {
-      console.error('통독 완료 처리 실패:', error);
+      useErrorHandler().handleSilentError(error, '통독 완료');
       return false;
     } finally {
       isCompleting.value = false;
