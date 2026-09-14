@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { PlayIcon, UsersIcon, ChevronRightIcon } from '@lucide/vue';
+import { UsersIcon, ChevronRightIcon } from '@lucide/vue';
 import { useApi } from '~/composables/useApi';
 import type { components } from '~/types/generated/api-schema';
 import Skeleton from '~/components/ui/Skeleton.vue';
@@ -69,10 +69,10 @@ onMounted(() => {
     <Skeleton v-if="loading" width="100%" height="146px" />
     <template v-else>
       <p v-if="hasenaError" class="card-message" role="status">하세나를 불러오지 못했습니다.</p>
-      <NuxtLink to="/hasena" class="hasena-link">
+      <NuxtLink to="/hasena" class="hasena-link" aria-label="하세나 페이지로 이동">
         <div class="hasena-thumbnail">
-          <img v-if="thumbnail" :src="thumbnail" alt="" width="480" height="360" loading="lazy" />
-          <span class="play-button"><PlayIcon :size="22" aria-hidden="true" /></span>
+          <img v-if="thumbnail" :src="thumbnail" :alt="hasena?.title || '오늘의 하세나'" width="480" height="360" loading="lazy" />
+          <span v-else class="hasena-fallback">오늘의 하세나</span>
         </div>
         <strong>{{ hasena?.title || '오늘의 하세나 보기' }}</strong>
         <span v-if="hasena" class="card-message">{{ hasena.passage }}</span>
@@ -107,7 +107,7 @@ h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 
 .hasena-link:focus-visible, .group-link:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; box-shadow: 0 0 0 1px var(--color-accent-primary); }
 .hasena-thumbnail { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: linear-gradient(160deg, var(--color-video-gradient-start), var(--color-video-gradient-end)); }
 .hasena-thumbnail img { position: absolute; width: 100%; height: 100%; object-fit: cover; }
-.play-button { z-index: 1; display: grid; place-items: center; width: var(--hit-min); height: var(--hit-min); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-accent-primary); box-shadow: var(--shadow-card); }
+.hasena-fallback { z-index: 1; color: var(--color-on-image); font-size: 15px; font-weight: 600; }
 .card-message { margin: 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
 .aside-card > .card-message { margin-bottom: 10px; }
 .group-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--hit-min); }

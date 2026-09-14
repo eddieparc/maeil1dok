@@ -74,6 +74,8 @@
   --color-overlay: rgba(31, 26, 23, 0.4);
   --color-tooltip-bg: #1F1A17;
   --color-tooltip-text: #ffffff;
+  /* Text drawn on top of imagery stays white in every theme. */
+  --color-on-image: #ffffff;
 
   /* Radius */
   --radius-control: 10px;
@@ -301,6 +303,7 @@
   --color-overlay: rgba(0, 0, 0, 0.6);
   --color-tooltip-bg: #f3f4f6;
   --color-tooltip-text: #1A1A1A;
+  --color-on-image: #ffffff;
 
   /* Shadows (darker for dark mode) */
   --shadow-sm: none;
