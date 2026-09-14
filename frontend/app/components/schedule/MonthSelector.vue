@@ -36,7 +36,7 @@ watch(() => props.modelValue, () => { void nextTick(scrollToCurrentMonth); });
 <style scoped>
 .month-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 4px 0; }
 .month-scroll::-webkit-scrollbar { display: none; }
-.month-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; min-width: var(--hit-min); min-height: var(--hit-min); padding: 8px 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-text-secondary); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s, transform .15s; }
+.month-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; min-width: var(--hit-min); min-height: var(--hit-min); padding: 8px 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-control); background: var(--color-bg-card); color: var(--color-text-secondary); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s, transform .15s; }
 .month-button:hover:not(:disabled) { background: var(--color-accent-bg); }
 .month-button.empty { color: var(--color-text-tertiary); }
 .month-button.active { background: var(--color-accent-primary); color: var(--color-text-inverse); border-color: var(--color-accent-primary); }

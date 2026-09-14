@@ -54,7 +54,7 @@ function guardClick(event: MouseEvent) {
   min-height: var(--hit-min);
   padding: 0 20px;
   border: 1px solid transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   font: inherit;
   font-size: 14px;
   font-weight: 600;

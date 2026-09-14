@@ -47,7 +47,7 @@ test('AppButton 은 4가지 변형과 3가지 크기를 필 형태로 제공한�
   for (const size of ['sm', 'md', 'lg']) {
     assert.match(source, new RegExp(`'${size}'|"${size}"|\\b${size}\\b`), `AppButton size ${size}`);
   }
-  assert.match(styleBlocks(source), /border-radius:\s*(999px|var\(--radius-pill\))/);
+  assert.match(styleBlocks(source), /border-radius:\s*(999px|var\(--radius-pill\)|var\(--radius-control\))/);
 });
 
 test('RingProgress 는 SVG 링이며 size/thickness/value 를 받는다', () => {

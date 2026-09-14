@@ -60,7 +60,7 @@ const subscriptions = ref<SubscriptionSummary[]>([]);
 const schedules = ref<Schedule[]>([]);
 const bulkEditState = ref<BulkEditState>({ ...DEFAULT_BULK_EDIT_STATE });
 // This instance's cache is cleared synchronously on every auth identity change.
-// Only requested months enter it; no annual prefetch is performed for chip dots.
+// The selected plan's whole year is prefetched so month dots render without a click.
 const monthCache = reactive(new Map<string, Schedule[]>());
 const inFlight = new Map<string, Promise<Schedule[]>>();
 let epoch = 0;
@@ -163,6 +163,9 @@ async function initialize() {
     const data = await planApi.fetchSubscriptions({ throwOnError: true });
     if (epoch !== requestEpoch || !mounted.value) return;
     subscriptions.value = data;
+    // Hydrate the persisted selection before reading it so the last chosen
+    // plan loads on entry (initializeFromStorage otherwise runs after this).
+    planStore.initializeFromStorage();
     const urlPlan = Number(route.query.plan);
     const remembered = planStore.selectedPlanId;
     const selected = data.find(sub => sub.plan_id === urlPlan)
@@ -173,6 +176,7 @@ async function initialize() {
     if (epoch !== requestEpoch) return;
     initialized.value = true;
     const loaded = await fetchSchedules();
+    if (loaded && epoch === requestEpoch && selectedPlanId.value !== null && import.meta.client) schedulePrefetch(selectedPlanId.value);
     if (loaded && epoch === requestEpoch) {
       await handleScrollTo(props.initialScrollTarget ?? (props.isModal && props.currentBook && props.currentChapter ? 'currentLocation' : 'today'));
     }
@@ -198,6 +202,32 @@ function selectPlan(subscription: SubscriptionSummary) {
   navigating.value = false;
   showPlanModal.value = false;
   planStore.setSelectedPlanId(subscription.plan_id);
+  if (import.meta.client) schedulePrefetch(subscription.plan_id);
+}
+
+// Populate the month-dot cache for the whole year so dots appear without a
+// month click. Deferred to idle so it never competes with the visible month's
+// load; each month fills in as its request resolves and failures are ignored
+// (the dot simply stays absent until the month is opened).
+let prefetchTimer: ReturnType<typeof setTimeout> | null = null;
+function schedulePrefetch(planId: number) {
+  if (prefetchTimer) clearTimeout(prefetchTimer);
+  prefetchTimer = setTimeout(() => {
+    prefetchTimer = null;
+    prefetchYear(planId);
+  }, 0);
+}
+function prefetchYear(planId: number) {
+  const requestEpoch = epoch;
+  for (let month = 1; month <= 12; month++) {
+    const key = monthKey(planId, selectedYear.value, month);
+    if (monthCache.has(key) || inFlight.has(key)) continue;
+    const request = scheduleApi.fetchMonthlySchedules(planId, month, selectedYear.value, { throwOnError: true })
+      .then(data => { if (epoch === requestEpoch && mounted.value) monthCache.set(key, data); return data; })
+      .catch(() => [] as Schedule[])
+      .finally(() => { if (inFlight.get(key) === request) inFlight.delete(key); });
+    inFlight.set(key, request);
+  }
 }
 function selectRange(schedule: Schedule) {
   if (saving.value) return;
@@ -262,7 +292,7 @@ async function handleScheduleClick(schedule: Schedule) {
   const planId = selectedPlanId.value;
   const confirmed = await modal.confirm({
     title: '본문 페이지로 이동할까요?',
-    description: `${schedule.date} · ${schedule.book} ${schedule.start_chapter}-${schedule.end_chapter}${schedule.book === '시편' ? '편' : '장'}\n읽음 표시는 왼쪽 체크를 누르거나 오른쪽 위 ‘일괄수정’으로 바꿀 수 있어요.`,
+    description: `${schedule.date} · ${schedule.book} ${schedule.start_chapter}-${schedule.end_chapter}${schedule.book === '시편' ? '편' : '장'}\n\n읽음 표시는 왼쪽 체크 또는 ‘일괄수정’으로 바꿀 수 있어요.`,
     confirmText: '이동', cancelText: '취소',
   });
   if (!confirmed || epoch !== requestEpoch || planId !== selectedPlanId.value) return;
@@ -356,7 +386,7 @@ onBeforeUnmount(() => { mounted.value = false; epoch++; navigationId++; });
 .modal-schedule { height: min(70dvh, 680px); }
 .fixed-controls { display: grid; gap: 10px; padding: 4px var(--screen-gutter) 0; }
 .top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.plan-select-button { display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-width: var(--hit-min); min-height: var(--hit-min); padding: 8px 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-text-primary); font-size: 14px; font-weight: 600; }
+.plan-select-button { display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-width: var(--hit-min); min-height: var(--hit-min); padding: 8px 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-control); background: var(--color-bg-card); color: var(--color-text-primary); font-size: 14px; font-weight: 600; }
 .plan-select-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-select-button svg { flex-shrink: 0; }
 .default-plan-indicator { padding: 12px; border: 1px solid var(--color-border-default); border-radius: 12px; background: var(--color-bg-card); color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }

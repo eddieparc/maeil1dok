@@ -139,6 +139,7 @@ function handleCancel() {
   color: var(--color-text-secondary);
   margin: 0 0 1.5rem;
   line-height: 1.5;
+  white-space: pre-line;
 }
 
 .confirm-actions {
@@ -152,7 +153,7 @@ function handleCancel() {
   padding: 0.75rem 1rem;
   font-size: 0.9375rem;
   font-weight: 600;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   border: none;
   cursor: pointer;
   transition: all 0.15s ease;
