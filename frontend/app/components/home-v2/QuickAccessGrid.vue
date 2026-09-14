@@ -61,7 +61,7 @@ const profileLink = computed(() => {
 </script>
 
 <style scoped>
-.section-title { margin: 0 0 10px; color: var(--color-text-secondary); font-size: 13px; font-weight: 600; line-height: 1.4; }
+.section-title { margin: 0 0 10px; color: var(--color-text-secondary); font-family: var(--font-serif); font-size: 13px; font-weight: 600; line-height: 1.4; }
 .grid-2 { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sub-card {
   display: flex;

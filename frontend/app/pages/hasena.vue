@@ -982,7 +982,7 @@ onMounted(async () => {
 }
 
 .bible-header h2 {
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: 22px;
   line-height: 1.3;
   letter-spacing: var(--tracking-display);
@@ -992,7 +992,7 @@ onMounted(async () => {
 }
 
 .verse-container {
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: 16px;
   font-weight: 400;
   line-height: 1.75;

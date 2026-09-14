@@ -24,7 +24,7 @@ const dateCaption = useState('home:dateCaption', () => new Intl.DateTimeFormat('
 <style scoped>
 .hero-section { padding-block: 20px 4px; }
 .greeting { margin: 0 0 8px; color: var(--color-text-secondary); font-size: 14px; line-height: 1.5; }
-.hero-title { margin: 0; color: var(--color-text-primary); font-size: 26px; font-weight: 700; line-height: 1.3; letter-spacing: var(--tracking-display); }
+.hero-title { margin: 0; color: var(--color-text-primary); font-family: var(--font-serif); font-size: 26px; font-weight: 700; line-height: 1.3; letter-spacing: var(--tracking-display); }
 @media (min-width: 1024px) {
   .hero-title { font-size: 30px; line-height: 1.25; letter-spacing: -0.8px; }
 }

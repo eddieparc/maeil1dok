@@ -1610,13 +1610,13 @@ defineExpose({
   align-items: center;
   gap: 0.2rem;
   flex-shrink: 0;
-  height: 1.75rem;
-  padding: 0 0.45rem 0 0.6rem;
+  height: 2rem;
+  padding: 0 0.5rem 0 0.7rem;
   border: 1px solid var(--color-border-default, rgba(42, 17, 17, 0.14));
   border-radius: var(--radius-control, 10px);
   background: var(--color-bg-subtle, rgba(42, 17, 17, 0.05));
   color: var(--color-text-secondary, #6b7280);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
@@ -1648,8 +1648,8 @@ defineExpose({
   justify-content: center;
   width: auto;
   min-width: 0;
-  height: 1.75rem;
-  padding: 0 0.7rem;
+  height: 2rem;
+  padding: 0 0.75rem;
   border-radius: var(--radius-control, 10px);
   color: var(--color-text-inverse, #fff);
   background: var(--color-accent-primary, #2A1111);

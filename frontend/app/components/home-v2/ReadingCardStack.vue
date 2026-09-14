@@ -65,7 +65,7 @@ const goPrimary = (): void => {
 .today-reading { display: flex; align-items: center; gap: 20px; }
 .reading-copy { min-width: 0; }
 .card-label { margin: 0 0 6px; color: var(--color-accent-primary); font-size: 12px; font-weight: 600; line-height: 1.4; }
-.bible-verse { margin: 0 0 6px; color: var(--color-text-primary); font-size: 20px; font-weight: 700; line-height: 1.3; letter-spacing: var(--tracking-display); }
+.bible-verse { margin: 0 0 6px; color: var(--color-text-primary); font-family: var(--font-serif); font-size: 20px; font-weight: 700; line-height: 1.3; letter-spacing: var(--tracking-display); }
 .chapter-range { margin: 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
 .ring-label { font-size: 24px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-display); }
 .ring-label small { margin-left: 1px; font-size: 13px; font-weight: 600; }
