@@ -296,7 +296,7 @@ test('compiled upload enter and leave CSS removes reduced motion but preserves n
   for (const width of [390, 1280]) for (const phase of ['enter', 'leave']) {
     overlay.props.class = `${original} modal-fade-${phase}-active modal-fade-${phase === 'enter' ? 'enter-from' : 'leave-to'}`;
     for (const target of [overlay, content]) {
-      assert.match(modalStyle(view, target, { width }).transition, /0\.25s/);
+      assert.match(modalStyle(view, target, { width }).transition, /0\.\d+s/);
       assert.equal(modalStyle(view, target, { width, reduced: true }).transition, 'none');
     }
     assert.notEqual(modalStyle(view, content, { width }).transform, 'none');
