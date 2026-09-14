@@ -247,8 +247,10 @@ class LocalSigningWorkflowTest(unittest.TestCase):
         # version that ships is not the one that was reviewed.
         self.assertFalse(self.eas["build"]["production"]["autoIncrement"])
 
-    def test_production_signs_with_local_credentials(self) -> None:
-        self.assertEqual(self.eas["build"]["production"]["credentialsSource"], "local")
+    def test_production_signs_with_remote_credentials(self) -> None:
+        # Play 업로드 키는 EAS 관리 키다. 로컬 keystore로 서명한 AAB는
+        # 스토어 바이너리와 서명이 달라 Play 업로드에서 거부된다.
+        self.assertEqual(self.eas["build"]["production"]["credentialsSource"], "remote")
 
     def test_submit_config_carries_the_values_we_can_know(self) -> None:
         # Placeholders here fail at submission time, after a build has been made.
