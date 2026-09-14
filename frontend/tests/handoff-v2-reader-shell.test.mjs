@@ -254,10 +254,10 @@ test('player surface drives pause/play, seek, five rates, close and external fal
   const view = await mount(Player, { audioLink: 'https://youtu.be/controls', audioContextKey: 'controls', isOpen: true, 'onUpdate:is-open': value => opened.push(value), onOverlayOpenChange: value => overlays.push(value) }, env); t.after(view.close);
   const sdk = await created; sdk.events.onReady(); await Vue.nextTick(); click(byClass(view.host, 'player-control')[0]); click(byClass(view.host, 'player-control')[0]); click(byClass(view.host, 'youtube-progress-track')[0], { clientX: 110 });
   assert.ok(sdk.commands.some(c => c[0] === 'play')); assert.ok(sdk.commands.some(c => c[0] === 'pause')); assert.ok(sdk.commands.some(c => c[0] === 'seek' && c[1] === 60 && c[2] === true));
-  for (const [index, rate] of [0.75, 1, 1.25, 1.5, 2].entries()) {
-    click(byClass(view.host, 'player-speed-trigger')[0]); await Vue.nextTick(); const options = all(view.host, n => n.props.role === 'menuitemradio'); assert.equal(options.length, 5); click(options[index]); await Vue.nextTick(); assert.deepEqual(sdk.commands.at(-1), ['rate', rate]);
+  for (const [index, rate] of [0.75, 1, 1.25, 1.5, 1.75, 2].entries()) {
+    click(byClass(view.host, 'player-speed-trigger')[0]); await Vue.nextTick(); const options = all(view.host, n => n.props.role === 'menuitemradio'); assert.equal(options.length, 6); click(options[index]); await Vue.nextTick(); assert.deepEqual(sdk.commands.at(-1), ['rate', rate]);
   }
-  assert.deepEqual(overlays, [true, false, true, false, true, false, true, false, true, false]);
+  assert.deepEqual(overlays, [true, false, true, false, true, false, true, false, true, false, true, false]);
   click(byClass(view.host, 'player-close')[0]); assert.deepEqual(opened, [false]); assert.equal(sdk.destroyed, true);
   const external = []; Object.assign(view.props, { audioLink: 'https://audio.test/file.mp3', onOpenExternal: url => external.push(url) }); await Vue.nextTick(); click(byClass(view.host, 'player-text-action')[0]); assert.deepEqual(external, ['https://audio.test/file.mp3']);
 });

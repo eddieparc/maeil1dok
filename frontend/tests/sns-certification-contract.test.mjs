@@ -151,12 +151,15 @@ test('certification modal opens as a separate completion surface with required a
   const sharing = f.host.find('share-send').props.onClick();
   assert.equal(f.shared[0].files[0], image.file, 'adapter must preserve prepared image behavior');
   await sharing; await Vue.nextTick();
-  assert.match(f.shared[0].url, /plan_id=7/);
-  assert.match(f.shared[0].url, /schedule_id=13/);
+  // SNS 공유는 이미지만 전달한다 — 제목·본문·링크를 붙이지 않는다.
+  assert.equal(f.shared[0].title, undefined);
+  assert.equal(f.shared[0].text, undefined);
+  assert.equal(f.shared[0].url, undefined);
   await f.host.find('share-save').props.onClick(); await Vue.nextTick();
   assert.equal(f.downloaded[0], image.file);
   await f.host.byClass('share-copy').props.onClick();
-  assert.equal(f.copied[0], f.shared[0].url);
+  assert.match(f.copied[0], /plan_id=7/);
+  assert.match(f.copied[0], /schedule_id=13/);
 });
 
 test('completion success opens certification modal before plan navigation', async t => {
@@ -209,10 +212,10 @@ test('existing verse selection share behavior remains isolated', async t => {
   assert.equal(f.host.all().filter(n => n.props['data-share-slide'] !== undefined).length, 1);
   await f.host.find('share-send').props.onClick();
   assert.equal(f.shared[0].files[0], image.file);
-  assert.equal(f.shared[0].title, verse.reference);
-  assert.equal(f.shared[0].text, verse.text);
-  assert.equal(f.shared[0].url, url);
-  assert.doesNotMatch(f.shared[0].url, /certification=|plan_id=|schedule_id=/);
+  // SNS 공유는 이미지만 전달한다 — 제목·본문·링크를 붙이지 않는다.
+  assert.equal(f.shared[0].title, undefined);
+  assert.equal(f.shared[0].text, undefined);
+  assert.equal(f.shared[0].url, undefined);
   assert.deepEqual(f.results, [{ action: 'share', result: 'shared' }]);
   assert.equal(f.copied.length, 0);
 });

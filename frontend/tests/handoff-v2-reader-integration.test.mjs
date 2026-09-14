@@ -168,15 +168,12 @@ async function mount(url = '/bible', options = {}) {
   return { host, router, values, state: r.state, ready: async () => { await Promise.all(r.mounts); await settled(); }, close: () => app.unmount(), route: async url => { await router.push(url); await settled(); } };
 }
 
-test('bare URL is a hub without overwriting position; continue, URL updates, back and reload keep explicit reader intent', { timeout: 10000 }, async t => {
+test('bare URL resumes the last reading position; in-app hub nav, back and reload keep explicit reader intent', { timeout: 10000 }, async t => {
   const saved = JSON.stringify({ book: 'exo', chapter: 3, version: 'KNT', scroll_position: .42 });
   const view = await mount('/bible', { storage: { lastReadingPosition: saved, tongdokModeState: JSON.stringify({ enabled: true, planId: 7, scheduleId: 1 }) } }); t.after(view.close); await view.ready();
-  assert.equal(view.state.viewMode.value, 'home'); assert.equal(r.contentCalls.length, 0);
-  assert.equal(byClass(view.host, 'bottom-nav-container').length, 1, 'hub retains the shared five-tab navigation');
-  await view.state.saveCurrentReadingPosition(true); assert.equal(view.values.get('lastReadingPosition'), saved);
-  const resumed = signal(view.state.hasReaderScrollPosition);
-  await emit('BibleHome', 'continue-reading'); await resumed; await settled();
+  // 북마크: 진입 쿼리가 없으면 마지막 읽은 위치(책·장·버전·스크롤)로 자동 복귀한다.
   assert.equal(view.state.viewMode.value, 'reader'); assert.equal(view.router.currentRoute.value.query.book, 'exo'); assert.equal(view.state.scrollPosition.value, .42);
+  await view.state.saveCurrentReadingPosition(true); assert.deepEqual(JSON.parse(view.values.get('lastReadingPosition')), { ...JSON.parse(saved), updated_at: JSON.parse(view.values.get('lastReadingPosition')).updated_at });
   await view.state.handleBookSelect('gen', 50); await settled(); assert.equal(view.router.currentRoute.value.query.chapter, '50');
   await view.state.handleVersionSelect('WOORI'); await settled(); assert.equal(view.router.currentRoute.value.query.version, 'WOORI');
   await view.route('/bible'); assert.equal(view.state.viewMode.value, 'home');
@@ -226,10 +223,12 @@ test('real shell consumes 60 pixel scroll; all controlled sheets and modal host 
   for (const key of ['showBookSelector', 'showVersionSelector', 'showSettingsModal', 'showNoteModal', 'showHighlightModal', 'showScheduleModal', 'showFullScheduleModal', 'showTongdokPlanModal', 'showGuideSheet']) {
     assert.ok(view.state[key], key); view.state[key].value = true; await settled(); assert.equal(hidden(), false, key); assert.ok(r.selectionClears.length); view.state[key].value = false; await settled();
   }
-  r.shareSnapshot = () => view.state.shareVerses?.value;
+  // 절 공유는 ShareSheet이 아니라 [매일일독] <참조>\n<풀 링크> 텍스트를 Web Share로 보낸다.
+  const shared = []; const originalNavigator = globalThis.navigator; globalThis.navigator = { share: async data => { shared.push(data); } };
   await emit('BibleViewer', 'share', { book: '창세기', chapter: 49, version: '개역개정', start: 3, end: 3, startVerse: 3, endVerse: 3, text: 'selected actual text', verses: [{ number: 3, text: 'selected actual text' }] });
-  assert.equal(r.boundaries.ShareSheet.attrs.mode, 'verse'); assert.equal(r.boundaries.ShareSheet.attrs.verses[0].text, 'selected actual text'); assert.equal(r.selectionClears.at(-1)[0].text, 'selected actual text');
-  assert.match(r.boundaries.ShareSheet.attrs['share-url'], /verse=3/); assert.equal(hidden(), false);
+  await settled(); globalThis.navigator = originalNavigator;
+  assert.equal(shared.length, 1); assert.match(shared[0].text, /^\[매일일독\] 창세기 49:3\n/); assert.match(shared[0].text, /verse=3/);
+  assert.equal(view.state.showShareSheet.value, false); assert.equal(hidden(), false);
   assert.ok(r.boundaries.ReadingSettingsSheet); assert.equal(r.boundaries.ReadingSettingsSheet.attrs['current-version'], 'GAE');
   const close = view.state.modal.open({ render: () => null }); await settled(); assert.equal(view.state.overlayOpen.value, true); await view.state.modal.close(); await close;
 });
@@ -273,16 +272,12 @@ test('explicit completion uses acknowledged schedule, filtered text/real metadat
     { id: 6, book: 'exo', chapter: 3, start_verse: 3, end_verse: 3, color: '#custom' },
   ] }); t.after(view.close); await view.ready();
   assert.equal(view.state.tongdokProgress.value.done, 0);
-  const progressed = signal(() => view.state.tongdokProgress.value.done, done => done === 1);
-  click(byClass(view.host, 'tongdok-complete-status')[0]); await progressed; await settled();
-  assert.deepEqual(view.state.tongdokProgress.value.completed, [true, false]);
-  assert.equal(r.writes.filter(([path]) => path.endsWith('/reading/update/')).length, 0);
-  await view.state.handleBookSelect('gen', 50); await settled();
-  assert.equal(view.state.tongdokProgress.value.done, 1);
+  // 통독 완료 버튼은 그날 일정 전체를 한 번에 완료한다 (장 단위가 아니다).
   const opened = signal(view.state.modal.stack, stack => stack.length > 0);
   click(byClass(view.host, 'tongdok-complete-status')[0]); await opened; await settled();
   const writes = r.writes.filter(([p]) => p.endsWith('/reading/update/')); assert.deepEqual(writes.map(([, d]) => d.schedule_ids), [[1]]);
   assert.equal(view.state.isTongdokMode.value, true); assert.equal(view.state.tongdokProgress.value.done, 2);
+  assert.deepEqual(view.state.tongdokProgress.value.completed, [true, true]);
   const completion = view.state.modal.stack.value.at(-1); assert.ok(completion); assert.equal(completion.options.props.highlights.length, 1); assert.equal(completion.options.props.highlights[0].text, 'gen 49 actual verse');
   assert.equal(completion.options.props.streak, 8); assert.match(completion.options.props.nextScheduleLabel, /3.*5/);
   await completion.options.props.onShareHighlight(5); await settled(); assert.equal(r.boundaries.ShareSheet.attrs.mode, 'verse'); assert.equal(r.boundaries.ShareSheet.attrs.verses[0].id, '5');

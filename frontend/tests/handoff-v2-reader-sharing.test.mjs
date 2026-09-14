@@ -145,8 +145,9 @@ test('prepared file reaches native share synchronously and cancellation never do
   window.isReactNativeWebView = false
   const sharingVerse = service.shareCertification({ preparedImage: prepared, title: verse.reference, subtitle: verse.text, shareUrl: 'https://example.test/bible?book=JHN&chapter=3&verse=16' })
   assert.equal(calls[2].files[0], file)
-  assert.equal(calls[2].title, verse.reference)
-  assert.equal(calls[2].text, verse.text)
+  // SNS 공유는 이미지만 전달한다 — 제목·본문·링크를 붙이지 않는다.
+  assert.equal(calls[2].title, undefined)
+  assert.equal(calls[2].text, undefined)
   assert.equal(await sharingVerse, 'shared')
   const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
   let canvases = 0

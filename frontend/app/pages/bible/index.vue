@@ -70,6 +70,7 @@
         @audio-player-open-change="showTongdokAudioPlayer = $event"
         @audio-ended="handleTongdokAudioEnded"
         @reading-plan-click="openPlanSheet"
+        @share-click="handleChapterShare"
         @guide-click="showGuideSheet = true"
       />
 
@@ -299,6 +300,7 @@ const {
   disableTongdokMode,
   enableTongdokMode,
   completeCurrentChapter,
+  markAllScheduleChapters,
   isChapterCompleted,
   getCurrentSectionChapters,
   readingDetailResponse,
@@ -759,20 +761,36 @@ const handleDirectHighlightSave = async (selection: SelectionHighlightPayload) =
   if (result) toast.success('하이라이트 저장');
   else toast.error('하이라이트 저장에 실패했습니다');
 };
+// [매일일독] <참조>\n<풀 링크> 형식으로 공유. Web Share → 클립보드 폴백.
+const shareBibleLink = async (reference: string, url: string) => {
+  const text = `[매일일독] ${reference}\n${url}`;
+  if (typeof navigator !== 'undefined' && navigator.share) {
+    try {
+      await navigator.share({ text });
+      return;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success('링크를 복사했습니다');
+  } catch (error) {
+    handleApiError(error, '공유');
+  }
+};
+
 const handleShareAction = (selection: SelectionSharePayload) => {
   if ((selection.book && selection.book !== currentBookName.value) ||
       (selection.chapter && selection.chapter !== currentChapter.value) ||
       (selection.version && selection.version !== currentVersionName.value)) return;
   const range = { start: selection.startVerse, end: selection.endVerse };
-  shareMode.value = 'verse';
-  shareMetadata.value = {};
-  shareContext.value = { planId: null, scheduleId: null };
-  shareVerses.value = [{ id: `${currentBook.value}:${currentChapter.value}:${range.start}-${range.end}`,
-    text: selection.text,
-    reference: `${selection.book || currentBookName.value} ${selection.chapter || currentChapter.value}:${range.start}${range.end === range.start ? '' : `-${range.end}`}` }];
-  shareUrl.value = generateShareUrl(range);
-  // Detach the payload before the synchronous overlay watcher clears live selection.
-  showShareSheet.value = true;
+  const reference = `${selection.book || currentBookName.value} ${selection.chapter || currentChapter.value}:${range.start}${range.end === range.start ? '' : `-${range.end}`}`;
+  void shareBibleLink(reference, generateShareUrl(range));
+};
+
+const handleChapterShare = () => {
+  void shareBibleLink(`${currentBookName.value} ${currentChapter.value}${chapterSuffix.value}`, generateShareUrl());
 };
 
 // 읽기모드: 읽음 표시 핸들러
@@ -1125,13 +1143,15 @@ const handleTongdokComplete = async (_payload?: unknown, audioSource?: AudioEnde
   const chapter = currentChapter.value;
   await loadReadingDetail(tongdokPlanId.value, book, chapter);
   if (context !== readerContextKey.value || (audioSource && audioSource.audioContextKey !== audioContextKey.value)) return;
+  // 버튼 클릭은 그날 일정 전체를 완료한다. 오디오 종료는 현재 장만 완료한다.
+  if (!audioSource) markAllScheduleChapters();
   const result = await completeCurrentChapter(book, chapter);
   progressRevision.value++;
   if (!pageActive || context !== readerContextKey.value || result.status === 'stale-context') return;
   if (result.status === 'out-of-range') { toast.info('오늘 일정 범위 밖의 장이에요'); return; }
   if (result.status === 'busy') return;
   if (!result.ok) { toast.error('완료 처리에 실패했습니다'); return; }
-  toast.success(audioSource ? '통독 오디오를 완료했습니다!' : `${currentBookName.value} ${chapter}${chapterSuffix.value} 통독 완료`);
+  if (!audioSource) toast.success(`${currentBookName.value} ${chapter}${chapterSuffix.value} 통독 완료`);
   if (result.scheduleCompleted && result.planId && result.selectedScheduleId) {
     const scheduleId = result.persistedScheduleIds.at(-1) ?? result.selectedScheduleId;
     await openCompletion(context, result.planId, scheduleId);
@@ -1170,8 +1190,11 @@ const handleHomeBookSelect = (bookId: string, chapter = 1) => enterReaderMode(bo
 const handleTocBookSelect = (bookId: string, chapter = 1) => enterReaderMode(bookId, chapter);
 const handleTocBack = () => { viewMode.value = 'home'; };
 
+let pendingResumeScroll: number | null = null;
+
 const applyReaderRoute = async (restorePosition = false) => {
   const generation = ++routeGeneration;
+  const wasAudioOpen = showTongdokAudioPlayer.value;
   await saveCurrentReadingPosition(true);
   readerReady.value = false;
   showTongdokAudioPlayer.value = false;
@@ -1182,6 +1205,15 @@ const applyReaderRoute = async (restorePosition = false) => {
   await modal.close(completionModalId);
   initTongdokMode();
   if (!getBibleRouteQueryPolicy(route.query).shouldInitializeOnEntry) {
+    // 북마크: 진입 쿼리가 없으면 마지막 읽은 위치로 자동 복귀한다.
+    if (restorePosition) {
+      const last = await loadReadingPosition();
+      if (pageActive && generation === routeGeneration && last) {
+        pendingResumeScroll = last.scroll_position;
+        await navigateReader(last.book, last.chapter, undefined, last.version || 'GAE');
+        return;
+      }
+    }
     viewMode.value = 'home';
     ++contentGeneration;
     return;
@@ -1198,12 +1230,18 @@ const applyReaderRoute = async (restorePosition = false) => {
     loadReadingDetail(isTongdokMode.value ? tongdokPlanId.value : null, book, chapter),
   ]);
   if (!pageActive || generation !== routeGeneration) return;
-  if (lastPosition?.book === book && lastPosition.chapter === chapter && lastPosition.version === currentVersion.value) {
+  if (pendingResumeScroll !== null) {
+    const resumeScroll = pendingResumeScroll;
+    pendingResumeScroll = null;
+    await restoreSavedScrollPosition(resumeScroll);
+  } else if (lastPosition?.book === book && lastPosition.chapter === chapter && lastPosition.version === currentVersion.value) {
     await restoreSavedScrollPosition(lastPosition.scroll_position);
   } else {
     await focusPendingVerseRange();
   }
   readerReady.value = true;
+  // 오디오가 켜진 채로 장을 넘기면 새 장의 오디오를 이어서 연다.
+  if (wasAudioOpen && tongdokAudioLink.value) showTongdokAudioPlayer.value = true;
   enablePositionSaving();
 };
 onMounted(async () => {

@@ -27,6 +27,9 @@
           <ChevronRightIcon :size="20" />
         </button>
       </div>
+      <span class="reader-scroll-progress" aria-hidden="true">
+        <span class="reader-scroll-progress-fill" :style="{ transform: `scaleX(${scrollFraction})` }"></span>
+      </span>
 
       <div class="header-actions">
         <BibleSearchButton />
@@ -61,6 +64,7 @@
           :audio-link="null"
           :guide-link="null"
           @note-click="$emit('note-click')"
+          @share-click="$emit('share-click')"
           @open-settings="$emit('open-settings')"
           @open-change="toolsOpen = $event"
           @reading-plan-click="$emit('reading-plan-click')"
@@ -92,7 +96,7 @@
       :initial-scroll-position="scrollPosition"
       :highlights="highlights"
       :style="{ paddingBottom: 'calc(var(--reader-tabs-height) + var(--reader-controls-height) + 12px)' }"
-      @scroll="$emit('scroll', $event)"
+      @scroll="handleScroll"
       @scroll-pixels="handleScrollPixels"
       @bookmark="$emit('bookmark', $event)"
       @highlight="$emit('highlight', $event)"
@@ -191,6 +195,16 @@
 
         <!-- 통독모드: 진행률 바 영역 -->
         <div v-if="isTongdokMode && tongdokProgress" class="tongdok-progress-area">
+          <button
+            class="tongdok-mode-pill"
+            type="button"
+            @click="$emit('exit-tongdok')"
+            title="통독 모드 종료"
+            aria-label="통독 모드 종료"
+          >
+            <span class="tongdok-mode-pill-label">통독</span>
+            <XMarkIcon :size="12" aria-hidden="true" />
+          </button>
           <div class="story-progress-bar">
             <div
               v-for="i in tongdokProgress.total"
@@ -217,15 +231,6 @@
           >
             <CheckIcon :size="15" :stroke-width="2.25" />
             <span class="tongdok-complete-label">{{ isTongdokComplete ? '완료됨' : '통독 완료' }}</span>
-          </button>
-          <button
-            class="tongdok-exit-bottom-btn"
-            type="button"
-            @click="$emit('exit-tongdok')"
-            title="통독 종료"
-            aria-label="통독 종료"
-          >
-            <XMarkIcon :size="14" />
           </button>
         </div>
 
@@ -417,6 +422,7 @@ const emit = defineEmits<{
   'audio-ended': [source: AudioEndedSource];
   'guide-click': [url: string];
   'reading-plan-click': [];
+  'share-click': [];
 }>();
 
 // Swipe handlers
@@ -444,9 +450,15 @@ const selectionMenuState = ref<SelectionMenuState>({
 const tabsHidden = ref(false);
 const toolsOpen = ref(false);
 const audioMenuOpen = ref(false);
+const scrollFraction = ref(0);
 const hideSuspended = computed(() => props.overlayOpen || toolsOpen.value || audioMenuOpen.value);
 let lastScrollPixels = 0;
 let downwardPixels = 0;
+
+const handleScroll = (position: number) => {
+  scrollFraction.value = Math.min(1, Math.max(0, position));
+  emit('scroll', position);
+};
 
 const handleScrollPixels = (position: number) => {
   emit('scroll-pixels', position);
@@ -472,6 +484,7 @@ watch(() => [props.currentBookName, props.currentChapter, boundAudioContextKey.v
   lastScrollPixels = 0;
   downwardPixels = 0;
   audioMenuOpen.value = false;
+  scrollFraction.value = 0;
 });
 
 const handleAudioEnded = (source: AudioEndedSource) => {
@@ -554,6 +567,26 @@ defineExpose({
   border-bottom: 1px solid rgba(17, 24, 39, 0.045);
   box-shadow: none;
   transition: all 0.15s ease;
+}
+
+.reader-scroll-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.reader-scroll-progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--color-accent-primary, #2A1111);
+  transition: transform 0.12s linear;
 }
 
 .back-button {
@@ -1572,6 +1605,42 @@ defineExpose({
   border-bottom: 1px solid rgba(42, 17, 17, 0.12);
 }
 
+.tongdok-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  height: var(--hit-min);
+  padding: 0 0.4rem 0 0.6rem;
+  border: 1px solid rgba(42, 17, 17, 0.14);
+  border-radius: var(--radius-control, 10px);
+  background: rgba(42, 17, 17, 0.08);
+  color: var(--color-accent-primary, #2A1111);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.tongdok-mode-pill:hover {
+  background: rgba(42, 17, 17, 0.14);
+}
+
+.tongdok-mode-pill:active {
+  transform: scale(0.96);
+}
+
+[data-theme="dark"] .tongdok-mode-pill {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--color-accent-primary);
+}
+
+[data-theme="dark"] .tongdok-mode-pill:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .tongdok-complete-status {
   display: inline-flex;
   align-items: center;
@@ -1677,40 +1746,6 @@ defineExpose({
   box-shadow: 0 0 0 3px rgba(42, 17, 17, 0.14);
 }
 
-.tongdok-exit-bottom-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--hit-min);
-  height: var(--hit-min);
-  border-radius: 999px;
-  color: var(--text-secondary, #6b7280);
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(42, 17, 17, 0.14);
-  flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
-}
-
-.tongdok-exit-bottom-btn:hover {
-  color: var(--text-primary, #1f2937);
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.tongdok-exit-bottom-btn:active {
-  transform: scale(0.94);
-}
-
-[data-theme="dark"] .tongdok-exit-bottom-btn {
-  color: var(--color-text-secondary);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .tongdok-exit-bottom-btn:hover {
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.14);
-}
-
 @media (max-width: 768px) {
   .bible-header,
   .tongdok-indicator {
@@ -1725,7 +1760,9 @@ defineExpose({
 }
 
 .bible-reader-view.tabs-hidden {
-  --reader-tabs-height: var(--mobile-nav-safe-inset);
+  /* Tabs are gone, so the 24px design floor must not be reserved — only the
+     real device home-indicator inset keeps the sticky bar off the edge. */
+  --reader-tabs-height: max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px));
 }
 
 .bible-reader-view :deep(.floating-above-popover) {

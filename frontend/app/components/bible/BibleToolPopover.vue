@@ -48,6 +48,16 @@
           </div>
         </button>
 
+        <!-- 현재 장 링크 공유 -->
+        <button class="popover-item" data-testid="reader-share" @click="handleShare">
+          <div class="item-icon">
+            <ShareIcon />
+          </div>
+          <div class="item-content">
+            <span class="item-label">공유</span>
+          </div>
+        </button>
+
         <div class="popover-divider"></div>
 
         <!-- 노트 -->
@@ -100,7 +110,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { Ellipsis as EllipsisIcon, FileText as NoteIcon, Bookmark as BookmarkOutlineIcon, Bookmark as BookmarkFilledIcon, Settings as SettingsIcon, ListChecks as ListCheckIcon, Headphones as AudioIcon, BookOpen as GuideIcon } from '@lucide/vue';
+import { Ellipsis as EllipsisIcon, FileText as NoteIcon, Bookmark as BookmarkOutlineIcon, Bookmark as BookmarkFilledIcon, Settings as SettingsIcon, ListChecks as ListCheckIcon, Headphones as AudioIcon, BookOpen as GuideIcon, Share2 as ShareIcon } from '@lucide/vue';
 
 const props = defineProps<{
   noteCount: number;
@@ -114,6 +124,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'note-click': [];
   'reading-plan-click': [];
+  'share-click': [];
   'bookmark-toggle': [];
   'audio-link-click': [url: string];
   'open-settings': [];
@@ -153,6 +164,11 @@ const handleBookmarkList = () => {
 const handleSettings = () => {
   closePopover();
   emit('open-settings');
+};
+
+const handleShare = () => {
+  emit('share-click');
+  closePopover();
 };
 
 const handleReadingPlan = () => {

@@ -67,6 +67,7 @@ export interface SelectionMenuState {
   mode: 'action' | 'copy' | null;
   isHighlighted: boolean;
   isSingleVerse: boolean;
+  highlightColor?: string | null;
   selection?: VerseSelectionPayload | null;
 }
 
@@ -167,6 +168,7 @@ const emitSelectionMenuChange = () => {
     mode: showActionMenu.value ? 'action' : showCopyMenu.value ? 'copy' : null,
     isHighlighted: isSelectedVerseHighlighted.value,
     isSingleVerse: selectedVerses.value.start === selectedVerses.value.end,
+    highlightColor: getSelectedVerseHighlight()?.color ?? null,
     selection,
   });
 };

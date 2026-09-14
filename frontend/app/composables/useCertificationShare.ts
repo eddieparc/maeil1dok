@@ -52,8 +52,6 @@ class CertificationImageError extends Error {
 }
 
 const FILE_NAME = 'maeil1dok-tongdok-certification.png';
-const SHARE_TITLE = '매일일독 통독 인증 카드';
-const SHARE_TEXT = '오늘도 말씀을 읽었습니다';
 const getCertificationLink = (payload?: CertificationSharePayload): string => {
   if (payload?.shareUrl) return payload.shareUrl;
   const path = '/bible/history';
@@ -171,10 +169,8 @@ export const useCertificationShare = () => {
       throw error;
     }
 
+    // SNS 공유는 이미지만 전달한다(링크·텍스트 제외).
     const shareData: ShareData = {
-      title: payload?.title || SHARE_TITLE,
-      text: payload?.subtitle || SHARE_TEXT,
-      url: link,
       files: [file],
     };
 

@@ -547,6 +547,17 @@ export const useTongdokMode = () => {
     return calculateProgress(readingDetailResponse.value.data.plan_detail, currentBook, currentChapter);
   };
 
+  /** Mark every chapter in the loaded day's schedule (통독 완료 = whole range). */
+  const markAllScheduleChapters = (): void => {
+    const authoritative = getAuthoritativeDetail();
+    if (!authoritative) return;
+    for (const row of authoritative.rows) {
+      for (let chapter = row.start_chapter; chapter <= row.end_chapter; chapter += 1) {
+        sessionChapterMarks.add(chapterKey(row.book, chapter));
+      }
+    }
+  };
+
   /** Mark only the chapter represented by the currently loaded, validated context. */
   const markCurrentChapter = (book: string, chapter: number): boolean => {
     const authoritative = getAuthoritativeDetail();
@@ -756,6 +767,7 @@ export const useTongdokMode = () => {
     setReadingDetailResponse,
     getCurrentSectionChapters,
     markCurrentChapter,
+    markAllScheduleChapters,
     completeCurrentChapter,
     completeReading,
     loadReadingDetail,

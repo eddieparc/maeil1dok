@@ -97,11 +97,10 @@ test('shareCertification downloads the prepared PNG when Web Share files are una
   const [sharedPayload] = sharedPayloads;
   assert.equal(cancelledResult, 'shared');
   assert.equal(sharedPayloads.length, 1);
-  assert.equal(sharedPayload.title, payload.title);
-  assert.equal(sharedPayload.text, payload.subtitle);
-  assert.match(sharedPayload.url, /certification=tongdok/);
-  assert.match(sharedPayload.url, /plan_id=7/);
-  assert.match(sharedPayload.url, /schedule_id=13/);
+  // SNS 공유는 이미지만 전달한다 — 제목·본문·링크를 붙이지 않는다.
+  assert.equal(sharedPayload.title, undefined);
+  assert.equal(sharedPayload.text, undefined);
+  assert.equal(sharedPayload.url, undefined);
   assert.equal(sharedPayload.files.length, 1);
   assert.equal(sharedPayload.files[0], preparedImage.file);
   assert.equal(sharedPayload.files[0].name, 'maeil1dok-tongdok-certification.png');

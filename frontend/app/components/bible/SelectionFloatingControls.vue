@@ -26,7 +26,9 @@
       </button>
     </div>
     <button v-if="state.isHighlighted" type="button" class="selection-action-button selection-delete-button" aria-label="하이라이트 삭제" @click="$emit('highlight-or-remove')">
-      <Trash2Icon :size="16" aria-hidden="true" />
+      <span class="selection-delete-swatch" :style="{ backgroundColor: state.highlightColor || 'var(--color-accent-primary, #2A1111)' }" aria-hidden="true">
+        <XMarkIcon :size="11" />
+      </span>
     </button>
     <button type="button" class="selection-action-button selection-copy-action" aria-label="구절 복사" @click="$emit('copy')">
       <CopyIcon :size="16" aria-hidden="true" />
@@ -81,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { CopyIcon, Trash2Icon, ShareIcon } from '@lucide/vue';
+import { CopyIcon, ShareIcon } from '@lucide/vue';
 import { DEFAULT_HIGHLIGHT_COLORS } from '~/composables/useHighlight';
 import type { SelectionMenuState } from '~/components/bible/BibleViewer.vue';
 import XMarkIcon from '~/components/icons/XMarkIcon.vue';
@@ -166,6 +168,21 @@ defineEmits<{
   width: 24px;
   height: 24px;
   border-radius: var(--radius-pill);
+}
+
+.selection-delete-swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.selection-delete-swatch svg {
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.55));
 }
 
 .selection-action-button:hover,
