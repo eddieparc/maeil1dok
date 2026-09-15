@@ -12,12 +12,7 @@ const quickAccessSource = await readFile(
   'utf8',
 );
 
-const floatingNavSource = await readFile(
-  new URL('../app/components/home-v2/FloatingNav.vue', import.meta.url),
-  'utf8',
-);
-
-// LAB-124: FloatingNav 는 5탭 하단 탭바(BottomNavigation)로 위임하는 래퍼가 되었다.
+// LAB-124: 랜딩 하단 탭바는 BottomNavigation 이다 (FloatingNav 래퍼는 제거됨).
 // 탭 구성 자체의 계약은 tests/app-shell-nav-contract.test.mjs 가 소유하고,
 // 여기서는 랜딩에서 보이는 표면(불투명 배경 등)만 실제 탭바 소스로 확인한다.
 const bottomNavSource = await readFile(
@@ -192,14 +187,12 @@ async function importLandingAuthRuntime() {
 
 const [
   QuickAccessGrid,
-  FloatingNav,
   HomeHero,
   ReadingCardStack,
   LandingPage,
   landingAuthRuntime,
 ] = await Promise.all([
   compileLandingComponent(quickAccessSource, 'QuickAccessGrid.vue'),
-  compileLandingComponent(floatingNavSource, 'FloatingNav.vue'),
   compileLandingComponent(homeHeroSource, 'HomeHero.vue'),
   compileLandingComponent(readingCardStackSource, 'ReadingCardStack.vue'),
   compileLandingComponent(landingPageSource, 'index.vue'),

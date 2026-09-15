@@ -2,9 +2,13 @@
   <PageLayout title="알림 설정">
     <div class="notification-settings-shell">
       <h2 class="sr-only">알림 설정</h2>
-    <div v-if="!notificationsStore.hasLoadedSettings || (notificationsStore.isLoading && !settings)" class="settings-card">
-      <SkeletonList :count="4" variant="default" />
+      <div v-if="!notificationsStore.hasLoadedSettings || (notificationsStore.isLoading && !settings)" class="settings-card">
+        <SkeletonList :count="4" variant="default" />
       </div>
+
+      <EmptyState v-else-if="!auth.isAuthenticated.value" text="로그인 후 알림을 설정할 수 있습니다" fullscreen>
+        <template #action><NuxtLink to="/login" class="history-link">로그인</NuxtLink></template>
+      </EmptyState>
 
       <ErrorState
         v-else-if="notificationsStore.error && !settings"
@@ -91,6 +95,8 @@
 import { onMounted, ref, watch } from 'vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import ErrorState from '~/components/ErrorState.vue'
+import EmptyState from '~/components/common/EmptyState.vue'
+import { useAuthService } from '~/composables/useAuthService'
 import DevicePushSetting from '~/components/notifications/DevicePushSetting.vue'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import AppSwitch from '~/components/ui/AppSwitch.vue'
@@ -104,6 +110,7 @@ useHead({
   ],
 })
 
+const auth = useAuthService()
 const notificationsStore = useNotificationsStore()
 const toast = useToast()
 const settings = ref<NotificationSettings | null>(null)
