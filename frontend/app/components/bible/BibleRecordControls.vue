@@ -1,10 +1,10 @@
 <template>
-  <button v-if="actionOnly" type="button" class="icon-btn" aria-label="기록 검색" :aria-expanded="showSearch" :aria-controls="searchId" @click="showSearch = !showSearch"><Search :size="20" aria-hidden="true" /></button>
+  <button v-if="actionOnly" type="button" class="icon-btn" aria-label="기록 검색" :aria-expanded="showSearch || Boolean(searchQuery.trim())" :aria-controls="searchId" @click="showSearch = !showSearch"><Search :size="20" aria-hidden="true" /></button>
   <div v-else class="record-controls">
     <nav class="record-navigation" aria-label="내 기록 종류">
       <NuxtLink v-for="segment in segments" :key="segment.to" :to="segment.to" :aria-current="activeRoute === segment.to ? 'page' : undefined">{{ segment.label }}</NuxtLink>
     </nav>
-    <input v-if="showSearch" :id="searchId" v-model="searchQuery" class="search-input" type="search" :aria-label="searchLabel" :placeholder="searchLabel" />
+    <input v-if="showSearch || searchQuery.trim()" :id="searchId" v-model="searchQuery" class="search-input" type="search" :aria-label="searchLabel" :placeholder="searchLabel" />
     <div class="filter-bar">
       <select v-model="filterBook" class="filter-select" aria-label="성경 필터">
         <option value="">전체 성경</option>

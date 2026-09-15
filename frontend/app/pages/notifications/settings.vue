@@ -237,7 +237,7 @@ onMounted(() => {
   border-radius: 8px;
   border: 0;
   background: var(--color-accent-primary);
-  color: white;
+  color: var(--color-text-inverse);
   font-weight: 700;
 }
 

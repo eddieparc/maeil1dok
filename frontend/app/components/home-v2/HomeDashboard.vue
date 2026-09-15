@@ -55,8 +55,11 @@ const recentRecords = computed(() => planCalendar.value
   .slice(0, 3));
 const todayEntries = computed(() => planCalendar.value.filter(entry => entry.date === today.value));
 const { getBookCode } = useScheduleFormatter();
+function bookUnit(entry: CalendarEntry & { readonly book_unit_kor?: string }): string {
+  return entry.book_unit_kor || (entry.book === '시편' ? '편' : '장');
+}
 function formatPassage(entry: CalendarEntry & { readonly book_unit_kor?: string }): string {
-  const unit = entry.book_unit_kor || (entry.book === '시편' ? '편' : '장');
+  const unit = bookUnit(entry);
   const range = entry.start_chapter === entry.end_chapter ? entry.start_chapter : `${entry.start_chapter}-${entry.end_chapter}`;
   return `${entry.book} ${range}${unit}`;
 }
@@ -73,7 +76,7 @@ const description = computed(() => {
   if (!planId.value) return '통독표에서 읽기 플랜을 선택해보세요';
   if (!assignment.value) return '오늘 예정된 본문이 없어요. 통독표를 확인해보세요';
   const chapters = assignment.value.end_chapter - assignment.value.start_chapter + 1;
-  return `총 ${chapters}장 · 오늘의 통독`;
+  return `총 ${chapters}${bookUnit(assignment.value)} · 오늘의 통독`;
 });
 
 onMounted(() => {

@@ -90,10 +90,16 @@
         <!-- 본문 섹션 -->
         <div class="card content-card fade-in" style="animation-delay: calc(3 * var(--stagger))">
           <!-- 에러 상태 -->
-          <div v-if="error" class="state-container error">
+          <div v-if="error" class="state-container error" role="alert">
             <div class="error-icon">!</div>
             <h3>말씀을 불러올 수 없습니다</h3>
             <p>{{ error }}</p>
+            <AppButton
+              variant="secondary"
+              data-action="retry-hasena-content"
+              :loading="isLoading"
+              @click="fetchHasenaContent"
+            >다시 시도</AppButton>
           </div>
 
           <!-- 본문 내용 -->

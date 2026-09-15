@@ -42,8 +42,8 @@ async function loadComponent(path) {
   });
   return (await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`)).default;
 }
-const [BottomNavigation, FloatingNav, FloatingBottomBar, PageLayout, SidebarNav] = await Promise.all([
-  '~/components/BottomNavigation.vue', '~/components/home-v2/FloatingNav.vue',
+const [BottomNavigation, FloatingBottomBar, PageLayout, SidebarNav] = await Promise.all([
+  '~/components/BottomNavigation.vue',
   '~/components/common/FloatingBottomBar.vue', '~/components/common/PageLayout.vue', '~/components/common/SidebarNav.vue',
 ].map(loadComponent));
 
@@ -196,9 +196,9 @@ test('legacy FloatingBottomBar composes one shared tabbar and preserves interact
   await navigateWithClick(view.router, tabs(view.host)[1], '/bible');
 });
 
-test('home FloatingNav forwards density, hidden and plan API without another tabbar', async t => {
+test('home bottom navigation accepts density, hidden and plan API (FloatingNav wrapper retired)', async t => {
   let plans = 0;
-  const view = await mount(FloatingNav, { density: 'reader', hidden: true, interceptPlan: true, onPlan: () => plans++ }); t.after(view.close);
+  const view = await mount(BottomNavigation, { density: 'reader', hidden: true, interceptPlan: true, onPlan: () => plans++ }); t.after(view.close);
   assert.equal(byClass(view.host, 'bottom-nav-container').length, 1);
   assert.equal(tabbar(view.host).props['data-density'], 'reader');
   assert.equal(byClass(view.host, 'bottom-nav-tabs')[0].props.inert, true);

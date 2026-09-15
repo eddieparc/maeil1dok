@@ -654,11 +654,11 @@ body,
 }
 
 /* Links */
-[data-theme="dark"] a:not(:where(.app-button)) {
+[data-theme="dark"] a:not(:where(.app-button, .bible-login-btn)) {
   color: var(--color-link);
 }
 
-[data-theme="dark"] a:not(:where(.app-button)):hover {
+[data-theme="dark"] a:not(:where(.app-button, .bible-login-btn)):hover {
   color: var(--color-link-hover);
 }
 

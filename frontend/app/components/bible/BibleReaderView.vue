@@ -1756,13 +1756,9 @@ defineExpose({
 
 /* H02: header navigation and independently reserved bottom controls. */
 .bible-reader-view {
+  /* Keep scroll space when tabs hide: shrinking it clamps scrollTop and
+     misidentifies the resulting scroll event as an upward user scroll. */
   --reader-tabs-height: var(--mobile-nav-height);
-}
-
-.bible-reader-view.tabs-hidden {
-  /* Tabs are gone, so the 24px design floor must not be reserved — only the
-     real device home-indicator inset keeps the sticky bar off the edge. */
-  --reader-tabs-height: max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px));
 }
 
 .bible-reader-view :deep(.floating-above-popover) {
