@@ -105,6 +105,25 @@ export const useApi = () => {
     }
   }
 
+  // Catch only native fetch transport rejections, not decoding/auth/programming errors.
+  const fetchTransport = async (url: string, options: RequestInit): Promise<Response> => {
+    try {
+      return await fetch(url, options)
+    } catch (error) {
+      if (
+        !options.signal?.aborted &&
+        error instanceof TypeError &&
+        ['Failed to fetch', 'NetworkError when attempting to fetch resource.', 'Load failed', 'fetch failed'].includes(error.message)
+      ) {
+        const message = '네트워크 연결을 확인한 후 다시 시도해주세요.'
+        const networkError = new ApiError(message, 0, { code: 'NETWORK_ERROR', error: message })
+        networkError.cause = error
+        throw networkError
+      }
+      throw error
+    }
+  }
+
   // 401 에러 시 토큰 갱신 후 재시도하는 공통 함수
   const fetchWithRetry = async (
     url: string,
@@ -117,7 +136,7 @@ export const useApi = () => {
       throw new ApiError('Authentication required', 401)
     }
 
-    let response = await fetch(url, options)
+    let response = await fetchTransport(url, options)
 
     const csrfTokenFromHeader = response.headers.get('X-CSRFToken')
     if (csrfTokenFromHeader) {
@@ -161,7 +180,7 @@ export const useApi = () => {
             }
             options.headers = retryHeaders
           }
-          response = await fetch(url, options)
+          response = await fetchTransport(url, options)
           
           const retryTokenFromHeader = response.headers.get('X-CSRFToken')
           if (retryTokenFromHeader) {
@@ -187,7 +206,10 @@ export const useApi = () => {
       } catch {
         body = null
       }
-      const message = body?.error || body?.detail || body?.message || `API request failed: ${response.status}`
+      // 429는 DRF 기본 영문 문구("Request was throttled...")가 그대로 노출되므로 한국어 안내로 치환한다.
+      const message = response.status === 429
+        ? '요청이 너무 많아요. 잠시 후 다시 시도해주세요.'
+        : body?.error || body?.detail || body?.message || `API request failed: ${response.status}`
       throw new ApiError(message, response.status, body)
     }
 
