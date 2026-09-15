@@ -1,5 +1,5 @@
 <template>
-  <div class="empty-state fade-in" :class="{ fullscreen }">
+  <div class="empty-state fade-in" :class="{ fullscreen, 'empty-state-container guide-cards': presentation === 'cards' }">
     <div class="empty-icon">
       <slot name="icon">
         <Info :size="32" :stroke-width="1.5" aria-hidden="true" />
@@ -13,7 +13,10 @@
     <div v-if="$slots.guide || guide?.length" class="empty-guide">
       <slot name="guide">
         <ol v-if="guide?.length" class="empty-guide__steps">
-          <li v-for="(step, index) in guide" :key="index">{{ step }}</li>
+          <li v-for="(step, index) in guide" :key="index">
+            <span v-if="presentation === 'cards'" class="step-number" aria-hidden="true">{{ index + 1 }}</span>
+            <span>{{ step }}</span>
+          </li>
         </ol>
       </slot>
     </div>
@@ -46,6 +49,7 @@ const props = defineProps({
   hint: { type: String, default: '' },
   guide: { type: Array, default: undefined },
   fullscreen: { type: Boolean, default: false },
+  presentation: { type: String, default: 'list' },
   actionText: {
     type: String,
     default: ''
@@ -132,6 +136,16 @@ const handleAction = () => {
 .empty-action {
   margin-top: var(--card-padding);
 }
+
+.guide-cards { min-height: 300px; }
+.guide-cards .empty-icon { width: auto; height: auto; background: none; opacity: 0.5; }
+.guide-cards .empty-icon :deep(svg) { width: 48px; height: 48px; }
+.guide-cards .empty-title { font-size: 15px; font-weight: 500; }
+.guide-cards .empty-description { font-size: 13px; }
+.guide-cards .empty-guide { max-width: 280px; margin-top: 24px; }
+.guide-cards .empty-guide__steps { padding: 0; list-style: none; }
+.guide-cards li { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: var(--color-bg-secondary); border-radius: var(--radius-control); font-size: 13px; }
+.step-number { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; border-radius: var(--radius-pill); background: var(--color-accent-primary); color: var(--color-text-inverse); font-size: 12px; font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   .empty-state {
