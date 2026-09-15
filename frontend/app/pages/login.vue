@@ -301,6 +301,8 @@ const handleBack = () => {
 .google-button:hover { background: var(--color-button-hover); }
 .apple-button { background: var(--color-apple-bg); color: var(--color-apple-text); }
 .apple-button:hover { background: var(--color-accent-primary-hover); }
+/* 다크 모드에서 Apple 버튼이 배경과 같은 톤으로 사라지지 않도록 기본 테두리를 준다. */
+:global([data-theme="dark"] .login-container .apple-button) { border-color: var(--color-border-default); }
 .divider {
   display: flex;
   align-items: center;

@@ -154,7 +154,8 @@ onUnmounted(() => {
 <style scoped>
 .groups-page :deep(.header) { height: 64px; padding: 6px 20px; background: var(--color-bg-primary); border-bottom: none; gap: 8px; }
 .groups-page :deep(.back-placeholder) { display: none; }
-.groups-page :deep(.header h1) { font-size: 22px; font-weight: 700; line-height: 1.3; letter-spacing: -0.6px; }
+/* back-placeholder를 숨기면 right-slot이 유일한 flex 자식이 되어 왼쪽에 붙는다. 제목을 흐름에 두고 링크를 오른쪽으로 보낸다. */
+.groups-page :deep(.header h1) { position: static; transform: none; flex: 1; font-size: 22px; font-weight: 700; line-height: 1.3; letter-spacing: -0.6px; }
 .header-links { display: flex; gap: 6px; }
 .header-links :deep(.app-button) { padding-inline: 12px; }
 .content-wrapper { padding: 14px 20px 20px; max-width: 768px; margin: 0 auto; letter-spacing: var(--tracking-body); }
