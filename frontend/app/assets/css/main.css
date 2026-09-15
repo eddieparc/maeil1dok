@@ -5,36 +5,29 @@
 
 @import './_shimmer.css';
 
+/*
+ * Legacy variable names still referenced by components. They alias the
+ * canonical semantic tokens from themes.css so both themes follow v2 without a
+ * second palette. --primary-rgb has no canonical rgb triplet and keeps its
+ * per-theme numeric value (it feeds rgba() consumers).
+ */
 :root {
-  /* Primary colors - used by components */
-  --primary-color: #2A1111;
-  --primary-light: #F3EEEE;
-  --primary-dark: #3A1A1A;
-  --primary-hover: #3A1A1A;
+  --primary-color: var(--color-accent-primary);
+  --primary-light: var(--color-accent-primary-light);
+  --primary-dark: var(--color-accent-primary-dark);
+  --primary-hover: var(--color-accent-primary-hover);
   --primary-rgb: 42, 17, 17;
-  --color-primary: #2A1111;
-  --color-primary-light: #F3EEEE;
-  --color-primary-dark: #3A1A1A;
-  --text-primary: #2a1111;
-  --text-secondary: #666666;
-  --background-color: #faf8f6;
-  --text-color: #333;
+  --color-primary: var(--color-accent-primary);
+  --color-primary-light: var(--color-accent-primary-light);
+  --color-primary-dark: var(--color-accent-primary-dark);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --background-color: var(--color-bg-primary);
+  --text-color: var(--color-text-primary);
 }
 
-/* Dark mode overrides for legacy variables */
 [data-theme="dark"] {
-  --primary-light: #3A2424;
-  --primary-color: #2A1111;
-  --primary-dark: #3A1A1A;
-  --primary-hover: #3A1A1A;
-  --primary-rgb: 42, 17, 17;
-  --color-primary: #2A1111;
-  --color-primary-light: #3A2424;
-  --color-primary-dark: #3A1A1A;
-  --text-primary: #e5e5e5;
-  --text-secondary: #a3a3a3;
-  --background-color: #121212;
-  --text-color: #e5e5e5;
+  --primary-rgb: 243, 238, 238;
 }
 
 * {

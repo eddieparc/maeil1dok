@@ -73,7 +73,7 @@
           </template>
           <QuickAccessGrid class="fade-in home-shortcuts" />
         </main>
-        <FloatingNav />
+        <BottomNavigation />
         <Menu :is-open="showMenu" @close="showMenu = false" />
       </div>
     </div>
@@ -89,7 +89,7 @@ import HomeDashboard from '~/components/home-v2/HomeDashboard.vue';
 import HomeHeaderActions from '~/components/home-v2/HomeHeaderActions.vue';
 import ReadingCardStack from '~/components/home-v2/ReadingCardStack.vue';
 import QuickAccessGrid from '~/components/home-v2/QuickAccessGrid.vue';
-import FloatingNav from '~/components/home-v2/FloatingNav.vue';
+import BottomNavigation from '~/components/BottomNavigation.vue';
 import Menu from '~/components/Menu.vue';
 import { useLandingAuthState } from '~/composables/useLandingAuthState';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
@@ -109,7 +109,7 @@ useHead({
   color: var(--color-text-primary);
   pointer-events: none;
 }
-.landing-skeleton__inner { box-sizing: border-box; max-width: 768px; min-height: 100vh; margin: 0 auto; padding: 0 20px 96px; }
+.landing-skeleton__inner { box-sizing: border-box; max-width: 768px; min-height: 100vh; margin: 0 auto; padding: 0 var(--screen-gutter) calc(var(--mobile-nav-height) + 12px); }
 .landing-skeleton__header { display: flex; align-items: center; justify-content: space-between; height: 52px; }
 .landing-skeleton__logo { display: block; width: auto; height: 22px; object-fit: contain; }
 .landing-skeleton__actions { display: flex; gap: 12px; }
@@ -183,7 +183,8 @@ onUnmounted(() => desktopQuery?.removeEventListener('change', updateDesktop));
 
 <style scoped>
 .sanctuary-theme { min-height: 100vh; background: var(--color-bg-primary); color: var(--color-text-primary); font-family: var(--font-sans); letter-spacing: var(--tracking-body); -webkit-font-smoothing: antialiased; }
-.container { position: relative; max-width: 768px; min-height: 100vh; margin: 0 auto; padding: 0 20px calc(96px + env(safe-area-inset-bottom)); }
+/* The tab bar owns the safe-area inset (mobile-nav.css); reserve its height once plus the standard 12px gap. */
+.container { position: relative; max-width: 768px; min-height: 100vh; margin: 0 auto; padding: 0 var(--screen-gutter) calc(var(--mobile-nav-height) + 12px); }
 .home-header { display: flex; align-items: center; justify-content: space-between; height: 52px; }
 .logo-img { display: block; height: 22px; width: auto; object-fit: contain; }
 .home-main { display: flex; flex-direction: column; gap: 20px; }
