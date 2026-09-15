@@ -710,7 +710,7 @@ def certification_progress(request):
             'totalSchedules': total_schedules,
             'completedSchedules': completed_schedules,
             'completionRate': completion_rate,
-            'currentStreak': profile.current_streak,
+            'currentStreak': AchievementService._calculate_current_streak(request.user),
             'totalCompletedDays': profile.total_completed_days,
             'latestCompletedAt': latest_completed_at,
             'status': progress_status,
