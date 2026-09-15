@@ -1,74 +1,62 @@
 <template>
-  <BibleSubpageLayout title="내 기록" class="records-page" :loading="authStore.isLoading.value || isLoading" loading-text="북마크를 불러오는 중..." :empty="isEmpty" :empty-text="emptyText" :empty-hint="emptyHint" :empty-guide="emptyGuide">
+  <BibleSubpageLayout title="내 기록" class="records-page" :loading="authStore.isLoading.value || isLoading" loading-text="북마크를 불러오는 중...">
     <template #actions>
-      <button type="button" class="icon-btn" aria-label="기록 검색" :aria-expanded="showSearch" aria-controls="bookmarks-search" @click="showSearch = !showSearch"><Search :size="20" aria-hidden="true" /></button>
+      <BibleRecordControls v-model:show-search="showSearch" action-only search-id="bookmarks-search" />
     </template>
-    <template #empty-icon><BookmarkIcon :size="48" /></template>
-    <template #empty-action><NuxtLink v-if="!authStore.isAuthenticated.value" to="/login" class="bible-login-btn">로그인</NuxtLink></template>
     <template #filter>
-      <div class="record-controls">
-        <SegmentedControl model-value="/bible/bookmarks" :options="recordSegments" aria-label="내 기록 종류" @update:model-value="router.push(String($event))" />
-        <input v-if="showSearch" id="bookmarks-search" v-model="searchQuery" class="search-input" type="search" aria-label="북마크 검색" placeholder="북마크 검색" />
-        <div class="filter-bar">
-          <select v-model="filterBook" class="filter-select" aria-label="성경 필터">
-            <option value="">전체 성경</option>
-            <optgroup label="구약"><option v-for="book in BIBLE_BOOKS.old" :key="book.id" :value="book.id">{{ book.name }}</option></optgroup>
-            <optgroup label="신약"><option v-for="book in BIBLE_BOOKS.new" :key="book.id" :value="book.id">{{ book.name }}</option></optgroup>
-          </select>
-          <select v-model="sortOrder" class="filter-select" aria-label="정렬"><option value="recent">최근순</option><option value="oldest">오래된순</option></select>
-        </div>
-      </div>
+      <BibleRecordControls v-model:show-search="showSearch" v-model:search-query="searchQuery" v-model:filter-book="filterBook" v-model:sort-order="sortOrder" active-route="/bible/bookmarks" search-id="bookmarks-search" search-label="북마크 검색" />
     </template>
     <template #skeleton><SkeletonList :count="6" variant="bookmark" /></template>
 
-    <ul class="bookmark-list">
-      <li v-for="(bookmark, index) in filteredBookmarks" :key="bookmark.id" class="bookmark-item" :style="{ '--record-delay': `${80 + index * 50}ms` }">
-        <button type="button" class="bookmark-link" @click="goToBookmark(bookmark)">
-          <span class="bookmark-header">
-            <span class="bookmark-location">
-              <span class="bookmark-color" :style="{ background: bookmark.color || 'var(--color-accent-primary)' }" aria-hidden="true" />
-              {{ bookmark.book_name || bookmark.book }} {{ formatLocation(bookmark) }}
-            </span>
-            <time class="bookmark-date" :datetime="bookmark.created_at">{{ formatRelativeDate(bookmark.created_at) }}</time>
-          </span>
+    <EmptyState v-if="listFailed" data-testid="bookmarks-error" role="alert" text="북마크를 불러오지 못했습니다" action-text="다시 시도" @action="loadBookmarks" />
+    <EmptyState v-else-if="isEmpty" :text="emptyText" :hint="emptyHint" :guide="emptyGuide">
+      <template #icon><BookmarkIcon :size="48" /></template>
+      <template #action>
+        <NuxtLink v-if="!authStore.isAuthenticated.value" to="/login" class="bible-login-btn">로그인</NuxtLink>
+        <button v-else-if="filterBook || searchQuery" type="button" class="bible-login-btn" @click="filterBook = ''; searchQuery = ''">필터 초기화</button>
+        <NuxtLink v-else to="/bible" class="bible-login-btn">성경 읽기</NuxtLink>
+      </template>
+    </EmptyState>
+    <ul v-else class="bookmark-list">
+      <BibleRecordRow v-for="(bookmark, index) in filteredBookmarks" :key="bookmark.id" :index="index" :to="bookmarkLocation(bookmark)">
+        <template #location><span class="bookmark-location"><span class="bookmark-color" :style="{ background: bookmark.color || 'var(--color-accent-primary)' }" aria-hidden="true" />{{ bookmark.book_name || bookmark.book }} {{ formatLocation(bookmark) }}</span></template>
+        <template #date><time class="bookmark-date" :datetime="bookmark.created_at">{{ formatRelativeDate(bookmark.created_at) }}</time></template>
+        <template #body>
           <span v-if="bookmark.title" class="bookmark-title">{{ bookmark.title }}</span>
           <span v-if="bookmark.memo" class="bookmark-memo">{{ bookmark.memo }}</span>
-        </button>
-        <button type="button" class="icon-btn delete-btn" @click="handleDelete(bookmark)" aria-label="북마크 삭제" title="삭제"><Trash2 :size="18" aria-hidden="true" /></button>
-      </li>
+        </template>
+        <template #trailing><button type="button" class="icon-btn delete-btn" @click="handleDelete(bookmark)" aria-label="북마크 삭제" title="삭제"><Trash2 :size="18" aria-hidden="true" /></button></template>
+      </BibleRecordRow>
     </ul>
     <Toast />
   </BibleSubpageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { Bookmark as BookmarkIcon, Search, Trash2 } from '@lucide/vue';
-import { useBookmark, type Bookmark } from '~/composables/useBookmark';
-import { BIBLE_BOOKS } from '~/composables/useBibleData';
+import { ref, computed, onMounted, watch } from 'vue';
+import { Bookmark as BookmarkIcon, Trash2 } from '@lucide/vue';
+import type { Bookmark } from '~/composables/useBookmark';
+import { useBibleData } from '~/composables/useBibleData';
 import { useAuthService } from '~/composables/useAuthService';
 import { useErrorHandler } from '~/composables/useErrorHandler';
 import { useModal } from '~/composables/useModal';
 import { useApi } from '~/composables/useApi';
 import Toast from '~/components/Toast.vue';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
-import SegmentedControl from '~/components/ui/SegmentedControl.vue';
+import BibleRecordControls from '~/components/bible/BibleRecordControls.vue';
+import BibleRecordRow from '~/components/bible/BibleRecordRow.vue';
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
+import EmptyState from '~/components/common/EmptyState.vue';
 
 definePageMeta({ layout: 'default' });
-const router = useRouter();
 const authStore = useAuthService();
 const { handleApiError } = useErrorHandler();
 const modal = useModal();
 const api = useApi();
-const { getAllBookmarks } = useBookmark();
+const listFailed = ref(false);
+let listRequest = 0;
 const { formatRelativeDate } = useDateFormat();
-const recordSegments = [
-  { value: '/bible/notes', label: '묵상노트' },
-  { value: '/bible/highlights', label: '하이라이트' },
-  { value: '/bible/bookmarks', label: '북마크' },
-];
+const { getChapterUnit } = useBibleData();
 const bookmarks = ref<Bookmark[]>([]);
 const isLoading = ref(true);
 const filterBook = ref('');
@@ -94,30 +82,46 @@ const emptyGuide = computed(() => authStore.isAuthenticated.value && !filterBook
   : undefined
 );
 
-onMounted(async () => {
-  await authStore.initialize();
-  if (authStore.isAuthenticated.value) {
-    try {
-      bookmarks.value = await getAllBookmarks();
-    } catch (error) {
-      handleApiError(error, '북마크 로드');
-    }
+const loadBookmarks = async () => {
+  const request = ++listRequest;
+  const userId = authStore.user.value?.id;
+  bookmarks.value = [];
+  listFailed.value = false;
+  isLoading.value = true;
+  try {
+    if (!authStore.isAuthenticated.value) return;
+    const response = await api.GET('/api/v1/todos/bible/bookmarks/');
+    if (request !== listRequest || userId !== authStore.user.value?.id) return;
+    bookmarks.value = response.data.results.map(bookmark => ({ ...bookmark,
+      start_verse: bookmark.start_verse ?? undefined, end_verse: bookmark.end_verse ?? undefined,
+      title: bookmark.title ?? '',
+    }));
+  } catch (error) {
+    if (request === listRequest && userId === authStore.user.value?.id) listFailed.value = true;
+    handleApiError(error, '북마크 로드');
+  } finally {
+    if (request === listRequest) isLoading.value = false;
   }
-  isLoading.value = false;
-});
+};
+const mounted = ref(false);
+onMounted(() => { mounted.value = true; });
+watch(() => mounted.value && authStore.isInitialized.value && !authStore.isLoading.value
+  ? authStore.user.value?.id ?? null : undefined, (identity) => {
+  if (identity !== undefined) void loadBookmarks();
+}, { immediate: true });
 
 const formatLocation = (bookmark: Bookmark): string => {
   if (bookmark.bookmark_type === 'verse' && bookmark.start_verse) {
     if (bookmark.end_verse && bookmark.start_verse !== bookmark.end_verse) return `${bookmark.chapter}:${bookmark.start_verse}-${bookmark.end_verse}`;
     return `${bookmark.chapter}:${bookmark.start_verse}`;
   }
-  return `${bookmark.chapter}장`;
+  return `${bookmark.chapter}${getChapterUnit(bookmark.book)}`;
 };
 
-const goToBookmark = (bookmark: Bookmark) => {
+const bookmarkLocation = (bookmark: Bookmark) => {
   const query: Record<string, string> = { book: bookmark.book, chapter: String(bookmark.chapter) };
   if (bookmark.bookmark_type === 'verse' && bookmark.start_verse) query.verse = String(bookmark.start_verse);
-  router.push({ path: '/bible', query });
+  return { path: '/bible', query };
 };
 
 const handleDelete = async (bookmark: Bookmark) => {
@@ -145,33 +149,20 @@ const handleDelete = async (bookmark: Bookmark) => {
 .records-page :deep(.bible-page-header h1) { font-size: 16px; font-weight: 700; }
 .records-page :deep(.bible-back-btn) { width: 44px; height: 44px; border-radius: var(--radius-pill); }
 .records-page :deep(.bible-back-btn:focus-visible) { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; }
-.record-controls { display: grid; gap: 14px; padding: 14px 20px; }
-.filter-bar { display: flex; gap: 8px; }
-.filter-select, .search-input { min-height: 44px; min-width: 0; padding: 8px 14px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); font-size: 13px; font-weight: 600; color: var(--color-text-secondary); background: var(--color-bg-card); }
-.filter-select { max-width: 65%; cursor: pointer; }
-.search-input { width: 100%; box-sizing: border-box; }
-.search-input::placeholder { color: var(--color-text-tertiary); }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid transparent; border-radius: var(--radius-pill); background: transparent; color: var(--color-text-secondary); cursor: pointer; transition: background-color var(--duration-micro) ease, transform var(--duration-micro) ease; }
-.icon-btn:hover, .filter-select:hover { background: var(--color-bg-hover); }
+.icon-btn:hover { background: var(--color-bg-hover); }
 .bookmark-list { display: grid; gap: 10px; list-style: none; padding: 0 20px 96px; margin: 0; }
-.bookmark-item { position: relative; border: 1px solid var(--color-border-default); border-radius: var(--radius-card); background: var(--color-bg-card); box-shadow: var(--shadow-card); animation: record-enter var(--duration-enter) var(--ease-out-quint) both; animation-delay: var(--record-delay); transition: transform var(--duration-micro) ease, box-shadow var(--duration-micro) ease; }
-.bookmark-link { display: block; width: 100%; min-height: 76px; padding: 16px 18px; padding-right: 52px; border: none; border-radius: inherit; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.bookmark-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
-.bookmark-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
 .bookmark-location { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--color-accent-primary); }
 .bookmark-color { display: inline-block; flex: 0 0 4px; width: 4px; height: 12px; border-radius: var(--radius-pill); }
 .bookmark-date { flex-shrink: 0; font-size: 11px; color: var(--color-text-tertiary); }
 .bookmark-title { display: block; margin-top: 8px; font-size: 14px; font-weight: 500; color: var(--color-text-primary); line-height: 1.6; overflow-wrap: anywhere; }
 .bookmark-memo { display: block; margin-top: 8px; font-size: 13px; color: var(--color-text-secondary); line-height: 1.55; overflow-wrap: anywhere; }
-.delete-btn { position: absolute; top: 5px; right: 4px; color: var(--color-text-tertiary); }
+.delete-btn { color: var(--color-text-tertiary); }
 .delete-btn:hover { background: var(--color-error-bg); color: var(--color-error); }
-.icon-btn:focus-visible, .filter-select:focus-visible, .search-input:focus-visible, .bookmark-link:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
-.icon-btn:active, .bookmark-link:active { transform: scale(.97); }
-@keyframes record-enter { from { opacity: 0; translate: 0 10px; } to { opacity: 1; translate: 0 0; } }
+.icon-btn:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; }
+.icon-btn:active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) {
-  .bookmark-item { animation-name: record-fade; }
-  .bookmark-item, .icon-btn { transition: none; }
-  .bookmark-item:hover, .icon-btn:active, .bookmark-link:active { transform: none; }
-  @keyframes record-fade { from { opacity: 0; } to { opacity: 1; } }
+  .icon-btn { transition: none; }
+  .icon-btn:active { transform: none; }
 }
 </style>

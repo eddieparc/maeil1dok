@@ -28,6 +28,8 @@ export const useNote = () => {
   const currentChapterNotes: Ref<Note[]> = ref([]);
   const currentNote: Ref<Note | null> = ref(null);
   const isNoteLoading = ref(false);
+  const noteListFailed = ref(false);
+  let listRequest = 0;
   const showNoteModal = ref(false);
   const editingNote: Ref<Note | null> = ref(null);
   const noteContent = ref('');
@@ -36,22 +38,28 @@ export const useNote = () => {
    * 전체 묵상노트 목록 불러오기
    */
   const fetchNotes = async (): Promise<Note[]> => {
+    const request = ++listRequest;
+    let userId = auth.user.value?.id;
+    notes.value = [];
+    noteListFailed.value = false;
     try {
       isNoteLoading.value = true;
       if (!auth.isInitialized.value || auth.isLoading.value) {
         await auth.initialize();
       }
+      userId = auth.user.value?.id;
       if (!auth.isAuthenticated.value) return [];
 
       const response = await api.GET('/api/v1/todos/bible/notes/');
+      if (request !== listRequest || userId !== auth.user.value?.id) return [];
       notes.value = response.data.results.map(normalizeNote);
       return notes.value;
     } catch (error) {
       console.error('노트 목록 조회 실패:', error);
-      notes.value = [];
+      if (request === listRequest && userId === auth.user.value?.id) noteListFailed.value = true;
       return [];
     } finally {
-      isNoteLoading.value = false;
+      if (request === listRequest) isNoteLoading.value = false;
     }
   };
 
@@ -287,6 +295,7 @@ export const useNote = () => {
     currentChapterNotes,
     currentNote,
     isNoteLoading,
+    noteListFailed,
     showNoteModal,
     editingNote,
     noteContent,
