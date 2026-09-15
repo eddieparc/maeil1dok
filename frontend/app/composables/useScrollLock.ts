@@ -92,25 +92,3 @@ export function useScrollLock(options: UseScrollLockOptions = {}) {
     unlock
   }
 }
-
-// iOS Safari 대응 (터치 스크롤 방지)
-export function preventTouchScroll(event: TouchEvent): void {
-  // 모달 내부 스크롤 영역은 허용
-  const target = event.target as HTMLElement
-  const scrollableParent = target.closest('[data-modal-scrollable]')
-
-  if (scrollableParent) {
-    const { scrollTop, scrollHeight, clientHeight } = scrollableParent
-    const isAtTop = scrollTop === 0
-    const isAtBottom = scrollTop + clientHeight >= scrollHeight
-
-    // 스크롤 끝에 도달했을 때만 방지
-    if ((isAtTop && event.touches[0].clientY > 0) ||
-        (isAtBottom && event.touches[0].clientY < 0)) {
-      event.preventDefault()
-    }
-  } else {
-    // 스크롤 영역 외부는 스크롤 방지
-    event.preventDefault()
-  }
-}

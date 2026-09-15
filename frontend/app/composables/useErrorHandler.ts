@@ -96,9 +96,6 @@ export function useErrorHandler() {
       const message = serverMessage || `${context}에 실패했습니다`;
       toast.error(message);
     }
-
-    // 프로덕션 에러 리포팅 (Sentry 등 추후 통합 가능)
-    // if (!isDev) reportError(error, context);
   };
 
   /**
