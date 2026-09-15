@@ -37,11 +37,8 @@
       </div>
     </div>
 
-    <div class="toggle-item name-toggle">
-      <span id="highlight-names-label" class="toggle-title">인명·지명 강조</span>
-      <button type="button" class="switch-hit" role="switch" :aria-checked="settings.highlightNames" aria-labelledby="highlight-names-label" @click="updateSetting('highlightNames', !settings.highlightNames)">
-        <span class="switch-track" aria-hidden="true"><span class="switch-thumb" /></span>
-      </button>
+    <div class="name-toggle">
+      <AppSwitch label="인명·지명 강조" :model-value="settings.highlightNames" @update:model-value="updateSetting('highlightNames', $event)" />
     </div>
 
     <details class="advanced-settings">
@@ -84,12 +81,7 @@
           <button v-for="option in textAlignOptions" :key="option.value" type="button" class="chip-btn" :aria-pressed="settings.textAlign === option.value" @click="updateSetting('textAlign', option.value)">{{ option.label }}</button>
         </div>
       </section>
-      <div v-for="option in readingOptions" :key="option.value" class="toggle-item">
-        <span :id="option.value" class="toggle-title">{{ option.label }}</span>
-        <button type="button" class="switch-hit" role="switch" :aria-checked="settings[option.value]" :aria-labelledby="option.value" @click="updateSetting(option.value, !settings[option.value])">
-          <span class="switch-track" aria-hidden="true"><span class="switch-thumb" /></span>
-        </button>
-      </div>
+      <AppSwitch v-for="option in readingOptions" :key="option.value" :label="option.label" :model-value="settings[option.value]" @update:model-value="updateSetting(option.value, $event)" />
       <nav class="quick-links" aria-label="성경 기록">
         <NuxtLink to="/bible/bookmarks">북마크</NuxtLink>
         <NuxtLink to="/bible/notes">노트</NuxtLink>
@@ -128,6 +120,7 @@ import { useModal } from '~/composables/useModal';
 import { useToast } from '~/composables/useToast';
 import BottomSheet from '~/components/ui/BottomSheet.vue';
 import AppButton from '~/components/ui/AppButton.vue';
+import AppSwitch from '~/components/ui/AppSwitch.vue';
 import Toast from '~/components/Toast.vue';
 
 const props = withDefaults(defineProps<{ modelValue: boolean; currentVersion?: string }>(), { currentVersion: 'KRV' });
@@ -304,15 +297,7 @@ const resetAllSettings = async () => {
 .slider-row input::-moz-range-track { height: 4px; border-radius: var(--radius-pill); background: var(--color-border-default); }
 .slider-row input::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; margin-top: -8px; border-radius: 50%; background: var(--color-accent-primary); box-shadow: var(--shadow-sm); }
 .slider-row input::-moz-range-thumb { width: 20px; height: 20px; border: none; border-radius: 50%; background: var(--color-accent-primary); box-shadow: var(--shadow-sm); }
-.toggle-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; }
 .name-toggle { border-top: 1px solid var(--color-border-default); padding-top: 12px; }
-.toggle-title { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
-.switch-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-pill); background: transparent; cursor: pointer; }
-.switch-track { display: block; width: 40px; height: 24px; padding: 3px; box-sizing: border-box; border-radius: var(--radius-pill); background: var(--color-border-default); transition: background-color var(--duration-micro) ease; }
-.switch-thumb { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--color-bg-card); box-shadow: var(--shadow-sm); transition: transform var(--duration-micro) ease; }
-.switch-hit[aria-checked="true"] .switch-track { background: var(--color-accent-primary); }
-.switch-hit[aria-checked="true"] .switch-thumb { transform: translateX(16px); }
-.switch-hit:hover { background: var(--color-bg-hover); }
 .advanced-settings { margin-top: 8px; }
 .advanced-settings summary { display: list-item; min-height: 44px; padding: 12px 0; box-sizing: border-box; cursor: pointer; font-size: 12px; color: var(--color-text-tertiary); }
 .advanced-settings summary:hover { color: var(--color-accent-primary); }
@@ -320,11 +305,11 @@ const resetAllSettings = async () => {
 .danger-section { margin-top: 20px; }
 .danger-section p { font-size: 12px; color: var(--color-error); }
 .danger-buttons { display: grid; gap: 8px; }
-.font-button:focus-visible, .chip-btn:focus-visible, .slider-row input:focus-visible, .switch-hit:focus-visible, summary:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
+.font-button:focus-visible, .chip-btn:focus-visible, .slider-row input:focus-visible, summary:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
 .font-button:active, .chip-btn:active { transform: scale(.97); }
 [data-theme="dark"] .font-button.active, [data-theme="dark"] .chip-btn[aria-pressed="true"] { background: var(--color-bg-card); border: 1.5px solid var(--color-accent-primary); }
 @media (prefers-reduced-motion: reduce) {
-  .font-button, .chip-btn, .switch-track, .switch-thumb { transition: none; }
+  .font-button, .chip-btn { transition: none; }
   .font-button:active, .chip-btn:active { transform: none; }
 }
 </style>

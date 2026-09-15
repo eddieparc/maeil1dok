@@ -28,22 +28,13 @@
         </div>
         <ListCard :padded="false">
           <div v-for="item in notificationRows" :key="item.key" class="list-card-row setting-row">
-            <div class="setting-info">
-              <p :id="`${item.key}-label`" class="setting-label">{{ item.label }}</p>
-              <p :id="`${item.key}-description`" class="setting-description">{{ item.description }}</p>
-            </div>
-            <button
-              type="button"
-              class="switch-hit"
-              role="switch"
-              :aria-checked="Boolean(notificationSettings?.notifications_enabled && notificationSettings[item.key])"
-              :aria-labelledby="`${item.key}-label`"
-              :aria-describedby="`${item.key}-description`"
+            <AppSwitch
+              :label="item.label"
+              :description="item.description"
+              :model-value="Boolean(notificationSettings?.notifications_enabled && notificationSettings[item.key])"
               :disabled="!notificationSettings || notificationsBusy"
-              @click="toggleNotification(item.key)"
-            >
-              <span class="switch-track" aria-hidden="true"><span class="switch-thumb" /></span>
-            </button>
+              @update:model-value="toggleNotification(item.key)"
+            />
           </div>
         </ListCard>
         <div v-if="notificationError" class="notification-error" role="alert">
@@ -254,6 +245,7 @@ import { classifyShellIdentity } from '~/composables/shellBundleIdentity'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import AppButton from '~/components/ui/AppButton.vue'
+import AppSwitch from '~/components/ui/AppSwitch.vue'
 import ListCard from '~/components/ui/ListCard.vue'
 import SegmentedControl from '~/components/ui/SegmentedControl.vue'
 import ProfileEditModal from '~/components/profile/ProfileEditModal.vue'
@@ -1125,11 +1117,7 @@ onUnmounted(() => {
 .connect-action span { display: grid; place-items: center; min-width: 52px; height: 30px; padding: 0 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); color: var(--color-text-secondary); font-size: 12px; font-weight: 600; }
 .text-action { display: inline-flex; align-items: center; justify-content: center; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-text-secondary); font-size: 13px; font-weight: 500; text-decoration: none; }
 .unlink-action { padding-inline: 0; font-size: 12px; }
-.switch-hit { display: grid; place-items: center; flex-shrink: 0; padding: 0; border: 0; border-radius: var(--radius-pill); background: transparent; }
-.switch-track { display: block; width: 40px; height: 24px; padding: 3px; border-radius: var(--radius-pill); background: var(--color-border-default); transition: background var(--duration-micro) ease; }
-.switch-thumb { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--color-bg-card); box-shadow: var(--shadow-sm); transition: transform var(--duration-micro) ease; }
-.switch-hit[aria-checked="true"] .switch-track { background: var(--color-accent-primary); }
-.switch-hit[aria-checked="true"] .switch-thumb { transform: translateX(16px); }
+.setting-row :deep(.app-switch) { flex: 1; min-height: 0; }
 .notification-error { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; }
 .section-note { margin: 8px 4px 0; color: var(--color-text-tertiary); font-size: 11px; line-height: 1.5; }
 .setting-row.highlight { padding: 12px 20px; border-top: 1px solid var(--color-border-light); }
@@ -1181,7 +1169,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 @media (max-width: 360px) { .setting-row { gap: 8px; } .setting-row.highlight { flex-wrap: wrap; } }
 @media (prefers-reduced-motion: reduce) {
   .profile-hero, .settings-group, .account-actions { animation-name: settings-fade; animation-delay: 0ms; }
-  button, a, .switch-track, .switch-thumb { transition: none; }
+  button, a { transition: none; }
   button:active:not(:disabled), a:active { transform: none; }
   @keyframes settings-fade { from { opacity: 0; } to { opacity: 1; } }
 }
