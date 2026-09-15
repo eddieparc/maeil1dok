@@ -5,8 +5,16 @@
       <h1>읽기 기록</h1>
     </header>
 
-    <div v-if="isLoading" class="history-loading"><SkeletonList :count="5" variant="history" /></div>
-    <div v-else class="history-content">
+    <div v-if="view === 'pending'" class="history-loading" data-state="pending" role="status" aria-label="읽기 기록을 불러오는 중"><SkeletonList :count="5" variant="history" /></div>
+    <div v-else-if="view === 'session-unknown'" class="history-session" data-state="session-unknown" role="status">
+      <p>로그인 상태를 확인하지 못했어요. 연결을 확인하고 다시 시도해주세요.</p>
+      <AppButton variant="secondary" data-action="retry-auth" :loading="authRetrying" @click="retryAuth">다시 시도</AppButton>
+    </div>
+    <div v-else-if="view === 'guest'" class="history-session" data-state="guest">
+      <p>읽기 기록을 보려면 로그인이 필요해요.</p>
+      <AppButton to="/login" data-action="login">로그인</AppButton>
+    </div>
+    <div v-else class="history-content" data-state="ready">
       <SkeletonList v-if="statsLoading && !stats" :count="5" variant="history" />
       <div v-if="statsError" class="history-error" role="alert">
         <p>읽기 통계를 불러오지 못했어요.</p>
@@ -65,10 +73,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { Check, ChevronLeft } from '@lucide/vue';
 import { useApi } from '~/composables/useApi';
+import { useAuthService } from '~/composables/useAuthService';
 import { useBibleData } from '~/composables/useBibleData';
 import { useErrorHandler } from '~/composables/useErrorHandler';
 import ReadingCalendar from '~/components/bible/ReadingCalendar.vue';
@@ -81,16 +90,50 @@ import type { ApiResponseBody } from '~/types/api-contract';
 definePageMeta({ layout: 'default' });
 const router = useRouter();
 const api = useApi();
+const auth = useAuthService();
 const { bibleBooks } = useBibleData();
 const { handleSilentError } = useErrorHandler();
 type ReadingStats = ApiResponseBody<'/api/v1/todos/bible/personal-records/stats/', 'get'>['stats'];
+type HistoryView = 'pending' | 'session-unknown' | 'guest' | 'ready';
 const stats = ref<ReadingStats | null>(null);
 const readingDates = ref<string[] | null>(null);
-const isLoading = ref(true);
 const statsLoading = ref(false);
 const datesLoading = ref(false);
 const statsError = ref(false);
 const datesError = ref(false);
+const authRetrying = ref(false);
+let requestGeneration = 0;
+const view = computed((): HistoryView => {
+  switch (auth.authState.value) {
+    case 'loading':
+      return 'pending';
+    case 'unknown-offline':
+      return 'session-unknown';
+    case 'unauthenticated':
+      return 'guest';
+    case 'authenticated':
+      return 'ready';
+    default: {
+      const unreachable: never = auth.authState.value;
+      return unreachable;
+    }
+  }
+});
+const identityKey = computed(() => {
+  switch (view.value) {
+    case 'pending':
+    case 'session-unknown':
+      return null;
+    case 'guest':
+      return 'guest';
+    case 'ready':
+      return `user:${auth.user.value?.id ?? ''}`;
+    default: {
+      const unreachable: never = view.value;
+      return unreachable;
+    }
+  }
+});
 const filter = ref<string | number>('all');
 const filterOptions = [
   { value: 'all', label: '전체', id: 'history-filter-all', controls: 'history-books-panel' },
@@ -113,34 +156,73 @@ const filteredBooks = computed(() => {
 });
 
 async function loadStats() {
+  if (view.value !== 'ready') return;
+  const generation = requestGeneration;
   statsLoading.value = true;
   statsError.value = false;
   try {
     const response = await api.GET('/api/v1/todos/bible/personal-records/stats/');
+    if (generation !== requestGeneration) return;
     if (!response.data.success) throw new Error('Reading statistics request was unsuccessful');
     stats.value = response.data.stats;
   } catch (error) {
+    if (generation !== requestGeneration) return;
     statsError.value = true;
     handleSilentError(error, '읽기 통계 로드');
-  } finally { statsLoading.value = false; }
+  } finally {
+    if (generation === requestGeneration) statsLoading.value = false;
+  }
 }
 async function loadDates() {
+  if (view.value !== 'ready') return;
+  const generation = requestGeneration;
   datesLoading.value = true;
   datesError.value = false;
   try {
     const response = await api.GET('/api/v1/todos/bible/personal-records/dates/');
+    if (generation !== requestGeneration) return;
     if (!response.data.success) throw new Error('Reading dates request was unsuccessful');
     readingDates.value = response.data.dates;
   } catch (error) {
+    if (generation !== requestGeneration) return;
     datesError.value = true;
     handleSilentError(error, '읽기 날짜 로드');
-  } finally { datesLoading.value = false; }
+  } finally {
+    if (generation === requestGeneration) datesLoading.value = false;
+  }
+}
+function resetPersonalHistory() {
+  stats.value = null;
+  readingDates.value = null;
+  statsError.value = false;
+  datesError.value = false;
+  statsLoading.value = false;
+  datesLoading.value = false;
+}
+async function retryAuth() {
+  authRetrying.value = true;
+  try {
+    await auth.revalidate();
+  } finally {
+    authRetrying.value = false;
+  }
 }
 const goToBook = (bookId: string) => { router.push(`/bible?book=${bookId}&chapter=1`); };
-onMounted(async () => {
-  await Promise.all([loadStats(), loadDates()]);
-  isLoading.value = false;
-});
+watch(identityKey, (key) => {
+  requestGeneration += 1;
+  if (key === null) {
+    statsError.value = false;
+    datesError.value = false;
+    return;
+  }
+  if (key === 'guest') {
+    resetPersonalHistory();
+    return;
+  }
+  void Promise.all([loadStats(), loadDates()]);
+}, { immediate: true });
+onMounted(() => { void auth.initialize(); });
+onBeforeUnmount(() => { requestGeneration += 1; });
 </script>
 
 <style scoped>
@@ -150,8 +232,10 @@ onMounted(async () => {
 .back-button { display: grid; place-items: center; min-width: var(--hit-min); min-height: var(--hit-min); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-text-primary); cursor: pointer; }
 .back-button:hover { background: var(--color-bg-tertiary); }
 .back-button:active { transform: scale(.97); }
-.history-content, .history-loading { padding: var(--screen-gutter); }
+.history-content, .history-loading, .history-session { padding: var(--screen-gutter); }
 .history-content { display: flex; flex-direction: column; gap: 20px; }
+.history-session { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; color: var(--color-text-secondary); }
+.history-session p { margin: 0; font-size: 14px; }
 .summary-cards { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; }
 .summary-card { min-width: 0; padding: 14px; border: 1px solid var(--color-border-default); border-radius: 16px; background: var(--color-bg-card); box-shadow: var(--shadow-card); }
 .card-label { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
