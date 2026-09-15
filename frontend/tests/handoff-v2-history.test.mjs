@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const Vue = require('vue');
 const appDir = fileURLToPath(new URL('../app/', import.meta.url));
 const cache = new Map();
-let api, routes, errors;
+let api, routes, errors, auth;
 async function load(relative) {
   if (cache.has(relative)) return cache.get(relative);
   const result = await build({
@@ -20,7 +20,7 @@ async function load(relative) {
     external: ['vue', 'vue-router', '@lucide/vue', '#components'],
     plugins: [{ name: 'history-runtime', setup(build) {
       build.onResolve({ filter: /^~\// }, ({ path }) => {
-        if (['~/composables/useApi', '~/composables/useErrorHandler'].includes(path)) return { path, external: true };
+        if (['~/composables/useApi', '~/composables/useErrorHandler', '~/composables/useAuthService'].includes(path)) return { path, external: true };
         return { path: resolve(appDir, path.slice(2) + (path.endsWith('.vue') ? '' : '.ts')) };
       });
       build.onLoad({ filter: /\.vue$/ }, async ({ path }) => {
@@ -33,6 +33,7 @@ async function load(relative) {
   const module = { exports: {} };
   const localRequire = name => {
     if (name === '~/composables/useApi') return { useApi: () => api };
+    if (name === '~/composables/useAuthService') return { useAuthService: () => auth };
     if (name === '~/composables/useErrorHandler') return { useErrorHandler: () => ({ handleSilentError: error => errors.push(error) }) };
     if (name === '#components') return { NuxtLink: { props: ['to'], setup: (props, { slots }) => () => Vue.h('a', { href: props.to }, slots.default?.()) } };
     if (name === 'vue-router') return { useRouter: () => ({ push: path => routes.push(path), back() {} }) };
@@ -98,6 +99,7 @@ async function page(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 0, 15, 12).getTime() });
   const requests = [], pending = { [statsPath]: deferred(), [datesPath]: deferred() };
   routes = []; errors = [];
+  auth = { authState: Vue.ref('authenticated'), user: Vue.ref({ id: 7 }), initialize: async () => {} };
   api = { GET(path, options) { requests.push([path, options]); return pending[path].promise; } };
   const view = await mount('pages/bible/history.vue');
   return { ...view, requests, pending, async settle(statsData = { success: true, stats }, datesData = { success: true, dates: ['2026-01-01', '2026-01-15'] }) {

@@ -180,7 +180,7 @@ test('font choices and range boundaries use actual enums without migrating saved
   for (const [i, value] of ['pretendard', 'kopub-batang', 'ridi-batang'].entries()) {
     click(fonts[i]); assert.equal(store.settings.fontFamily, value);
   }
-  click(findAll(view.host, node => node.props['aria-labelledby'] === 'highlight-names-label')[0]);
+  click(findAll(byClass(view.host, 'name-toggle')[0], node => node.props.role === 'switch')[0]);
   assert.equal(store.settings.highlightNames, true);
   const synced = actionSignal(store, 'syncToServer'); t.mock.timers.tick(400);
   assert.equal(patches().length, 1); await synced;
@@ -233,7 +233,23 @@ test('legacy modal delegates to the shared sheet and keeps isOpen/currentVersion
   byId(view.host, 'reading-font-size').props.onInput({ target: { value: '21' } });
   assert.equal(store.settings.fontSize, 21);
   for (const key of ['showDescription', 'showCrossRef', 'showFootnotes', 'showVerseNumbers', 'verseJoining', 'tongdokAutoComplete']) {
-    assert.ok(findAll(view.host, node => node.props['aria-labelledby'] === key).length, `${key} remains controllable`);
+    // Given the real keyed preference component, not its former inline label id.
+    const pending = [view.app._instance.subTree];
+    let control;
+    while (pending.length) {
+      const vnode = pending.pop();
+      if (vnode.key === key && vnode.component) {
+        control = findAll(vnode.component.subTree.el, node => node.props.role === 'switch')[0];
+        break;
+      }
+      if (vnode.component) pending.push(vnode.component.subTree);
+      if (Array.isArray(vnode.children)) pending.push(...vnode.children.filter(Vue.isVNode));
+    }
+    const previous = store.settings[key];
+    // When the actual native switch is activated.
+    click(control);
+    // Then the corresponding saved preference changes immediately.
+    assert.equal(store.settings[key], !previous, `${key} remains controllable`);
   }
   click(byClass(view.host, 'done-btn')[0]); assert.equal(closed, 1);
   assert.equal(patches().length, 0, 'done does not bypass the pending debounce');

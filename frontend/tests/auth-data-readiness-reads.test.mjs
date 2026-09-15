@@ -67,6 +67,7 @@ const createDeferredAuth = () => {
   });
   let initializationStarts = 0;
   const auth = {
+    user: { value: null },
     isAuthenticated: { value: false },
     isInitialized: { value: false },
     isLoading: { value: true },
@@ -80,6 +81,7 @@ const createDeferredAuth = () => {
     auth,
     initializationStarts: () => initializationStarts,
     resolveAsAuthenticated: () => {
+      auth.user.value = { id: 7 };
       auth.isAuthenticated.value = true;
       auth.isInitialized.value = true;
       auth.isLoading.value = false;

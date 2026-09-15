@@ -5,11 +5,14 @@ import { build } from 'esbuild';
 import { compileScript, parse } from '@vue/compiler-sfc';
 import * as Vue from 'vue';
 import * as Pinia from 'pinia';
+import { createRequire } from 'node:module';
+import { renderToString } from '@vue/server-renderer';
 import { rawHexes, styleOf } from './helpers/design-contract.mjs';
 
 // PR4 개인 — 알림/설정/읽기설정/내 기록 디자인 계약 (핸드오프 README "10~14").
 const notifications = await readFile(new URL('../app/pages/notifications/index.vue', import.meta.url), 'utf8');
 const settings = await readFile(new URL('../app/pages/account/settings.vue', import.meta.url), 'utf8');
+const appSwitch = await readFile(new URL('../app/components/ui/AppSwitch.vue', import.meta.url), 'utf8');
 const readingSettings = await readFile(new URL('../app/pages/bible/settings.vue', import.meta.url), 'utf8');
 const records = await Promise.all([
   ['notes', '../app/pages/bible/notes/index.vue'],
@@ -29,7 +32,8 @@ test('설정은 알림 스위치와 테마 세그먼트를 통합한다', () => 
     assert.match(settings, new RegExp(label), `테마 ${label}`);
   }
   assert.match(settings, /오늘 본문 알림|하세나하시조 알림|친구 활동/, '알림 설정 통합');
-  assert.match(styleOf(settings), /switch[^{]*\{[\s\S]*?width:\s*40px/, 'Switch 40x24');
+  assert.match(settings, /<AppSwitch\b/, 'account settings consumes the shared switch');
+  assert.match(styleOf(appSwitch), /\.app-switch__track\s*\{[^}]*width:\s*40px;[^}]*height:\s*24px;/, 'Switch 40x24');
 });
 
 test('읽기 설정은 바텀시트로 열린다', { timeout: 5000 }, async t => {
@@ -165,12 +169,31 @@ test('읽기 설정은 바텀시트로 열린다', { timeout: 5000 }, async t =>
   t.mock.timers.tick(400); assert.equal(requests.filter(request => request.method === 'PATCH').length, 1);
 });
 
-test('내 기록 3화면은 동일한 3분할 세그먼트를 공유한다', () => {
+test('내 기록 3화면은 동일한 3분할 세그먼트를 공유한다', async () => {
+  // Given the shared production controls and native NuxtLink contract.
+  const filename = new URL('../app/components/bible/BibleRecordControls.vue', import.meta.url).pathname;
+  const { descriptor, errors } = parse(await readFile(filename, 'utf8'), { filename });
+  assert.deepEqual(errors, []);
+  const compiled = await build({
+    stdin: { contents: compileScript(descriptor, { id: filename, inlineTemplate: true }).content, loader: 'ts', resolveDir: new URL('../', import.meta.url).pathname },
+    bundle: true, platform: 'node', format: 'cjs', write: false, logLevel: 'silent',
+    external: ['vue', '@lucide/vue'],
+    alias: { '~/composables/useBibleData': new URL('../app/composables/useBibleData.ts', import.meta.url).pathname },
+  });
+  const module = { exports: {} };
+  new Function('require', 'module', 'exports', compiled.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
   for (const [name, source] of records) {
-    assert.match(source, /SegmentedControl/, `${name} 세그먼트`);
-    for (const label of ['묵상노트', '하이라이트', '북마크']) {
-      assert.match(source, new RegExp(label), `${name} 세그먼트 라벨 ${label}`);
-    }
+    assert.match(source, new RegExp(`<BibleRecordControls\\b[^>]*active-route="/bible/${name}"`));
+    const app = Vue.createSSRApp(module.exports.default, { activeRoute: `/bible/${name}`, searchId: `${name}-search`, showSearch: true });
+    app.component('NuxtLink', { props: ['to'], setup: (props, { slots }) => () => Vue.h('a', { href: props.to }, slots.default?.()) });
+    // When each page's active route is rendered.
+    const html = await renderToString(app);
+    // Then all destinations remain native links, with exactly the current one selected.
+    assert.deepEqual([...html.matchAll(/<a href="([^"]+)"/g)].map(match => match[1]), ['/bible/notes', '/bible/highlights', '/bible/bookmarks']);
+    assert.equal([...html.matchAll(/aria-current="page"/g)].length, 1);
+    assert.match(html, new RegExp(`<a href="/bible/${name}" aria-current="page"`));
+    assert.match(html, /type="search"/);
+    assert.equal([...html.matchAll(/<select\b/g)].length, 2);
   }
 });
 

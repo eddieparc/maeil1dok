@@ -156,9 +156,12 @@ const loadPageSetup = async relativePath => {
           path,
           namespace: 'page-runtime',
         }));
-        pluginBuild.onLoad({ filter: /.*/, namespace: 'page-runtime' }, ({ path }) => ({
-          contents: runtimeStub(path),
-        }));
+        pluginBuild.onLoad({ filter: /.*/, namespace: 'page-runtime' }, async ({ path }) => {
+          if (globalThis.__pageRealNote && path.endsWith('/useNote')) {
+            return { contents: await readFile(new URL('../app/composables/useNote.ts', import.meta.url), 'utf8'), loader: 'ts' };
+          }
+          return { contents: runtimeStub(path) };
+        });
       },
     }],
   });
@@ -202,6 +205,7 @@ const cleanupGlobals = () => {
   globalThis.__pageEffectScope?.stop();
   for (const key of [
     '__pageReactiveVue',
+    '__pageRealNote',
     '__pageEffectScope',
     '__pageAuth',
     '__pageApi',
@@ -684,65 +688,43 @@ test('scoreboard invalidates group selection and membership readiness when the a
   }
 });
 
-for (const [relativePath, factoryState, readName] of [
-  ['bible/notes/index.vue', { notes: { value: [] }, isNoteLoading: { value: false } }, 'fetchNotes'],
-  ['bible/highlights/index.vue', { highlights: { value: [] }, isHighlightLoading: { value: false }, deleteHighlight: async () => false }, 'fetchHighlights'],
+for (const [relativePath, collection] of [
+  ['bible/notes/index.vue', 'notes'],
+  ['bible/highlights/index.vue', 'highlights'],
+  ['bible/bookmarks.vue', 'bookmarks'],
 ]) {
-  test(`${relativePath} starts its auth-aware initial read while auth is loading`, async () => {
+  test(`${relativePath} waits for resolved auth before reading private records`, { timeout: 5000 }, async () => {
+    // Given an unresolved session and the real Vue identity watcher.
     setupGlobals();
-    const readReady = createDeferred();
-    let readCount = 0;
-    globalThis.__pageAuth = {
-      isAuthenticated: { value: false },
-      isLoading: { value: true },
+    globalThis.__pageReactiveVue = Vue;
+    globalThis.__pageEffectScope = Vue.effectScope();
+    globalThis.__pageRealNote = true;
+    const auth = {
+      user: Vue.ref(null), isAuthenticated: Vue.ref(false),
+      isInitialized: Vue.ref(false), isLoading: Vue.ref(true),
     };
-    globalThis.__pageRecordApi = {
-      ...factoryState,
-      [readName]: () => {
-        readCount += 1;
-        return readReady.promise;
-      },
-    };
-
+    globalThis.__pageAuth = auth;
+    globalThis.__pageRecordApi = { highlights: Vue.ref([]), deleteHighlight: async () => false };
+    const requests = [];
+    globalThis.__pageApi = { GET: async path => {
+      requests.push(path);
+      return { data: { results: [] } };
+    } };
     try {
       const mounted = await loadPageSetup(relativePath);
-      const initialLoad = mounted();
-      assert.equal(readCount, 1);
-      readReady.resolve();
-      await initialLoad;
+      mounted();
+      await Vue.nextTick();
+      assert.deepEqual(requests, [], 'mount cannot read private data while auth is unresolved');
+      // When initialization publishes the authenticated identity.
+      auth.user.value = { id: 7 };
+      auth.isAuthenticated.value = true;
+      auth.isInitialized.value = true;
+      auth.isLoading.value = false;
+      await Vue.nextTick();
+      // Then the watcher issues exactly one read through the actual GET boundary.
+      assert.deepEqual(requests, [`/api/v1/todos/bible/${collection}/`]);
     } finally {
       cleanupGlobals();
     }
   });
 }
-
-test('bookmarks page waits for auth before deciding whether to read', { timeout: 5000 }, async () => {
-  setupGlobals();
-  const authReady = createDeferred();
-  let readCount = 0;
-  globalThis.__pageAuth = {
-    isAuthenticated: { value: false },
-    isLoading: { value: true },
-    initialize: () => authReady.promise,
-  };
-  globalThis.__pageRecordApi = {
-    getAllBookmarks: async () => {
-      readCount += 1;
-      return [];
-    },
-  };
-
-  try {
-    const mounted = await loadPageSetup('bible/bookmarks.vue');
-    const initialLoad = mounted();
-    await Promise.resolve();
-    assert.equal(readCount, 0);
-
-    globalThis.__pageAuth.isAuthenticated.value = true;
-    authReady.resolve();
-    await initialLoad;
-    assert.equal(readCount, 1);
-  } finally {
-    cleanupGlobals();
-  }
-});

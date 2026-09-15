@@ -261,9 +261,15 @@ async function compileNotificationComponent(source, filename) {
             path,
             namespace: 'notification-component',
           }));
-          pluginBuild.onLoad({ filter: /.*/, namespace: 'notification-component' }, ({ path }) => ({
-            contents: notificationComponentStub(path),
-          }));
+          pluginBuild.onLoad({ filter: /.*/, namespace: 'notification-component' }, async ({ path }) => {
+            if (path.endsWith('/AppSwitch.vue')) {
+              const source = await readFile(new URL(`../app/${path.slice(2)}`, import.meta.url), 'utf8');
+              const { descriptor, errors } = parse(source, { filename: path });
+              assert.deepEqual(errors, []);
+              return { contents: compileScript(descriptor, { id: path, inlineTemplate: true }).content, loader: 'ts' };
+            }
+            return { contents: notificationComponentStub(path) };
+          });
         },
       },
     ],
