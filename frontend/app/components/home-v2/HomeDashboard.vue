@@ -4,6 +4,7 @@ import { FlameIcon, CalendarCheckIcon, BookOpenIcon, CheckIcon } from '@lucide/v
 import { useLandingAuthState } from '~/composables/useLandingAuthState';
 import { usePlanApi } from '~/composables/usePlanApi';
 import { useApi } from '~/composables/useApi';
+import { useScheduleFormatter } from '~/composables/useScheduleFormatter';
 import type { components } from '~/types/generated/api-schema';
 import HomeHero from '~/components/home-v2/HomeHero.vue';
 import ReadingCardStack from '~/components/home-v2/ReadingCardStack.vue';
@@ -53,12 +54,25 @@ const recentRecords = computed(() => planCalendar.value
   .toSorted((a, b) => b.date.localeCompare(a.date) || b.schedule_id - a.schedule_id)
   .slice(0, 3));
 const todayEntries = computed(() => planCalendar.value.filter(entry => entry.date === today.value));
-const passage = computed(() => todayEntries.value.map(entry => `${entry.book} ${entry.start_chapter === entry.end_chapter ? entry.start_chapter : `${entry.start_chapter}-${entry.end_chapter}`}장`).join(' · '));
+const { getBookCode } = useScheduleFormatter();
+function formatPassage(entry: CalendarEntry & { readonly book_unit_kor?: string }): string {
+  const unit = entry.book_unit_kor || (entry.book === '시편' ? '편' : '장');
+  const range = entry.start_chapter === entry.end_chapter ? entry.start_chapter : `${entry.start_chapter}-${entry.end_chapter}`;
+  return `${entry.book} ${range}${unit}`;
+}
+const assignment = computed(() => todayEntries.value[0] ?? null);
+const passage = computed(() => assignment.value ? formatPassage(assignment.value) : '');
+const assignmentRoute = computed(() => {
+  const entry = assignment.value;
+  const book = entry && getBookCode(entry.book);
+  if (!entry || !book || error.value) return null;
+  return { path: '/bible', query: { book, chapter: String(entry.start_chapter), schedule: String(entry.schedule_id), plan: String(entry.plan_id), date: entry.date, tongdok: 'true' } };
+});
 const description = computed(() => {
   if (error.value) return '기록을 불러오지 못했습니다. 다시 시도해주세요.';
   if (!planId.value) return '통독표에서 읽기 플랜을 선택해보세요';
-  if (!todayEntries.value.length) return '오늘 예정된 본문이 없어요. 자유롭게 읽어보세요';
-  const chapters = todayEntries.value.reduce((sum, entry) => sum + entry.end_chapter - entry.start_chapter + 1, 0);
+  if (!assignment.value) return '오늘 예정된 본문이 없어요. 통독표를 확인해보세요';
+  const chapters = assignment.value.end_chapter - assignment.value.start_chapter + 1;
   return `총 ${chapters}장 · 오늘의 통독`;
 });
 
@@ -120,7 +134,7 @@ onMounted(() => {
   <div class="home-dashboard stagger">
     <div class="dashboard-main">
     <HomeHero :streak="streak" />
-    <ReadingCardStack :progress="progress" :plan-name="planName" :passage="passage" :description="description" :loading="loading">
+    <ReadingCardStack :progress="progress" :plan-name="planName" :passage="passage" :assignment-route="assignmentRoute" :description="description" :loading="loading">
       <template v-if="$slots.progress" #progress="ring">
         <slot name="progress" v-bind="ring" />
       </template>
@@ -154,7 +168,7 @@ onMounted(() => {
         <li v-for="record in recentRecords" :key="record.schedule_id">
           <NuxtLink to="/plan" class="record-link">
             <CheckIcon :size="16" aria-hidden="true" />
-            <span>{{ record.book }} {{ record.chapters }}장</span>
+            <span>{{ formatPassage(record) }}</span>
             <time :datetime="record.date">{{ record.date.slice(5).replace('-', '.') }}</time>
           </NuxtLink>
         </li>

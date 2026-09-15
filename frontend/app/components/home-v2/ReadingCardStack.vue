@@ -17,7 +17,7 @@
         </slot>
         <div class="reading-copy">
           <p class="card-label">{{ planName || '성경통독' }} · 오늘 읽을 본문</p>
-          <h2 class="bible-verse">{{ passage || '말씀을 이어 읽어보세요' }}</h2>
+          <h2 class="bible-verse">{{ passage || '통독표를 확인해보세요' }}</h2>
           <p class="chapter-range">{{ description || '나의 통독표와 읽기 기록을 확인할 수 있습니다' }}</p>
         </div>
       </template>
@@ -27,18 +27,20 @@
       <h2 class="bible-verse">로그인하고<br>시작하세요</h2>
       <p class="chapter-range">나만의 통독 기록을 관리할 수 있습니다</p>
     </div>
-    <UiAppButton variant="primary" size="lg" block class="continue-button" @click="goPrimary">{{ isAuthenticated ? '이어 읽기' : '로그인 / 회원가입' }}</UiAppButton>
+    <UiAppButton variant="primary" size="lg" block class="continue-button" :disabled="isAuthenticated && loading" @click="goPrimary">{{ isAuthenticated ? (assignmentRoute ? '오늘 본문 읽기' : '통독표 보기') : '로그인 / 회원가입' }}</UiAppButton>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import type { RouteLocationRaw } from 'vue-router';
 import { useLandingAuthState } from '~/composables/useLandingAuthState';
 import RingProgress from '~/components/ui/RingProgress.vue';
 import Skeleton from '~/components/ui/Skeleton.vue';
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
+  readonly assignmentRoute?: RouteLocationRaw | null;
   progress?: number;
   planName?: string;
   passage?: string;
@@ -50,7 +52,7 @@ const router = useRouter();
 const { isKnownAuthenticated } = useLandingAuthState();
 const isAuthenticated = computed(() => isKnownAuthenticated.value);
 const goPrimary = (): void => {
-  router.push(isAuthenticated.value ? '/bible' : '/login');
+  void router.push(isAuthenticated.value ? (props.assignmentRoute ?? '/plan') : '/login');
 };
 </script>
 
