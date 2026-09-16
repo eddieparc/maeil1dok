@@ -121,24 +121,6 @@ class ActiveEmailIdentityLiveHttpTests(TestCase):
             1,
         )
 
-    def test_email_register_rolls_back_user_when_default_subscription_fails(self):
-        with patch(
-            "accounts.views._create_default_subscription",
-            side_effect=IntegrityError("subscription write failed"),
-        ):
-            response = self.client.post(
-                "/api/v1/auth/email-register/",
-                {
-                    "email": "rollback@example.com",
-                    "password": "StrongPass123",
-                    "password_confirm": "StrongPass123",
-                    "nickname": "롤백회원가입",
-                },
-                format="json",
-            )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(User.objects.filter(email="rollback@example.com").exists())
 
     def test_email_login_accepts_case_variant_identifier(self):
         User.objects.create_user(

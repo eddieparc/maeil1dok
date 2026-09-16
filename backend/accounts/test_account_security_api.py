@@ -325,45 +325,6 @@ class AccountSecurityApiTests(TestCase):
         self.assertEqual(response.data["action"], "choose_another_nickname")
         self.assertIn("이미 사용 중", response.data["error"])
 
-    def test_complete_social_signup_releases_token_after_database_failure(self):
-        token = generate_signup_token(
-            "google",
-            "retryable-provider",
-            email="retryable@example.com",
-        )
-
-        with patch(
-            "accounts.views._create_default_subscription",
-            side_effect=IntegrityError("subscription write failed"),
-        ):
-            failed = self.client.post(
-                "/api/v1/auth/complete-social-signup/",
-                {
-                    "signup_token": token,
-                    "nickname": "재시도가입독자",
-                },
-                format="json",
-            )
-
-        self.assertEqual(failed.status_code, 500)
-        self.assertEqual(failed.data["error_code"], "signup_temporarily_unavailable")
-        self.assertEqual(failed.data["action"], "retry")
-        self.assertEqual(failed.data["request_id"], failed.headers["X-Request-ID"])
-        self.assertNotIn("subscription write failed", str(failed.data))
-        self.assertFalse(User.objects.filter(username="google_retryable-provider").exists())
-
-        retried = self.client.post(
-            "/api/v1/auth/complete-social-signup/",
-            {
-                "signup_token": token,
-                "nickname": "재시도가입독자",
-            },
-            format="json",
-        )
-
-        self.assertEqual(retried.status_code, 200, retried.data)
-        self.assertTrue(User.objects.filter(username="google_retryable-provider").exists())
-
     def test_legacy_shell_completes_signup_with_secure_pending_cookie(self):
         with patch("accounts.views.get_google_user_info_by_token") as get_user_info:
             get_user_info.return_value = {
@@ -566,86 +527,7 @@ class AccountSecurityApiTests(TestCase):
         self.assertTrue(user.email_verified)
         self.assertEqual(user.profile_image, "https://provider.example/kakao.png")
 
-    def test_complete_kakao_signup_rolls_back_user_when_default_subscription_fails(self):
-        plan_owner = User.objects.create_user(
-            username="kakao-plan-owner",
-            nickname="카카오플랜관리자",
-        )
-        BibleReadingPlan.objects.create(
-            name="카카오 기본 플랜",
-            is_default=True,
-            created_by=plan_owner,
-        )
 
-        with (
-            patch("accounts.views.get_kakao_user_info_by_token") as get_user_info,
-            patch(
-                "accounts.views.PlanSubscription.objects.create",
-                side_effect=IntegrityError("subscription write failed"),
-            ),
-        ):
-            get_user_info.return_value = {
-                "id": "kakao-rollback-123",
-                "kakao_account": {"email": "provider-kakao-rollback@example.com"},
-                "properties": {"profile_image": "https://provider.example/kakao-rollback.png"},
-            }
-
-            response = self.client.post(
-                "/api/v1/auth/complete-kakao-signup/",
-                {
-                    "nickname": "카카오롤백독자",
-                    "kakao_id": "kakao-rollback-123",
-                    "access_token": "provider-token",
-                },
-                format="json",
-            )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertNotIn("subscription write failed", str(response.data))
-        self.assertFalse(User.objects.filter(username="kakao_kakao-rollback-123").exists())
-
-    def test_social_login_v2_auto_signup_rolls_back_user_and_social_account_when_default_subscription_fails(self):
-        with (
-            patch("accounts.views.get_kakao_user_info_by_token") as get_user_info,
-            patch(
-                "accounts.views._create_default_subscription",
-                side_effect=IntegrityError("subscription write failed"),
-            ),
-        ):
-            get_user_info.return_value = {
-                "id": "auto-rollback-123",
-                "kakao_account": {"email": "provider-auto-rollback@example.com"},
-                "properties": {
-                    "nickname": "자동롤백독자",
-                    "profile_image": "https://provider.example/auto-rollback.png",
-                },
-            }
-
-            response = self.client.post(
-                "/api/v1/auth/social-login/v2/",
-                {
-                    "provider": "kakao",
-                    "access_token": "provider-token",
-                    "auto_signup": True,
-                },
-                format="json",
-                REMOTE_ADDR="10.98.0.3",
-            )
-
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(
-            response.data["error_code"],
-            "social_login_temporarily_unavailable",
-        )
-        self.assertEqual(response.data["action"], "retry")
-        self.assertNotIn("subscription write failed", str(response.data))
-        self.assertFalse(User.objects.filter(username="kakao_auto-rollback-123").exists())
-        self.assertFalse(
-            SocialAccount.objects.filter(
-                provider="kakao",
-                provider_id="auto-rollback-123",
-            ).exists()
-        )
 
     def test_legacy_register_uses_configured_password_validators(self):
         response = self.client.post(
@@ -657,38 +539,6 @@ class AccountSecurityApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(User.objects.filter(username="weak-register").exists())
 
-    def test_legacy_register_rolls_back_user_when_default_subscription_fails(self):
-        plan_owner = User.objects.create_user(
-            username="register-plan-owner",
-            nickname="가입플랜관리자",
-        )
-        BibleReadingPlan.objects.create(
-            name="기본 플랜",
-            is_default=True,
-            created_by=plan_owner,
-        )
-
-        with (
-            self.assertLogs("accounts.views", level="WARNING") as logs,
-            patch(
-                "accounts.views.PlanSubscription.objects.create",
-                side_effect=IntegrityError("subscription write failed"),
-            ),
-        ):
-            response = self.client.post(
-                "/api/v1/auth/register/",
-                {
-                    "username": "rollback-register",
-                    "nickname": "롤백가입",
-                    "password": "StrongPass123",
-                },
-                format="json",
-            )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertNotIn("subscription write failed", str(response.data))
-        self.assertNotIn("subscription write failed", "\n".join(logs.output))
-        self.assertFalse(User.objects.filter(username="rollback-register").exists())
 
     def test_username_availability_rejects_missing_and_blank_values(self):
         missing_response = self.client.post(

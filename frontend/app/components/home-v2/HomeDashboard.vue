@@ -26,6 +26,20 @@ const planName = ref('');
 const calendar = ref<CalendarEntry[]>([]);
 const planId = ref<number | null>(null);
 const retry = ref(0);
+
+interface PlanCard {
+  subscriptionId: number;
+  planId: number;
+  planName: string;
+  progress: number;
+  passage: string;
+  assignmentRoute: { path: string; query: Record<string, string> } | null;
+  description: string;
+  remainingDays: number | null;
+}
+const planCards = ref<PlanCard[]>([]);
+const availablePlans = ref<{ id: number; name: string; is_default: boolean }[]>([]);
+const subscribing = ref(false);
 const today = useState('home:today', () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -79,6 +93,17 @@ const description = computed(() => {
   return `총 ${chapters}${bookUnit(assignment.value)} · 오늘의 통독`;
 });
 
+const hasNoPlan = computed(() => !loading.value && !error.value && planCards.value.length === 0);
+const defaultPlan = computed(() => availablePlans.value.find(p => p.is_default) ?? availablePlans.value[0] ?? null);
+
+async function subscribeToDefault() {
+  if (!defaultPlan.value || subscribing.value) return;
+  subscribing.value = true;
+  const ok = await planApi.subscribeToPlan(defaultPlan.value.id);
+  subscribing.value = false;
+  if (ok) retry.value++;
+}
+
 onMounted(() => {
   watch([() => auth.isAuthenticated.value ? auth.user.value?.id : null, retry], async ([userId], _, onCleanup) => {
     let active = true;
@@ -108,22 +133,44 @@ onMounted(() => {
       }
       streak.value = profileResponse.data.data.profile.current_streak;
       calendar.value = calendarResponses.flatMap(response => response.data.data.calendar);
-      const subscription = plans.subscriptions.find(plan => plan.is_active && plan.is_default)
-        ?? plans.subscriptions.find(plan => plan.is_active);
-      if (!subscription) return;
-      planId.value = subscription.plan_id;
-      planName.value = subscription.plan_name;
-      const [progressResponse, schedulesResponse] = await Promise.all([
-        api.GET('/api/v1/todos/stats/progress/', { params: { plan_id: subscription.plan_id } }),
-        api.GET('/api/v1/todos/schedules/', { params: { plan_id: subscription.plan_id } }),
-      ]);
+      availablePlans.value = plans.available_plans;
+
+      const activeSubs = plans.subscriptions.filter(s => s.is_active);
+      if (!activeSubs.length) return;
+
+      // Primary plan for stats (first active, preferring default)
+      const primary = activeSubs.find(s => s.is_default) ?? activeSubs[0]!;
+      planId.value = primary.plan_id;
+      planName.value = primary.plan_name;
+
+      // Fetch progress + schedules for up to 3 active plans
+      const cardSubs = activeSubs.slice(0, 3);
+      const cardResults = await Promise.all(cardSubs.map(async sub => {
+        const [progressRes, schedulesRes] = await Promise.all([
+          api.GET('/api/v1/todos/stats/progress/', { params: { plan_id: sub.plan_id } }),
+          api.GET('/api/v1/todos/schedules/', { params: { plan_id: sub.plan_id } }),
+        ]);
+        return { sub, progressRes, schedulesRes };
+      }));
       if (!active) return;
-      if (!progressResponse.data.success) throw new Error('통독 진도를 불러오지 못했습니다.');
-      progress.value = Math.round(progressResponse.data.user_progress);
-      const finalDate = schedulesResponse.data.map(schedule => schedule.date).sort().at(-1);
-      if (finalDate) {
-        remainingDays.value = Math.max(0, Math.ceil((Date.parse(`${finalDate}T00:00:00Z`) - Date.parse(`${today.value}T00:00:00Z`)) / 86400000));
-      }
+
+      planCards.value = cardResults.map(({ sub, progressRes, schedulesRes }) => {
+        const planEntries = calendar.value.filter(e => e.plan_id === sub.plan_id);
+        const todayEntry = planEntries.find(e => e.date === today.value);
+        const prog = progressRes.data.success ? Math.round(progressRes.data.user_progress) : 0;
+        const finalDate = schedulesRes.data.map(s => s.date).sort().at(-1);
+        const remaining = finalDate ? Math.max(0, Math.ceil((Date.parse(`${finalDate}T00:00:00Z`) - Date.parse(`${today.value}T00:00:00Z`)) / 86400000)) : null;
+        const book = todayEntry && getBookCode(todayEntry.book);
+        const route = todayEntry && book ? { path: '/bible', query: { book, chapter: String(todayEntry.start_chapter), schedule: String(todayEntry.schedule_id), plan: String(todayEntry.plan_id), date: todayEntry.date, tongdok: 'true' } } : null;
+        const chapters = todayEntry ? todayEntry.end_chapter - todayEntry.start_chapter + 1 : 0;
+        const desc = todayEntry ? `총 ${chapters}${bookUnit(todayEntry)} · 오늘의 통독` : '오늘 예정된 본문이 없어요';
+        return { subscriptionId: sub.id, planId: sub.plan_id, planName: sub.plan_name, progress: prog, passage: todayEntry ? formatPassage(todayEntry) : '', assignmentRoute: route, description: desc, remainingDays: remaining };
+      });
+
+      // Stats use the primary plan
+      const primaryCard = planCards.value.find(c => c.planId === primary.plan_id);
+      progress.value = primaryCard?.progress ?? 0;
+      remainingDays.value = primaryCard?.remainingDays ?? null;
     } catch (cause) {
       if (active) error.value = cause instanceof Error ? cause.message : '읽기 기록을 불러오지 못했습니다.';
     } finally {
@@ -137,11 +184,21 @@ onMounted(() => {
   <div class="home-dashboard stagger">
     <div class="dashboard-main">
     <HomeHero :streak="streak" />
-    <ReadingCardStack :progress="progress" :plan-name="planName" :passage="passage" :assignment-route="assignmentRoute" :description="description" :loading="loading">
-      <template v-if="$slots.progress" #progress="ring">
-        <slot name="progress" v-bind="ring" />
-      </template>
-    </ReadingCardStack>
+    <template v-if="planCards.length">
+      <ReadingCardStack v-for="card in planCards" :key="card.subscriptionId" :progress="card.progress" :plan-name="card.planName" :passage="card.passage" :assignment-route="card.assignmentRoute" :description="card.description" :loading="loading">
+        <template v-if="$slots.progress" #progress="ring">
+          <slot name="progress" v-bind="ring" />
+        </template>
+      </ReadingCardStack>
+    </template>
+    <section v-else-if="hasNoPlan" class="plan-suggestion" aria-label="통독 플랜 제안">
+      <p class="suggestion-text">아직 통독 플랜이 없어요</p>
+      <p v-if="defaultPlan" class="suggestion-plan">{{ defaultPlan.name }}</p>
+      <AppButton v-if="defaultPlan" variant="secondary" size="sm" :disabled="subscribing" @click="subscribeToDefault">
+        {{ subscribing ? '시작하는 중…' : '이 플랜으로 시작하기' }}
+      </AppButton>
+      <AppButton v-else variant="secondary" size="sm" @click="navigateTo('/plan')">통독표 보기</AppButton>
+    </section>
     <div v-if="error" class="load-error" role="alert">
       <p>{{ error }}</p>
       <AppButton variant="secondary" size="sm" @click="retry++">다시 시도</AppButton>
@@ -234,6 +291,9 @@ onMounted(() => {
 .week-dot-missed { background: var(--color-bg-card); border: 1.5px solid var(--color-border-default); color: var(--color-text-tertiary); }
 .load-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--color-error); font-size: 13px; }
 .load-error p { margin: 0; }
+.plan-suggestion { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 20px; background: var(--color-bg-card); border: 1px solid var(--color-border-default); border-radius: var(--radius-card); box-shadow: var(--shadow-card); text-align: center; }
+.suggestion-text { margin: 0; color: var(--color-text-primary); font-size: 15px; font-weight: 600; }
+.suggestion-plan { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
 /* H01 reserves recent records and supplementary news for the desktop columns. */
 @media (max-width: 1023px) {
   .recent-card,

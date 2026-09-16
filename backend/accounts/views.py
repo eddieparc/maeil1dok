@@ -239,7 +239,6 @@ def _create_email_user_with_default_subscription(email, password, nickname):
         )
         user.set_password(password)
         user.save(update_fields=['password'])
-        _create_default_subscription(user)
     return user
 
 
@@ -388,7 +387,6 @@ def register(request):
         try:
             with transaction.atomic():
                 user = serializer.save()
-                _create_default_subscription(user)
         except IntegrityError as exc:
             logger.warning(
                 "Legacy register failed during account creation: %s",
@@ -729,7 +727,6 @@ def complete_kakao_signup(request):
                 social_id=social_id,
                 profile_image=profile_image
             )
-            _create_default_subscription(user)
         
         tokens = get_tokens_for_user(user)
         logger.info("카카오 회원가입 및 토큰 발급 성공: user_id=%s", user.id)
@@ -1099,8 +1096,6 @@ def social_login_v2(request):
                     profile_image=profile_image,
                     extra_data=social_info if 'social_info' in dir() else {}
                 )
-
-                _create_default_subscription(user)
             
             tokens = get_tokens_for_user(user)
             response = Response({
@@ -1310,9 +1305,6 @@ def complete_social_signup(request):
                     email=email,
                     profile_image=profile_image
                 )
-                
-                # 기본 플랜 구독 생성
-                _create_default_subscription(user)
         except Exception:
             if signup_token:
                 release_signup_token(signup_token)
@@ -1965,19 +1957,7 @@ def get_google_user_info_by_token(access_token):
     return data
 
 
-def _create_default_subscription(user):
-    """기본 플랜 구독 생성"""
-    default_plan = BibleReadingPlan.objects.filter(is_default=True).first()
-    if default_plan:
-        PlanSubscription.objects.create(
-            user=user,
-            plan=default_plan,
-            start_date=timezone.now().date(),
-            is_active=True
-        )
-        logger.info("기본 플랜 구독 생성됨: user_id=%s", user.id)
-    else:
-        logger.warning("기본 플랜이 설정되어 있지 않음")
+
 
 
 def _first_serializer_error(errors):
