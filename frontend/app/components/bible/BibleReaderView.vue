@@ -484,7 +484,7 @@ const handleSelectionCopyClose = () => {
 defineExpose({
   bibleViewerRef,
   scrollToTop: () => {
-    bibleViewerRef.value?.restoreScrollPosition();
+    bibleViewerRef.value?.scrollToTop();
   },
   restoreScrollPosition: () => {
     bibleViewerRef.value?.restoreScrollPosition();

@@ -632,6 +632,11 @@ const restoreScrollPosition = () => {
   viewerRef.value.scrollTop = scrollPosition * maxScroll;
 };
 
+const scrollToTop = () => {
+  if (!viewerRef.value) return;
+  viewerRef.value.scrollTop = 0;
+};
+
 // 검색 결과 강조용 타이머
 let searchHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -791,6 +796,7 @@ watch(() => props.content, () => {
 defineExpose({
   scrollToVerse,
   restoreScrollPosition,
+  scrollToTop,
   focusVerseRange,
   handleHighlightOrRemove,
   handleCopy,

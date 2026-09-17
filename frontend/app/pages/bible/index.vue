@@ -616,10 +616,10 @@ const handleVersionSelect = (version: string) => {
 };
 
 // 네비게이션 (composable wrapper with content loading)
-const goToPrevChapter = () => {
+const goToPrevChapter = async () => {
   goToPrevChapterBase();
   resetReaderScrollPosition();
-  loadBibleContent(currentBook.value, currentChapter.value);
+  await loadBibleContent(currentBook.value, currentChapter.value);
   scrollToTop();
 };
 
@@ -649,14 +649,14 @@ const goToNextChapter = async () => {
 
   goToNextChapterBase();
   resetReaderScrollPosition();
-  loadBibleContent(currentBook.value, currentChapter.value);
+  await loadBibleContent(currentBook.value, currentChapter.value);
   scrollToTop();
 };
 
 const scrollToTop = () => {
   nextTick(() => {
     bibleReaderViewRef.value?.scrollToTop();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   });
 };
 
