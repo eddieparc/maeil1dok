@@ -1,5 +1,6 @@
 <template>
-  <div class="bible-compare-viewer" :class="[`theme-${effectiveTheme}`]">
+  <slot v-if="enabled === false" name="primary" />
+  <div v-else class="bible-compare-viewer" :class="[`theme-${effectiveTheme}`]">
     <div class="compare-columns">
       <div 
         class="compare-column primary"
@@ -11,6 +12,7 @@
             <ChevronDownIcon :size="14" />
           </button>
         </div>
+        <slot name="primary">
         <div class="column-content" :style="contentStyle">
           <BibleViewerSkeleton v-if="isPrimaryLoading" :verse-count="8" />
           <div 
@@ -20,6 +22,7 @@
             v-html="sanitizedPrimaryContent"
           ></div>
         </div>
+        </slot>
       </div>
 
       <div class="compare-divider">
@@ -67,6 +70,7 @@ interface VersionMeta {
 }
 
 const props = defineProps<{
+  enabled?: boolean;
   primaryContent: string;
   secondaryContent: string;
   primaryVersionName: string;
@@ -102,9 +106,11 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
 <style scoped>
 .bible-compare-viewer {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  color: var(--text-primary);
 }
 
 .compare-columns {
@@ -155,6 +161,7 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
   flex: 1;
   overflow-y: auto;
   padding: 0.75rem;
+  padding-bottom: calc(var(--reader-tabs-height, 0px) + var(--reader-controls-height, 0px) + 12px);
   font-family: var(--reading-font-family);
   font-size: var(--reading-font-size);
   font-weight: var(--reading-font-weight);
@@ -183,7 +190,9 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
   color: var(--text-secondary, #6b7280);
   cursor: pointer;
   transition: all 0.2s;
-  transform: translateX(-50%);
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
 }
 
 .swap-btn:hover {
@@ -194,6 +203,7 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
 
 .bible-content {
   word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .bible-content.rtl {
@@ -219,6 +229,11 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
 
 .bible-content :deep(.verse-text) {
   flex: 1;
+}
+
+.theme-dark {
+  color: var(--text-primary-dark, #e5e5e5);
+  background: var(--color-bg-card-dark, #1f1f1f);
 }
 
 .theme-dark .column-header {
@@ -250,7 +265,7 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
   background: rgba(42, 17, 17, 0.15);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .compare-columns {
     flex-direction: column;
   }
@@ -259,15 +274,19 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
     width: 100%;
     height: 1px;
     padding: 0;
-    padding-left: 50%;
+    padding-left: 0;
   }
 
   .swap-btn {
     transform: translateY(-50%);
   }
 
+  .compare-column {
+    min-height: 0;
+  }
+
   .column-content {
-    max-height: 50vh;
+    min-height: 0;
   }
 }
 </style>

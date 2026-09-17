@@ -33,6 +33,11 @@
 
       <div class="header-actions">
         <BibleSearchButton />
+        <button class="header-icon-action" type="button" data-testid="reader-compare"
+          :class="{ active: compareEnabled }" :aria-pressed="compareEnabled"
+          aria-label="역본 비교 보기" title="비교" @click="$emit('toggle-compare')">
+          <Columns2Icon :size="18" />
+        </button>
         <button
           v-if="tongdokAudioLink"
           class="header-icon-action"
@@ -86,6 +91,14 @@
     </header>
 
     <!-- 성경 본문 뷰어 -->
+    <BibleCompareViewer
+      :enabled="compareEnabled" :primary-content="content" :secondary-content="secondaryContent || ''"
+      :primary-version-name="currentVersionName" :secondary-version-name="secondaryVersionName || ''"
+      :primary-meta="primaryMeta" :secondary-meta="secondaryMeta"
+      :is-primary-loading="isLoading" :is-secondary-loading="isSecondaryLoading"
+      @select-primary="$emit('compare-select', 'primary')"
+      @select-secondary="$emit('compare-select', 'secondary')" @swap="$emit('compare-swap')">
+    <template #primary>
     <BibleViewer
       ref="bibleViewerRef"
       :content="content"
@@ -175,6 +188,8 @@
         </div>
       </template>
     </BibleViewer>
+    </template>
+    </BibleCompareViewer>
 
     <!-- 하단 플로팅 네비게이션 -->
     <FloatingBottomBar :hidden="tabsHidden" :intercept-plan="isTongdokMode" @plan="$emit('reading-plan-click')">
@@ -255,7 +270,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon } from '@lucide/vue';
+import BibleCompareViewer from '~/components/bible/BibleCompareViewer.vue';
+import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon, Columns2Icon } from '@lucide/vue';
 import BibleViewer from '~/components/bible/BibleViewer.vue';
 import type { SelectionMenuState, SelectionSharePayload, SelectionHighlightPayload } from '~/components/bible/BibleViewer.vue';
 import BibleSearchButton from '~/components/bible/BibleSearchButton.vue';
@@ -285,6 +301,12 @@ interface Highlight {
 interface Props {
   // 콘텐츠
   content: string;
+  compareEnabled?: boolean;
+  secondaryContent?: string;
+  secondaryVersionName?: string;
+  isSecondaryLoading?: boolean;
+  primaryMeta?: { direction: string; language: string; testament: string };
+  secondaryMeta?: { direction: string; language: string; testament: string };
   isLoading: boolean;
   scrollPosition?: number;
 
@@ -395,6 +417,9 @@ const emit = defineEmits<{
   'open-book-selector': [];
   'open-version-selector': [];
   'open-settings': [];
+  'toggle-compare': [];
+  'compare-select': [column: 'primary' | 'secondary'];
+  'compare-swap': [];
 
   // 사용자 액션
   'bookmark-toggle': [];

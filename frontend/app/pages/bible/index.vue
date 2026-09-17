@@ -20,6 +20,15 @@
       <BibleReaderView
         ref="bibleReaderViewRef"
         :content="bibleContent"
+        :compare-enabled="compareEnabled"
+        :secondary-content="secondaryContent"
+        :secondary-version-name="versionNames[secondaryVersion] || secondaryVersion"
+        :primary-meta="versionMeta[currentVersion]"
+        :secondary-meta="versionMeta[secondaryVersion]"
+        :is-secondary-loading="isSecondaryLoading"
+        @toggle-compare="toggleCompare"
+        @compare-select="openCompareSelector"
+        @compare-swap="swapCompareVersions"
         :is-loading="isLoading"
         :scroll-position="scrollPosition"
         :current-book-name="currentBookName"
@@ -49,7 +58,7 @@
         @prev-chapter="goToPrevChapter"
         @next-chapter="goToNextChapter"
         @open-book-selector="showBookSelector = true"
-        @open-version-selector="showVersionSelector = true"
+        @open-version-selector="openCompareSelector('primary')"
         @open-settings="showSettingsModal = true"
         @bookmark-toggle="handleBookmarkToggle"
         @note-click="handleNoteClick"
@@ -77,8 +86,8 @@
       <!-- 모달 -->
       <VersionSelector
         v-model="showVersionSelector"
-        :current-version="currentVersion"
-        @select="handleVersionSelect"
+        :current-version="versionColumn === 'secondary' ? secondaryVersion : currentVersion"
+        @select="handleColumnVersionSelect"
       />
 
       <ShareSheet
@@ -204,6 +213,7 @@ import { useHighlight } from '~/composables/useHighlight';
 import { useScheduleApi } from '~/composables/useScheduleApi';
 import { useBibleModals } from '~/composables/bible/useBibleModals';
 import { useBibleContent } from '~/composables/bible/useBibleContent';
+import { VERSION_NAMES, VERSION_META, VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';
 import {
   parseVerseRangeParam,
   useBiblePageState,
@@ -374,6 +384,61 @@ const {
   openHighlightModal,
 } = useBibleModals();
 
+const versionNames: Record<string, string> = VERSION_NAMES;
+const versionMeta: Record<string, { direction: string; language: string; testament: string }> = VERSION_META;
+const compareEnabled = ref(false);
+const secondaryVersion = ref('KNT');
+const secondaryContent = ref('');
+const isSecondaryLoading = ref(false);
+const versionColumn = ref<'primary' | 'secondary'>('primary');
+let secondaryGeneration = 0;
+// Reuse already parsed chapters when exchanging columns; primary remains route-owned.
+const compareChapters = new Map<string, string>();
+const chapterKey = (book: string, chapter: number, version: string) => `${book}:${chapter}:${version}`;
+const persistCompare = () => {
+  try { localStorage.setItem('bibleCompare', JSON.stringify({ enabled: compareEnabled.value, secondaryVersion: secondaryVersion.value })); }
+  catch (error) { console.warn('Failed to save compare preferences:', error); }
+};
+const toggleCompare = () => {
+  compareEnabled.value = !compareEnabled.value;
+  if (compareEnabled.value && secondaryVersion.value === currentVersion.value) secondaryVersion.value = currentVersion.value === 'GAE' ? 'KNT' : 'GAE';
+  persistCompare();
+};
+const openCompareSelector = (column: 'primary' | 'secondary') => {
+  versionColumn.value = column;
+  showVersionSelector.value = true;
+};
+const handleColumnVersionSelect = async (version: string) => {
+  if (versionColumn.value === 'primary') await handleVersionSelect(version);
+  else { secondaryVersion.value = version; persistCompare(); }
+};
+const swapCompareVersions = async () => {
+  const primary = currentVersion.value;
+  const secondary = secondaryVersion.value;
+  secondaryVersion.value = primary;
+  persistCompare();
+  await handleVersionSelect(secondary);
+};
+const loadSecondaryContent = async () => {
+  const generation = ++secondaryGeneration;
+  if (!compareEnabled.value || viewMode.value !== 'reader') { isSecondaryLoading.value = false; return; }
+  const book = currentBook.value;
+  const chapter = currentChapter.value;
+  const version = secondaryVersion.value;
+  const key = chapterKey(book, chapter, version);
+  isSecondaryLoading.value = true;
+  secondaryContent.value = '';
+  const cached = compareChapters.get(key);
+  if (cached !== undefined) { secondaryContent.value = cached; isSecondaryLoading.value = false; return; }
+  const loader = await nuxtApp.runWithContext(() => useBibleContent());
+  await loader.loadContent(book, chapter, version);
+  if (!pageActive || generation !== secondaryGeneration) return;
+  secondaryContent.value = loader.content.value;
+  if (!loader.error?.value) compareChapters.set(key, loader.content.value);
+  isSecondaryLoading.value = false;
+};
+watch([compareEnabled, secondaryVersion, currentBook, currentChapter, viewMode], loadSecondaryContent);
+
 const showShareSheet = ref(false);
 const showGuideSheet = ref(false);
 const showFullScheduleModal = ref(false);
@@ -539,11 +604,16 @@ const initFromQuery = () => {
 // 성경 본문 로드 (composable wrapper)
 const loadBibleContent = async (book: string, chapter: number) => {
   const generation = ++contentGeneration;
+  const version = currentVersion.value;
+  const key = chapterKey(book, chapter, version);
+  const cached = compareChapters.get(key);
+  if (compareEnabled.value && cached !== undefined) { bibleContent.value = cached; isLoading.value = false; return; }
   const loader = await nuxtApp.runWithContext(() => useBibleContent());
   isLoading.value = true;
-  await loader.loadContent(book, chapter, currentVersion.value);
+  await loader.loadContent(book, chapter, version);
   if (!pageActive || generation !== contentGeneration) return;
   bibleContent.value = loader.content.value;
+  if (!loader.error?.value) compareChapters.set(key, loader.content.value);
   isLoading.value = false;
 };
 
@@ -1258,6 +1328,12 @@ const applyReaderRoute = async (restorePosition = false) => {
   enablePositionSaving();
 };
 onMounted(async () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('bibleCompare') || '{}');
+    if (typeof saved.secondaryVersion === 'string' && saved.secondaryVersion in VISIBLE_VERSION_NAMES) secondaryVersion.value = saved.secondaryVersion;
+    else secondaryVersion.value = currentVersion.value === 'GAE' ? 'KNT' : 'GAE';
+    compareEnabled.value = saved.enabled === true;
+  } catch (error) { console.warn('Failed to load compare preferences:', error); }
   routeLoad = applyReaderRoute(true);
   await routeLoad;
   if (pageActive) window.addEventListener('beforeunload', handleBeforeUnload);
@@ -1267,6 +1343,7 @@ onBeforeUnmount(() => {
   pageActive = false;
   ++routeGeneration;
   ++contentGeneration;
+  ++secondaryGeneration;
   cleanupReadingPosition();
   void modal.close(completionModalId);
   window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -1284,7 +1361,8 @@ watch(() => auth.user.value?.id, async () => {
 // Content-affecting preferences need reparsing; typography itself is live in BibleViewer.
 watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.settings.showDescription,
   readingSettingsStore.settings.showCrossRef], async () => {
-  if (viewMode.value === 'reader') await loadBibleContent(currentBook.value, currentChapter.value);
+  compareChapters.clear();
+  if (viewMode.value === 'reader') await Promise.all([loadBibleContent(currentBook.value, currentChapter.value), loadSecondaryContent()]);
 });
 </script>
 

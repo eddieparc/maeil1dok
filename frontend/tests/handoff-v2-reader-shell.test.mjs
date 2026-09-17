@@ -12,6 +12,7 @@ import * as Icons from '@lucide/vue';
 // boundary, SDK is manually signalled. No CSS/native/YouTube proof is claimed.
 const runtime = { Vue, Router, Icons, user: Vue.ref(null), viewers: [], navigations: [] };
 runtime.Transition = Vue.defineComponent({ props: ['name'], setup: (_, { slots }) => () => slots.default?.() });
+runtime.Compare = Vue.defineComponent({ setup: (_, { slots }) => () => slots.primary?.() });
 runtime.Selection = Vue.defineComponent({ props: ['state'], emits: ['highlight-color'], setup: (_, { emit }) => { runtime.selection = { emit }; return () => null; } });
 runtime.Viewer = Vue.defineComponent({
   name: 'BibleViewer', props: ['content', 'book', 'chapter', 'version', 'isLoading', 'initialScrollPosition', 'highlights'],
@@ -37,8 +38,8 @@ async function loadComponent(path) {
     plugins: [{ name: 'reader-shell-runtime', setup(builder) {
       builder.onResolve({ filter: /^(vue|vue-router|@lucide\/vue)$/ }, ({ path }) => ({ path, namespace: 'runtime' }));
       builder.onLoad({ filter: /.*/, namespace: 'runtime' }, ({ path }) => ({ contents: path === 'vue' ? exportsFor('Vue', Vue) : path === 'vue-router' ? exportsFor('Router', Router) : exportsFor('Icons', Icons) }));
-      builder.onResolve({ filter: /^~\/components\/bible\/(BibleViewer|SelectionFloatingControls).vue$/ }, ({ path }) => ({ path, namespace: 'boundary' }));
-      builder.onLoad({ filter: /.*/, namespace: 'boundary' }, ({ path }) => ({ contents: `export default globalThis.__readerShellTest.${path.includes('BibleViewer') ? 'Viewer' : 'Selection'};` }));
+      builder.onResolve({ filter: /^~\/components\/bible\/(BibleViewer|BibleCompareViewer|SelectionFloatingControls).vue$/ }, ({ path }) => ({ path, namespace: 'boundary' }));
+      builder.onLoad({ filter: /.*/, namespace: 'boundary' }, ({ path }) => ({ contents: `export default globalThis.__readerShellTest.${path.includes('BibleCompareViewer') ? 'Compare' : path.includes('BibleViewer') ? 'Viewer' : 'Selection'};` }));
       builder.onResolve({ filter: /^~\/(composables\/useAuthService|stores\/notifications)$/ }, ({ path }) => ({ path, namespace: 'service' }));
       builder.onLoad({ filter: /.*/, namespace: 'service' }, ({ path }) => ({ contents: path.includes('useAuthService')
         ? 'export const useAuthService = () => ({ user: globalThis.__readerShellTest.user });'

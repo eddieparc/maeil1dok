@@ -27,10 +27,10 @@ const boundary = name => Vue.defineComponent({ name, inheritAttrs: false,
       calls.push([method, ...args]); if (method.startsWith('clear')) r.selectionClears.push(JSON.parse(JSON.stringify(r.shareSnapshot?.() ?? null)));
     }])));
     r.boundaries[name] = { attrs, emit, calls };
-    return () => Vue.h('boundary', { 'data-boundary': name }, slots.bottom?.());
+    return () => Vue.h('boundary', { 'data-boundary': name }, [slots.bottom?.(), slots.primary?.()]);
   },
 });
-const boundaryNames = ['BibleViewer', 'SelectionFloatingControls', 'BibleHome', 'BibleTOC', 'BookSelector', 'VersionSelector', 'TongdokCompleteModal', 'TongdokAlreadyCompleteModal', 'TongdokNextScheduleModal', 'TongdokCertificationModal', 'NoteQuickModal', 'HighlightModal', 'ReadingSettingsModal', 'ReadingSettingsSheet', 'PlanSelectorModal', 'BibleScheduleContent', 'BaseModal', 'ShareSheet', 'ReaderGuideSheet', 'ReaderPlanSheet', 'Toast'];
+const boundaryNames = ['BibleCompareViewer', 'BibleViewer', 'SelectionFloatingControls', 'BibleHome', 'BibleTOC', 'BookSelector', 'VersionSelector', 'TongdokCompleteModal', 'TongdokAlreadyCompleteModal', 'TongdokNextScheduleModal', 'TongdokCertificationModal', 'NoteQuickModal', 'HighlightModal', 'ReadingSettingsModal', 'ReadingSettingsSheet', 'PlanSelectorModal', 'BibleScheduleContent', 'BaseModal', 'ShareSheet', 'ReaderGuideSheet', 'ReaderPlanSheet', 'Toast'];
 for (const name of boundaryNames) r[name] = boundary(name);
 const serviceModules = {
   useAuthService: 'export const useAuthService = () => globalThis.__readerIntegration.auth;',
@@ -430,4 +430,34 @@ test('a selection from a superseded version cannot open a card using the new ver
   await view.state.handleVersionSelect('WOORI'); await settled();
   await emit('BibleViewer', 'share', { book: '창세기', chapter: 49, version: '개역개정', startVerse: 3, endVerse: 3, text: 'old version' });
   assert.equal(view.state.showShareSheet.value, false);
+});
+
+
+test('compare control toggles, scopes version loads, follows chapters and persists', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=gen&chapter=49&version=GAE'); t.after(view.close); await view.ready();
+  const control = all(view.host, n => n.props['data-testid'] === 'reader-compare')[0];
+  assert.ok(control, 'reader exposes compare control');
+  click(control); await settled();
+  assert.equal(view.state.compareEnabled.value, true);
+  assert.deepEqual(r.contentCalls.at(-1), ['gen', 49, 'KNT']);
+  const before = r.contentCalls.length;
+  view.state.openCompareSelector('secondary'); await settled();
+  await emit('VersionSelector', 'select', 'HAN');
+  assert.deepEqual(r.contentCalls.slice(before), [['gen', 49, 'HAN']]);
+  const beforeSwap = r.contentCalls.length;
+  await view.state.swapCompareVersions(); await settled();
+  assert.equal(r.contentCalls.length, beforeSwap, 'swap reuses both parsed columns');
+  assert.equal(view.state.currentVersion.value, 'HAN');
+  assert.equal(view.state.secondaryVersion.value, 'GAE');
+  await view.state.handleBookSelect('exo', 2); await settled();
+  assert.equal(view.state.compareEnabled.value, true);
+  assert.ok(r.contentCalls.some(c => JSON.stringify(c) === JSON.stringify(['exo', 2, 'GAE'])));
+  assert.ok(r.contentCalls.some(c => JSON.stringify(c) === JSON.stringify(['exo', 2, 'HAN'])));
+  assert.deepEqual(JSON.parse(view.values.get('bibleCompare')), { enabled: true, secondaryVersion: 'GAE' });
+  const beforePrimary = r.contentCalls.length;
+  view.state.openCompareSelector('primary');
+  await view.state.handleColumnVersionSelect('SAE'); await settled();
+  assert.deepEqual(r.contentCalls.slice(beforePrimary), [['exo', 2, 'SAE']]);
+  click(all(view.host, n => n.props['data-testid'] === 'reader-compare')[0]); await settled();
+  assert.equal(view.state.compareEnabled.value, false);
 });
