@@ -818,3 +818,21 @@ class BibleCacheAPITest(APITestCase):
         self.assertNotIn('search_keyword', obj.search_text)
         self.assertNotIn('성경 단어 검색', obj.search_text)
         self.assertIn('이삭이 리브가를 사랑하였더라', obj.search_text)
+
+    def test_last_verse_without_br_does_not_swallow_page_chrome(self):
+        """마지막 절이 </div>로 끝나도 페이지 크롬이 절 텍스트에 섞이지 않는다."""
+        obj, _ = BibleContentCache.save_to_cache(
+            version='COG',
+            book='gen',
+            chapter=24,
+            content=(
+                '<div class="leftCont">'
+                '<span><span class="number">66&nbsp;</span>종이 보고하였다.</span><br />'
+                '<span><span class="number">67&nbsp;</span>이삭이 리브가를 사랑하였더라.</span>'
+                '</div><div class="rightCont"><span class="search_text">성경 단어 검색</span></div>'
+            ),
+            content_type='html',
+        )
+
+        self.assertIn('이삭이 리브가를 사랑하였더라', obj.search_text)
+        self.assertNotIn('성경 단어 검색', obj.search_text)

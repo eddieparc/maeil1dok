@@ -121,13 +121,15 @@ def _verse_texts_from_html(content: str) -> list[VerseSearchHit]:
     if api_bible_verses:
         return api_bible_verses
 
+    # 절 끝: </span> 뒤 <br/>가 일반적이지만 마지막 절은 </div>나 문서 끝으로
+    # 닫힌다. 종결을 넓히지 않으면 마지막 절이 페이지 크롬까지 삼킨다.
     verses = [
         VerseSearchHit(
             verse=int(match.group(1)),
             text=clean_text(match.group(2)),
         )
         for match in re.finditer(
-            r'<span\b[^>]*>\s*<span\b[^>]*class=["\']number["\'][^>]*>\s*(\d{1,3})(?:&nbsp;|\s)*</span>([\s\S]*?)</span>\s*<br\s*/?>',
+            r'<span\b[^>]*>\s*<span\b[^>]*class=["\']number["\'][^>]*>\s*(\d{1,3})(?:&nbsp;|\s)*</span>([\s\S]*?)</span>\s*(?:<br\s*/?>|</div|$)',
             content,
             re.IGNORECASE,
         )
