@@ -92,6 +92,7 @@ import {
   PLAYBACK_RATES,
   type PlaybackRate,
 } from '~/utils/tongdokAudioRuntime';
+import { useReadingSettingsStore } from '~/stores/readingSettings';
 
 interface YouTubeStateMessage {
   readonly event?: string;
@@ -176,7 +177,11 @@ const currentTime = ref(0);
 const duration = ref(0);
 const isPlaying = ref(false);
 const hasEnded = ref(false);
-const playbackRate = ref<PlaybackRate>(1);
+const readingSettings = useReadingSettingsStore();
+const initialPlaybackRate = (PLAYBACK_RATES as readonly number[]).includes(readingSettings.settings.audioPlaybackRate)
+  ? readingSettings.settings.audioPlaybackRate as PlaybackRate
+  : 1;
+const playbackRate = ref<PlaybackRate>(initialPlaybackRate);
 const isSpeedMenuOpen = ref(false);
 let progressTimer: number | null = null;
 let generation = 0;
@@ -360,6 +365,7 @@ const toggleSpeedMenu = (): void => {
 const selectPlaybackRate = (rate: PlaybackRate): void => {
   playbackRate.value = rate;
   isSpeedMenuOpen.value = false;
+  readingSettings.updateSetting('audioPlaybackRate', rate);
 
   const activePlayer = player.value;
   if (!activePlayer) return;

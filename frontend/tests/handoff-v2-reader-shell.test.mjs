@@ -10,7 +10,8 @@ import * as Icons from '@lucide/vue';
 
 // Owned SFC scripts/templates + real RouterLink. Viewer is an event/expose
 // boundary, SDK is manually signalled. No CSS/native/YouTube proof is claimed.
-const runtime = { Vue, Router, Icons, user: Vue.ref(null), viewers: [], navigations: [] };
+const runtime = { Vue, Router, Icons, user: Vue.ref(null), viewers: [], navigations: [],
+  readingSettings: { settings: { audioPlaybackRate: 1 }, updateSetting(k, v) { this.settings[k] = v; } } };
 runtime.Transition = Vue.defineComponent({ props: ['name'], setup: (_, { slots }) => () => slots.default?.() });
 runtime.Compare = Vue.defineComponent({ setup: (_, { slots }) => () => slots.primary?.() });
 runtime.Selection = Vue.defineComponent({ props: ['state'], emits: ['highlight-color'], setup: (_, { emit }) => { runtime.selection = { emit }; return () => null; } });
@@ -40,10 +41,12 @@ async function loadComponent(path) {
       builder.onLoad({ filter: /.*/, namespace: 'runtime' }, ({ path }) => ({ contents: path === 'vue' ? exportsFor('Vue', Vue) : path === 'vue-router' ? exportsFor('Router', Router) : exportsFor('Icons', Icons) }));
       builder.onResolve({ filter: /^~\/components\/bible\/(BibleViewer|BibleCompareViewer|SelectionFloatingControls).vue$/ }, ({ path }) => ({ path, namespace: 'boundary' }));
       builder.onLoad({ filter: /.*/, namespace: 'boundary' }, ({ path }) => ({ contents: `export default globalThis.__readerShellTest.${path.includes('BibleCompareViewer') ? 'Compare' : path.includes('BibleViewer') ? 'Viewer' : 'Selection'};` }));
-      builder.onResolve({ filter: /^~\/(composables\/useAuthService|stores\/notifications)$/ }, ({ path }) => ({ path, namespace: 'service' }));
+      builder.onResolve({ filter: /^~\/(composables\/useAuthService|stores\/(notifications|readingSettings))$/ }, ({ path }) => ({ path, namespace: 'service' }));
       builder.onLoad({ filter: /.*/, namespace: 'service' }, ({ path }) => ({ contents: path.includes('useAuthService')
         ? 'export const useAuthService = () => ({ user: globalThis.__readerShellTest.user });'
-        : 'export const useNotificationsStore = () => ({ unreadCount: 0 });' }));
+        : path.includes('readingSettings')
+          ? 'export const useReadingSettingsStore = () => globalThis.__readerShellTest.readingSettings;'
+          : 'export const useNotificationsStore = () => ({ unreadCount: 0 });' }));
       builder.onResolve({ filter: /^~\// }, ({ path }) => ({ path: `${root}/app/${path.slice(2)}${path.endsWith('.vue') ? '' : '.ts'}`, namespace: path.endsWith('.vue') ? 'sfc' : 'file' }));
       builder.onLoad({ filter: /\.vue$/, namespace: 'sfc' }, async ({ path }) => {
         const { descriptor, errors } = parse(await readFile(path, 'utf8'), { filename: path }); assert.deepEqual(errors, []);
@@ -178,7 +181,7 @@ test('tools publishes open state and closes on outside click and Escape', async 
 test('one shared five-tab stack has no chapter row; plan interception is tongdok-only', { timeout: 3000 }, async t => {
   let plans = 0; const view = await mount(Reader, { ...defaults, isTongdokMode: true, onReadingPlanClick: () => plans++ }); t.after(view.close);
   assert.equal(byClass(view.host, 'bottom-nav-container').length, 1); assert.equal(byClass(view.host, 'sidebar-nav').length, 1);
-  assert.equal(byClass(view.host, 'floating-bottom-navigation').length, 0, 'no bottom chapter row');
+  assert.equal(byClass(view.host, 'reader-controls-row').length, 1, 'merged reader controls row');
   assert.deepEqual(all(tabs(view.host), n => n.type === 'a').map(n => n.props.href), ['/', '/bible', '/plan', '/groups', '/login']);
   const plan = all(tabs(view.host), n => n.props.href === '/plan')[0]; assert.equal(click(plan).defaultPrevented, true); assert.equal(plans, 1); assert.equal(view.router.currentRoute.value.path, '/bible');
   view.props.isTongdokMode = false; await Vue.nextTick();
@@ -188,11 +191,11 @@ test('one shared five-tab stack has no chapter row; plan interception is tongdok
 test('pixel scroll hides tabs after 60px; up and overlays show while controls remain', async t => {
   const ratios = []; const view = await mount(Reader, { ...defaults, isTongdokMode: true, tongdokProgress: { current: 2, total: 3, done: 1, completed: [false, false, true] }, tongdokAudioLink: 'https://audio.test', isTongdokAudioPlayerOpen: true, onScroll: value => ratios.push(value) }); t.after(view.close);
   const hidden = () => byClass(view.host, 'bottom-nav-tabs')[0].props.inert;
-  const progress = byClass(view.host, 'tongdok-progress-area')[0]; const audio = byClass(view.host, 'tongdok-audio-player')[0];
+  const progress = byClass(view.host, 'reader-controls-progress')[0]; const audio = byClass(view.host, 'tongdok-audio-player')[0];
   view.viewer.emit('scroll', 0.9); await Vue.nextTick(); assert.deepEqual(ratios, [0.9]); assert.equal(hidden(), false);
   for (const value of [25, 59]) { view.viewer.emit('scroll-pixels', value); await Vue.nextTick(); assert.equal(hidden(), false); }
   view.viewer.emit('scroll-pixels', 60); await Vue.nextTick(); assert.equal(hidden(), true, 'actual 60px reading scroll hides tabs');
-  assert.equal(byClass(view.host, 'tongdok-progress-area')[0], progress); assert.equal(byClass(view.host, 'tongdok-audio-player')[0], audio); assert.equal(all(tabs(view.host), n => n.type === 'a' && n.props.tabindex === -1).length, 5);
+  assert.equal(byClass(view.host, 'reader-controls-progress')[0], progress); assert.equal(byClass(view.host, 'tongdok-audio-player')[0], audio); assert.equal(all(tabs(view.host), n => n.type === 'a' && n.props.tabindex === -1).length, 5);
   view.viewer.emit('scroll-pixels', 59); await Vue.nextTick(); assert.equal(hidden(), false);
   view.viewer.emit('scroll-pixels', 119); await Vue.nextTick(); assert.equal(hidden(), true);
   view.props.overlayOpen = true; await Vue.nextTick(); assert.equal(hidden(), false);

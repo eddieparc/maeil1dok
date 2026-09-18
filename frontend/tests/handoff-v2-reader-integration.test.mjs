@@ -30,7 +30,7 @@ const boundary = name => Vue.defineComponent({ name, inheritAttrs: false,
     return () => Vue.h('boundary', { 'data-boundary': name }, [slots.bottom?.(), slots.primary?.()]);
   },
 });
-const boundaryNames = ['BibleCompareViewer', 'BibleViewer', 'SelectionFloatingControls', 'BibleHome', 'BibleTOC', 'BookSelector', 'VersionSelector', 'TongdokCompleteModal', 'TongdokAlreadyCompleteModal', 'TongdokNextScheduleModal', 'TongdokCertificationModal', 'NoteQuickModal', 'HighlightModal', 'ReadingSettingsModal', 'ReadingSettingsSheet', 'PlanSelectorModal', 'BibleScheduleContent', 'BaseModal', 'ShareSheet', 'ReaderGuideSheet', 'ReaderPlanSheet', 'Toast'];
+const boundaryNames = ['BibleCompareViewer', 'BibleViewer', 'SelectionFloatingControls', 'BibleHome', 'BibleTOC', 'BookSelector', 'TongdokCompleteModal', 'TongdokAlreadyCompleteModal', 'TongdokNextScheduleModal', 'TongdokCertificationModal', 'NoteQuickModal', 'HighlightModal', 'ReadingSettingsModal', 'ReadingSettingsSheet', 'PlanSelectorModal', 'BibleScheduleContent', 'BaseModal', 'ShareSheet', 'ReaderGuideSheet', 'Toast'];
 for (const name of boundaryNames) r[name] = boundary(name);
 const serviceModules = {
   useAuthService: 'export const useAuthService = () => globalThis.__readerIntegration.auth;',
@@ -129,7 +129,7 @@ async function mount(url = '/bible', options = {}) {
     r.authPrompts.push(message);
     return false;
   };
-  r.settings = Vue.reactive({ settings: { tongdokAutoComplete: false, fontFamily: 'noto-serif', fontSize: 19, lineHeight: 1.8 }, updateSetting(k, v) { this.settings[k] = v; } });
+  r.settings = Vue.reactive({ settings: { tongdokAutoComplete: false, audioPlaybackRate: 1, fontFamily: 'noto-serif', fontSize: 19, lineHeight: 1.8 }, updateSetting(k, v) { this.settings[k] = v; } });
   r.selectedPlan = Vue.reactive({ effectivePlanId: options.planId ?? null, selectedPlanId: options.planId ?? null, setSelectedPlanId(id) { this.effectivePlanId = id; this.selectedPlanId = id; } });
   r.subscriptions = Vue.reactive({ activeSubscriptions: [{ plan_id: 7, plan_name: 'actual plan', is_default: true }], fetchSubscriptions: async () => {} });
   r.toast = Object.fromEntries(['success', 'error', 'info'].map(kind => [kind, message => r.messages.push({ kind, message })]));
@@ -220,7 +220,7 @@ test('real shell consumes 60 pixel scroll; all controlled sheets and modal host 
   const hidden = () => byClass(view.host, 'bottom-nav-tabs')[0].props.inert;
   await emit('BibleViewer', 'scroll', .6); assert.equal(hidden(), false);
   await emit('BibleViewer', 'scroll-pixels', 60); assert.equal(hidden(), true);
-  for (const key of ['showBookSelector', 'showVersionSelector', 'showSettingsModal', 'showNoteModal', 'showHighlightModal', 'showScheduleModal', 'showFullScheduleModal', 'showTongdokPlanModal', 'showGuideSheet']) {
+  for (const key of ['showBookSelector', 'showSettingsModal', 'showNoteModal', 'showHighlightModal', 'showScheduleModal', 'showFullScheduleModal', 'showTongdokPlanModal', 'showGuideSheet']) {
     assert.ok(view.state[key], key); view.state[key].value = true; await settled(); assert.equal(hidden(), false, key); assert.ok(r.selectionClears.length); view.state[key].value = false; await settled();
   }
   // 절 공유는 ShareSheet이 아니라 [매일일독] <참조>\n<풀 링크> 텍스트를 Web Share로 보낸다.
@@ -406,21 +406,15 @@ test('late content loader creation retains Nuxt runtime-config context after nav
   assert.match(view.state.bibleContent.value, /exo 1/);
 });
 
-test('malformed next-position month cannot issue an invented monthly schedule request', { timeout: 10000 }, async t => {
-  const view = await mount('/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true', {
-    GET: async path => path.endsWith('/next-position/') ? { data: { status: 'next_incomplete', schedule_id: 3 } } : undefined,
-  }); t.after(view.close); await view.ready();
-  await view.state.openPlanSheet();
-  assert.equal(r.requests.some(([path]) => path.endsWith('/schedules/month/')), false);
+test('reading-plan click opens the full schedule modal like pre-beta', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true'); t.after(view.close); await view.ready();
+  click(byClass(view.host, 'tool-trigger-button')[0]); await Vue.nextTick();
+  click(all(view.host, n => n.props['data-testid'] === 'reader-reading-plan')[0]); await settled();
+  assert.equal(view.state.showFullScheduleModal.value, true);
 });
 
-test('plain reader compact plan uses real next-position rows and starts their exact context; guide callback uses native navigation', { timeout: 10000 }, async t => {
+test('guide callback uses native navigation', { timeout: 10000 }, async t => {
   const view = await mount('/bible?book=gen&chapter=49', { planId: 7 }); t.after(view.close); await view.ready();
-  await view.state.openPlanSheet(); await settled();
-  const rows = r.boundaries.ReaderPlanSheet.attrs.rows;
-  assert.deepEqual(rows.map(row => [row.scheduleId, row.book, row.chapter, row.status]), [[3, 'exo', 3, 'upcoming'], [3, 'exo', 4, 'upcoming'], [3, 'exo', 5, 'upcoming']]);
-  await view.state.handlePlanChapterSelect({ scheduleId: 3, book: 'exo', chapter: 4 }); await settled();
-  assert.equal(view.state.currentChapter.value, 4); assert.equal(view.state.tongdokScheduleId.value, 3); assert.equal(view.state.tongdokPlanId.value, 7);
   const nativeMessages = []; window.__nativeBridge = { isNativeApp: () => true, sendToNative: payload => nativeMessages.push(payload) };
   await emit('ReaderGuideSheet', 'open-guide', 'https://guide.test'); assert.deepEqual(nativeMessages, [{ type: 'navigate', url: 'https://guide.test' }]);
 });
@@ -435,14 +429,11 @@ test('a selection from a superseded version cannot open a card using the new ver
 
 test('compare control toggles, scopes version loads, follows chapters and persists', { timeout: 10000 }, async t => {
   const view = await mount('/bible?book=gen&chapter=49&version=GAE'); t.after(view.close); await view.ready();
-  const control = all(view.host, n => n.props['data-testid'] === 'reader-compare')[0];
-  assert.ok(control, 'reader exposes compare control');
-  click(control); await settled();
+  await emit('BookSelector', 'compare-toggle'); await settled();
   assert.equal(view.state.compareEnabled.value, true);
   assert.deepEqual(r.contentCalls.at(-1), ['gen', 49, 'KNT']);
   const before = r.contentCalls.length;
-  view.state.openCompareSelector('secondary'); await settled();
-  await emit('VersionSelector', 'select', 'HAN');
+  await emit('BookSelector', 'compare-version-select', 'HAN'); await settled();
   assert.deepEqual(r.contentCalls.slice(before), [['gen', 49, 'HAN']]);
   const beforeSwap = r.contentCalls.length;
   await view.state.swapCompareVersions(); await settled();
@@ -455,9 +446,8 @@ test('compare control toggles, scopes version loads, follows chapters and persis
   assert.ok(r.contentCalls.some(c => JSON.stringify(c) === JSON.stringify(['exo', 2, 'HAN'])));
   assert.deepEqual(JSON.parse(view.values.get('bibleCompare')), { enabled: true, secondaryVersion: 'GAE' });
   const beforePrimary = r.contentCalls.length;
-  view.state.openCompareSelector('primary');
-  await view.state.handleColumnVersionSelect('SAE'); await settled();
+  await view.state.handleVersionSelect('SAE'); await settled();
   assert.deepEqual(r.contentCalls.slice(beforePrimary), [['exo', 2, 'SAE']]);
-  click(all(view.host, n => n.props['data-testid'] === 'reader-compare')[0]); await settled();
+  await emit('BookSelector', 'compare-toggle'); await settled();
   assert.equal(view.state.compareEnabled.value, false);
 });

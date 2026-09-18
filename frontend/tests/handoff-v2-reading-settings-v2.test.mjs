@@ -100,10 +100,10 @@ function actionSignal(store, action) {
   return signal.promise;
 }
 const saved = { theme: 'dark', fontFamily: 'noto-serif', fontSize: 23, fontWeight: 'bold', lineHeight: 2.4,
-  textAlign: 'justify', verseJoining: true, showVerseNumbers: false, tongdokAutoComplete: true,
+  textAlign: 'justify', verseJoining: true, showVerseNumbers: false, tongdokAutoComplete: true, audioPlaybackRate: 1.5,
   showDescription: false, showCrossRef: false, highlightNames: false, showFootnotes: true };
 const server = { theme: 'dark', font_family: 'noto-serif', font_size: 23, font_weight: 'bold', line_height: 2.4,
-  text_align: 'justify', verse_joining: true, show_verse_numbers: false, tongdok_auto_complete: true,
+  text_align: 'justify', verse_joining: true, show_verse_numbers: false, tongdok_auto_complete: true, audio_playback_rate: 1.5,
   show_description: false, show_cross_ref: false, highlight_names: false, show_footnotes: true };
 function setup(t, { authenticated = true, stored = saved } = {}) {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1000 });

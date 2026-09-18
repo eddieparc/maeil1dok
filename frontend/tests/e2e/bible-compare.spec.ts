@@ -8,7 +8,10 @@ for (const width of [390, 1280]) {
     mockBibleChapter(api, { book: 'jhn', chapter: 3 });
     await page.goto('/bible?book=jhn&chapter=3&version=HAN');
     await expect(page.locator('.bible-viewer .verse')).toHaveCount(24);
-    await page.getByTestId('reader-compare').click();
+    // Compare now lives inside the book selector sheet, not the header.
+    await page.locator('.book-selector-trigger').click();
+    await page.getByTestId('book-selector-compare').click();
+    await page.keyboard.press('Escape');
     await expect(page.locator('.compare-column.secondary .verse')).toHaveCount(24);
     await expect(page.locator('.bible-compare-viewer')).toHaveClass(/theme-dark/);
     const geometry = await page.locator('.compare-columns').evaluate(el => {
@@ -30,10 +33,12 @@ for (const width of [390, 1280]) {
     await page.locator('.swap-btn').click();
     await expect(page).toHaveURL(/version=GAE/);
     await page.reload();
-    await expect(page.getByTestId('reader-compare')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.bible-compare-viewer')).toBeVisible();
     await expect(page.locator('.secondary .verse')).toHaveCount(24);
     await page.screenshot({ path: `/tmp/lab127-compare-${width}.png`, fullPage: true });
-    await page.getByTestId('reader-compare').click();
+    await page.locator('.book-selector-trigger').click();
+    await page.getByTestId('book-selector-compare').click();
+    await page.keyboard.press('Escape');
     await expect(page.locator('.bible-compare-viewer')).toHaveCount(0);
     await expect(page.locator('.bible-viewer .verse')).toHaveCount(24);
   });

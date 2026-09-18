@@ -346,10 +346,9 @@ test('completion content renders supplied highlights and emits controlled host a
   assert.deepEqual(events, [['highlight', 55], ['share'], ['next'], ['close']])
 })
 
-test('guide and compact plan sheets emit navigation decisions to the root', async t => {
-  const [Guide, Plan] = await Promise.all([loadComponent('components/bible/ReaderGuideSheet.vue'), loadComponent('components/bible/ReaderPlanSheet.vue')]); const events = []
-  const guide = mount(Guide, { modelValue: true, scheduleTitle: '창세기 1-2장', guideLink: 'https://example.com/guide', onOpenGuide: url => events.push(['guide', url]) })
-  const plan = mount(Plan, { modelValue: true, planName: '2026 성경통독', dateLabel: '9/6(일)', rangeLabel: '창세기 1-2장', rows: [{ scheduleId: 101, book: 'gen', chapter: 1, label: '창세기 1장', status: 'completed' }, { scheduleId: 101, book: 'gen', chapter: 2, label: '창세기 2장', status: 'current' }], nextScheduleLabel: '9/7(월) · 창세기 3-4장', onSelectChapter: value => events.push(['chapter', value]), onNextPosition: () => events.push(['next-position']) }); t.after(guide.close); t.after(plan.close)
-  click(testId(guide.host, 'reader-guide-open')); click(testId(plan.host, 'reader-plan-row-101-gen-2')); click(testId(plan.host, 'reader-plan-next'))
-  assert.deepEqual(events, [['guide', 'https://example.com/guide'], ['chapter', { scheduleId: 101, book: 'gen', chapter: 2 }], ['next-position']]); assert.equal(testId(plan.host, 'reader-plan-row-101-gen-2').props['aria-current'], 'step')
+test('guide sheet emits navigation decisions to the root', async t => {
+  const Guide = await loadComponent('components/bible/ReaderGuideSheet.vue'); const events = []
+  const guide = mount(Guide, { modelValue: true, scheduleTitle: '창세기 1-2장', guideLink: 'https://example.com/guide', onOpenGuide: url => events.push(['guide', url]) }); t.after(guide.close)
+  click(testId(guide.host, 'reader-guide-open'))
+  assert.deepEqual(events, [['guide', 'https://example.com/guide']])
 })

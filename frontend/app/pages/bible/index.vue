@@ -26,8 +26,7 @@
         :primary-meta="versionMeta[currentVersion]"
         :secondary-meta="versionMeta[secondaryVersion]"
         :is-secondary-loading="isSecondaryLoading"
-        @toggle-compare="toggleCompare"
-        @compare-select="openCompareSelector"
+        @compare-select="openBookSelectorForCompare"
         @compare-swap="swapCompareVersions"
         :is-loading="isLoading"
         :scroll-position="scrollPosition"
@@ -40,6 +39,8 @@
         :is-tongdok-mode="isTongdokMode"
         :tongdok-schedule-range="tongdokScheduleRange"
         :tongdok-schedule-date="tongdokScheduleDate"
+        :tongdok-full-range="fullTongdokRange"
+        :tongdok-plan-name="readerPlanName"
         :tongdok-audio-link="tongdokAudioLink"
         :tongdok-guide-link="tongdokGuideLink"
         :tongdok-progress="tongdokProgress"
@@ -58,7 +59,7 @@
         @prev-chapter="goToPrevChapter"
         @next-chapter="goToNextChapter"
         @open-book-selector="showBookSelector = true"
-        @open-version-selector="openCompareSelector('primary')"
+        @open-version-selector="showBookSelector = true"
         @open-settings="showSettingsModal = true"
         @bookmark-toggle="handleBookmarkToggle"
         @note-click="handleNoteClick"
@@ -78,18 +79,12 @@
         @audio-external-click="handleAudioLink"
         @audio-player-open-change="showTongdokAudioPlayer = $event"
         @audio-ended="handleTongdokAudioEnded"
-        @reading-plan-click="openPlanSheet"
+        @reading-plan-click="showFullScheduleModal = true"
         @share-click="handleChapterShare"
         @guide-click="showGuideSheet = true"
       />
 
       <!-- 모달 -->
-      <VersionSelector
-        v-model="showVersionSelector"
-        :current-version="versionColumn === 'secondary' ? secondaryVersion : currentVersion"
-        @select="handleColumnVersionSelect"
-      />
-
       <ShareSheet
         v-model="showShareSheet"
         :mode="shareMode"
@@ -107,19 +102,6 @@
         :schedule-title="fullTongdokRange"
         :guide-link="tongdokGuideLink"
         @open-guide="handleAudioLink"
-      />
-      <ReaderPlanSheet
-        v-model="showScheduleModal"
-        :plan-name="readerPlanName"
-        :date-label="isTongdokMode ? tongdokScheduleDate || '' : nextSchedule?.date || ''"
-        :range-label="compactPlanRange"
-        :rows="planRows"
-        :next-schedule-label="nextScheduleLabel"
-        :is-tongdok-mode="isTongdokMode"
-        :is-loading="isPlanLoading"
-        @select-chapter="handlePlanChapterSelect"
-        @next-position="handlePlanNext"
-        @start-tongdok="handlePlanStart"
       />
 
       <!-- 노트 빠른 메모 모달 -->
@@ -191,8 +173,12 @@
       :current-chapter="currentChapter"
       :current-version="currentVersion"
       :read-chapters="selectorReadChapters"
+      :compare-enabled="compareEnabled"
+      :secondary-version="secondaryVersion"
       @select="handleBookSelect"
       @version-select="handleVersionSelect"
+      @compare-toggle="toggleCompare"
+      @compare-version-select="handleCompareVersionSelect"
     />
     <SidebarNav v-if="viewMode !== 'reader'" />
     <BottomNavigation v-if="viewMode !== 'reader'" />
@@ -244,10 +230,8 @@ import type { SelectionSharePayload, SelectionHighlightPayload } from '~/compone
 
 // 모달 컴포넌트
 import BookSelector from '~/components/bible/BookSelector.vue';
-import VersionSelector from '~/components/bible/VersionSelector.vue';
 import ReaderCompletionContent, { type ReaderCompletionHighlight } from '~/components/bible/ReaderCompletionContent.vue';
 import ReaderGuideSheet from '~/components/bible/ReaderGuideSheet.vue';
-import ReaderPlanSheet, { type ReaderPlanChapterRow } from '~/components/bible/ReaderPlanSheet.vue';
 import ShareSheet from '~/components/bible/share/ShareSheet.vue';
 import type { AudioEndedSource } from '~/components/bible/TongdokAudioPlayer.vue';
 import type { BibleShareMetadata, BibleShareVerse } from '~/composables/bible/bibleShare';
@@ -377,7 +361,6 @@ if (viewMode.value === 'reader') initFromQueryBase(route.query);
 // 모달 상태 (useBibleModals composable로 통합 관리)
 const {
   showBookSelector,
-  showVersionSelector,
   showHighlightModal,
   showSettingsModal,
   highlightSelection,
@@ -390,7 +373,6 @@ const compareEnabled = ref(false);
 const secondaryVersion = ref('KNT');
 const secondaryContent = ref('');
 const isSecondaryLoading = ref(false);
-const versionColumn = ref<'primary' | 'secondary'>('primary');
 let secondaryGeneration = 0;
 // Reuse already parsed chapters when exchanging columns; primary remains route-owned.
 const compareChapters = new Map<string, string>();
@@ -404,13 +386,12 @@ const toggleCompare = () => {
   if (compareEnabled.value && secondaryVersion.value === currentVersion.value) secondaryVersion.value = currentVersion.value === 'GAE' ? 'KNT' : 'GAE';
   persistCompare();
 };
-const openCompareSelector = (column: 'primary' | 'secondary') => {
-  versionColumn.value = column;
-  showVersionSelector.value = true;
+const openBookSelectorForCompare = (_column: 'primary' | 'secondary') => {
+  showBookSelector.value = true;
 };
-const handleColumnVersionSelect = async (version: string) => {
-  if (versionColumn.value === 'primary') await handleVersionSelect(version);
-  else { secondaryVersion.value = version; persistCompare(); }
+const handleCompareVersionSelect = (version: string) => {
+  secondaryVersion.value = version;
+  persistCompare();
 };
 const swapCompareVersions = async () => {
   const primary = currentVersion.value;
@@ -450,7 +431,6 @@ const shareContext = ref<{ planId: number | null; scheduleId: number | null }>({
 const completionPreparing = ref(false);
 const completionModalId = 'bible-reader-completion';
 const nextSchedule = ref<Schedule | null>(null);
-const isPlanLoading = ref(false);
 const progressRevision = ref(0);
 const readerReady = ref(false);
 let pageActive = true;
@@ -527,7 +507,7 @@ const selectorReadChapters = computed(() => {
   }
   return result;
 });
-const overlayOpen = computed(() => showBookSelector.value || showVersionSelector.value ||
+const overlayOpen = computed(() => showBookSelector.value ||
   showSettingsModal.value || showNoteModal.value || showHighlightModal.value ||
   showScheduleModal.value || showFullScheduleModal.value || showTongdokPlanModal.value ||
   showGuideSheet.value || showShareSheet.value || completionPreparing.value || modal.isOpen.value);
@@ -536,34 +516,9 @@ watch(overlayOpen, open => {
 }, { flush: 'sync' });
 const readerPlanName = computed(() => readingDetailResponse.value?.data?.plan_name ||
   subscriptions.value.find(sub => sub.plan_id === selectedPlanStore.effectivePlanId)?.plan_name || '');
-const planRows = computed<ReaderPlanChapterRow[]>(() => {
-  progressRevision.value;
-  if (!isTongdokMode.value) {
-    const schedule = nextSchedule.value;
-    const book = schedule ? getBookCode(schedule.book) : null;
-    if (!schedule || !book) return [];
-    return Array.from({ length: schedule.end_chapter - schedule.start_chapter + 1 }, (_, index) => ({
-      scheduleId: schedule.id, book, chapter: schedule.start_chapter + index,
-      label: `${schedule.book} ${schedule.start_chapter + index}${book === 'psa' ? '편' : '장'}`,
-      status: schedule.is_completed ? 'completed' : 'upcoming',
-    } satisfies ReaderPlanChapterRow));
-  }
-  return (readingDetailResponse.value?.data?.plan_detail || []).flatMap(row => {
-    if (!row.schedule_id) return [];
-    return Array.from({ length: row.end_chapter - row.start_chapter + 1 }, (_, index) => {
-      const chapter = row.start_chapter + index;
-      return { scheduleId: row.schedule_id!, book: row.book, chapter,
-        label: `${row.book_kor || getCurrentSectionChapters(row.book).find(section => section.book === row.book)?.book_kor || row.book} ${chapter}${row.book === 'psa' ? '편' : '장'}`,
-        status: isChapterCompleted(row.book, chapter) ? 'completed' :
-          row.book === currentBook.value && chapter === currentChapter.value ? 'current' : 'not_completed' } satisfies ReaderPlanChapterRow;
-    });
-  });
-});
 const nextScheduleLabel = computed(() => nextSchedule.value
   ? `${nextSchedule.value.date} · ${nextSchedule.value.book} ${nextSchedule.value.start_chapter}-${nextSchedule.value.end_chapter}장`
   : null);
-const compactPlanRange = computed(() => isTongdokMode.value ? fullTongdokRange.value : nextSchedule.value
-  ? `${nextSchedule.value.book} ${nextSchedule.value.start_chapter}-${nextSchedule.value.end_chapter}장` : '');
 
 // 읽기모드 관련 (통독모드가 아닐 때)
 const isCurrentChapterRead = computed(() =>
@@ -1106,37 +1061,7 @@ const continueToNextUnreadSchedule = async (planId: number): Promise<void> => {
   await handleBookSelect(book, schedule.start_chapter);
   toast.success(`통독 · ${schedule.book} ${schedule.start_chapter}-${schedule.end_chapter}장`);
 };
-const handlePlanNext = async () => {
-  const planId = tongdokPlanId.value ?? selectedPlanStore.effectivePlanId;
-  if (planId) await continueToNextUnreadSchedule(planId);
-};
-const handlePlanStart = async () => {
-  const first = planRows.value[0];
-  if (first) await handlePlanChapterSelect(first);
-  else await handleTodayTongdok();
-};
-const openPlanSheet = async () => {
-  showScheduleModal.value = true;
-  nextSchedule.value = null;
-  const planId = tongdokPlanId.value ?? selectedPlanStore.effectivePlanId;
-  if (!planId) return;
-  const context = readerContextKey.value;
-  isPlanLoading.value = true;
-  const schedule = await fetchNextSchedule(planId);
-  if (context === readerContextKey.value) nextSchedule.value = schedule;
-  isPlanLoading.value = false;
-};
-const handlePlanChapterSelect = async (row: { scheduleId: number; book: string; chapter: number }) => {
-  if (!planRows.value.some(item => item.scheduleId === row.scheduleId && item.book === row.book && item.chapter === row.chapter)) return;
-  showScheduleModal.value = false;
-  if (!isTongdokMode.value) {
-    const planId = selectedPlanStore.effectivePlanId;
-    if (!planId || !nextSchedule.value || !requireAuth()) return;
-    enableTongdokMode(row.scheduleId, planId, nextSchedule.value.date);
-  }
-  // An active date group is one session; another row must not erase its chapter marks.
-  await handleBookSelect(row.book, row.chapter);
-};
+
 
 const openCompletion = async (context: string, planId: number, scheduleId: number) => {
   const range = fullTongdokRange.value;

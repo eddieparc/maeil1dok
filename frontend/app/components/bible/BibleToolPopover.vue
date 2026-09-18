@@ -39,7 +39,7 @@
         <div v-if="audioLink || guideLink" class="popover-divider mobile-only"></div>
 
         <!-- 성경통독표 -->
-        <button class="popover-item" @click="handleReadingPlan">
+        <button class="popover-item" data-testid="reader-reading-plan" @click="handleReadingPlan">
           <div class="item-icon">
             <ListCheckIcon />
           </div>

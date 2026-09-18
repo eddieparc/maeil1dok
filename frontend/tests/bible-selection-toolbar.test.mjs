@@ -222,7 +222,7 @@ test('does not teleport selection menus to body coordinates', () => {
 test('preserves adjacent bottom bar and event wiring', async () => {
   const html = await renderTongdokReader();
   const audioIndex = html.indexOf('aria-label="통독 오디오 재생 진행률"');
-  const progressIndex = html.indexOf('class="tongdok-progress-area"');
+  const progressIndex = html.indexOf('class="reader-controls-progress"');
   const navigationIndex = html.indexOf('class="bottom-nav"');
   const header = html.slice(html.indexOf('<header'), html.indexOf('</header>'));
   const previousIndex = header.indexOf('aria-label="이전 장"');
@@ -231,6 +231,8 @@ test('preserves adjacent bottom bar and event wiring', async () => {
 
   assert.ok(audioIndex >= 0 && audioIndex < navigationIndex, 'tongdok audio should render above navigation');
   assert.ok(progressIndex > audioIndex && progressIndex < navigationIndex, 'tongdok progress should render above navigation after audio');
+  const controlsIndex = html.indexOf('class="reader-controls-row"');
+  assert.ok(controlsIndex > audioIndex && controlsIndex < navigationIndex, 'merged reader controls row should render above navigation');
   assert.ok(previousIndex >= 0 && previousIndex < chapterIndex && chapterIndex < nextIndex, 'header previous, chapter, and next controls should keep DOM order');
   const navigation = html.slice(navigationIndex, html.indexOf('</nav>', navigationIndex));
   assert.equal(navigation.match(/<a\b/g)?.length, 5, 'reader uses exactly five shared tabs');

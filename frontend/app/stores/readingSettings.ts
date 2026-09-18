@@ -27,6 +27,7 @@ export interface ReadingSettings {
 
   // Behavior settings
   tongdokAutoComplete: boolean
+  audioPlaybackRate: number
 
   // View options (existing, migrated from localStorage)
   showDescription: boolean
@@ -55,6 +56,7 @@ const DEFAULT_SETTINGS: ReadingSettings = {
   verseJoining: false,
   showVerseNumbers: true,
   tongdokAutoComplete: false,
+  audioPlaybackRate: 1.0,
   showDescription: true,
   showCrossRef: true,
   highlightNames: true,
@@ -281,6 +283,7 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
             verseJoining: serverSettings.verse_joining ?? this.settings.verseJoining,
             showVerseNumbers: serverSettings.show_verse_numbers ?? this.settings.showVerseNumbers,
             tongdokAutoComplete: serverSettings.tongdok_auto_complete ?? this.settings.tongdokAutoComplete,
+            audioPlaybackRate: serverSettings.audio_playback_rate ?? this.settings.audioPlaybackRate,
             showDescription: serverSettings.show_description ?? this.settings.showDescription,
             showCrossRef: serverSettings.show_cross_ref ?? this.settings.showCrossRef,
             highlightNames: serverSettings.highlight_names ?? this.settings.highlightNames,
@@ -328,6 +331,7 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
           verse_joining: snapshot.verseJoining,
           show_verse_numbers: snapshot.showVerseNumbers,
           tongdok_auto_complete: snapshot.tongdokAutoComplete,
+          audio_playback_rate: snapshot.audioPlaybackRate,
           show_description: snapshot.showDescription,
           show_cross_ref: snapshot.showCrossRef,
           highlight_names: snapshot.highlightNames,

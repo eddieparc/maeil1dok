@@ -8,17 +8,49 @@
 
     <!-- 역본 선택 슬라이드 -->
     <div class="version-slide-section">
-      <div class="version-scroll-container">
+      <div class="version-row">
+        <div class="version-scroll-container">
+          <button
+            v-for="(name, code) in VISIBLE_VERSION_NAMES"
+            :key="code"
+            type="button"
+            :aria-pressed="code === currentVersion"
+            :class="['version-chip', { active: code === currentVersion }]"
+            @click="$emit('version-select', String(code))"
+          >
+            {{ name }}
+          </button>
+        </div>
         <button
-          v-for="(name, code) in VISIBLE_VERSION_NAMES"
-          :key="code"
+          class="compare-toggle"
+          :class="{ active: compareEnabled }"
+          :aria-pressed="compareEnabled"
           type="button"
-          :aria-pressed="code === currentVersion"
-          :class="['version-chip', { active: code === currentVersion }]"
-          @click="$emit('version-select', String(code))"
+          data-testid="book-selector-compare"
+          title="역본 비교"
+          aria-label="역본 비교"
+          @click="$emit('compare-toggle')"
         >
-          {{ name }}
+          <Columns2Icon :size="15" />
+          <span class="compare-toggle-label">역본 비교</span>
         </button>
+      </div>
+
+      <!-- 비교 역본 선택 (역본 비교 켜졌을 때 한 줄 추가) -->
+      <div v-if="compareEnabled" class="version-row secondary">
+        <span class="version-row-label">비교</span>
+        <div class="version-scroll-container">
+          <button
+            v-for="(name, code) in VISIBLE_VERSION_NAMES"
+            :key="code"
+            type="button"
+            :aria-pressed="code === secondaryVersion"
+            :class="['version-chip', { active: code === secondaryVersion }]"
+            @click="$emit('compare-version-select', String(code))"
+          >
+            {{ name }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -175,6 +207,7 @@ import SearchIcon from '~/components/icons/SearchIcon.vue';
 import XCircleIcon from '~/components/icons/XCircleIcon.vue';
 import SparkleIcon from '~/components/icons/SparkleIcon.vue';
 import ArrowRightIcon from '~/components/icons/ArrowRightIcon.vue';
+import { Columns2Icon } from '@lucide/vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -183,12 +216,16 @@ const props = defineProps<{
   currentVersion?: string;
   /** Actual read chapter numbers keyed by book ID; omitted books have no read marks. */
   readChapters?: Readonly<Record<string, readonly number[]>>;
+  compareEnabled?: boolean;
+  secondaryVersion?: string;
 }>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   'select': [book: string, chapter: number, verse?: number];
   'version-select': [version: string];
+  'compare-toggle': [];
+  'compare-version-select': [version: string];
 }>();
 
 const { bibleBooks, getChaptersArray, parseSearchQuery } = useBibleData();
@@ -515,18 +552,70 @@ button:focus-visible {
   transition: background-color 0.2s, border-color 0.2s;
 }
 
+.version-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem;
+}
+
+.version-row.secondary {
+  margin-top: 0.5rem;
+}
+
+.version-row-label {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
 .version-scroll-container {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
-  padding: 0 1rem;
+  flex: 1;
+  min-width: 0;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  padding: 0 20px;
+  /* 좌우 가장자리 블러 페이드 */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
 }
 
 .version-scroll-container::-webkit-scrollbar {
   display: none;
+}
+
+.compare-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding: 0.375rem 0.625rem;
+  min-height: 32px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-default);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.compare-toggle:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.compare-toggle.active {
+  color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  background: color-mix(in srgb, var(--color-accent-primary) 8%, transparent);
 }
 
 .version-chip {
