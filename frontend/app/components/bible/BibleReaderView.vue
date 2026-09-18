@@ -3,15 +3,6 @@
     <!-- 헤더 -->
     <header class="bible-header" :class="{ 'has-extra-action': (isTongdokMode && tongdokGuideLink) || (isAuthenticated && !isTongdokMode) }">
       <div class="header-title-group">
-        <button
-          class="nav-button prev"
-          type="button"
-          :disabled="!hasPrevChapter"
-          aria-label="이전 장"
-          @click="$emit('prev-chapter')"
-        >
-          <ChevronLeftIcon :size="18" />
-        </button>
         <div class="header-title-stack">
           <div class="header-context-row">
             <button
@@ -39,23 +30,14 @@
           </div>
           <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
             <span class="book-chapter-text book-name-full">
-              <span class="header-range">{{ headerRange }}</span>
+              <span class="header-range">{{ headerRange }}<span v-if="headerPosition" class="header-position"> · 지금 {{ headerPosition }}</span></span>
             </span>
             <span class="book-chapter-text book-name-short">
-              <span class="header-range">{{ headerRangeShort }}</span>
+              <span class="header-range">{{ headerRangeShort }}<span v-if="headerPositionShort" class="header-position"> · 지금 {{ headerPositionShort }}</span></span>
             </span>
             <ChevronDownIcon class="selector-icon" :size="13" />
           </button>
         </div>
-        <button
-          class="nav-button next"
-          type="button"
-          :disabled="!hasNextChapter"
-          aria-label="다음 장"
-          @click="$emit('next-chapter')"
-        >
-          <ChevronRightIcon :size="18" />
-        </button>
       </div>
       <span class="reader-scroll-progress" aria-hidden="true">
         <span class="reader-scroll-progress-fill" :style="{ transform: `scaleX(${scrollFraction})` }"></span>
@@ -278,6 +260,8 @@
             <button
               class="tongdok-complete-status"
               :class="{ 'is-complete': isTongdokComplete }"
+              role="checkbox"
+              :aria-checked="isTongdokComplete"
               :aria-pressed="isTongdokComplete"
               type="button"
               :disabled="isCompleting"
@@ -285,7 +269,9 @@
               title="통독 완료"
               aria-label="통독 완료"
             >
-              <CheckIcon :size="13" :stroke-width="2.5" />
+              <span class="tongdok-complete-box" aria-hidden="true">
+                <CheckIcon :size="11" :stroke-width="3" />
+              </span>
               <span class="tongdok-complete-label">{{ isTongdokComplete ? '완료됨' : '통독 완료' }}</span>
             </button>
           </div>
@@ -449,6 +435,24 @@ const headerRangeShort = computed(() => {
 const headerContextShort = computed(() => {
   if (props.isTongdokMode) return headerScheduleDate.value;
   return props.currentVersionName || '';
+});
+
+// 통독 모드에서 범위 안 현 위치 표시 ("· 지금 N장")
+const headerPosition = computed(() => {
+  if (!props.isTongdokMode || !props.tongdokFullRange) return '';
+  const singleBook = !props.tongdokFullRange.includes(',')
+    && props.tongdokFullRange.startsWith(props.currentBookName);
+  return singleBook
+    ? `${props.currentChapter}${props.chapterSuffix}`
+    : `${props.currentBookName} ${props.currentChapter}${props.chapterSuffix}`;
+});
+const headerPositionShort = computed(() => {
+  if (!props.isTongdokMode || !props.tongdokFullRange) return '';
+  const singleBook = !props.tongdokFullRange.includes(',')
+    && props.tongdokFullRange.startsWith(props.currentBookName);
+  return singleBook
+    ? `${props.currentChapter}${props.chapterSuffix}`
+    : `${shortBookName.value} ${props.currentChapter}${props.chapterSuffix}`;
 });
 
 // 책 이름 축약 (좁은 화면용)
@@ -712,7 +716,7 @@ defineExpose({
   font-family: inherit;
   font-weight: 500;
   font-size: 0.6875rem;
-  line-height: 1.25;
+  line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--text-secondary, #6b7280);
   white-space: nowrap;
@@ -724,10 +728,15 @@ defineExpose({
 .header-range {
   display: block;
   max-width: 100%;
-  line-height: 1.2;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.header-position {
+  font-weight: 600;
+  color: var(--color-accent-primary, #2A1111);
 }
 
 [data-theme="dark"] .header-context {
@@ -1777,24 +1786,53 @@ defineExpose({
 /* 통독 하단 진행 정보 */
 /* 통독 진행률은 reader-controls-row로 통합됨 */
 
-/* 통독 완료 버튼 (하단, 진행도 옆 별도 버튼) */
+/* 통독 완료 체크박스 (하단, 진행도 옆) — 체크 상태로 완료/미완료를 직관 표시 */
 .tongdok-complete-status {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.375rem;
   justify-content: center;
   height: 1.75rem;
-  padding: 0 0.625rem;
+  padding: 0 0.5rem;
+  border: none;
   border-radius: var(--radius-control, 10px);
-  color: var(--color-text-inverse, #fff);
-  background: var(--color-accent-primary, #2A1111);
-  border: 1px solid var(--color-accent-primary, #2A1111);
+  background: transparent;
+  color: var(--color-text-secondary, #6b7280);
   flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.tongdok-complete-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  border: 1.5px solid var(--color-text-secondary, #9ca3af);
+  border-radius: 4px;
+  background: transparent;
+  color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tongdok-complete-status.is-complete {
+  color: var(--color-accent-primary, #2A1111);
+}
+
+.tongdok-complete-status.is-complete .tongdok-complete-box {
+  background: var(--color-accent-primary, #2A1111);
+  border-color: var(--color-accent-primary, #2A1111);
+  color: var(--color-text-inverse, #fff);
 }
 
 .tongdok-complete-status:hover:not(:disabled) {
-  background: var(--color-accent-primary-hover, var(--color-accent-primary, #2A1111));
+  color: var(--color-text-primary, #111827);
+}
+
+.tongdok-complete-status:hover:not(:disabled) .tongdok-complete-box {
+  border-color: var(--color-accent-primary, #2A1111);
 }
 
 .tongdok-complete-status:active:not(:disabled) {
@@ -1806,29 +1844,32 @@ defineExpose({
   cursor: not-allowed;
 }
 
-.tongdok-complete-status.is-complete {
-  background: transparent;
-  color: var(--color-accent-primary, #2A1111);
-}
-
 .tongdok-complete-label {
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 [data-theme="dark"] .tongdok-complete-status {
-  color: var(--color-accent-primary);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
 }
 
-[data-theme="dark"] .tongdok-complete-status:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
+[data-theme="dark"] .tongdok-complete-box {
+  border-color: var(--color-text-secondary);
 }
 
 [data-theme="dark"] .tongdok-complete-status.is-complete {
-  background: transparent;
+  color: var(--color-accent-primary);
+}
+
+[data-theme="dark"] .tongdok-complete-status.is-complete .tongdok-complete-box {
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+}
+
+[data-theme="dark"] .tongdok-complete-status:hover:not(:disabled) {
+  color: var(--color-text-primary);
 }
 
 .story-progress-bar {

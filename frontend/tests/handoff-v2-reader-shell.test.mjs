@@ -134,8 +134,10 @@ async function mount(component, initialProps = {}, env = environment()) {
 test('H02 header retains cross-book/body/exposed events', async t => {
   const events = []; const view = await mount(Reader, { ...defaults, onPrevChapter: () => events.push('prev'), onNextChapter: () => events.push('next'), onOpenBookSelector: () => events.push('book'), onMarkAsRead: () => events.push('read') }); t.after(view.close);
   const header = byClass(view.host, 'bible-header')[0];
-  const previous = all(header, n => n.props['aria-label'] === '이전 장')[0]; const next = all(header, n => n.props['aria-label'] === '다음 장')[0];
-  assert.ok(previous && next, 'header contains previous and next chapter controls');
+  const controls = byClass(view.host, 'reader-controls-row')[0];
+  const previous = all(controls, n => n.props['aria-label'] === '이전 장')[0]; const next = all(controls, n => n.props['aria-label'] === '다음 장')[0];
+  assert.ok(previous && next, 'bottom controls contain previous and next chapter controls');
+  assert.equal(all(header, n => n.props['aria-label'] === '이전 장' || n.props['aria-label'] === '다음 장').length, 0, 'header no longer carries chapter nav buttons');
   click(previous); click(byClass(header, 'book-selector-trigger')[0]); click(next);
   view.viewer.emit('swipe-left'); view.viewer.emit('swipe-right'); click(byClass(view.host, 'flat-action-btn').find(n => String(n.props.class).includes('complete')));
   assert.deepEqual(events, ['prev', 'book', 'next', 'next', 'prev', 'read']); assert.equal(byClass(header, 'bookmark-toggle-button').length, 0);
