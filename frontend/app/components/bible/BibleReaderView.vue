@@ -657,12 +657,12 @@ defineExpose({
   min-width: 0;
 }
 
-/* 타이틀 2줄: 위=컨텍스트(작은 글자)+✕, 아래=범위 */
+/* 타이틀 한 줄: 컨텍스트(작은 글자) + 범위를 수평으로 나란히 */
 .header-title-stack {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.375rem;
   flex: 1;
   min-width: 0;
 }
@@ -831,9 +831,10 @@ defineExpose({
   color: var(--text-secondary, #6b7280);
 }
 
-/* 책/장 선택 트리거는 타이틀 스택 안에서 가로를 채우고 말줄임한다 */
+/* 책/장 선택 트리거는 타이틀 스택 안에서 남은 가로를 채우고 말줄임한다 */
 .header-title-group .book-selector-trigger {
-  align-self: stretch;
+  align-self: baseline;
+  flex: 1;
   min-width: 0;
   overflow: hidden;
 }

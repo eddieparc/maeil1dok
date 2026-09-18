@@ -284,12 +284,13 @@ test('numeric focus does not scroll an ancestor', { timeout: 5000 }, async () =>
 
 test('version chips preserve supported codes and emit without closing', { timeout: 5000 }, async () => {
   const view = await selector();
-  assert.equal(view.all('.version-chip').length, 8);
-  await act(view.all('.version-chip')[1], 'Click');
+  const chips = () => view.all('.version-scroll-container .version-chip');
+  assert.equal(chips().length, 8);
+  await act(chips()[1], 'Click');
   assert.deepEqual(view.events, [['version-select', 'KNT']]);
   assert.equal(view.state.modelValue, true);
   await view.update({ currentVersion: 'KNT' });
-  assert.ok(view.all('.version-chip')[1].matches('.active'));
+  assert.ok(chips()[1].matches('.active'));
 });
 
 for (const [query, expected, action] of [

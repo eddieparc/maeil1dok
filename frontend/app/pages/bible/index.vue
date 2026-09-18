@@ -151,6 +151,7 @@
         title="성경통독표"
         size="lg"
         :no-padding="true"
+        :compact="true"
       >
         <BibleScheduleContent
           v-if="showFullScheduleModal"

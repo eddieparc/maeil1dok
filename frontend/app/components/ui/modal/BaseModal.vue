@@ -10,7 +10,7 @@
         <div
           ref="modalRef"
           class="base-modal-content"
-          :class="[sizeClass, positionClass]"
+          :class="[sizeClass, positionClass, { 'base-modal--compact': compact }]"
           role="dialog"
           aria-modal="true"
           @click.stop
@@ -61,6 +61,7 @@ const props = withDefaults(
     closeOnEsc?: boolean;
     hideHeader?: boolean;
     noPadding?: boolean;
+    compact?: boolean;
   }>(),
   {
     title: '',
@@ -70,6 +71,7 @@ const props = withDefaults(
     closeOnEsc: true,
     hideHeader: false,
     noPadding: false,
+    compact: false,
   }
 );
 
@@ -232,6 +234,16 @@ onUnmounted(() => {
 .base-modal-close:hover {
   background: var(--color-bg-hover, #f3f4f6);
   color: var(--text-primary, #1f2937);
+}
+
+/* 컴팩트 변형: 헤더 높이를 줄인다 */
+.base-modal--compact .base-modal-header {
+  padding: 0.5rem 1rem;
+}
+
+.base-modal--compact .base-modal-close {
+  width: 32px;
+  height: 32px;
 }
 
 /* Body */

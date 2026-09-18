@@ -148,8 +148,10 @@ const unbindScrollers = () => {
 
 const bindScrollers = async () => {
   unbindScrollers();
-  if (props.enabled === false || !rootRef.value) return;
+  if (props.enabled === false) return;
+  // enabled 토글 watcher는 DOM 반영 전에 발화하므로 nextTick 이후에 찾는다.
   await nextTick();
+  if (!rootRef.value) return;
   // primary 슬롯은 BibleViewer(.bible-viewer가 스크롤 컨테이너),
   // secondary는 .column-content가 스크롤 컨테이너다.
   primaryScroller = rootRef.value.querySelector<HTMLElement>(

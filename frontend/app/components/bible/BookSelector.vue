@@ -3,6 +3,7 @@
     :model-value="modelValue"
     title="성경 선택"
     class="book-selector-sheet"
+    :compact="true"
     @update:model-value="$emit('update:modelValue', $event)"
   >
 
@@ -601,8 +602,8 @@ button:focus-visible {
   align-items: center;
   gap: 0.25rem;
   flex-shrink: 0;
-  padding: 0.375rem 0.75rem;
-  min-height: var(--hit-min);
+  padding: 0.25rem 0.75rem;
+  min-height: 32px;
   border-radius: var(--radius-pill);
   font-size: 0.8125rem;
   font-weight: 500;

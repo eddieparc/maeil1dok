@@ -74,18 +74,18 @@ function isCurrentLocation(schedule: Schedule) {
 </template>
 
 <style scoped>
-.schedule-item { padding: 12px 14px; border: 1px solid var(--color-border-default); border-radius: 16px; background: var(--color-bg-card); }
+.schedule-item { padding: 8px 12px; border: 1px solid var(--color-border-default); border-radius: 16px; background: var(--color-bg-card); }
 .schedule-group { display: flex; align-items: center; gap: 8px; }
 .schedule-info { flex: 1; min-width: 0; }
 .schedule-reading-item { display: flex; align-items: center; gap: 4px; }
 .schedule-reading { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 6px; text-align: left; font-size: 15px; font-weight: 600; line-height: 1.5; }
 .schedule-date, .group-date { color: var(--color-text-tertiary); font-size: 12px; }
 .group-date { width: 100%; text-align: left; }
-button { min-height: var(--hit-min); min-width: var(--hit-min); padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; cursor: pointer; transition: background-color .15s, transform .15s; }
+button { min-height: 32px; min-width: 32px; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; cursor: pointer; transition: background-color .15s, transform .15s; }
 button:hover:not(:disabled) { background: var(--color-accent-bg); }
 button:active:not(:disabled) { transform: scale(.97); }
 button:disabled { cursor: not-allowed; opacity: .6; }
-.checkbox { flex-shrink: 0; display: grid; place-items: center; width: var(--hit-min); height: var(--hit-min); }
+.checkbox { flex-shrink: 0; display: grid; place-items: center; width: 32px; height: 32px; }
 .check-circle { display: grid; place-items: center; width: 26px; height: 26px; border: 1.5px solid var(--color-border-default); border-radius: var(--radius-pill); color: var(--color-accent-primary); }
 .check-circle.checked { background: var(--color-accent-primary); border-color: var(--color-accent-primary); color: var(--color-text-inverse); }
 .not_completed .check-circle:not(.checked) { border-style: dashed; border-color: var(--color-error); }
