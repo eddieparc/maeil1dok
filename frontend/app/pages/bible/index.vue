@@ -42,7 +42,7 @@
         :tongdok-schedule-range="tongdokScheduleRange"
         :tongdok-schedule-date="tongdokScheduleDateDisplay"
         :tongdok-plan-name="readerPlanName"
-        :tongdok-schedule="tongdokScheduleRows"
+        :tongdok-schedule="tongdokScheduleRowsDisplay"
         :tongdok-audio-link="tongdokAudioLink"
         :tongdok-guide-link="tongdokGuideLink"
         :tongdok-progress="tongdokProgress"
@@ -601,8 +601,16 @@ const tongdokAudioLink = computed(() =>
 );
 const tongdokGuideLink = computed(() => getGuideLink());
 const tongdokScheduleDate = computed(() => getScheduleDate());
-// 플랜에 없는 위치는 비통독처럼 보이되 플랜 이름만 유지하고 날짜·범위 자리는 '-'로 표시한다.
-const tongdokScheduleDateDisplay = computed(() => isOffPlanDetail() ? '-' : tongdokScheduleDate.value);
+// 응답이 현재 위치와 일치할 때만 일정 정보를 보인다. 로딩 중(이전 위치 응답)이나
+// 플랜에 없는 위치에서는 날짜·범위 자리를 '-'로 표시해 비통독처럼 보이게 한다.
+const tongdokDetailMatchesPosition = computed(() => {
+  const data = readingDetailResponse.value?.data;
+  return Boolean(data && data.book === currentBook.value && Number(data.chapter) === currentChapter.value);
+});
+const tongdokScheduleDateDisplay = computed(() =>
+  isOffPlanDetail() || !tongdokDetailMatchesPosition.value ? '-' : tongdokScheduleDate.value);
+const tongdokScheduleRowsDisplay = computed(() =>
+  tongdokDetailMatchesPosition.value ? tongdokScheduleRows.value : []);
 const readerContextKey = computed(() => JSON.stringify([
   viewMode.value, auth.user.value?.id, isTongdokMode.value, tongdokPlanId.value,
   tongdokScheduleId.value, tongdokScheduleDate.value, currentBook.value,
@@ -612,6 +620,7 @@ const audioContextKey = computed(() => `${readerContextKey.value}|${tongdokAudio
 const tongdokProgress = computed(() => {
   // Chapter marks are owned by the mode service's active-session Set.
   progressRevision.value;
+  if (!tongdokDetailMatchesPosition.value) return null;
   const progress = getTongdokProgress(currentBook.value, currentChapter.value);
   return progress ? { ...progress, completed: getCurrentSectionChapters(currentBook.value)
     .flatMap(section => section.chapters.map(chapter => isChapterCompleted(section.book, chapter))) } : null;
