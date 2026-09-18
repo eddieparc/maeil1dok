@@ -113,6 +113,115 @@ test('completeCurrentChapter persists only fully visited real rows and retains c
   assert.deepEqual(runtime.calls.filter(call => call[0] === 'POST').map(call => call[2].schedule_ids), [[101], [102]])
 })
 
+test('uncompleteCurrentChapter cancels the persisted range and stale rows cannot resurrect it', async () => {
+  const rows = [
+    { book: 'gen', book_kor: '창세기', start_chapter: 1, end_chapter: 2, schedule_id: 101, date: '2026-09-06', is_complete: false },
+    { book: 'exo', book_kor: '출애굽기', start_chapter: 1, end_chapter: 1, schedule_id: 102, date: '2026-09-06', is_complete: false },
+  ]
+  let serverComplete = false
+  const runtime = tongdokRuntime({
+    query: { tongdok: 'true', plan: '7', schedule: '101' },
+    get: async ({ book, chapter }) => detail({ book, chapter, rows: structuredClone(rows).map(row => ({ ...row, is_complete: serverComplete })) }),
+    post: payload => {
+      serverComplete = payload.action === 'complete'
+      return { success: true, plan_id: String(payload.plan_id), schedule_ids: payload.schedule_ids.map(String), is_completed: payload.action === 'complete' }
+    },
+  })
+  const { useTongdokMode } = await loadTongdok(runtime)
+  const mode = useTongdokMode(); mode.initTongdokMode()
+  await mode.loadReadingDetail(7, 'gen', 1)
+  mode.markAllScheduleChapters()
+  const completed = await mode.completeCurrentChapter('gen', 1)
+  assert.equal(completed.status, 'completed')
+  assert.deepEqual(completed.persistedScheduleIds, [101, 102])
+  assert.equal(mode.isScheduleCompleted(), true)
+
+  const cancelled = await mode.uncompleteCurrentChapter('gen', 1)
+  assert.equal(cancelled.status, 'cancelled')
+  assert.equal(cancelled.ok, true)
+  assert.equal(cancelled.scheduleCompleted, false)
+  assert.deepEqual(cancelled.persistedScheduleIds, [101, 102])
+  assert.deepEqual(cancelled.completedScheduleIds, [])
+  assert.equal(mode.isScheduleCompleted(), false)
+  assert.equal(mode.isChapterCompleted('gen', 1), false)
+  assert.equal(mode.isChapterCompleted('gen', 2), false)
+  assert.equal(mode.isChapterCompleted('exo', 1), false)
+  assert.deepEqual(mode.getTongdokProgress('gen', 1), { current: 1, total: 3, done: 0, isCurrentInRange: true, isComplete: false })
+  const cancelWrites = runtime.calls.filter(call => call[0] === 'POST' && call[2].action === 'cancel')
+  assert.deepEqual(cancelWrites.map(call => call[2].schedule_ids), [[101, 102]])
+
+  // A cached reread must not resurrect the cancelled completion.
+  await mode.loadReadingDetail(7, 'gen', 1)
+  assert.equal(mode.isChapterCompleted('gen', 1), false)
+  assert.equal(mode.isScheduleCompleted(), false)
+
+  // Neither may a stale server row fetched after the cancel landed.
+  serverComplete = true
+  await mode.loadReadingDetail(7, 'exo', 1)
+  assert.equal(mode.isChapterCompleted('exo', 1), false)
+  assert.equal(mode.isScheduleCompleted(), false)
+  serverComplete = false
+
+  // Re-completion still works after a cancel.
+  await mode.loadReadingDetail(7, 'gen', 1)
+  mode.markAllScheduleChapters()
+  const recompleted = await mode.completeCurrentChapter('gen', 1)
+  assert.equal(recompleted.status, 'completed')
+  assert.equal(mode.isScheduleCompleted(), true)
+  assert.equal(mode.isChapterCompleted('exo', 1), true)
+})
+
+test('a failed cancel keeps the completed state and allows retry', async () => {
+  const rows = [
+    { book: 'gen', book_kor: '창세기', start_chapter: 1, end_chapter: 1, schedule_id: 101, date: '2026-09-06', is_complete: false },
+    { book: 'exo', book_kor: '출애굽기', start_chapter: 1, end_chapter: 1, schedule_id: 102, date: '2026-09-06', is_complete: false },
+  ]
+  let failNextCancel = true
+  const runtime = tongdokRuntime({
+    query: { tongdok: 'true', plan: '7', schedule: '101' },
+    get: async ({ book, chapter }) => detail({ book, chapter, rows: structuredClone(rows) }),
+    post: payload => {
+      if (payload.action === 'cancel' && failNextCancel) {
+        failNextCancel = false
+        return { success: false, error: '요청 처리 중 오류가 발생했습니다.' }
+      }
+      return { success: true, plan_id: String(payload.plan_id), schedule_ids: payload.schedule_ids.map(String), is_completed: payload.action === 'complete' }
+    },
+  })
+  const { useTongdokMode } = await loadTongdok(runtime)
+  const mode = useTongdokMode(); mode.initTongdokMode()
+  await mode.loadReadingDetail(7, 'gen', 1)
+  mode.markAllScheduleChapters()
+  assert.equal((await mode.completeCurrentChapter('gen', 1)).status, 'completed')
+
+  const failed = await mode.uncompleteCurrentChapter('gen', 1)
+  assert.equal(failed.status, 'failed')
+  assert.equal(failed.ok, false)
+  assert.equal(mode.isScheduleCompleted(), true)
+  assert.equal(mode.isChapterCompleted('gen', 1), true)
+  assert.equal(mode.isChapterCompleted('exo', 1), true)
+  assert.equal(mode.isCompleting.value, false)
+
+  const retried = await mode.uncompleteCurrentChapter('gen', 1)
+  assert.equal(retried.status, 'cancelled')
+  assert.equal(mode.isScheduleCompleted(), false)
+})
+
+test('uncompleteCurrentChapter with no persisted rows only clears session marks', async () => {
+  const runtime = tongdokRuntime({ query: { tongdok: 'true', plan: '7', schedule: '101' }, get: async ({ book, chapter }) => detail({ book, chapter }) })
+  const { useTongdokMode } = await loadTongdok(runtime)
+  const mode = useTongdokMode(); mode.initTongdokMode()
+  await mode.loadReadingDetail(7, 'gen', 1)
+  mode.markAllScheduleChapters()
+  assert.equal(mode.isScheduleCompleted(), true)
+  const result = await mode.uncompleteCurrentChapter('gen', 1)
+  assert.equal(result.status, 'not-complete')
+  assert.equal(result.ok, true)
+  assert.equal(runtime.calls.some(call => call[0] === 'POST'), false)
+  assert.equal(mode.isScheduleCompleted(), false)
+  assert.equal(mode.isChapterCompleted('gen', 1), false)
+})
+
 for (const failure of ['network failure', 'rejected acknowledgement', 'mismatched acknowledgement']) {
   for (const priorCompletion of ['server', 'session']) {
     test(`final chapter ${failure} retains ${priorCompletion} completion and retryable partial progress`, { timeout: 5000 }, async () => {

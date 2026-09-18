@@ -64,6 +64,8 @@ export type CompleteCurrentChapterStatus =
   | 'completed'
   | 'progressed'
   | 'already-complete'
+  | 'cancelled'
+  | 'not-complete'
   | 'out-of-range'
   | 'invalid-context'
   | 'busy'
@@ -167,6 +169,9 @@ const isCompleting = ref(false);
 const lastCompleteCurrentResult: Ref<CompleteCurrentChapterResult | null> = ref(null);
 const sessionChapterMarks = new Set<string>();
 const sessionPersistedScheduleIds = new Set<number>();
+// Rows cancelled in this active session. Cached or stale fetched rows that
+// still claim completion must not resurrect them.
+const sessionCancelledScheduleIds = new Set<number>();
 const detailCache = new Map<string, ReadingDetailResponse>();
 let loadedDetailIdentity: LoadedDetailIdentity | null = null;
 let activeScheduleRange: Pick<ReadingDetailData, 'plan_detail' | 'plan_date' | 'schedule_date'> | null = null;
@@ -175,6 +180,7 @@ let detailRequestVersion = 0;
 const resetActiveSession = (clearDetail = true): void => {
   sessionChapterMarks.clear();
   sessionPersistedScheduleIds.clear();
+  sessionCancelledScheduleIds.clear();
   lastCompleteCurrentResult.value = null;
   loadedDetailIdentity = null;
   activeScheduleRange = null;
@@ -324,7 +330,8 @@ export const useTongdokMode = () => {
   const rowContains = (row: PlanDetail, book: string, chapter: number): boolean =>
     row.book === book && chapter >= row.start_chapter && chapter <= row.end_chapter;
   const rowCompleted = (row: PlanDetail & { schedule_id: number }): boolean =>
-    row.is_complete === true || sessionPersistedScheduleIds.has(row.schedule_id);
+    !sessionCancelledScheduleIds.has(row.schedule_id) &&
+    (row.is_complete === true || sessionPersistedScheduleIds.has(row.schedule_id));
   const rowChaptersMarked = (row: PlanDetail): boolean => {
     for (let chapter = row.start_chapter; chapter <= row.end_chapter; chapter += 1) {
       if (!sessionChapterMarks.has(chapterKey(row.book, chapter))) return false;
@@ -343,8 +350,10 @@ export const useTongdokMode = () => {
     let ordinal = 0;
 
     for (const row of rows) {
-      const serverOrPersistedComplete = row.is_complete === true ||
-        (positiveId(row.schedule_id) !== null && sessionPersistedScheduleIds.has(Number(row.schedule_id)));
+      const rowScheduleId = positiveId(row.schedule_id);
+      const serverOrPersistedComplete = (rowScheduleId === null || !sessionCancelledScheduleIds.has(rowScheduleId)) &&
+        (row.is_complete === true ||
+          (rowScheduleId !== null && sessionPersistedScheduleIds.has(rowScheduleId)));
       for (let chapter = row.start_chapter; chapter <= row.end_chapter; chapter += 1) {
         ordinal += 1;
         total += 1;
@@ -384,6 +393,9 @@ export const useTongdokMode = () => {
     const row = readingDetailResponse.value?.data?.plan_detail?.find(detail => rowContains(detail, book, chapter));
     if (!row) return false;
     const scheduleId = positiveId(row.schedule_id);
+    if (scheduleId !== null && sessionCancelledScheduleIds.has(scheduleId)) {
+      return sessionChapterMarks.has(chapterKey(book, chapter));
+    }
     return row.is_complete === true ||
       (scheduleId !== null && sessionPersistedScheduleIds.has(scheduleId)) ||
       sessionChapterMarks.has(chapterKey(book, chapter));
@@ -464,7 +476,9 @@ export const useTongdokMode = () => {
 
     data.plan_detail?.forEach(row => {
       const scheduleId = positiveId(row.schedule_id);
-      if (scheduleId !== null && sessionPersistedScheduleIds.has(scheduleId)) row.is_complete = true;
+      if (scheduleId === null) return;
+      if (sessionCancelledScheduleIds.has(scheduleId)) row.is_complete = false;
+      else if (sessionPersistedScheduleIds.has(scheduleId)) row.is_complete = true;
     });
     // The API returns the browsed chapter's date group, not the active schedule.
     // Only a response validated against the active identity may replace its range.
@@ -721,7 +735,10 @@ export const useTongdokMode = () => {
         return result;
       }
 
-      acknowledgedIds.forEach(id => sessionPersistedScheduleIds.add(id));
+      acknowledgedIds.forEach(id => {
+        sessionPersistedScheduleIds.add(id);
+        sessionCancelledScheduleIds.delete(id);
+      });
       authoritative.data.plan_detail?.forEach(row => {
         const scheduleId = positiveId(row.schedule_id);
         if (scheduleId !== null && acknowledgedIds.includes(scheduleId)) row.is_complete = true;
@@ -736,6 +753,106 @@ export const useTongdokMode = () => {
       );
     } catch (error) {
       console.error('통독 완료 처리 실패:', error);
+      return completeResult('failed', authoritative, book, chapter);
+    } finally {
+      isCompleting.value = false;
+    }
+  };
+
+  /**
+   * Undo counterpart of completeCurrentChapter.
+   *
+   * Cancels every completed row of the validated active range — the same set a
+   * checkbox completion persists — and clears session marks for that range, so
+   * an accidental completion can be rolled back. Rows only marked locally are
+   * cleared without a write. The cancellation is recorded so cached or stale
+   * detail cannot resurrect it.
+   */
+  const uncompleteCurrentChapter = async (
+    book: string,
+    chapter: number,
+  ): Promise<CompleteCurrentChapterResult> => {
+    const authoritative = getAuthoritativeDetail();
+    if (!authoritative) return completeResult('invalid-context', null, null, null);
+    if (isCompleting.value) return completeResult('busy', authoritative, null, null);
+
+    const clearRangeMarks = (): void => {
+      for (const row of authoritative.rows) {
+        for (let rowChapter = row.start_chapter; rowChapter <= row.end_chapter; rowChapter += 1) {
+          sessionChapterMarks.delete(chapterKey(row.book, rowChapter));
+        }
+      }
+    };
+
+    const completedIds = authoritative.rows
+      .filter(row => rowCompleted(row))
+      .map(row => row.schedule_id);
+
+    if (completedIds.length === 0) {
+      // Nothing persisted: only local marks can make the range look done.
+      clearRangeMarks();
+      return completeResult('not-complete', authoritative, book, chapter, [], true);
+    }
+
+    const identitySnapshot = { ...authoritative.identity };
+    const loadedSnapshot = loadedDetailIdentity ? { ...loadedDetailIdentity } : null;
+    isCompleting.value = true;
+    try {
+      const response = await api.POST('/api/v1/todos/reading/update/', {
+        plan_id: identitySnapshot.planId,
+        schedule_ids: completedIds,
+        action: 'cancel',
+      });
+      const acknowledgedIds = Array.isArray(response?.schedule_ids)
+        ? response.schedule_ids.map(positiveId).filter((id): id is number => id !== null)
+        : [];
+      const exactAcknowledgement = response?.success === true &&
+        positiveId(response.plan_id) === identitySnapshot.planId &&
+        response.is_completed === false &&
+        acknowledgedIds.length === completedIds.length &&
+        completedIds.every(id => acknowledgedIds.includes(id));
+      if (!exactAcknowledgement) return completeResult('failed', authoritative, book, chapter);
+
+      const contextUnchanged = activeTongdokContext.value?.planId === identitySnapshot.planId &&
+        activeTongdokContext.value?.scheduleId === identitySnapshot.scheduleId &&
+        activeTongdokContext.value?.scheduleDate === identitySnapshot.scheduleDate &&
+        loadedSnapshot !== null && loadedDetailIdentity !== null && sameIdentity(loadedSnapshot, loadedDetailIdentity);
+      if (!contextUnchanged) {
+        const remaining = new Set(
+          authoritative.rows
+            .filter(row => rowCompleted(row) && !acknowledgedIds.includes(row.schedule_id))
+            .map(row => row.schedule_id),
+        );
+        const snapshotRows = authoritative.rows.map(row => ({ ...row, is_complete: remaining.has(row.schedule_id) }));
+        const snapshotProgress = calculateProgress(snapshotRows, book, chapter);
+        const result: CompleteCurrentChapterResult = {
+          ok: true,
+          status: 'stale-context',
+          planId: identitySnapshot.planId,
+          selectedScheduleId: identitySnapshot.scheduleId,
+          scheduleDate: identitySnapshot.scheduleDate,
+          markedChapter: { book, chapter },
+          completedScheduleIds: [...remaining],
+          persistedScheduleIds: acknowledgedIds,
+          scheduleCompleted: snapshotProgress.isComplete,
+          progress: snapshotProgress,
+        };
+        lastCompleteCurrentResult.value = result;
+        return result;
+      }
+
+      acknowledgedIds.forEach(id => {
+        sessionCancelledScheduleIds.add(id);
+        sessionPersistedScheduleIds.delete(id);
+      });
+      clearRangeMarks();
+      authoritative.data.plan_detail?.forEach(row => {
+        const scheduleId = positiveId(row.schedule_id);
+        if (scheduleId !== null && acknowledgedIds.includes(scheduleId)) row.is_complete = false;
+      });
+      return completeResult('cancelled', authoritative, book, chapter, acknowledgedIds, true);
+    } catch (error) {
+      console.error('통독 완료 취소 실패:', error);
       return completeResult('failed', authoritative, book, chapter);
     } finally {
       isCompleting.value = false;
@@ -779,6 +896,7 @@ export const useTongdokMode = () => {
     markCurrentChapter,
     markAllScheduleChapters,
     completeCurrentChapter,
+    uncompleteCurrentChapter,
     completeReading,
     loadReadingDetail,
     getAudioLink,
