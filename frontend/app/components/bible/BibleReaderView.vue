@@ -795,6 +795,7 @@ button.header-plan-name {
 }
 
 .header-check {
+  display: inline-block;
   margin-right: 0.25rem;
   color: var(--color-accent-primary);
   font-weight: 700;
