@@ -284,7 +284,7 @@ test('numeric focus does not scroll an ancestor', { timeout: 5000 }, async () =>
 
 test('version chips preserve supported codes and emit without closing', { timeout: 5000 }, async () => {
   const view = await selector();
-  const chips = () => view.all('.version-scroll-container .version-chip');
+  const chips = () => view.all('.version-chip').filter(chip => !chip.matches('.compare-toggle'));
   assert.equal(chips().length, 8);
   await act(chips()[1], 'Click');
   assert.deepEqual(view.events, [['version-select', 'KNT']]);

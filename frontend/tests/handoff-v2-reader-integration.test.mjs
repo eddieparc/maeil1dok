@@ -231,9 +231,10 @@ test('real shell consumes 60 pixel scroll; all controlled sheets and modal host 
     assert.ok(view.state[key], key); view.state[key].value = true; await settled(); assert.equal(hidden(), false, key); assert.ok(r.selectionClears.length); view.state[key].value = false; await settled();
   }
   // 절 공유는 ShareSheet이 아니라 [매일일독] <참조>\n<풀 링크> 텍스트를 Web Share로 보낸다.
-  const shared = []; const originalNavigator = globalThis.navigator; globalThis.navigator = { share: async data => { shared.push(data); } };
+  const shared = []; const originalNavigator = globalThis.navigator;
+  Object.defineProperty(globalThis, 'navigator', { value: { share: async data => { shared.push(data); } }, configurable: true, writable: true });
   await emit('BibleViewer', 'share', { book: '창세기', chapter: 49, version: '개역개정', start: 3, end: 3, startVerse: 3, endVerse: 3, text: 'selected actual text', verses: [{ number: 3, text: 'selected actual text' }] });
-  await settled(); globalThis.navigator = originalNavigator;
+  await settled(); Object.defineProperty(globalThis, 'navigator', { value: originalNavigator, configurable: true, writable: true });
   assert.equal(shared.length, 1); assert.match(shared[0].text, /^\[매일일독\] 창세기 49:3\n/); assert.match(shared[0].text, /verse=3/);
   assert.equal(view.state.showShareSheet.value, false); assert.equal(hidden(), false);
   assert.ok(r.boundaries.ReadingSettingsSheet); assert.equal(r.boundaries.ReadingSettingsSheet.attrs['current-version'], 'GAE');
