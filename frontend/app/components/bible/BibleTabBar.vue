@@ -80,10 +80,11 @@ defineEmits<{
   align-items: center;
   gap: 0.125rem;
   max-width: 10rem;
+  min-height: 36px;
   padding: 0.25rem 0.25rem 0.25rem 0.625rem;
   border-radius: 8px;
   border: 1px solid transparent;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-primary, #1f2937);
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
@@ -93,13 +94,12 @@ defineEmits<{
 
 .bible-tab:hover {
   background: var(--color-bg-hover, #f3f4f6);
-  color: var(--text-primary, #1f2937);
 }
 
 .bible-tab.is-active {
-  background: var(--color-bg-card, #ffffff);
-  border-color: var(--color-border, #e5e7eb);
-  color: var(--text-primary, #1f2937);
+  background: var(--primary-light, rgba(42, 17, 17, 0.08));
+  border-color: var(--primary-color, #2A1111);
+  color: var(--primary-color, #2A1111);
 }
 
 .bible-tab-label {
@@ -120,12 +120,12 @@ defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: var(--text-tertiary, #9ca3af);
+  color: var(--text-secondary, #6b7280);
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s ease, color 0.15s ease;
@@ -140,19 +140,20 @@ defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  border: none;
+  border: 1px dashed var(--color-border, #d1d5db);
   background: transparent;
   color: var(--text-secondary, #6b7280);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .bible-tab-add:hover {
   background: var(--color-bg-hover, #f3f4f6);
+  border-color: var(--text-secondary, #6b7280);
   color: var(--text-primary, #1f2937);
 }
 
@@ -175,9 +176,9 @@ defineEmits<{
 }
 
 [data-theme="dark"] .bible-tab.is-active {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-accent-primary);
+  color: var(--color-accent-primary);
 }
 
 [data-theme="dark"] .bible-tab.is-active .bible-tab-label {
@@ -195,10 +196,29 @@ defineEmits<{
 
 [data-theme="dark"] .bible-tab-add {
   color: var(--color-text-secondary);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 [data-theme="dark"] .bible-tab-add:hover {
   background: var(--color-bg-hover);
+  border-color: var(--color-text-secondary);
   color: var(--color-text-primary);
+}
+
+/* 모바일 터치 타깃 확보 */
+@media (max-width: 767px) {
+  .bible-tab {
+    min-height: 44px;
+  }
+
+  .bible-tab-close {
+    width: 32px;
+    height: 32px;
+  }
+
+  .bible-tab-add {
+    width: 44px;
+    height: 44px;
+  }
 }
 </style>

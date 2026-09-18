@@ -1088,7 +1088,8 @@ button.header-plan-name {
 
 .tab-toggle-button.is-on {
   color: var(--primary-color, #2A1111);
-  background: var(--primary-light);
+  background: var(--primary-light, rgba(42, 17, 17, 0.1));
+  font-weight: 700;
 }
 
 [data-theme="dark"] .tab-toggle-button {
