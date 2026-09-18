@@ -288,21 +288,23 @@ const formattedSummary = computed(() => {
 
 // AI 요약 조회 (생성 없이)
 const loadAISummary = async () => {
-  if (!latestVideoId.value) return
+  const videoId = latestVideoId.value
   
-  summaryLoading.value = true
+  summaryLoading.value = Boolean(videoId)
   summaryError.value = null
   summaryContent.value = ''
+  if (!videoId) return
   
   try {
     const { data } = await api.GET('/api/v1/todos/hasena/summary/', {
-      params: { video_id: latestVideoId.value }
+      params: { video_id: videoId }
     })
     
-    if (data.success) {
+    if (videoId === latestVideoId.value && data.success) {
       summaryContent.value = data.summary
     }
   } catch (err) {
+    if (videoId !== latestVideoId.value) return
     const status = err?.response?.status || err?.status
     const apiError = err?.response?.data?.error || err?.data?.error
 
@@ -310,7 +312,7 @@ const loadAISummary = async () => {
       ? (apiError || '오늘 AI 요약은 아직 준비 중입니다.')
       : (apiError || 'AI 요약을 불러오지 못했습니다.')
   } finally {
-    summaryLoading.value = false
+    if (videoId === latestVideoId.value) summaryLoading.value = false
   }
 }
 
@@ -391,7 +393,7 @@ const fetchHasenaContent = async () => {
     parsedContent.value = renderHasenaVerses(entry.verses || [])
     latestVideoId.value = entry.video_id || ''
     hasenaStore.setCompletionStatus(Boolean(data.is_completed))
-    await loadAISummary()
+    void loadAISummary()
   } catch (err) {
     error.value = err?.message || '본문을 불러오는데 실패했습니다'
     latestVideoId.value = ''
