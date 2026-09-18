@@ -286,7 +286,8 @@ test('version chips preserve supported codes and emit without closing', { timeou
   const view = await selector();
   // 역본 비교 토글도 .version-chip 클래스를 쓰므로 목록 칩만 고른다.
   const chips = () => view.all('.version-chip').filter(node => !node.matches('.compare-toggle'));
-  assert.equal(chips().length, 8);
+  // 우리말성경(WOORI)은 원천 소멸로 선택 목록에서 제외돼 7개다.
+  assert.equal(chips().length, 7);
   await act(chips()[1], 'Click');
   assert.deepEqual(view.events, [['version-select', 'KNT']]);
   assert.equal(view.state.modelValue, true);

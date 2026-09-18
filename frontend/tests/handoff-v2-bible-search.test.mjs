@@ -163,7 +163,9 @@ test('version popover exposes exactly the existing options and current selection
   assert.equal(view.trigger().props['aria-controls'], list.props.id);
   assert.ok(list.props['aria-label'] || list.props['aria-labelledby']);
   assert.equal(view.trigger().props['aria-expanded'], true);
-  const names = useBibleData().versionNames;
+  // 우리말성경(WOORI)은 원천 소멸로 검색 필터에서 제외된다.
+  const names = Object.fromEntries(
+    Object.entries(useBibleData().versionNames).filter(([code]) => code !== 'WOORI'));
   assert.deepEqual(view.options().map(option => option.value), ['', ...Object.keys(names)]);
   assert.deepEqual(view.options().slice(1).map(text), Object.values(names)); // shipped data equality
   assert.deepEqual(view.options().filter(option => option.props['aria-selected']).map(option => option.value), ['GAE']);

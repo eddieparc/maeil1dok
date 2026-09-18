@@ -99,7 +99,8 @@
 
     <!-- 성경 본문 뷰어 -->
     <BibleCompareViewer
-      :enabled="compareEnabled" :primary-content="content" :secondary-content="secondaryContent || ''"
+      :enabled="compareEnabled" :book="currentBookName" :chapter="currentChapter"
+      :primary-content="content" :secondary-content="secondaryContent || ''"
       :primary-version-name="currentVersionName" :secondary-version-name="secondaryVersionName || ''"
       :primary-version-code="primaryVersionCode" :secondary-version-code="secondaryVersionCode"
       :primary-meta="primaryMeta" :secondary-meta="secondaryMeta"

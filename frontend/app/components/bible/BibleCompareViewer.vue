@@ -19,14 +19,9 @@
           </button>
         </div>
         <slot name="primary">
-        <div class="column-content" :style="contentStyle">
-          <BibleViewerSkeleton v-if="isPrimaryLoading" :verse-count="8" />
-          <div 
-            v-else 
-            class="bible-content"
-            :class="{ 'rtl': primaryMeta?.direction === 'rtl' }"
-            v-html="sanitizedPrimaryContent"
-          ></div>
+        <div class="column-content viewer-content">
+          <BibleViewer :content="primaryContent" :book="book" :chapter="chapter"
+            :version="primaryVersionName" :is-loading="isPrimaryLoading" />
         </div>
         </slot>
       </div>
@@ -53,14 +48,9 @@
             <ChevronDownIcon :size="14" />
           </button>
         </div>
-        <div class="column-content" :style="contentStyle">
-          <BibleViewerSkeleton v-if="isSecondaryLoading" :verse-count="8" />
-          <div 
-            v-else 
-            class="bible-content"
-            :class="{ 'rtl': secondaryMeta?.direction === 'rtl' }"
-            v-html="sanitizedSecondaryContent"
-          ></div>
+        <div class="column-content viewer-content">
+          <BibleViewer :content="secondaryContent" :book="book" :chapter="chapter"
+            :version="secondaryVersionName" :is-loading="isSecondaryLoading" />
         </div>
       </div>
     </div>
@@ -95,10 +85,9 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/readingSettings';
-import { useSanitize } from '~/composables/useSanitize';
+import { useReadingSettingsStore } from '~/stores/readingSettings';
 import { VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';
-import BibleViewerSkeleton from './BibleViewerSkeleton.vue';
+import BibleViewer from '~/components/bible/BibleViewer.vue';
 import ChevronDownIcon from '~/components/icons/ChevronDownIcon.vue';
 import SwapIcon from '~/components/icons/SwapIcon.vue';
 
@@ -110,6 +99,8 @@ interface VersionMeta {
 
 const props = defineProps<{
   enabled?: boolean;
+  book: string;
+  chapter: number;
   primaryContent: string;
   secondaryContent: string;
   primaryVersionName: string;
@@ -181,19 +172,7 @@ onBeforeUnmount(() => {
 });
 
 const settingsStore = useReadingSettingsStore();
-const settings = computed(() => settingsStore.settings);
 const effectiveTheme = computed(() => settingsStore.effectiveTheme);
-const { sanitize } = useSanitize();
-
-const contentStyle = computed(() => ({
-  '--reading-font-family': FONT_FAMILIES[settings.value.fontFamily].css,
-  '--reading-font-size': `${Math.max(settings.value.fontSize - 2, 14)}px`,
-  '--reading-font-weight': FONT_WEIGHTS[settings.value.fontWeight],
-  '--reading-line-height': settings.value.lineHeight,
-}));
-
-const sanitizedPrimaryContent = computed(() => sanitize(props.primaryContent));
-const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent));
 </script>
 
 <style scoped>
@@ -307,10 +286,20 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
   overflow-y: auto;
   padding: 0.75rem;
   padding-bottom: calc(var(--reader-tabs-height, 0px) + var(--reader-controls-height, 0px) + 12px);
-  font-family: var(--reading-font-family);
-  font-size: var(--reading-font-size);
-  font-weight: var(--reading-font-weight);
-  line-height: var(--reading-line-height);
+}
+
+/* 두 컬럼 모두 BibleViewer 가 본문 렌더링·스크롤·스타일을 소유한다.
+   여기서는 뼈대만 잡고 본문 스타일을 복제하지 않는다. */
+.column-content.viewer-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.column-content.viewer-content :deep(.bible-viewer) {
+  flex: 1;
+  min-height: 0;
 }
 
 .compare-divider {
@@ -344,36 +333,6 @@ const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent
   background: var(--primary-light, #eef2ff);
   color: var(--primary-color, #2A1111);
   border-color: var(--primary-color, #2A1111);
-}
-
-.bible-content {
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-}
-
-.bible-content.rtl {
-  direction: rtl;
-  text-align: right;
-  font-family: 'SBL Hebrew', 'Times New Roman', serif;
-}
-
-.bible-content :deep(.verse) {
-  display: flex;
-  align-items: flex-start;
-  padding: 0.25rem 0;
-  gap: 0.25rem;
-}
-
-.bible-content :deep(.verse-number) {
-  color: var(--text-tertiary, #9ca3af);
-  font-size: 0.75em;
-  font-weight: 500;
-  min-width: 1.25em;
-  flex-shrink: 0;
-}
-
-.bible-content :deep(.verse-text) {
-  flex: 1;
 }
 
 .theme-dark {

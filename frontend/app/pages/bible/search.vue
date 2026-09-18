@@ -148,7 +148,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { CheckIcon, ChevronDownIcon, ClockIcon, LoaderCircleIcon, SearchIcon, XIcon } from '@lucide/vue';
 import type { paths } from '~/types/generated/api-schema';
 import { useApi } from '~/composables/useApi';
-import { useBibleData } from '~/composables/useBibleData';
+import { useBibleData, VERSION_NAMES } from '~/composables/useBibleData';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import {
@@ -177,7 +177,11 @@ type SearchResponse = {
 };
 
 const api = useApi();
-const { bookNames, versionNames, getChapterUnit } = useBibleData();
+const { bookNames, getChapterUnit } = useBibleData();
+// 우리말성경은 원천이 소멸해 본문을 제공할 수 없으므로 검색 필터에서도 제외한다.
+const versionNames = Object.fromEntries(
+  Object.entries(VERSION_NAMES).filter(([code]) => code !== 'WOORI')
+);
 const query = ref('');
 const version = ref('GAE');
 const isVersionOpen = ref(false);

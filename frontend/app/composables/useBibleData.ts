@@ -44,7 +44,10 @@ export const VERSION_CATEGORIES = Object.freeze({
   english: [] as string[],
 });
 
-const UNSUPPORTED_VERSIONS = new Set(['HEB', 'GRK', 'KJV', 'WEB', 'ASV']);
+// WOORI(우리말성경): 두란노가 무료 웹 본문을 유료 앱으로 옮기고 미러도
+// 저작권자 요청으로 중단해 원천이 소멸했다. 캐시된 일부 장만 남아 있어
+// 노출하면 대부분의 장이 영구 실패하므로 선택 목록에서 제외한다.
+const UNSUPPORTED_VERSIONS = new Set(['HEB', 'GRK', 'KJV', 'WEB', 'ASV', 'WOORI']);
 
 export const VISIBLE_VERSION_NAMES = Object.freeze(
   Object.fromEntries(
