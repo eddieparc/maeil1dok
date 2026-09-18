@@ -1090,7 +1090,6 @@
           "shape": {
             "data": {
               "settings": {
-                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -1115,7 +1114,6 @@
           "shape": {
             "data": {
               "settings": {
-                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -1149,7 +1147,6 @@
           "shape": {
             "data": {
               "settings": {
-                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -1174,7 +1171,6 @@
           "shape": {
             "data": {
               "settings": {
-                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -2518,7 +2514,6 @@
           "shape": {
             "data": {
               "settings": {
-                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -2543,7 +2538,6 @@
           "shape": {
             "data": {
               "settings": {
-                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -2577,7 +2571,6 @@
           "shape": {
             "data": {
               "settings": {
-                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -2602,7 +2595,6 @@
           "shape": {
             "data": {
               "settings": {
-                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
