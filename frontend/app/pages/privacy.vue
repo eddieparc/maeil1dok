@@ -96,6 +96,19 @@
                 '쿠키(cookie)'를 사용합니다. 이용자는 웹브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나, 
                 이 경우 서비스 이용에 어려움이 있을 수 있습니다.
               </p>
+              <p>
+                웹 서비스의 광고에는 Google AdSense를 사용합니다. Google을 포함한 제3자 광고 제공업체는
+                이용자의 이 사이트 또는 다른 사이트 방문 기록을 바탕으로 광고를 제공하기 위해 쿠키를 사용할 수 있습니다.
+                Google의 광고 쿠키는 Google과 파트너가 인터넷 사이트 방문 기록에 따라 광고를 제공할 수 있게 합니다.
+              </p>
+              <p>
+                광고 관련 데이터 처리에 대한 자세한 내용은
+                <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer">Google의 파트너 사이트 데이터 사용 안내</a>에서 확인할 수 있습니다.
+                맞춤 광고는
+                <a href="https://myadcenter.google.com/" target="_blank" rel="noopener noreferrer">Google 광고 설정</a>에서 관리하거나 해제할 수 있으며,
+                다른 광고 제공업체의 맞춤 광고는
+                <a href="https://optout.aboutads.info/" target="_blank" rel="noopener noreferrer">광고 업계의 선택 해제 페이지</a>에서 관리할 수 있습니다.
+              </p>
             </section>
 
             <section class="legal-section">
@@ -236,6 +249,11 @@ useHead({
 .legal-section p {
   color: var(--color-text-secondary);
   margin: 0 0 0.75rem 0;
+}
+
+.legal-section a {
+  color: var(--color-text-primary);
+  text-decoration: underline;
 }
 
 .legal-section ul {
