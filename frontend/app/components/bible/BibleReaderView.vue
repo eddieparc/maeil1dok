@@ -93,17 +93,6 @@
           :is-tongdok-mode="isTongdokMode"
           @exit-tongdok="$emit('exit-tongdok')"
         />
-        <!-- 통독모드 버튼 (로그인 사용자, 비통독 모드일 때) -->
-        <button
-          v-if="isAuthenticated && !isTongdokMode"
-          class="tongdok-mode-btn"
-          @click="$emit('today-tongdok')"
-          type="button"
-          title="통독"
-        >
-          <CalendarCheckIcon :size="13" />
-          <span>통독</span>
-        </button>
       </div>
     </header>
 
@@ -311,7 +300,7 @@
 import { ref, computed, watch } from 'vue';
 import BibleCompareViewer from '~/components/bible/BibleCompareViewer.vue';
 import { mergeCompareContent } from '~/utils/mergeCompareContent';
-import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon } from '@lucide/vue';
+import { BookOpenIcon, HeadphonesIcon } from '@lucide/vue';
 import BibleViewer from '~/components/bible/BibleViewer.vue';
 import type { SelectionMenuState, SelectionSharePayload, SelectionHighlightPayload } from '~/components/bible/BibleViewer.vue';
 import BibleSearchButton from '~/components/bible/BibleSearchButton.vue';
@@ -562,7 +551,6 @@ const emit = defineEmits<{
   // 통독모드
   'exit-tongdok': [];
   'tongdok-complete-click': [];
-  'today-tongdok': [];
   'audio-link-click': [url: string];
   'audio-external-click': [url: string];
   'audio-player-open-change': [value: boolean];
@@ -1104,31 +1092,6 @@ button.header-plan-name {
 [data-theme="dark"] .tab-toggle-button.is-on {
   color: var(--color-accent-primary);
   background: rgba(255, 255, 255, 0.1);
-}
-
-.tongdok-mode-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  padding: 0.375rem 0.625rem;
-  color: var(--primary-color);
-  background: var(--primary-light);
-  border: 1px solid var(--primary-color);
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.tongdok-mode-btn:hover {
-  background: var(--primary-color);
-  color: white;
-}
-
-.tongdok-mode-btn:active {
-  transform: scale(0.95);
 }
 
 .version-button {
@@ -1684,17 +1647,6 @@ button.header-plan-name {
   color: var(--color-text-primary);
 }
 
-/* 통독모드 버튼 다크모드 */
-[data-theme="dark"] .tongdok-mode-btn {
-  background: rgba(42, 17, 17, 0.15);
-  color: var(--color-accent-primary);
-}
-
-[data-theme="dark"] .tongdok-mode-btn:hover {
-  background: var(--color-accent-primary);
-  color: var(--color-text-inverse);
-}
-
 /* 네비게이션 버튼 다크모드 */
 [data-theme="dark"] .nav-button {
   color: var(--color-text-secondary);
@@ -2092,11 +2044,6 @@ button.header-plan-name {
 .header-actions {
   flex-shrink: 0;
   gap: 0;
-}
-
-.tongdok-mode-btn {
-  min-height: var(--hit-min);
-  border-radius: var(--radius-pill);
 }
 
 .bible-header button:focus-visible,

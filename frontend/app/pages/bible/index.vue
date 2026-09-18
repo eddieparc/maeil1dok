@@ -77,7 +77,6 @@
         @share="handleShareAction"
         @exit-tongdok="handleExitTongdok"
         @tongdok-complete-click="handleTongdokComplete(undefined, undefined, true)"
-        @today-tongdok="handleTodayTongdok"
         @audio-link-click="handleEmbeddedAudioLink"
         @audio-external-click="handleAudioLink"
         @audio-player-open-change="showTongdokAudioPlayer = $event"
@@ -1029,31 +1028,6 @@ const handleTongdokAudioEnded = async (source: AudioEndedSource) => {
     return;
   }
   await handleTongdokComplete(undefined, source);
-};
-
-// 통독모드: 버튼 클릭 핸들러
-const handleTodayTongdok = async () => {
-  if (!requireAuth()) return;
-  showScheduleModal.value = false;
-  // 선택된 플랜 ID 확인
-  const planId = selectedPlanStore.effectivePlanId;
-  
-  // 플랜이 없으면 구독 목록을 로드하고 플랜 선택 모달 표시
-  if (!planId) {
-    await subscriptionStore.fetchSubscriptions();
-    
-    if (subscriptions.value.length === 0) {
-      toast.info('구독 중인 플랜이 없습니다. 플랜 관리에서 플랜을 구독해주세요.');
-      return;
-    }
-    
-    // 구독 목록이 있으면 플랜 선택 모달 표시
-    showTongdokPlanModal.value = true;
-    return;
-  }
-
-  // 플랜이 있으면 성경통독표 모달 표시
-  showFullScheduleModal.value = true;
 };
 
 // 플랜 선택 모달에서 플랜 선택 핸들러
