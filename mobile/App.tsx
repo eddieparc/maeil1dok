@@ -31,7 +31,13 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
 import CookieManager from '@react-native-cookies/cookies';
-import { resolveWebViewConfig } from './webviewConfig';
+import {
+  BETA_MODE_STORAGE_KEY,
+  BETA_STACK,
+  PROD_STACK,
+  parseBetaModeFlag,
+  resolveStack,
+} from './betaMode';
 import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
 import { redactSensitiveUrl } from './urlRedaction';
 import { csrfHeadersFrom } from './csrfHeader';
@@ -88,9 +94,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const WEBVIEW_CONFIG = resolveWebViewConfig(Constants.expoConfig?.extra ?? {});
-const WEB_APP_URL = WEBVIEW_CONFIG.webAppUrl;
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://api.maeil1dok.app';
 const APP_SCHEME = 'maeil1dok';
 const CERTIFICATION_IMAGE_MIME_TYPE = 'image/png';
 
@@ -142,8 +145,6 @@ type WebViewErrorLikeEvent = {
   };
 };
 
-const WEBVIEW_POLICY = { webAppUrl: WEB_APP_URL, apiUrl: API_URL };
-
 const GOOGLE_CLIENT_ID = Constants.expoConfig?.extra?.googleClientId || '';
 const NATIVE_CLIENT_OBSERVATION_HEADERS = buildNativeClientObservationHeaders({
   platform: Platform.OS === 'android' ? 'android' : 'ios',
@@ -165,12 +166,15 @@ function AppContent() {
   const [isError, setIsError] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  // null = SecureStore read still in flight; the loading screen holds until it
+  // resolves so the WebView never mounts on the wrong stack.
+  const [betaMode, setBetaMode] = useState<boolean | null>(null);
   
   const [showLogin, setShowLogin] = useState(false);
   const [webViewKey, setWebViewKey] = useState(0);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const pendingUrlRef = useRef<string | null>(null);
-  const currentWebViewUrlRef = useRef(WEB_APP_URL);
+  const currentWebViewUrlRef = useRef(PROD_STACK.web);
   const dnsRetryAvailableRef = useRef(true);
   const restoreGenerationRef = useRef(0);
   const restorePromiseRef = useRef<Promise<boolean> | null>(null);
@@ -198,6 +202,36 @@ function AppContent() {
   useEffect(() => {
     console.log(formatBundleIdentityLine(bundleIdentity));
   }, [bundleIdentity]);
+
+  const betaModeEnabled = betaMode === true;
+  const stack = resolveStack(betaModeEnabled);
+  // Derived per render from the persisted beta flag. The constant-style names
+  // are load-bearing: test harnesses extract these closures and inject the
+  // dependencies under exactly these identifiers.
+  const WEB_APP_URL = stack.web;
+  const API_URL = stack.api;
+  // Both stacks' origins are first-party so a beta:set toggle can navigate to
+  // the target stack before the WebView remounts onto it.
+  const WEBVIEW_POLICY = {
+    webAppUrl: WEB_APP_URL,
+    apiUrl: API_URL,
+    extraOrigins: [PROD_STACK.web, PROD_STACK.api, BETA_STACK.web, BETA_STACK.api],
+  };
+
+  useEffect(() => {
+    SecureStore.getItemAsync(BETA_MODE_STORAGE_KEY)
+      .then((value) => {
+        const enabled = parseBetaModeFlag(value);
+        currentWebViewUrlRef.current = resolveStack(enabled).web;
+        setBetaMode(enabled);
+      })
+      .catch((error) => {
+        // A failed read must not strand the app on the loading screen; prod is
+        // the safe default.
+        console.error('[BetaMode] SecureStore read failed:', error);
+        setBetaMode(false);
+      });
+  }, []);
 
   useEffect(() => {
     const loadFonts = async () => {
@@ -310,7 +344,19 @@ function AppContent() {
     await clearMobileAuth({
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
       apiUrl: API_URL,
-      cookieDomain: WEB_APP_URL === 'https://maeil1dok.app' ? '.maeil1dok.app' : undefined,
+      // Shared-domain cookies live on '.maeil1dok.app' whenever the current
+      // stack's host is under maeil1dok.app (prod apex AND beta subdomain).
+      // Computed inside the closure: harnesses inject WEB_APP_URL only.
+      cookieDomain: (() => {
+        try {
+          const host = new URL(WEB_APP_URL).hostname;
+          return host === 'maeil1dok.app' || host.endsWith('.maeil1dok.app')
+            ? '.maeil1dok.app'
+            : undefined;
+        } catch {
+          return undefined;
+        }
+      })(),
       clearCookieByName: (url, name, useWebKit) =>
         CookieManager.clearByName(url, name, useWebKit),
       setCookie: (url, cookie) => CookieManager.set(url, cookie),
@@ -674,7 +720,7 @@ function AppContent() {
     const target = buildDeepLinkNavigationUrl(event.url, WEB_APP_URL, APP_SCHEME);
     if (!target) return;
     webViewRef.current?.injectJavaScript(buildLocationAssignmentScript(target));
-  }, []);
+  }, [WEB_APP_URL]);
 
   useEffect(() => {
     Linking.getInitialURL().then((url) => {
@@ -893,6 +939,20 @@ function AppContent() {
         case 'requestPushToken':
           injectPushToken();
           break;
+        case 'beta:set': {
+          // The page asked to switch stacks; the shell owns the navigation.
+          // Persist first so a crash mid-switch still lands on the requested
+          // stack next launch, then remount the WebView on the new origin.
+          const enabled = message.enabled === true;
+          const target = resolveStack(enabled);
+          void SecureStore.setItemAsync(BETA_MODE_STORAGE_KEY, enabled ? '1' : '0')
+            .catch((error) => console.error('[BetaMode] SecureStore write failed:', error));
+          setBetaMode(enabled);
+          currentWebViewUrlRef.current = target.web;
+          setIsLoading(true);
+          setWebViewKey((previous) => previous + 1);
+          break;
+        }
         case 'certification:image':
           handleCertificationImageMessage(message, certificationImageDependencies)
             .then((handled) => {
@@ -918,7 +978,7 @@ function AppContent() {
     webViewRef.current?.reload();
   };
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || betaMode === null) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#faf8f6" />
@@ -1104,6 +1164,10 @@ function AppContent() {
         injectedJavaScript={`
           (function() {
             window.isReactNativeWebView = true;
+            // Capability flag: the page uses this to know the shell can switch
+            // stacks on 'beta:set'. An old shell lacks it, so the page falls
+            // back to window.location.assign (browser) or an alert (old shell).
+            window.__shellBetaMode = true;
             // Which shell bundle the page is running inside. The native login
             // screen shows the same thing, but only when signed OUT — this is the
             // copy an operator can read while signed in. Its ABSENCE is also an

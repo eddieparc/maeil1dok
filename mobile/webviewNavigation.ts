@@ -29,6 +29,13 @@ export type WebViewErrorLike = {
 export type WebViewPolicyOptions = {
   readonly webAppUrl: string;
   readonly apiUrl: string;
+  /**
+   * Additional first-party origins (exact origin match only). The beta-mode
+   * shell passes BOTH stacks' origins so the target stack is reachable before
+   * the WebView reloads onto it. Suffix matching would let a look-alike host
+   * (`evilbeta.maeil1dok.app`) reach the bridge, so none is applied.
+   */
+  readonly extraOrigins?: readonly string[];
 };
 
 export const OAUTH_DOMAINS = [
@@ -62,6 +69,21 @@ function originOf(url: string): string | null {
 
 function isHttps(parsed: URL): boolean {
   return parsed.protocol === 'https:';
+}
+
+/**
+ * The configured web/api origins plus any extraOrigins, normalized to origins.
+ * Entries that do not parse to an origin are dropped rather than matched.
+ */
+function firstPartyOrigins(options: WebViewPolicyOptions): ReadonlySet<string> {
+  const origins = new Set<string>();
+  for (const url of [options.webAppUrl, options.apiUrl, ...(options.extraOrigins ?? [])]) {
+    const origin = originOf(url);
+    if (origin !== null) {
+      origins.add(origin);
+    }
+  }
+  return origins;
 }
 
 function matchesMediaDomain(host: string): boolean {
@@ -113,14 +135,9 @@ export function shouldAllowWebViewNavigation(
     return false;
   }
 
-  const webOrigin = originOf(options.webAppUrl);
-  const apiOrigin = originOf(options.apiUrl);
-
   // First-party origins: EXACT match. Suffix matching here would open the bridge to
   // every unconfigured subdomain (`foo.maeil1dok.app`), which is blocked today.
-  const isFirstParty =
-    (webOrigin !== null && parsed.origin === webOrigin) ||
-    (apiOrigin !== null && parsed.origin === apiOrigin);
+  const isFirstParty = firstPartyOrigins(options).has(parsed.origin);
 
   if (isFirstParty && parsed.pathname.startsWith('/login')) {
     return false;
@@ -162,12 +179,8 @@ export function isFatalWebViewError(
     // Origin equality, not prefix: a look-alike host is third-party, and escalating
     // its failure to a full-screen error would misattribute someone else's page to us.
     const failedOrigin = originOf(url);
-    const webOrigin = originOf(options.webAppUrl);
-    const apiOrigin = originOf(options.apiUrl);
     const isOurDocument =
-      failedOrigin !== null &&
-      ((webOrigin !== null && failedOrigin === webOrigin) ||
-        (apiOrigin !== null && failedOrigin === apiOrigin));
+      failedOrigin !== null && firstPartyOrigins(options).has(failedOrigin);
     if (!isOurDocument) {
       // 서드파티 리소스/서브프레임 실패는 앱 전체 실패가 아니다.
       return false;
