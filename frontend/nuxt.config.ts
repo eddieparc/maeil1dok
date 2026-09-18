@@ -226,7 +226,7 @@ export default defineNuxtConfig({
       },
       // Public, non-fingerprinted images can be reused without caching page data.
       ...Object.fromEntries([
-        '/images/**', '/icon-192x192.png', '/icon-512x512.png', '/youtube-icon.svg',
+        '/images/**', '/_ipx/**', '/icon-192x192.png', '/icon-512x512.png', '/youtube-icon.svg',
         '/iOS1.png', '/iOS2.png', '/iOS3.png', '/iOS4.png',
         '/Android1.png', '/Android2.png', '/Android3.png', '/Android4.png',
       ].map(path => [path, {
