@@ -53,15 +53,11 @@ CACHES = {'default': {
 CELERY_BROKER_URL = 'redis://redis-beta:6379/0'
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
-# This pair does not run a worker/beat or make paid AI/mail/push calls.
-# Mail success means durable operator-only TEST MAIL capture, never delivery.
+# Worker/beat run like production, so GEMINI/CRON/YOUTUBE/VAPID fall through
+# to env. Mail is the exception: success means durable operator-only TEST MAIL
+# capture, never delivery — RESEND stays disabled so beta cannot send real mail.
 ACCOUNT_MAIL_TRANSPORT = 'beta-spool'
 BETA_TEST_MAIL_DIR = '/var/lib/maeil1dok-beta/test-mail'
 BETA_TEST_MAIL_MAX_BYTES = 10 * 1024 * 1024
 MIDDLEWARE = [*MIDDLEWARE, 'accounts.beta_test_mail.BetaTestMailMiddleware']
-CRON_SECRET = None
-GEMINI_API_KEY = None
-YOUTUBE_API_KEY = None
 RESEND_API_KEY = None
-WEB_PUSH_VAPID_PUBLIC_KEY = ''
-WEB_PUSH_VAPID_PRIVATE_KEY = ''
