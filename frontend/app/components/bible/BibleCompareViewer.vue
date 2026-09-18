@@ -107,6 +107,7 @@ const propVersions = (): [VersionSlot, VersionSlot] => [
 const displayVersions = ref<[VersionSlot, VersionSlot]>(propVersions());
 const swapLocked = ref(false);
 const swapRotation = ref(0);
+const swapFrozen = ref(false);
 let swapSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch(
@@ -115,10 +116,12 @@ watch(
     const [primary, secondary] = propVersions();
     const [shownPrimary, shownSecondary] = displayVersions.value;
     // 스왑 대기 중: 기대한 최종 쌍이 도착했을 때만 동기화한다.
-    if (swapSettleTimer) {
+    // secondary는 동기적으로, primary는 라우터 탐색 뒤에 도착하므로
+    // 중간 상태(두 버튼이 같은 역본)가 표시되지 않게 얼려 둔다.
+    if (swapFrozen.value) {
       if (shownPrimary.code === primary.code && shownSecondary.code === secondary.code) {
-        clearTimeout(swapSettleTimer);
-        swapSettleTimer = null;
+        swapFrozen.value = false;
+        if (swapSettleTimer) { clearTimeout(swapSettleTimer); swapSettleTimer = null; }
         displayVersions.value = [primary, secondary];
       }
       return;
@@ -159,6 +162,8 @@ const handleSwapClick = async () => {
   closeMenu();
   const before = new Map(versionButtons().map(el => [el, el.getBoundingClientRect()]));
   // 낙관적 순서 교체: 버튼이 즉시 자리를 바꾸고 FLIP으로 이동한다.
+  // emit 전에 얼려야 부모의 동기 prop 갱신이 중간 상태를 밀어 넣지 않는다.
+  swapFrozen.value = true;
   displayVersions.value = [displayVersions.value[1], displayVersions.value[0]];
   swapRotation.value += 180;
   emit('swap');
@@ -179,6 +184,7 @@ const handleSwapClick = async () => {
   if (swapSettleTimer) clearTimeout(swapSettleTimer);
   swapSettleTimer = setTimeout(() => {
     swapSettleTimer = null;
+    swapFrozen.value = false;
     displayVersions.value = propVersions();
   }, 3000);
 };
