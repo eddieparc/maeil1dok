@@ -24,6 +24,23 @@ for (const width of [390, 1280]) {
     for (const column of geometry.columns) { expect(column.width).toBeGreaterThan(250); expect(column.height).toBeGreaterThan(100); }
     if (width < 768) expect(geometry.columns[1].top).toBeGreaterThan(geometry.columns[0].top);
     else expect(geometry.columns[1].left).toBeGreaterThan(geometry.columns[0].left);
+    // 양쪽 역본은 비율로 함께 스크롤된다.
+    const synced = await page.locator('.compare-columns').evaluate(async el => {
+      const primary = el.querySelector('.compare-column.primary .bible-viewer, .compare-column.primary .column-content');
+      const secondary = el.querySelector('.compare-column.secondary .column-content');
+      if (!primary || !secondary) return { forward: false, back: false };
+      const ratio = c => (c.scrollHeight - c.clientHeight) > 0 ? c.scrollTop / (c.scrollHeight - c.clientHeight) : 0;
+      primary.scrollTop = (primary.scrollHeight - primary.clientHeight) * 0.5;
+      primary.dispatchEvent(new Event('scroll'));
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const forward = Math.abs(ratio(secondary) - 0.5) < 0.15;
+      secondary.scrollTop = secondary.scrollHeight - secondary.clientHeight;
+      secondary.dispatchEvent(new Event('scroll'));
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return { forward, back: ratio(primary) > 0.8 };
+    });
+    expect(synced.forward, 'primary scroll drives secondary').toBe(true);
+    expect(synced.back, 'secondary scroll drives primary').toBe(true);
     await page.locator('.primary .verse').nth(2).click();
     await expect(page.getByTestId('selection-action-menu')).toBeVisible();
     await page.locator('.primary .verse').nth(2).click();

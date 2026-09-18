@@ -123,6 +123,8 @@
   --tabbar-reader-height: 80px;
   --sidebar-width: 240px;
   --content-max: 760px;
+  /* 성경 리더는 본문+역본 비교를 위해 더 넓은 폭을 쓴다 */
+  --reader-max: 1100px;
   --aside-width: 300px;
   --hit-min: 44px;
 

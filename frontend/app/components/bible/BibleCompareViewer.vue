@@ -1,6 +1,6 @@
 <template>
   <slot v-if="enabled === false" name="primary" />
-  <div v-else class="bible-compare-viewer" :class="[`theme-${effectiveTheme}`]">
+  <div v-else ref="rootRef" class="bible-compare-viewer" :class="[`theme-${effectiveTheme}`]">
     <div class="compare-columns">
       <div 
         class="compare-column primary"
@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/readingSettings';
 import { useSanitize } from '~/composables/useSanitize';
 import BibleViewerSkeleton from './BibleViewerSkeleton.vue';
@@ -101,6 +101,55 @@ const contentStyle = computed(() => ({
 
 const sanitizedPrimaryContent = computed(() => sanitize(props.primaryContent));
 const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent));
+
+// 양쪽 역본을 비율로 함께 스크롤한다. 한쪽을 스크롤하면 다른 쪽도 같은
+// 비율로 움직이고, 되먹임 방지 플래그로 무한 루프를 막는다.
+const rootRef = ref<HTMLElement | null>(null);
+let primaryScroller: HTMLElement | null = null;
+let secondaryScroller: HTMLElement | null = null;
+let syncing = false;
+
+const syncScroll = (from: HTMLElement, to: HTMLElement) => {
+  if (syncing) return;
+  const maxFrom = from.scrollHeight - from.clientHeight;
+  const maxTo = to.scrollHeight - to.clientHeight;
+  if (maxFrom <= 0 || maxTo <= 0) return;
+  syncing = true;
+  to.scrollTop = (from.scrollTop / maxFrom) * maxTo;
+  requestAnimationFrame(() => { syncing = false; });
+};
+
+const onPrimaryScroll = () => {
+  if (primaryScroller && secondaryScroller) syncScroll(primaryScroller, secondaryScroller);
+};
+const onSecondaryScroll = () => {
+  if (primaryScroller && secondaryScroller) syncScroll(secondaryScroller, primaryScroller);
+};
+
+const unbindScrollers = () => {
+  primaryScroller?.removeEventListener('scroll', onPrimaryScroll);
+  secondaryScroller?.removeEventListener('scroll', onSecondaryScroll);
+  primaryScroller = null;
+  secondaryScroller = null;
+};
+
+const bindScrollers = async () => {
+  unbindScrollers();
+  if (props.enabled === false || !rootRef.value) return;
+  await nextTick();
+  // primary 슬롯은 BibleViewer(.bible-viewer가 스크롤 컨테이너),
+  // secondary는 .column-content가 스크롤 컨테이너다.
+  primaryScroller = rootRef.value.querySelector<HTMLElement>(
+    '.compare-column.primary .bible-viewer, .compare-column.primary .column-content');
+  secondaryScroller = rootRef.value.querySelector<HTMLElement>(
+    '.compare-column.secondary .column-content');
+  primaryScroller?.addEventListener('scroll', onPrimaryScroll, { passive: true });
+  secondaryScroller?.addEventListener('scroll', onSecondaryScroll, { passive: true });
+};
+
+onMounted(bindScrollers);
+onBeforeUnmount(unbindScrollers);
+watch(() => props.enabled, bindScrollers);
 </script>
 
 <style scoped>
