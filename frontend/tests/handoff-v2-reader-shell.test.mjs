@@ -150,13 +150,13 @@ test('H02 header retains cross-book/body/exposed events', async t => {
 test('header conditions, bookmark-in-tools, settings and guide integrator events', async t => {
   const events = []; const view = await mount(Reader, { ...defaults, onBookmarkToggle: () => events.push('bookmark'), onOpenSettings: () => events.push('settings'), onGuideClick: url => events.push(url) }); t.after(view.close);
   const header = byClass(view.host, 'bible-header')[0];
-  assert.equal(all(header, n => n.type === 'a' && n.props.href === '/bible/search').length, 1); assert.equal(byClass(header, 'tongdok-mode-btn').length, 1);
+  assert.equal(all(header, n => n.type === 'a' && n.props.href === '/bible/search').length, 1); assert.equal(byClass(header, 'tongdok-mode-btn').length, 0, 'header no longer carries the tongdok entry button');
   click(byClass(header, 'tool-trigger-button')[0]); await Vue.nextTick();
   const bookmark = byTestId(header, 'reader-bookmark-toggle'); assert.ok(bookmark, 'bookmark available inside tools');
   click(bookmark); await Vue.nextTick(); assert.deepEqual(events, ['bookmark']);
   click(byClass(header, 'tool-trigger-button')[0]); await Vue.nextTick(); click(byTestId(header, 'reader-settings')); await Vue.nextTick();
   assert.deepEqual(events, ['bookmark', 'settings']); assert.deepEqual(runtime.navigations, []);
-  view.props.isAuthenticated = false; await Vue.nextTick(); assert.equal(byClass(header, 'tongdok-mode-btn').length, 0);
+  view.props.isAuthenticated = false; await Vue.nextTick(); assert.equal(byClass(header, 'tongdok-mode-btn').length, 0); assert.equal(byClass(header, 'tool-trigger-button').length, 1);
   Object.assign(view.props, { isTongdokMode: true, tongdokGuideLink: 'https://guide.test', tongdokAudioLink: 'https://audio.test', isTongdokAudioPlayerOpen: true }); await Vue.nextTick();
   click(byTestId(header, 'reader-guide')); assert.equal(events.at(-1), 'https://guide.test'); assert.equal(byTestId(header, 'reader-audio').props['aria-pressed'], true);
   view.props.isTongdokMode = false; await Vue.nextTick(); assert.equal(byTestId(header, 'reader-guide'), undefined);
