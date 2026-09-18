@@ -224,9 +224,15 @@ test('real shell consumes 60 pixel scroll; all controlled sheets and modal host 
     assert.ok(view.state[key], key); view.state[key].value = true; await settled(); assert.equal(hidden(), false, key); assert.ok(r.selectionClears.length); view.state[key].value = false; await settled();
   }
   // 절 공유는 ShareSheet이 아니라 [매일일독] <참조>\n<풀 링크> 텍스트를 Web Share로 보낸다.
-  const shared = []; const originalNavigator = globalThis.navigator; globalThis.navigator = { share: async data => { shared.push(data); } };
-  await emit('BibleViewer', 'share', { book: '창세기', chapter: 49, version: '개역개정', start: 3, end: 3, startVerse: 3, endVerse: 3, text: 'selected actual text', verses: [{ number: 3, text: 'selected actual text' }] });
-  await settled(); globalThis.navigator = originalNavigator;
+  const shared = []; const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { value: { share: async data => { shared.push(data); } }, configurable: true, writable: true });
+  try {
+    await emit('BibleViewer', 'share', { book: '창세기', chapter: 49, version: '개역개정', start: 3, end: 3, startVerse: 3, endVerse: 3, text: 'selected actual text', verses: [{ number: 3, text: 'selected actual text' }] });
+    await settled();
+  } finally {
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
+    else delete globalThis.navigator;
+  }
   assert.equal(shared.length, 1); assert.match(shared[0].text, /^\[매일일독\] 창세기 49:3\n/); assert.match(shared[0].text, /verse=3/);
   assert.equal(view.state.showShareSheet.value, false); assert.equal(hidden(), false);
   assert.ok(r.boundaries.ReadingSettingsSheet); assert.equal(r.boundaries.ReadingSettingsSheet.attrs['current-version'], 'GAE');
@@ -450,4 +456,41 @@ test('compare control toggles, scopes version loads, follows chapters and persis
   assert.deepEqual(r.contentCalls.slice(beforePrimary), [['exo', 2, 'SAE']]);
   await emit('BookSelector', 'compare-toggle'); await settled();
   assert.equal(view.state.compareEnabled.value, false);
+});
+
+test('chapter navigation persists the old position exactly once and revisiting a book reuses its read records', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=gen&chapter=49'); t.after(view.close); await view.ready();
+  const positionWrites = () => r.writes.filter(([path]) => path.endsWith('/reading-position/'));
+  const byBookGets = () => r.requests.filter(([path]) => path.endsWith('/by-book/'));
+
+  const writesBefore = positionWrites().length;
+  await view.state.handleBookSelect('exo', 2); await settled();
+  assert.equal(positionWrites().length - writesBefore, 1, 'one reading-position POST per navigation');
+  assert.deepEqual(positionWrites().at(-1)[1], { book: 'gen', chapter: 49, scroll_position: 0, version: 'GAE' });
+
+  const getsBefore = byBookGets().length;
+  await view.state.handleBookSelect('exo', 3); await settled();
+  assert.equal(byBookGets().length - getsBefore, 0, 're-entering a fetched book reuses the cached list');
+  await view.state.handleBookSelect('gen', 2); await settled();
+  assert.equal(byBookGets().length - getsBefore, 0, 're-entering the mounted book also reuses the cached list');
+});
+
+test('initial auth hydration loads per-chapter user data once', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=gen&chapter=49', {
+    authenticated: false,
+    initialize: async () => {
+      r.auth.user.value = { id: 2, nickname: 'reader' };
+      r.auth.isAuthenticated.value = true;
+    },
+  });
+  t.after(view.close); await view.ready();
+  assert.equal(r.requests.filter(([path]) => path.endsWith('/by-book/')).length, 1);
+  assert.equal(r.requests.filter(([path]) => path.endsWith('/by-chapter/')).length, 1);
+});
+
+test('selecting the current reader location keeps it ready for later saves', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=gen&chapter=49&version=GAE');
+  t.after(view.close); await view.ready();
+  await view.state.handleBookSelect('gen', 49); await settled();
+  assert.equal(view.state.readerReady.value, true);
 });

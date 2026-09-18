@@ -100,6 +100,7 @@ export const useReadingPosition = () => {
 
   // debounce용 타이머
   let savePositionTimeout: ReturnType<typeof setTimeout> | null = null;
+  let lastSuccessfulSaveKey: string | null = null;
 
   /**
    * localStorage에서 위치 로드
@@ -189,7 +190,10 @@ export const useReadingPosition = () => {
       lastSavedPosition.value.version === version;
 
     const scrollDeltaTooSmall = Math.abs(scrollPosition - lastSavedScrollPosition.value) < 0.05;
-    if (isSameLocation && !immediate && scrollDeltaTooSmall) {
+    const saveKey = JSON.stringify([auth.isAuthenticated.value ? auth.user.value?.id : null, book, chapter, version, scrollPosition]);
+    // Immediate saves can only reuse a successful server write for this user.
+    // Pending debounced saves and failed writes must still be flushed.
+    if (isSameLocation && scrollDeltaTooSmall && (!immediate || (!savePositionTimeout && lastSuccessfulSaveKey === saveKey))) {
       return;
     }
 
@@ -221,6 +225,7 @@ export const useReadingPosition = () => {
     }
 
     const doSave = async () => {
+      savePositionTimeout = null;
       isSavingPosition.value = true;
       try {
         await api.POST('/api/v1/todos/bible/reading-position/', {
@@ -229,6 +234,7 @@ export const useReadingPosition = () => {
           scroll_position: scrollPosition,
           version: position.version
         });
+        lastSuccessfulSaveKey = saveKey;
       } catch (error) {
         console.error('읽기 위치 저장 실패:', error);
       } finally {

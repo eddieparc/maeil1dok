@@ -1167,8 +1167,12 @@ const handleTongdokComplete = async (_payload?: unknown, audioSource?: AudioEnde
 };
 
 // 헬퍼: 사용자 데이터 로딩 (인증된 사용자 전용)
+// 마지막으로 로드를 시작한 사용자 ID — auth.user 감시자가 초기 하이드레이션의
+// 동일 사용자 전이를 '사용자 변경'으로 오인해 같은 데이터를 다시 요청하지 않게 한다.
+let loadedUserDataUserId: number | null | undefined;
 const loadUserDataForChapter = async (book: string, chapter: number, skipReadChapters = false) => {
   await auth.initialize();
+  loadedUserDataUserId = auth.user.value?.id ?? null;
   if (!auth.isAuthenticated.value) return;
 
   const promises: Promise<void>[] = [
@@ -1278,7 +1282,10 @@ watch(() => route.query, () => {
   routeLoad = applyReaderRoute();
   return routeLoad;
 });
-watch(() => auth.user.value?.id, async () => {
+watch(() => auth.user.value?.id, async (userId) => {
+  await auth.initialize();
+  // 초기 하이드레이션: 방금 로드를 시작한 사용자와 같으면 중복 로드하지 않는다.
+  if (userId === loadedUserDataUserId) return;
   clearReadChapters();
   chapterHighlights.value = [];
   if (viewMode.value === 'reader') await loadUserDataForChapter(currentBook.value, currentChapter.value);
