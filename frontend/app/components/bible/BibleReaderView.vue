@@ -91,16 +91,15 @@
 
     <!-- 성경 본문 뷰어 -->
     <BibleCompareViewer
-      :enabled="compareEnabled" :primary-content="content" :secondary-content="secondaryContent || ''"
+      :enabled="compareEnabled"
       :primary-version-name="currentVersionName" :secondary-version-name="secondaryVersionName || ''"
-      :primary-meta="primaryMeta" :secondary-meta="secondaryMeta"
-      :is-primary-loading="isLoading" :is-secondary-loading="isSecondaryLoading"
+      :is-secondary-loading="isSecondaryLoading"
       @select-primary="$emit('compare-select', 'primary')"
       @select-secondary="$emit('compare-select', 'secondary')" @swap="$emit('compare-swap')">
     <template #primary>
     <BibleViewer
       ref="bibleViewerRef"
-      :content="content"
+      :content="viewerContent"
       :book="currentBookName"
       :chapter="currentChapter"
       :version="currentVersionName"
@@ -288,6 +287,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import BibleCompareViewer from '~/components/bible/BibleCompareViewer.vue';
+import { mergeCompareContent } from '~/utils/mergeCompareContent';
 import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon } from '@lucide/vue';
 import BibleViewer from '~/components/bible/BibleViewer.vue';
 import type { SelectionMenuState, SelectionSharePayload, SelectionHighlightPayload } from '~/components/bible/BibleViewer.vue';
@@ -386,6 +386,17 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Integrator supplies plan/schedule/book/chapter/audio identity. Legacy callers
 // still rebind on location/mode changes, but cannot distinguish identical plans.
+// 비교 모드에서는 두 역본을 절 단위로 병합한 단일 HTML을 BibleViewer에 넘긴다.
+// 스크롤·절 선택·하이라이트가 하나의 DOM에서 그대로 동작한다.
+const viewerContent = computed(() => {
+  if (!props.compareEnabled || !props.secondaryContent) return props.content;
+  return mergeCompareContent(
+    props.content,
+    props.secondaryContent,
+    props.secondaryMeta?.direction === 'rtl',
+  );
+});
+
 const boundAudioContextKey = computed(() => props.audioContextKey ?? JSON.stringify([
   props.isTongdokMode, props.tongdokScheduleDate, props.tongdokScheduleRange,
   props.currentBookName, props.currentChapter, props.tongdokAudioLink,

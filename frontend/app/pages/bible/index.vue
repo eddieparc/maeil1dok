@@ -1317,8 +1317,7 @@ watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.s
 
 <style scoped>
 .bible-page {
-  max-width: 768px;
-  margin: 0 auto;
+  /* 리더는 화면 너비를 전부 쓴다(역본 비교 포함). */
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
@@ -1340,16 +1339,8 @@ watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.s
   overflow: hidden;
 }
 
-/* 태블릿: 읽기 폭을 넓혀 여백을 줄인다 */
-@media (min-width: 769px) {
-  .bible-page {
-    max-width: 920px;
-  }
-}
-
 @media (min-width: 1024px) {
   .bible-page {
-    max-width: calc(var(--reader-max) + var(--sidebar-width));
     padding-inline-start: var(--sidebar-width);
   }
 }

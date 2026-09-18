@@ -848,6 +848,39 @@ defineExpose({
   text-align: var(--reading-text-align, left);
 }
 
+/* 역본 비교: 절 단위 병합 행. 하나의 DOM/스크롤에서 좌우가 붙는다. */
+.bible-content :deep(.verse-pair) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.5rem;
+}
+
+.bible-content :deep(.pair-secondary) {
+  border-left: 1px solid var(--color-border-primary, #e5e7eb);
+  padding-left: 1.5rem;
+  margin-left: -1.5rem;
+}
+
+.bible-content :deep(.pair-secondary.rtl-text) {
+  direction: rtl;
+  text-align: right;
+}
+
+/* 좁은 화면에서는 상하로 쌓고 역본을 위쪽 구분선으로 나눈다 */
+@media (max-width: 767px) {
+  .bible-content :deep(.verse-pair) {
+    grid-template-columns: 1fr;
+  }
+  .bible-content :deep(.pair-secondary) {
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
+    border-top: 1px dashed var(--color-border-primary, #e5e7eb);
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+  }
+}
+
 /* 절 스타일 (reading.vue 동일) */
 .bible-content :deep(.verse) {
   display: flex;
