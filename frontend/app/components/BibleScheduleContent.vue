@@ -386,7 +386,7 @@ onBeforeUnmount(() => { mounted.value = false; epoch++; navigationId++; });
 .modal-schedule { height: min(70dvh, 680px); }
 .fixed-controls { display: grid; gap: 10px; padding: 4px var(--screen-gutter) 0; }
 .top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.plan-select-button { display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-width: var(--hit-min); min-height: var(--hit-min); padding: 8px 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-control); background: var(--color-bg-card); color: var(--color-text-primary); font-size: 14px; font-weight: 600; }
+.plan-select-button { display: inline-flex; align-items: center; gap: 6px; max-width: 60%; min-width: var(--hit-min); min-height: 32px; padding: 4px 12px; border: 1px solid var(--color-border-default); border-radius: var(--radius-control); background: var(--color-bg-card); color: var(--color-text-primary); font-size: 14px; font-weight: 600; }
 .plan-select-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-select-button svg { flex-shrink: 0; }
 .default-plan-indicator { padding: 12px; border: 1px solid var(--color-border-default); border-radius: 12px; background: var(--color-bg-card); color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
