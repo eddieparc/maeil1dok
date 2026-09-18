@@ -4,26 +4,29 @@
     <header class="bible-header" :class="{ 'has-extra-action': (isTongdokMode && tongdokGuideLink) || (isAuthenticated && !isTongdokMode) }">
       <div class="header-title-group">
         <div class="header-title-stack">
-          <div class="header-context-row">
-            <button
-              v-if="headerContext"
-              class="header-context book-name-full"
-              type="button"
-              @click="$emit('open-book-selector')"
-            >{{ headerContext }}</button>
-            <button
-              v-if="headerContextShort"
-              class="header-context book-name-short"
-              type="button"
-              @click="$emit('open-book-selector')"
-            >{{ headerContextShort }}</button>
+          <div v-if="isTongdokMode && tongdokPlanName" class="header-plan-name">{{ tongdokPlanName }}</div>
+          <div class="header-title-line">
+            <div class="header-context-row">
+              <button
+                v-if="headerContext"
+                class="header-context book-name-full"
+                type="button"
+                @click="$emit('open-book-selector')"
+              >{{ headerContext }}</button>
+              <button
+                v-if="headerContextShort"
+                class="header-context book-name-short"
+                type="button"
+                @click="$emit('open-book-selector')"
+              >{{ headerContextShort }}</button>
+            </div>
+            <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
+              <span class="book-chapter-text">
+                <span class="header-range">{{ headerRange }}</span>
+              </span>
+              <ChevronDownIcon class="selector-icon" :size="13" />
+            </button>
           </div>
-          <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
-            <span class="book-chapter-text">
-              <span class="header-range">{{ headerRange }}</span>
-            </span>
-            <ChevronDownIcon class="selector-icon" :size="13" />
-          </button>
         </div>
       </div>
       <span class="reader-scroll-progress" aria-hidden="true">
@@ -337,6 +340,7 @@ interface Props {
   isTongdokMode: boolean;
   tongdokScheduleRange?: string | null;
   tongdokScheduleDate?: string | null;
+  tongdokPlanName?: string | null;
   tongdokSchedule?: Array<{ book: string; bookKor: string; startChapter: number; endChapter: number }>;
   tongdokAudioLink?: string | null;
   tongdokGuideLink?: string | null;
@@ -657,13 +661,34 @@ defineExpose({
   min-width: 0;
 }
 
-/* 타이틀 한 줄: 컨텍스트(작은 글자) + 범위를 수평으로 나란히 */
+/* 타이틀 스택: 위=플랜명(통독 시), 아래=컨텍스트+범위 한 줄 */
 .header-title-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.header-plan-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.header-title-line {
   display: flex;
   flex-direction: row;
   align-items: baseline;
   gap: 0.375rem;
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
@@ -832,7 +857,7 @@ defineExpose({
 }
 
 /* 책/장 선택 트리거는 콘텐츠 너비만 차지하고(호버 영역 최소화), 좁으면 말줄임한다 */
-.header-title-group .book-selector-trigger {
+.header-title-line .book-selector-trigger {
   align-self: baseline;
   flex: 0 1 auto;
   min-width: 0;

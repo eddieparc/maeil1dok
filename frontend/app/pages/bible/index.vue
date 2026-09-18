@@ -39,6 +39,7 @@
         :is-tongdok-mode="isTongdokMode"
         :tongdok-schedule-range="tongdokScheduleRange"
         :tongdok-schedule-date="tongdokScheduleDate"
+        :tongdok-plan-name="readerPlanName"
         :tongdok-schedule="tongdokScheduleRows"
         :tongdok-audio-link="tongdokAudioLink"
         :tongdok-guide-link="tongdokGuideLink"
