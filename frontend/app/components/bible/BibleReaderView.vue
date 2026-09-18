@@ -4,7 +4,7 @@
     <header class="bible-header" :class="{ 'has-extra-action': (isTongdokMode && tongdokGuideLink) || (isAuthenticated && !isTongdokMode) }">
       <div class="header-title-group">
         <div class="header-title-stack">
-          <button class="book-selector-trigger" type="button" @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')">
+          <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
             <span class="book-chapter-text">
               <span class="header-range">{{ headerRange }}</span>
             </span>
