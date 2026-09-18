@@ -304,6 +304,7 @@ const {
   tongdokMode,
   tongdokScheduleId,
   tongdokPlanId,
+  tongdokPlanName,
   isCompleting,
   initTongdokMode,
   getTongdokScheduleRange,
@@ -646,6 +647,7 @@ watch(overlayOpen, open => {
   if (open) bibleReaderViewRef.value?.bibleViewerRef?.clearSelection();
 }, { flush: 'sync' });
 const readerPlanName = computed(() => readingDetailResponse.value?.data?.plan_name ||
+  tongdokPlanName.value ||
   subscriptions.value.find(sub => sub.plan_id === selectedPlanStore.effectivePlanId)?.plan_name || '');
 const nextScheduleLabel = computed(() => nextSchedule.value
   ? `${nextSchedule.value.date} · ${nextSchedule.value.book} ${nextSchedule.value.start_chapter}-${nextSchedule.value.end_chapter}장`

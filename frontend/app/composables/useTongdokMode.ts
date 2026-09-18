@@ -101,6 +101,7 @@ interface TongdokStateStorage {
   scheduleId: number | null;
   planId: number | null;
   scheduleDate?: string | null;
+  planName?: string | null;
   updatedAt: string;
 }
 
@@ -164,6 +165,8 @@ const tongdokMode = ref(false);
 const tongdokScheduleId: Ref<number | null> = ref(null);
 const tongdokPlanId: Ref<number | null> = ref(null);
 const tongdokScheduleDate: Ref<string | null> = ref(null);
+// 마지막으로 확인된 플랜 이름. detail 응답이 없거나 실패해도 헤더에 유지된다.
+const tongdokPlanName: Ref<string | null> = ref(null);
 const readingDetailResponse: Ref<ReadingDetailResponse | null> = ref(null);
 const isCompleting = ref(false);
 const lastCompleteCurrentResult: Ref<CompleteCurrentChapterResult | null> = ref(null);
@@ -234,6 +237,7 @@ export const useTongdokMode = () => {
       scheduleId: tongdokScheduleId.value,
       planId: tongdokPlanId.value,
       scheduleDate: tongdokScheduleDate.value,
+      planName: tongdokPlanName.value,
       updatedAt: new Date().toISOString(),
     });
   };
@@ -248,10 +252,12 @@ export const useTongdokMode = () => {
       tongdokScheduleId.value !== scheduleId ||
       tongdokPlanId.value !== planId ||
       tongdokScheduleDate.value !== scheduleDate;
+    const planChanged = tongdokPlanId.value !== planId;
     tongdokMode.value = enabled;
     tongdokScheduleId.value = scheduleId;
     tongdokPlanId.value = planId;
     tongdokScheduleDate.value = scheduleDate;
+    if (!enabled || planChanged) tongdokPlanName.value = null;
     if (changed) resetActiveSession();
   };
 
@@ -287,6 +293,9 @@ export const useTongdokMode = () => {
         positiveId(saved.planId),
         typeof saved.scheduleDate === 'string' ? saved.scheduleDate : null,
       );
+      if (typeof saved.planName === 'string' && saved.planName) {
+        tongdokPlanName.value = saved.planName;
+      }
       return;
     }
 
@@ -437,6 +446,15 @@ export const useTongdokMode = () => {
   ): void => {
     const data = response.data;
     if (!data) return;
+
+    // 응답이 활성 플랜의 것이면 플랜 이름을 갱신해 둔다 — 이후 응답 실패·지연에도
+    // 헤더의 플랜 이름이 유지된다.
+    if (positiveId(data.plan_id) === tongdokPlanId.value &&
+        typeof data.plan_name === 'string' && data.plan_name &&
+        data.plan_name !== tongdokPlanName.value) {
+      tongdokPlanName.value = data.plan_name;
+      persistActiveContext();
+    }
 
     // Deep links like ?tongdok=true&plan=4&book=psa&chapter=7 carry no
     // ?schedule= param, so the identity's scheduleId starts null and
@@ -910,6 +928,7 @@ export const useTongdokMode = () => {
     tongdokScheduleId,
     tongdokPlanId,
     tongdokScheduleDate,
+    tongdokPlanName,
     activeTongdokContext,
     readingDetailResponse,
     isCompleting,
