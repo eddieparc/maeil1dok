@@ -831,10 +831,10 @@ defineExpose({
   color: var(--text-secondary, #6b7280);
 }
 
-/* 책/장 선택 트리거는 타이틀 스택 안에서 남은 가로를 채우고 말줄임한다 */
+/* 책/장 선택 트리거는 콘텐츠 너비만 차지하고(호버 영역 최소화), 좁으면 말줄임한다 */
 .header-title-group .book-selector-trigger {
   align-self: baseline;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
 }
