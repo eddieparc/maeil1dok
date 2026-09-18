@@ -39,8 +39,7 @@
         :is-tongdok-mode="isTongdokMode"
         :tongdok-schedule-range="tongdokScheduleRange"
         :tongdok-schedule-date="tongdokScheduleDate"
-        :tongdok-full-range="fullTongdokRange"
-        :tongdok-plan-name="readerPlanName"
+        :tongdok-schedule="tongdokScheduleRows"
         :tongdok-audio-link="tongdokAudioLink"
         :tongdok-guide-link="tongdokGuideLink"
         :tongdok-progress="tongdokProgress"
@@ -289,6 +288,7 @@ const {
   isCompleting,
   initTongdokMode,
   getTongdokScheduleRange,
+  getScheduleRows,
   getFullScheduleRange,
   isLastChapterInTongdok,
   disableTongdokMode,
@@ -473,6 +473,7 @@ const tongdokScheduleRange = computed(() =>
   getTongdokScheduleRange(currentBook.value, currentChapter.value)
 );
 const fullTongdokRange = computed(() => getFullScheduleRange());
+const tongdokScheduleRows = computed(() => getScheduleRows());
 const isAtLastTongdokChapter = computed(() =>
   isLastChapterInTongdok(currentBook.value, currentChapter.value)
 );

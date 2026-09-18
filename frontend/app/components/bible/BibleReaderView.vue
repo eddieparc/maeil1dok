@@ -29,11 +29,8 @@
             </button>
           </div>
           <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
-            <span class="book-chapter-text book-name-full">
-              <span class="header-range">{{ headerRange }}<span v-if="headerPosition" class="header-position"> · 지금 {{ headerPosition }}</span></span>
-            </span>
-            <span class="book-chapter-text book-name-short">
-              <span class="header-range">{{ headerRangeShort }}<span v-if="headerPositionShort" class="header-position"> · 지금 {{ headerPositionShort }}</span></span>
+            <span class="book-chapter-text">
+              <span class="header-range">{{ headerRange }}</span>
             </span>
             <ChevronDownIcon class="selector-icon" :size="13" />
           </button>
@@ -349,8 +346,7 @@ interface Props {
   isTongdokMode: boolean;
   tongdokScheduleRange?: string | null;
   tongdokScheduleDate?: string | null;
-  tongdokFullRange?: string;
-  tongdokPlanName?: string;
+  tongdokSchedule?: Array<{ book: string; bookKor: string; startChapter: number; endChapter: number }>;
   tongdokAudioLink?: string | null;
   tongdokGuideLink?: string | null;
   tongdokProgress?: {
@@ -383,8 +379,7 @@ const props = withDefaults(defineProps<Props>(), {
   overlayOpen: false,
   tongdokScheduleRange: null,
   tongdokScheduleDate: null,
-  tongdokFullRange: '',
-  tongdokPlanName: '',
+  tongdokSchedule: () => [],
   tongdokAudioLink: null,
   tongdokGuideLink: null,
   tongdokProgress: null,
@@ -415,51 +410,47 @@ const headerScheduleDate = computed(() => {
   return `${parsed.getMonth() + 1}/${parsed.getDate()}(${weekdays[parsed.getDay()]})`;
 });
 
+// 첫 책 범위 + 다른 책의 남은 장 수 요약 (예: "사사기 7-8장 외 3장").
+// 같은 책 행은 범위로 합치고, 외 N장은 다른 책의 장만 센다. 단위는 첫 책 기준.
+const headerScheduleSummary = computed(() => {
+  const rows = props.tongdokSchedule;
+  const first = rows[0];
+  if (!first) return '';
+  const firstBookRows = rows.filter(row => row.book === first.book);
+  const start = Math.min(...firstBookRows.map(row => row.startChapter));
+  const end = Math.max(...firstBookRows.map(row => row.endChapter));
+  const unit = first.book === 'psa' ? '편' : '장';
+  const chapters = start === end ? `${start}${unit}` : `${start}-${end}${unit}`;
+  const remaining = rows
+    .filter(row => row.book !== first.book)
+    .reduce((count, row) => count + row.endChapter - row.startChapter + 1, 0);
+  return `${first.bookKor} ${chapters}${remaining > 0 ? ` 외 ${remaining}장` : ''}`;
+});
+
 const headerContext = computed(() => {
   if (props.isTongdokMode) {
-    return [headerScheduleDate.value, props.tongdokPlanName].filter(Boolean).join(' · ');
+    return [headerScheduleDate.value, headerScheduleSummary.value].filter(Boolean).join(' · ');
   }
   return props.currentVersionName || '';
 });
 
-const headerRange = computed(() => {
-  if (props.isTongdokMode && props.tongdokFullRange) return props.tongdokFullRange;
-  return `${props.currentBookName} ${props.currentChapter}${props.chapterSuffix}`;
-});
-
-const headerRangeShort = computed(() => {
-  if (props.isTongdokMode && props.tongdokFullRange) return props.tongdokFullRange;
-  return `${shortBookName.value} ${props.currentChapter}${props.chapterSuffix}`;
-});
+const headerRange = computed(() => `${props.currentBookName} ${props.currentChapter}${props.chapterSuffix}`);
 
 const headerContextShort = computed(() => {
-  if (props.isTongdokMode) return headerScheduleDate.value;
+  if (props.isTongdokMode) {
+    const summary = headerScheduleSummary.value;
+    const firstBookKor = props.tongdokSchedule[0]?.bookKor;
+    const short = summary && firstBookKor
+      ? summary.replace(firstBookKor, abbreviateBookName(firstBookKor))
+      : '';
+    return [headerScheduleDate.value, short].filter(Boolean).join(' · ');
+  }
   return props.currentVersionName || '';
 });
 
-// 통독 모드에서 범위 안 현 위치 표시 ("· 지금 N장"). 범위가 현 장 하나뿐이면 중복이라 숨긴다.
-const headerPosition = computed(() => {
-  if (!props.isTongdokMode || !props.tongdokFullRange) return '';
-  const singleBook = !props.tongdokFullRange.includes(',')
-    && props.tongdokFullRange.startsWith(props.currentBookName);
-  const position = singleBook
-    ? `${props.currentChapter}${props.chapterSuffix}`
-    : `${props.currentBookName} ${props.currentChapter}${props.chapterSuffix}`;
-  return props.tongdokFullRange === position ? '' : position;
-});
-const headerPositionShort = computed(() => {
-  if (!props.isTongdokMode || !props.tongdokFullRange) return '';
-  const singleBook = !props.tongdokFullRange.includes(',')
-    && props.tongdokFullRange.startsWith(props.currentBookName);
-  const position = singleBook
-    ? `${props.currentChapter}${props.chapterSuffix}`
-    : `${shortBookName.value} ${props.currentChapter}${props.chapterSuffix}`;
-  return props.tongdokFullRange === position ? '' : position;
-});
-
 // 책 이름 축약 (좁은 화면용)
-const shortBookName = computed(() => {
-  const name = props.currentBookName;
+const abbreviateBookName = (name: string): string => {
+  if (!name) return '';
   if (!name) return '';
   
   // 축약어 매핑
@@ -482,7 +473,7 @@ const shortBookName = computed(() => {
   };
   
   return abbreviations[name] || name.charAt(0);
-});
+};
 
 // Emits
 const emit = defineEmits<{
@@ -734,11 +725,6 @@ defineExpose({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.header-position {
-  font-weight: 600;
-  color: var(--color-accent-primary, #2A1111);
 }
 
 [data-theme="dark"] .header-context {

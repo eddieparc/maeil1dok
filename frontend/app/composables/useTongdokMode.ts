@@ -580,6 +580,15 @@ export const useTongdokMode = () => {
     ),
   }));
 
+  /** Structured schedule rows with resolved Korean book names for header/summary consumers. */
+  const getScheduleRows = (): Array<{ book: string; bookKor: string; startChapter: number; endChapter: number }> =>
+    (readingDetailResponse.value?.data?.plan_detail || []).map(detail => ({
+      book: detail.book,
+      bookKor: bookNames[detail.book] || detail.book,
+      startChapter: detail.start_chapter,
+      endChapter: detail.end_chapter,
+    }));
+
   const getFullScheduleRange = (): string => (readingDetailResponse.value?.data?.plan_detail || []).map(detail => {
     const bookName = bookNames[detail.book] || detail.book;
     const chapters = detail.start_chapter === detail.end_chapter
@@ -758,6 +767,7 @@ export const useTongdokMode = () => {
 
     initTongdokMode,
     getTongdokScheduleRange,
+    getScheduleRows,
     getFullScheduleRange,
     isLastChapterInTongdok,
     isChapterCompleted,
