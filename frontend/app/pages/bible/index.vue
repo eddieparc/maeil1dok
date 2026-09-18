@@ -668,7 +668,8 @@ const goToPrevChapter = async () => {
 };
 const goToNextChapter = async () => {
   // 통독 모드에서 마지막 장이면 완료 여부를 먼저 묻는다.
-  if (isTongdokMode.value && isAtLastTongdokChapter.value) {
+  // 이미 완료된 일정은 묻지 않고 그냥 다음 장으로 넘어간다.
+  if (isTongdokMode.value && isAtLastTongdokChapter.value && !isScheduleCompleted()) {
     const confirmed = await modal.confirm({
       title: '오늘 통독을 완료할까요?',
       description: `${fullTongdokRange.value || '오늘 일정'}을 다 읽으셨다면 완료로 기록해요.`,
