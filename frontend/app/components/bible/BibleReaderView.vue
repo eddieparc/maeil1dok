@@ -4,38 +4,28 @@
     <header class="bible-header" :class="{ 'has-extra-action': (isTongdokMode && tongdokGuideLink) || (isAuthenticated && !isTongdokMode) }">
       <div class="header-title-group">
         <button
-          v-if="headerSubline"
-          class="header-subline"
+          class="nav-button prev"
           type="button"
-          @click="$emit('open-book-selector')"
+          :disabled="!hasPrevChapter"
+          aria-label="이전 장"
+          @click="$emit('prev-chapter')"
         >
-          <span class="header-subline-text">{{ headerSubline }}</span>
+          <ChevronLeftIcon :size="18" />
         </button>
-        <div class="book-selector-group">
-          <button
-            class="nav-button prev"
-            type="button"
-            :disabled="!hasPrevChapter"
-            aria-label="이전 장"
-            @click="$emit('prev-chapter')"
-          >
-            <ChevronLeftIcon :size="18" />
-          </button>
-          <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
-            <span class="book-chapter-text book-name-full">{{ headerRange }}</span>
-            <span class="book-chapter-text book-name-short">{{ headerRangeShort }}</span>
-            <ChevronDownIcon class="selector-icon" :size="13" />
-          </button>
-          <button
-            class="nav-button next"
-            type="button"
-            :disabled="!hasNextChapter"
-            aria-label="다음 장"
-            @click="$emit('next-chapter')"
-          >
-            <ChevronRightIcon :size="18" />
-          </button>
-        </div>
+        <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
+          <span class="book-chapter-text book-name-full"><span v-if="headerContext" class="header-context">{{ headerContext }} / </span>{{ headerRange }}</span>
+          <span class="book-chapter-text book-name-short">{{ headerTitleShort }}</span>
+          <ChevronDownIcon class="selector-icon" :size="13" />
+        </button>
+        <button
+          class="nav-button next"
+          type="button"
+          :disabled="!hasNextChapter"
+          aria-label="다음 장"
+          @click="$emit('next-chapter')"
+        >
+          <ChevronRightIcon :size="18" />
+        </button>
       </div>
       <span class="reader-scroll-progress" aria-hidden="true">
         <span class="reader-scroll-progress-fill" :style="{ transform: `scaleX(${scrollFraction})` }"></span>
@@ -241,16 +231,30 @@
           </button>
 
           <div v-if="isTongdokMode && tongdokProgress" class="reader-controls-progress">
-            <button
-              class="tongdok-mode-pill"
-              type="button"
-              @click="$emit('exit-tongdok')"
-              title="통독 모드 종료"
-              aria-label="통독 모드 종료"
-            >
-              <span class="tongdok-mode-pill-label">통독중</span>
-              <XMarkIcon :size="12" aria-hidden="true" />
-            </button>
+            <div class="tongdok-mode-pill" :class="{ 'is-complete': isTongdokComplete }">
+              <button
+                class="tongdok-complete-status pill-action"
+                :class="{ 'is-complete': isTongdokComplete }"
+                :aria-pressed="isTongdokComplete"
+                type="button"
+                :disabled="isCompleting"
+                @click="$emit('tongdok-complete-click')"
+                title="통독 완료"
+                aria-label="통독 완료"
+              >
+                <CheckIcon :size="13" :stroke-width="2.5" />
+              </button>
+              <span class="tongdok-mode-pill-label">{{ isTongdokComplete ? '완료됨' : '통독중' }}</span>
+              <button
+                class="pill-action pill-exit"
+                type="button"
+                @click="$emit('exit-tongdok')"
+                title="통독 모드 종료"
+                aria-label="통독 모드 종료"
+              >
+                <XMarkIcon :size="12" aria-hidden="true" />
+              </button>
+            </div>
             <div class="story-progress-bar">
               <div
                 v-for="i in tongdokProgress.total"
@@ -265,19 +269,6 @@
             <div class="progress-text-indicator">
               {{ tongdokDone ?? '—' }}/{{ tongdokProgress.total }}
             </div>
-            <button
-              class="tongdok-complete-status"
-              :class="{ 'is-complete': isTongdokComplete }"
-              :aria-pressed="isTongdokComplete"
-              type="button"
-              :disabled="isCompleting"
-              @click="$emit('tongdok-complete-click')"
-              title="통독 완료"
-              aria-label="통독 완료"
-            >
-              <CheckIcon :size="14" :stroke-width="2.25" />
-              <span class="tongdok-complete-label">{{ isTongdokComplete ? '통독 완료됨' : '통독 완료' }}</span>
-            </button>
           </div>
           <div v-else class="reader-controls-spacer" aria-hidden="true"></div>
 
@@ -419,7 +410,7 @@ const headerScheduleDate = computed(() => {
   return `${parsed.getMonth() + 1}/${parsed.getDate()}(${weekdays[parsed.getDay()]})`;
 });
 
-const headerSubline = computed(() => {
+const headerContext = computed(() => {
   if (props.isTongdokMode) {
     return [headerScheduleDate.value, props.tongdokPlanName].filter(Boolean).join(' · ');
   }
@@ -434,6 +425,13 @@ const headerRange = computed(() => {
 const headerRangeShort = computed(() => {
   if (props.isTongdokMode && props.tongdokFullRange) return props.tongdokFullRange;
   return `${shortBookName.value} ${props.currentChapter}${props.chapterSuffix}`;
+});
+
+const headerTitleShort = computed(() => {
+  if (props.isTongdokMode) {
+    return [headerScheduleDate.value, headerRangeShort.value].filter(Boolean).join(' · ');
+  }
+  return headerRangeShort.value;
 });
 
 // 책 이름 축약 (좁은 화면용)
@@ -651,44 +649,22 @@ defineExpose({
   transition: all 0.15s ease;
 }
 
-/* 중앙 2줄 타이틀 그룹: 날짜·플랜명 / < 범위 > */
+/* 좌측 한 줄 타이틀 그룹: < 날짜·플랜명 / 범위 > */
 .header-title-group {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0;
-  max-width: calc(100% - 10rem);
+  gap: 0.25rem;
+  flex: 1;
   min-width: 0;
 }
 
-.header-subline {
-  display: block;
-  max-width: 100%;
-  padding: 0 0.25rem;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.header-subline-text {
-  display: block;
-  max-width: 100%;
-  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 0.6875rem;
+.header-context {
   font-weight: 500;
+  font-size: 0.875em;
   color: var(--text-secondary, #6b7280);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
 }
 
-[data-theme="dark"] .header-subline-text {
+[data-theme="dark"] .header-context {
   color: var(--color-text-secondary);
 }
 
@@ -807,28 +783,11 @@ defineExpose({
   color: var(--text-secondary, #6b7280);
 }
 
-/* 책/장 선택 그룹 */
-.book-selector-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+/* 책/장 선택 트리거는 타이틀 그룹 안에서 남은 공간을 채우고 말줄임한다 */
+.header-title-group .book-selector-trigger {
   flex: 1;
   min-width: 0;
-}
-
-.book-selector-group {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  justify-content: center;
-  flex: none;
-  width: max-content;
-  max-width: calc(100% - 9rem);
-}
-
-.book-selector-group .book-selector-trigger {
-  justify-content: center;
-  max-width: 100%;
+  overflow: hidden;
 }
 
 /* 통독중 배지 - 플랫한 텍스트 스타일 (레거시) */
@@ -1721,13 +1680,14 @@ defineExpose({
 /* 통독 하단 진행 정보 */
 /* 통독 진행률은 reader-controls-row로 통합됨 */
 
+/* 통독 pill: [✓ 완료] [통독중/완료됨] [✕ 종료] — 완료·종료를 한 pill에 통합 */
 .tongdok-mode-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.125rem;
   flex-shrink: 0;
   height: 2rem;
-  padding: 0 0.5rem 0 0.7rem;
+  padding: 0 0.25rem;
   border: 1px solid var(--color-border-default, rgba(42, 17, 17, 0.14));
   border-radius: var(--radius-control, 10px);
   background: var(--color-bg-subtle, rgba(42, 17, 17, 0.05));
@@ -1735,16 +1695,49 @@ defineExpose({
   font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
 }
 
-.tongdok-mode-pill:hover {
+.tongdok-mode-pill.is-complete {
+  border-color: rgba(42, 17, 17, 0.3);
+  background: rgba(42, 17, 17, 0.1);
+}
+
+.tongdok-mode-pill .pill-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.tongdok-mode-pill .pill-action:hover:not(:disabled) {
   background: rgba(42, 17, 17, 0.14);
 }
 
-.tongdok-mode-pill:active {
-  transform: scale(0.96);
+.tongdok-mode-pill .pill-action:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.tongdok-mode-pill .pill-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tongdok-mode-pill .tongdok-complete-status.is-complete {
+  color: var(--color-accent-primary, #2A1111);
+}
+
+.tongdok-mode-pill-label {
+  padding: 0 0.125rem;
+  white-space: nowrap;
 }
 
 [data-theme="dark"] .tongdok-mode-pill {
@@ -1753,56 +1746,13 @@ defineExpose({
   color: var(--color-accent-primary);
 }
 
-[data-theme="dark"] .tongdok-mode-pill:hover {
+[data-theme="dark"] .tongdok-mode-pill.is-complete {
   background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.tongdok-complete-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  justify-content: center;
-  width: auto;
-  min-width: 0;
-  height: 2rem;
-  padding: 0 0.75rem;
-  border-radius: var(--radius-control, 10px);
-  color: var(--color-text-inverse, #fff);
-  background: var(--color-accent-primary, #2A1111);
-  border: 1px solid var(--color-accent-primary, #2A1111);
-  flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
-}
-
-.tongdok-complete-status:hover:not(:disabled) {
-  background: var(--color-accent-primary-hover, var(--color-accent-primary, #2A1111));
-  color: var(--color-text-inverse, #fff);
-}
-
-.tongdok-complete-status:active:not(:disabled) {
-  transform: scale(0.96);
-}
-
-.tongdok-complete-status:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.tongdok-complete-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-[data-theme="dark"] .tongdok-complete-status {
-  color: var(--color-accent-primary);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .tongdok-complete-status:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--color-accent-primary);
+[data-theme="dark"] .tongdok-mode-pill .pill-action:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .story-progress-bar {
@@ -1880,15 +1830,6 @@ defineExpose({
   box-sizing: border-box;
   flex-shrink: 0;
   padding: 0.25rem 0.5rem;
-}
-
-.book-selector-group {
-  position: static;
-  transform: none;
-  flex: 0 1 auto;
-  gap: 0;
-  width: auto;
-  max-width: none;
 }
 
 .book-selector-trigger {
