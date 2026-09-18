@@ -59,7 +59,7 @@ defineEmits<{
 .bible-tab-bar {
   background: color-mix(in srgb, var(--color-bg-primary, #f9fafb) 92%, #f3f0ea 8%);
   border-bottom: 1px solid rgba(17, 24, 39, 0.045);
-  padding: 0.25rem 0.5rem;
+  padding: 0.125rem 0.5rem;
 }
 
 .bible-tab-list {
@@ -80,8 +80,8 @@ defineEmits<{
   align-items: center;
   gap: 0.125rem;
   max-width: 10rem;
-  min-height: 36px;
-  padding: 0.25rem 0.25rem 0.25rem 0.625rem;
+  min-height: 28px;
+  padding: 0.125rem 0.25rem 0.125rem 0.5rem;
   border-radius: 8px;
   border: 1px solid transparent;
   color: var(--text-primary, #1f2937);
@@ -120,8 +120,8 @@ defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 6px;
   border: none;
   background: transparent;
@@ -140,8 +140,8 @@ defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border-radius: 8px;
   border: 1px dashed var(--color-border, #d1d5db);
   background: transparent;
@@ -208,17 +208,17 @@ defineEmits<{
 /* 모바일 터치 타깃 확보 */
 @media (max-width: 767px) {
   .bible-tab {
-    min-height: 44px;
+    min-height: 36px;
   }
 
   .bible-tab-close {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
   }
 
   .bible-tab-add {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
   }
 }
 </style>
