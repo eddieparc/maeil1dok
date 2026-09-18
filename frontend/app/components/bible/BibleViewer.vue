@@ -19,7 +19,7 @@
     <template v-else>
       <div
         class="bible-content"
-        :class="{ 'verse-joining': settings.verseJoining }"
+        :class="{ 'verse-joining': settings.verseJoining, 'swap-exit': swapPhase === 'exit', 'swap-enter': swapPhase === 'enter' }"
         @click="handleVerseClick"
         v-html="renderedContent"
       ></div>
@@ -85,6 +85,9 @@ interface Props {
   isLoading?: boolean;
   initialScrollPosition?: number;
   highlights?: Highlight[];
+  // 역본 교체 애니메이션 단계. exit는 기존 셀이 목적지 방향으로 빠지고,
+  // enter는 새 DOM이 마운트될 때 같은 방향으로 들어온다.
+  swapPhase?: '' | 'exit' | 'enter';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -92,6 +95,7 @@ const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   initialScrollPosition: 0,
   highlights: () => [],
+  swapPhase: '',
 });
 
 const emit = defineEmits<{
@@ -878,6 +882,70 @@ defineExpose({
     border-top: 1px dashed var(--color-border-primary, #e5e7eb);
     margin-top: 0.25rem;
     padding-top: 0.25rem;
+  }
+}
+
+/* 역본 교체: 각 셀이 목적지 방향으로 짧게 드리프트하며 페이드한다.
+   primary는 +x(오른쪽), secondary는 -x(왼쪽)로 이동하므로 두 역본이
+   자리를 바꾸는 연속 이동으로 읽힌다. */
+.bible-content :deep(.pair-primary) {
+  --swap-x: 2rem;
+  --swap-y: 0;
+}
+
+.bible-content :deep(.pair-secondary) {
+  --swap-x: -2rem;
+  --swap-y: 0;
+}
+
+.bible-content.swap-exit :deep(.pair-primary),
+.bible-content.swap-exit :deep(.pair-secondary) {
+  animation: bible-swap-exit 160ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.bible-content.swap-enter :deep(.pair-primary),
+.bible-content.swap-enter :deep(.pair-secondary) {
+  animation: bible-swap-enter 200ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+@keyframes bible-swap-exit {
+  to {
+    transform: translate(var(--swap-x), var(--swap-y));
+    opacity: 0;
+  }
+}
+
+@keyframes bible-swap-enter {
+  from {
+    transform: translate(var(--swap-x), var(--swap-y));
+    opacity: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .bible-content :deep(.pair-primary) {
+    --swap-x: 0;
+    --swap-y: 1.25rem;
+  }
+  .bible-content :deep(.pair-secondary) {
+    --swap-x: 0;
+    --swap-y: -1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bible-content.swap-exit :deep(.pair-primary),
+  .bible-content.swap-exit :deep(.pair-secondary) {
+    animation-duration: 120ms;
+  }
+  .bible-content.swap-enter :deep(.pair-primary),
+  .bible-content.swap-enter :deep(.pair-secondary) {
+    animation-duration: 120ms;
+  }
+  .bible-content :deep(.pair-primary),
+  .bible-content :deep(.pair-secondary) {
+    --swap-x: 0;
+    --swap-y: 0;
   }
 }
 

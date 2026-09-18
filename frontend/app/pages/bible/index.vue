@@ -658,7 +658,6 @@ const handleVersionSelect = async (version: string) => {
     return;
   }
   await navigateReader(currentBook.value, currentChapter.value, undefined, version);
-  toast.success(`${currentVersionName.value}으로 전환`);
 };
 const goToPrevChapter = async () => {
   await saveCurrentReadingPosition(true);
