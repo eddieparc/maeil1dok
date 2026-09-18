@@ -437,22 +437,24 @@ const headerContextShort = computed(() => {
   return props.currentVersionName || '';
 });
 
-// 통독 모드에서 범위 안 현 위치 표시 ("· 지금 N장")
+// 통독 모드에서 범위 안 현 위치 표시 ("· 지금 N장"). 범위가 현 장 하나뿐이면 중복이라 숨긴다.
 const headerPosition = computed(() => {
   if (!props.isTongdokMode || !props.tongdokFullRange) return '';
   const singleBook = !props.tongdokFullRange.includes(',')
     && props.tongdokFullRange.startsWith(props.currentBookName);
-  return singleBook
+  const position = singleBook
     ? `${props.currentChapter}${props.chapterSuffix}`
     : `${props.currentBookName} ${props.currentChapter}${props.chapterSuffix}`;
+  return props.tongdokFullRange === position ? '' : position;
 });
 const headerPositionShort = computed(() => {
   if (!props.isTongdokMode || !props.tongdokFullRange) return '';
   const singleBook = !props.tongdokFullRange.includes(',')
     && props.tongdokFullRange.startsWith(props.currentBookName);
-  return singleBook
+  const position = singleBook
     ? `${props.currentChapter}${props.chapterSuffix}`
     : `${shortBookName.value} ${props.currentChapter}${props.chapterSuffix}`;
+  return props.tongdokFullRange === position ? '' : position;
 });
 
 // 책 이름 축약 (좁은 화면용)
@@ -2029,20 +2031,6 @@ defineExpose({
 .reader-controls-spacer {
   flex: 1;
   min-width: 0;
-}
-
-.tongdok-complete-status,
-[data-theme="dark"] .tongdok-complete-status {
-  color: var(--color-text-inverse);
-  background: var(--color-accent-primary);
-  border-color: var(--color-accent-primary);
-}
-
-.tongdok-complete-status.is-complete,
-[data-theme="dark"] .tongdok-complete-status.is-complete {
-  color: var(--color-accent-primary);
-  background: var(--color-accent-primary-light);
-  border-color: var(--color-accent-primary-light);
 }
 
 .progress-segment,
