@@ -21,9 +21,17 @@ interface BibleTabsStoreState extends BibleTabsState {
 const persist = (state: BibleTabsState): void => {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, serializeTabsState(state));
-  } catch {
-    // 저장 실패는 무시 — 탭은 세션 내 상태로 계속 동작한다
+    // 스토어 프록시를 통째로 stringify하면 순환 참조로 실패하므로 평면 객체로 직렬화한다
+    localStorage.setItem(
+      STORAGE_KEY,
+      serializeTabsState({
+        tabs: state.tabs,
+        activeTabId: state.activeTabId,
+        barVisible: state.barVisible,
+      }),
+    );
+  } catch (error) {
+    console.error('[bibleTabs] persist failed', error);
   }
 };
 
