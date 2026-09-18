@@ -41,6 +41,17 @@
       </span>
 
       <div class="header-actions">
+        <button
+          class="tab-toggle-button"
+          :class="{ 'is-on': tabBarVisible }"
+          type="button"
+          @click="$emit('toggle-tab-bar')"
+          title="탭"
+          aria-label="탭"
+          :aria-pressed="tabBarVisible"
+        >
+          탭
+        </button>
         <BibleSearchButton />
         <button
           v-if="tongdokAudioLink"
@@ -95,6 +106,9 @@
         </button>
       </div>
     </header>
+
+    <!-- 탭 바 (헤더 아래) -->
+    <slot name="tab-bar" />
 
     <!-- 성경 본문 뷰어 -->
     <BibleCompareViewer
@@ -378,6 +392,9 @@ interface Props {
 
   // 하이라이트
   highlights?: Highlight[];
+
+  // 탭 바
+  tabBarVisible?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -392,6 +409,7 @@ const props = withDefaults(defineProps<Props>(), {
   isTongdokAudioPlayerOpen: false,
   isCompleting: false,
   isMarkingRead: false,
+  tabBarVisible: false,
   highlights: () => [],
 });
 
@@ -552,6 +570,9 @@ const emit = defineEmits<{
   'guide-click': [url: string];
   'reading-plan-click': [];
   'share-click': [];
+
+  // 탭 바
+  'toggle-tab-bar': [];
 }>();
 
 // Swipe handlers
@@ -1034,6 +1055,54 @@ button.header-plan-name {
 
 .header-icon-action:active {
   transform: scale(0.94);
+}
+
+/* 탭 토글 버튼 */
+.tab-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 0.625rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.tab-toggle-button:hover {
+  background: var(--color-bg-hover, #f3f4f6);
+  color: var(--text-primary, #1f2937);
+}
+
+.tab-toggle-button:active {
+  transform: scale(0.94);
+}
+
+.tab-toggle-button.is-on {
+  color: var(--primary-color, #2A1111);
+  background: var(--primary-light);
+}
+
+[data-theme="dark"] .tab-toggle-button {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .tab-toggle-button:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .tab-toggle-button.is-on {
+  color: var(--color-accent-primary);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .tongdok-mode-btn {

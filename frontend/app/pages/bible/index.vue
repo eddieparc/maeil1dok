@@ -57,6 +57,7 @@
         :highlights="visibleChapterHighlights"
         :overlay-open="overlayOpen"
         :audio-context-key="audioContextKey"
+        :tab-bar-visible="tabBarVisible"
         @back="goBack"
         @prev-chapter="goToPrevChapter"
         @next-chapter="goToNextChapter"
@@ -84,7 +85,19 @@
         @reading-plan-click="showFullScheduleModal = true"
         @share-click="handleChapterShare"
         @guide-click="showGuideSheet = true"
-      />
+        @toggle-tab-bar="handleToggleTabBar"
+      >
+        <template #tab-bar>
+          <BibleTabBar
+            v-if="tabBarVisible"
+            :tabs="bibleTabs"
+            :active-tab-id="activeBibleTabId"
+            @switch="handleTabSwitch"
+            @close="handleTabClose"
+            @add="handleTabAdd"
+          />
+        </template>
+      </BibleReaderView>
 
       <!-- 모달 -->
       <ShareSheet
@@ -221,6 +234,7 @@ import { useAuthService } from '~/composables/useAuthService';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
 import { useSelectedPlanStore } from '~/stores/selectedPlan';
 import { useSubscriptionStore } from '~/stores/subscription';
+import { useBibleTabsStore } from '~/stores/bibleTabs';
 import { useToast } from '~/composables/useToast';
 import { useModal } from '~/composables/useModal';
 import { useApi } from '~/composables/useApi';
@@ -229,6 +243,8 @@ import BottomNavigation from '~/components/BottomNavigation.vue';
 import BibleHome from '~/components/bible/BibleHome.vue';
 import BibleTOC from '~/components/bible/BibleTOC.vue';
 import BibleReaderView from '~/components/bible/BibleReaderView.vue';
+import BibleTabBar from '~/components/bible/BibleTabBar.vue';
+import type { BibleTab, BibleTabSnapshot } from '~/utils/bibleTabs';
 import type { SelectionSharePayload, SelectionHighlightPayload } from '~/components/bible/BibleViewer.vue';
 
 // 모달 컴포넌트
@@ -386,6 +402,119 @@ const chapterKey = (book: string, chapter: number, version: string) => `${book}:
 const persistCompare = () => {
   try { localStorage.setItem('bibleCompare', JSON.stringify({ enabled: compareEnabled.value, secondaryVersion: secondaryVersion.value })); }
   catch (error) { console.warn('Failed to save compare preferences:', error); }
+};
+
+const showAlreadyCompleteModal = ref(false);
+const showNextScheduleModal = ref(false);
+const showCertificationModal = ref(false);
+const certificationCloseHandler = ref<(() => Promise<void> | void) | null>(null);
+
+// 탭 바 (성경 본문 탭)
+const bibleTabsStore = useBibleTabsStore();
+const tabBarVisible = computed(() => bibleTabsStore.barVisible);
+const bibleTabs = computed(() => bibleTabsStore.tabs);
+const activeBibleTabId = computed(() => bibleTabsStore.activeTabId);
+const currentTabLabel = computed(
+  () => `${currentBookName.value} ${currentChapter.value}${chapterSuffix.value}`
+);
+
+const buildTabSnapshot = (): BibleTabSnapshot => ({
+  book: currentBook.value,
+  chapter: currentChapter.value,
+  version: currentVersion.value,
+  scrollPosition: scrollPosition.value,
+  tongdok: tongdokMode.value
+    ? {
+        enabled: true,
+        scheduleId: tongdokScheduleId.value,
+        planId: tongdokPlanId.value,
+      }
+    : null,
+  readingDetail: readingDetailResponse.value,
+});
+
+const syncActiveBibleTab = () => {
+  bibleTabsStore.syncActiveTab(buildTabSnapshot(), currentTabLabel.value);
+};
+
+/** 탭 스냅샷을 리더에 복원한다 (책·장·역본·스크롤·통독 상태). */
+const applyTabSnapshot = async (tab: BibleTab) => {
+  const snap = tab.snapshot;
+  currentBook.value = snap.book;
+  currentChapter.value = snap.chapter;
+  currentVersion.value = snap.version;
+  viewMode.value = 'reader';
+
+  if (snap.tongdok?.enabled) {
+    // enableTongdokMode는 truthy 인자만 반영하므로 ref를 먼저 정확히 복원한다
+    tongdokScheduleId.value = snap.tongdok.scheduleId;
+    tongdokPlanId.value = snap.tongdok.planId;
+    enableTongdokMode();
+  } else if (tongdokMode.value) {
+    disableTongdokMode();
+  }
+  setReadingDetailResponse(snap.readingDetail as ReadingDetailResponse | null);
+
+  resetReaderScrollPosition();
+  await loadBibleContent(snap.book, snap.chapter);
+  if (snap.scrollPosition > 0) {
+    await restoreSavedScrollPosition(snap.scrollPosition);
+  }
+  // 복원 과정에서 바뀐 값들을 활성 탭에 다시 동기화
+  syncActiveBibleTab();
+};
+
+const handleToggleTabBar = () => {
+  const opening = !bibleTabsStore.barVisible;
+  bibleTabsStore.toggleBar();
+  // 처음 여는 경우 현재 본문으로 첫 탭을 만든다
+  if (opening && bibleTabsStore.tabs.length === 0) {
+    bibleTabsStore.addTab(buildTabSnapshot(), currentTabLabel.value);
+  }
+};
+
+const handleTabAdd = () => {
+  bibleTabsStore.addTab(buildTabSnapshot(), currentTabLabel.value);
+};
+
+const handleTabSwitch = async (tabId: string) => {
+  if (tabId === bibleTabsStore.activeTabId) return;
+  syncActiveBibleTab();
+  const tab = bibleTabsStore.switchTab(tabId);
+  if (tab) {
+    await applyTabSnapshot(tab);
+  }
+};
+
+const handleTabClose = async (tabId: string) => {
+  const activated = bibleTabsStore.closeTab(tabId);
+  if (activated) {
+    await applyTabSnapshot(activated);
+  }
+};
+
+interface CertificationContext {
+  planId: number | null;
+  scheduleId: number | null;
+}
+
+const certificationContext = ref<CertificationContext>({
+  planId: null,
+  scheduleId: null,
+});
+
+const getCertificationContext = (): CertificationContext => ({
+  planId: tongdokPlanId.value ?? selectedPlanStore.effectivePlanId ?? null,
+  scheduleId: tongdokScheduleId.value ?? null,
+});
+
+const openCertificationModal = (
+  context: CertificationContext,
+  onClose?: () => Promise<void> | void,
+): void => {
+  certificationContext.value = context;
+  certificationCloseHandler.value = onClose ?? null;
+  showCertificationModal.value = true;
 };
 const toggleCompare = () => {
   compareEnabled.value = !compareEnabled.value;
@@ -697,6 +826,7 @@ const scrollToTop = () => {
 // BibleViewer 이벤트 핸들러
 const handleScrollPosition = (position: number) => {
   setReaderScrollPosition(position, true);
+  bibleTabsStore.updateActiveScroll(position);
   saveCurrentReadingPosition(false, position);
 };
 
@@ -1280,6 +1410,7 @@ const applyReaderRoute = async (restorePosition = false) => {
   enablePositionSaving();
 };
 onMounted(async () => {
+  bibleTabsStore.hydrate();
   try {
     const saved = JSON.parse(localStorage.getItem('bibleCompare') || '{}');
     if (typeof saved.secondaryVersion === 'string' && saved.secondaryVersion in VISIBLE_VERSION_NAMES) secondaryVersion.value = saved.secondaryVersion;
@@ -1316,6 +1447,21 @@ watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.s
   compareChapters.clear();
   if (viewMode.value === 'reader') await Promise.all([loadBibleContent(currentBook.value, currentChapter.value), loadSecondaryContent()]);
 });
+
+// 리더 상태가 바뀌면 활성 탭의 스냅샷·라벨을 갱신한다
+watch(
+  [
+    () => currentBook.value,
+    () => currentChapter.value,
+    () => currentVersion.value,
+    () => tongdokMode.value,
+    () => readingDetailResponse.value,
+  ],
+  () => {
+    syncActiveBibleTab();
+  },
+  { flush: 'post' }
+);
 </script>
 
 <style scoped>
