@@ -13,8 +13,14 @@
           <ChevronLeftIcon :size="18" />
         </button>
         <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
-          <span class="book-chapter-text book-name-full"><span v-if="headerContext" class="header-context">{{ headerContext }} / </span>{{ headerRange }}</span>
-          <span class="book-chapter-text book-name-short">{{ headerTitleShort }}</span>
+          <span class="book-chapter-text book-name-full">
+            <span v-if="headerContext" class="header-context">{{ headerContext }}</span>
+            <span class="header-range">{{ headerRange }}</span>
+          </span>
+          <span class="book-chapter-text book-name-short">
+            <span v-if="headerContextShort" class="header-context">{{ headerContextShort }}</span>
+            <span class="header-range">{{ headerRangeShort }}</span>
+          </span>
           <ChevronDownIcon class="selector-icon" :size="13" />
         </button>
         <button
@@ -427,11 +433,9 @@ const headerRangeShort = computed(() => {
   return `${shortBookName.value} ${props.currentChapter}${props.chapterSuffix}`;
 });
 
-const headerTitleShort = computed(() => {
-  if (props.isTongdokMode) {
-    return [headerScheduleDate.value, headerRangeShort.value].filter(Boolean).join(' · ');
-  }
-  return headerRangeShort.value;
+const headerContextShort = computed(() => {
+  if (props.isTongdokMode) return headerScheduleDate.value;
+  return props.currentVersionName || '';
 });
 
 // 책 이름 축약 (좁은 화면용)
@@ -658,10 +662,36 @@ defineExpose({
   min-width: 0;
 }
 
+/* 타이틀 2줄: 위=컨텍스트(작은 글자), 아래=범위 */
+.book-chapter-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .header-context {
+  display: block;
+  max-width: 100%;
   font-weight: 500;
-  font-size: 0.875em;
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   color: var(--text-secondary, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-range {
+  display: block;
+  max-width: 100%;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 [data-theme="dark"] .header-context {
@@ -947,7 +977,7 @@ defineExpose({
   }
 
   .bible-header.has-extra-action .book-name-short {
-    display: inline;
+    display: flex;
   }
 
   .tongdok-badge-inline {
@@ -962,7 +992,7 @@ defineExpose({
   }
   
   .book-name-short {
-    display: inline;
+    display: flex;
   }
   
   .tongdok-badge-inline {
