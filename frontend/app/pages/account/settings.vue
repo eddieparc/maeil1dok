@@ -129,6 +129,19 @@
         </ListCard>
       </section>
 
+      <section class="settings-group data-group" aria-labelledby="data-heading">
+        <h3 id="data-heading" class="group-label">데이터</h3>
+        <ListCard :padded="false">
+          <button type="button" class="list-card-row setting-row row-action" @click="isDataManagementOpen = true">
+            <div class="setting-info">
+              <p class="setting-label">데이터 관리</p>
+              <p class="setting-description">북마크 · 노트 · 하이라이트 · 초기화</p>
+            </div>
+            <ChevronRight :size="18" class="chevron" aria-hidden="true" />
+          </button>
+        </ListCard>
+      </section>
+
       <section class="settings-group app-group" aria-labelledby="app-heading">
         <h3 id="app-heading" class="group-label">앱</h3>
         <ListCard :padded="false">
@@ -240,6 +253,7 @@
       </section>
 
       <ReadingSettingsSheet v-model="isReadingSettingsOpen" />
+      <DataManagementSheet v-model="isDataManagementOpen" />
       <ProfileEditModal v-if="showProfileEdit && editableProfile" :profile="editableProfile" @close="showProfileEdit = false" />
       <p v-if="shellIdentity.visible" class="shell-identity">{{ shellIdentity.label }}</p>
     </div>
@@ -264,6 +278,7 @@ import ListCard from '~/components/ui/ListCard.vue'
 import SegmentedControl from '~/components/ui/SegmentedControl.vue'
 import ProfileEditModal from '~/components/profile/ProfileEditModal.vue'
 import ReadingSettingsSheet from '~/components/ReadingSettingsSheet.vue'
+import DataManagementSheet from '~/components/DataManagementSheet.vue'
 import { Apple, CheckCircle, ChevronRight, Globe, Mail, MessageCircle } from '@lucide/vue'
 import { useNotificationsStore, type NotificationSettings } from '~/stores/notifications'
 import { useReadingSettingsStore } from '~/stores/readingSettings'
@@ -295,6 +310,7 @@ const { goBack } = useNavigation()
 const notificationsStore = useNotificationsStore()
 const readingSettings = useReadingSettingsStore()
 const isReadingSettingsOpen = ref(false)
+const isDataManagementOpen = ref(false)
 const profileStore = useProfileStore()
 
 const themeOptions = [

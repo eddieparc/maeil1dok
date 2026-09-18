@@ -123,7 +123,7 @@ function setup(t, { authenticated = true, stored = saved } = {}) {
   });
   runtime.respond = null;
   globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => { storage.set(key, value); runtime.writes.push([key, JSON.parse(value)]); }, removeItem: key => storage.delete(key) };
-  globalThis.window = { YT: {}, addEventListener() {}, removeEventListener() {}, history: { state: {} }, matchMedia: () => ({ matches: false, addEventListener() {} }) };
+  globalThis.window = { YT: {}, addEventListener() {}, removeEventListener() {}, history: { state: {} }, location: { hostname: 'localhost' }, matchMedia: () => ({ matches: false, addEventListener() {} }) };
   globalThis.document = { cookie: '', documentElement: { setAttribute() {} }, querySelector: () => null };
   const pinia = Pinia.createPinia(); Pinia.setActivePinia(pinia);
   const store = useReadingSettingsStore();
@@ -286,9 +286,37 @@ for (const [name, Component] of [['Hasena', Hasena], ['account', Account]]) test
   assert.equal(byId(view.host, 'reading-font-size'), undefined); assert.deepEqual(runtime.navigation, []);
 });
 
-test('record links from the legacy route navigate once without competing with history return', { timeout: 3000 }, async t => {
-  const { store, pinia } = setup(t); await store.initialize(); window.history.state.back = '/hasena';
-  const view = await mount(t, Route, pinia);
+test('record links from the data management sheet navigate once', { timeout: 3000 }, async t => {
+  const { store, pinia } = setup(t); await store.initialize();
+  const view = await mount(t, Account, pinia);
+  click(findAll(view.host, node => node.type === 'button' && textOf(node).includes('데이터 관리'))[0]); await Vue.nextTick();
   click(findAll(view.host, node => node.props.href === '/bible/bookmarks')[0]);
   assert.deepEqual(runtime.navigation, ['/bible/bookmarks']);
+});
+
+const textOf = target => [target.text ?? '', ...target.children.map(textOf)].join('');
+
+test('reading settings sheet contains only reading controls — no disclosure, theme, records or data management', { timeout: 3000 }, async t => {
+  const { store, pinia } = setup(t); await store.initialize();
+  const view = await mount(t, Shared, pinia, { modelValue: true });
+  assert.equal(findAll(view.host, node => node.type === 'details' || node.type === 'summary').length, 0, 'no collapsible advanced section');
+  const text = textOf(view.host);
+  for (const removed of ['테마', '데이터 관리', '북마크', '노트', '하이라이트', '추가 설정'])
+    assert.ok(!text.includes(removed), `sheet must not contain ${removed}`);
+  for (const kept of ['본문 미리보기', '두께', '정렬', '절 번호 표시', '절 붙임', '통독모드 자동 완료', '시편 머리말', '교차 참조', '각주', '인명·지명 강조', '글자 크기', '줄 간격'])
+    assert.ok(text.includes(kept), `sheet keeps ${kept}`);
+});
+
+test('account settings exposes a separate data management sheet with record links and danger actions', { timeout: 3000 }, async t => {
+  const { store, pinia } = setup(t); await store.initialize();
+  const view = await mount(t, Account, pinia);
+  const entry = findAll(view.host, node => node.type === 'button' && textOf(node).includes('데이터 관리'))[0];
+  assert.ok(entry, 'account settings has a 데이터 관리 entry');
+  click(entry); await Vue.nextTick();
+  for (const href of ['/bible/bookmarks', '/bible/notes', '/bible/highlights'])
+    assert.ok(findAll(view.host, node => node.props.href === href)[0], `record link ${href}`);
+  const deleteButton = findAll(view.host, node => node.type === 'button' && textOf(node).includes('북마크 전체 삭제'))[0];
+  assert.ok(deleteButton, 'danger action exists');
+  click(deleteButton); await Vue.nextTick(); await Vue.nextTick();
+  assert.ok(runtime.calls.some(call => call.method === 'DELETE' && call.url.includes('/bible/bookmarks/delete-all/')), 'delete-all API called after confirm');
 });
