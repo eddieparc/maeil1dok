@@ -123,7 +123,7 @@ function setup(t, { authenticated = true, stored = saved } = {}) {
   });
   runtime.respond = null;
   globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => { storage.set(key, value); runtime.writes.push([key, JSON.parse(value)]); }, removeItem: key => storage.delete(key) };
-  globalThis.window = { YT: {}, addEventListener() {}, removeEventListener() {}, history: { state: {} }, matchMedia: () => ({ matches: false, addEventListener() {} }) };
+  globalThis.window = { YT: {}, addEventListener() {}, removeEventListener() {}, history: { state: {} }, location: { hostname: 'localhost' }, matchMedia: () => ({ matches: false, addEventListener() {} }) };
   globalThis.document = { cookie: '', documentElement: { setAttribute() {} }, querySelector: () => null };
   const pinia = Pinia.createPinia(); Pinia.setActivePinia(pinia);
   const store = useReadingSettingsStore();
