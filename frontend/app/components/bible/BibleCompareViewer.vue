@@ -103,27 +103,40 @@ const sanitizedPrimaryContent = computed(() => sanitize(props.primaryContent));
 const sanitizedSecondaryContent = computed(() => sanitize(props.secondaryContent));
 
 // 양쪽 역본을 비율로 함께 스크롤한다. 한쪽을 스크롤하면 다른 쪽도 같은
-// 비율로 움직이고, 되먹임 방지 플래그로 무한 루프를 막는다.
+// 비율로 움직인다. 프로그래밍으로 설정한 scrollTop이 다시 scroll 이벤트를
+// 일으켜 무한 루프가 되는 것을 막기 위해, 설정한 위치와 일치하는 이벤트는
+// 무시한다(rAF/타이머는 백그라운드 탭에서 멈추므로 쓰지 않는다).
 const rootRef = ref<HTMLElement | null>(null);
 let primaryScroller: HTMLElement | null = null;
 let secondaryScroller: HTMLElement | null = null;
-let syncing = false;
+const expectedScrollTop = new WeakMap<HTMLElement, number>();
 
 const syncScroll = (from: HTMLElement, to: HTMLElement) => {
-  if (syncing) return;
   const maxFrom = from.scrollHeight - from.clientHeight;
   const maxTo = to.scrollHeight - to.clientHeight;
   if (maxFrom <= 0 || maxTo <= 0) return;
-  syncing = true;
-  to.scrollTop = (from.scrollTop / maxFrom) * maxTo;
-  requestAnimationFrame(() => { syncing = false; });
+  const target = (from.scrollTop / maxFrom) * maxTo;
+  if (Math.abs(to.scrollTop - target) < 1) return;
+  expectedScrollTop.set(to, target);
+  to.scrollTop = target;
+};
+
+const handleScroll = (from: HTMLElement, to: HTMLElement) => {
+  const expected = expectedScrollTop.get(from);
+  if (expected !== undefined) {
+    expectedScrollTop.delete(from);
+    // 우리가 설정한 위치에서 발생한 이벤트면 되먹임이므로 무시한다.
+    // 사용자가 다른 위치로 스크롤했으면 그대로 동기화한다.
+    if (Math.abs(from.scrollTop - expected) < 1) return;
+  }
+  syncScroll(from, to);
 };
 
 const onPrimaryScroll = () => {
-  if (primaryScroller && secondaryScroller) syncScroll(primaryScroller, secondaryScroller);
+  if (primaryScroller && secondaryScroller) handleScroll(primaryScroller, secondaryScroller);
 };
 const onSecondaryScroll = () => {
-  if (primaryScroller && secondaryScroller) syncScroll(secondaryScroller, primaryScroller);
+  if (primaryScroller && secondaryScroller) handleScroll(secondaryScroller, primaryScroller);
 };
 
 const unbindScrollers = () => {
