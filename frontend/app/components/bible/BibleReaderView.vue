@@ -266,8 +266,8 @@
               type="button"
               :disabled="isCompleting"
               @click="$emit('tongdok-complete-click')"
-              title="통독 완료"
-              aria-label="통독 완료"
+              :title="isTongdokComplete ? '통독 완료 취소' : '통독 완료'"
+              :aria-label="isTongdokComplete ? '통독 완료 취소' : '통독 완료'"
             >
               <span class="tongdok-complete-box" aria-hidden="true">
                 <CheckIcon :size="11" :stroke-width="3" />
