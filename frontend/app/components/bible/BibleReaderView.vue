@@ -6,7 +6,7 @@
         <div class="header-title-stack">
           <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
             <span class="book-chapter-text">
-              <span class="header-range" :class="{ 'is-complete': isTongdokMode && isTongdokComplete }"><span v-if="isTongdokMode && isTongdokComplete" class="header-check" aria-hidden="true">✓</span>{{ headerRange }}</span>
+              <span class="header-range">{{ headerRange }}</span>
             </span>
             <ChevronDownIcon class="selector-icon" :size="13" />
           </button>
@@ -24,7 +24,7 @@
                 :class="{ 'is-complete': isTongdokMode && isTongdokComplete }"
                 type="button"
                 @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')"
-              >{{ headerContext }}</button>
+              ><span v-if="isTongdokMode && isTongdokComplete" class="header-check" aria-hidden="true">✓</span>{{ headerContext }}</button>
               <button
                 v-if="headerContextShort"
                 class="header-context book-name-short"
@@ -800,7 +800,6 @@ button.header-plan-name {
   font-weight: 700;
 }
 
-.header-range.is-complete,
 .header-context.is-complete {
   text-decoration: line-through;
   text-decoration-thickness: 1px;
