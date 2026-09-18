@@ -28,9 +28,19 @@ class VerseSearchHit:
     text: str
 
 
+_SCRIPT_STYLE_RE = re.compile(
+    r'<(script|style)\b[^>]*>[\s\S]*?</\1\s*>', re.IGNORECASE
+)
+
+
+def _drop_script_style(text: str) -> str:
+    """<script>/<style> 블록을 통째로 제거한다 (strip_tags는 내용을 남긴다)."""
+    return _SCRIPT_STYLE_RE.sub(' ', text)
+
+
 def clean_text(text: str) -> str:
     """HTML 태그·엔티티·소스 노이즈를 제거하고 공백을 정리한다."""
-    decoded = unescape(strip_tags(text)).replace('\xa0', ' ')
+    decoded = unescape(strip_tags(_drop_script_style(text))).replace('\xa0', ' ')
     without_source_noise = re.sub(r'\s*직접입력\s*\[[^\]]+\]\s*', ' ', decoded)
     return re.sub(r'\s+', ' ', without_source_noise).strip()
 
@@ -148,10 +158,10 @@ def plain_text(content: str) -> str:
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError:
-        return strip_tags(content)
+        return strip_tags(_drop_script_style(content))
 
     if not isinstance(parsed, dict):
-        return strip_tags(content)
+        return strip_tags(_drop_script_style(content))
 
     verses = parsed.get('verses')
     if isinstance(verses, list):
@@ -163,9 +173,9 @@ def plain_text(content: str) -> str:
 
     inner = parsed.get('content')
     if isinstance(inner, str):
-        return strip_tags(inner)
+        return strip_tags(_drop_script_style(inner))
 
-    return strip_tags(content)
+    return strip_tags(_drop_script_style(content))
 
 
 def find_normalized_index(text: str, normalized_query: str) -> int:

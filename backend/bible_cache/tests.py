@@ -801,3 +801,20 @@ class BibleCacheAPITest(APITestCase):
 
         # 절 번호는 본문이 아니므로 search_text에 포함되지 않는다
         self.assertEqual(obj.search_text, '태초에 하나님이')
+
+    def test_script_and_style_blocks_are_removed_from_search_text(self):
+        """<script>/<style> 내용이 스니펫·검색 텍스트에 새지 않는다."""
+        obj, _ = BibleContentCache.save_to_cache(
+            version='COG',
+            book='gen',
+            chapter=24,
+            content=(
+                '<p><span>67 <script>성경 단어 검색 $("#search_keyword")</script>'
+                '이삭이 리브가를 사랑하였더라</span></p>'
+            ),
+            content_type='html',
+        )
+
+        self.assertNotIn('search_keyword', obj.search_text)
+        self.assertNotIn('성경 단어 검색', obj.search_text)
+        self.assertIn('이삭이 리브가를 사랑하였더라', obj.search_text)
