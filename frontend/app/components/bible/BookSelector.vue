@@ -253,6 +253,12 @@ const confirmedBookId = ref('');
 const confirmedBookName = ref('');
 const confirmedChapter = ref(0);
 const inputError = ref(false);
+let inputErrorTimer: ReturnType<typeof setTimeout> | null = null;
+const flashInputError = () => {
+  inputError.value = true;
+  if (inputErrorTimer) clearTimeout(inputErrorTimer);
+  inputErrorTimer = setTimeout(() => { inputError.value = false; inputErrorTimer = null; }, 500);
+};
 
 // 선택된 책의 장 배열
 const chaptersArray = computed(() => getChaptersArray(selectedBookId.value));
@@ -408,11 +414,8 @@ const handleInput = (event: Event) => {
   } else if (inputMode.value === 'chapter') {
     // 숫자 외 입력 시 에러
     if (value && !/^\d*$/.test(value)) {
-      inputError.value = true;
-      // 숫자만 남기기
       chapterInput.value = value.replace(/[^0-9]/g, '');
-      // 0.5초 후 에러 상태 해제
-      setTimeout(() => { inputError.value = false; }, 500);
+      flashInputError();
     } else {
       inputError.value = false;
       chapterInput.value = value;
@@ -420,9 +423,8 @@ const handleInput = (event: Event) => {
   } else if (inputMode.value === 'verse') {
     // 숫자 외 입력 시 에러
     if (value && !/^\d*$/.test(value)) {
-      inputError.value = true;
       verseInput.value = value.replace(/[^0-9]/g, '');
-      setTimeout(() => { inputError.value = false; }, 500);
+      flashInputError();
     } else {
       inputError.value = false;
       verseInput.value = value;
@@ -476,8 +478,7 @@ const handleEnterKey = () => {
       return;
     }
 
-    inputError.value = true;
-    setTimeout(() => { inputError.value = false; }, 500);
+    flashInputError();
   } else if (inputMode.value === 'verse') {
     // 절 입력 모드: 절 입력이 있으면 해당 절로, 없으면 그냥 닫기
     const verse = parseInt(verseInput.value, 10);

@@ -121,8 +121,7 @@
     <template #primary>
     <BibleViewer
       ref="bibleViewerRef"
-      :content="displayContent"
-      :swap-phase="swapPhase"
+      :content="viewerContent"
       :book="currentBookName"
       :chapter="currentChapter"
       :version="currentVersionName"
@@ -426,29 +425,8 @@ const viewerContent = computed(() => {
   );
 });
 
-// 역본 교체 애니메이션: v-html 재생성이 exit 애니메이션을 끊지 않도록
-// displayContent를 얼려 두고, exit이 끝난 뒤 새 DOM을 넣어 enter를 재생한다.
-const displayContent = ref(viewerContent.value);
-const swapPhase = ref<'' | 'exit' | 'enter'>('');
-const swapAnimating = ref(false);
-watch(viewerContent, (value) => {
-  if (!swapAnimating.value) displayContent.value = value;
-});
-
 const handleCompareSwap = () => {
-  if (swapAnimating.value) return;
-  swapAnimating.value = true;
-  swapPhase.value = 'exit';
   emit('compare-swap');
-  window.setTimeout(() => {
-    displayContent.value = viewerContent.value;
-    swapPhase.value = 'enter';
-    window.setTimeout(() => {
-      swapPhase.value = '';
-      displayContent.value = viewerContent.value;
-      swapAnimating.value = false;
-    }, 220);
-  }, 170);
 };
 
 const boundAudioContextKey = computed(() => props.audioContextKey ?? JSON.stringify([
@@ -997,7 +975,7 @@ button.header-plan-name {
   opacity: 0.85;
 }
 
-/* 상태 도트 (은은한 펄스 효과) */
+/* 상태 도트 */
 .status-dot {
   display: inline-block;
   width: 6px;
@@ -1005,17 +983,10 @@ button.header-plan-name {
   border-radius: 50%;
   background-color: var(--primary-color);
   margin-right: 2px;
-  animation: pulse-dot 2s infinite ease-in-out;
 }
 
 .tongdok-badge-inline:hover .status-dot {
   background-color: var(--primary-color);
-}
-
-@keyframes pulse-dot {
-  0% { opacity: 0.4; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.1); }
-  100% { opacity: 0.4; transform: scale(0.9); }
 }
 
 .header-left-actions,
@@ -1584,7 +1555,6 @@ button.header-plan-name {
   height: 6px;
   border-radius: 50%;
   background-color: var(--primary-color);
-  animation: pulse-dot 2s infinite ease-in-out;
 }
 
 .schedule-short-date {

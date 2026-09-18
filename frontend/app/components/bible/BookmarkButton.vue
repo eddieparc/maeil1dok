@@ -34,10 +34,7 @@ const handleClick = async () => {
   try {
     emit('toggle');
   } finally {
-    // 짧은 딜레이 후 로딩 해제 (UI 피드백용)
-    setTimeout(() => {
-      isLoading.value = false;
-    }, 300);
+    isLoading.value = false;
   }
 };
 </script>

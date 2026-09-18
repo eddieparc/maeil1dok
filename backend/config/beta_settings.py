@@ -10,11 +10,14 @@ SIMPLE_JWT = {**SIMPLE_JWT, 'SIGNING_KEY': SECRET_KEY}
 DEBUG = False
 
 FRONTEND_URL = 'https://beta.maeil1dok.app'
-ALLOWED_HOSTS = ['beta.maeil1dok.app']
-CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
+# Vercel icn1-hosted beta frontend (LAB-142). Same-origin /api/v1 rewrites proxy
+# to FRONTEND_URL, so the browser Origin is this host on mutating requests.
+VERCEL_FRONTEND_URL = 'https://beta-v.maeil1dok.app'
+ALLOWED_HOSTS = ['beta.maeil1dok.app', 'beta-v.maeil1dok.app']
+CORS_ALLOWED_ORIGINS = [FRONTEND_URL, VERCEL_FRONTEND_URL]
 CORS_EXPOSE_HEADERS = [*CORS_EXPOSE_HEADERS, 'x-beta-test-mail']
-CSRF_TRUSTED_ORIGINS = [FRONTEND_URL]
-OAUTH_CALLBACK_ORIGINS = [FRONTEND_URL]
+CSRF_TRUSTED_ORIGINS = [FRONTEND_URL, VERCEL_FRONTEND_URL]
+OAUTH_CALLBACK_ORIGINS = [FRONTEND_URL, VERCEL_FRONTEND_URL]
 KAKAO_REDIRECT_URI = f'{FRONTEND_URL}/auth/kakao/callback'
 GOOGLE_REDIRECT_URI = f'{FRONTEND_URL}/auth/google/callback'
 APPLE_REDIRECT_URI = f'{FRONTEND_URL}/auth/apple/callback'

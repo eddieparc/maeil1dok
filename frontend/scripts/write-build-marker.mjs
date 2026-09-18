@@ -29,7 +29,7 @@ function gitSha() {
   // CI provides the SHA directly; a local build falls back to git. An unknown SHA
   // is written as `unknown` rather than omitted, so the gate sees an explicit
   // value it can reject instead of a missing field it might treat as optional.
-  const fromEnv = process.env.GITHUB_SHA || process.env.COMMIT_SHA
+  const fromEnv = process.env.GITHUB_SHA || process.env.COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA
   if (fromEnv && fromEnv.trim()) return fromEnv.trim()
   try {
     return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
