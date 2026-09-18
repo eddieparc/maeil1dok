@@ -41,7 +41,7 @@
           :aria-label="`${otherPaneName}로 전환`"
           @click="mobilePane = otherPane"
         >
-          <SwapIcon :size="14" />
+          <SwapIcon :size="11" />
           <span>{{ otherPaneLabel }}</span>
         </button>
       </div>
@@ -374,13 +374,13 @@ onBeforeUnmount(() => {
 .pane-switch {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
+  gap: 3px;
+  padding: 4px 8px;
   border: none;
   border-radius: 999px;
   background: var(--color-bg-secondary);
   color: var(--color-text-secondary);
-  font-size: 0.8125rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
