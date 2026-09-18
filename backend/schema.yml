@@ -2118,7 +2118,6 @@ paths:
           - SAE
           - SAENEW
           - WEB
-          - WOORI
         description: Bible translation code. Surrounding whitespace is ignored.
       tags:
       - bible-cache

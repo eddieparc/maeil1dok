@@ -53,23 +53,6 @@ export async function fetchStandardContentWithCache(
   });
 }
 
-export async function fetchWooriContentFromCache(
-  bibleCacheUrl: string,
-  book: string,
-  chapter: number,
-): Promise<BibleFetchResult> {
-  if (!bibleCacheUrl) {
-    return errorResult('json');
-  }
-
-  try {
-    return await fetchFromCacheServer(bibleCacheUrl, 'WOORI', book, chapter);
-  } catch (error) {
-    console.error('[BibleFetch] WOORI cache failed:', formatUnknownError(error));
-    return errorResult('json');
-  }
-}
-
 export async function fetchFromCacheServer(
   bibleCacheUrl: string,
   version: string,

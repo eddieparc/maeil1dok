@@ -467,7 +467,7 @@ BIBLE_BOOK_CHAPTERS = {
 }
 
 SUPPORTED_READING_VERSIONS = frozenset({
-    'GAE', 'KNT', 'WOORI', 'SAENEW', 'HAN', 'SAE', 'COG', 'COGNEW',
+    'GAE', 'KNT', 'SAENEW', 'HAN', 'SAE', 'COG', 'COGNEW',
 })
 
 

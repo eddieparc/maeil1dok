@@ -7593,7 +7593,7 @@ export interface operations {
                 /** @description Search text (minimum two characters after trimming). */
                 q: string;
                 /** @description Bible translation code. Surrounding whitespace is ignored. */
-                version?: "ASV" | "COG" | "COGNEW" | "GAE" | "GRK" | "HAN" | "HEB" | "KJV" | "KNT" | "SAE" | "SAENEW" | "WEB" | "WOORI";
+                version?: "ASV" | "COG" | "COGNEW" | "GAE" | "GRK" | "HAN" | "HEB" | "KJV" | "KNT" | "SAE" | "SAENEW" | "WEB";
             };
             header?: never;
             path?: never;

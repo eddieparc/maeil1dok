@@ -25,7 +25,6 @@ export type SearchResult = BibleSearchResult;
 export const VERSION_NAMES = Object.freeze({
   GAE: "개역개정",
   KNT: "새한글",
-  WOORI: "우리말성경",
   SAENEW: "새번역",
   HAN: "개역한글",
   SAE: "표준새번역",
@@ -39,12 +38,12 @@ export const VERSION_NAMES = Object.freeze({
 }) as Record<string, string>;
 
 export const VERSION_CATEGORIES = Object.freeze({
-  korean: ['GAE', 'KNT', 'WOORI', 'SAENEW', 'HAN', 'SAE', 'COG', 'COGNEW'],
+  korean: ['GAE', 'KNT', 'SAENEW', 'HAN', 'SAE', 'COG', 'COGNEW'],
   original: [] as string[],
   english: [] as string[],
 });
 
-const UNSUPPORTED_VERSIONS = new Set(['HEB', 'GRK', 'KJV', 'WEB', 'ASV']);
+const UNSUPPORTED_VERSIONS = new Set(['HEB', 'GRK', 'KJV', 'WEB', 'ASV', 'WOORI']);
 
 export const VISIBLE_VERSION_NAMES = Object.freeze(
   Object.fromEntries(
@@ -60,7 +59,6 @@ export const VERSION_META = Object.freeze({
   ASV: { direction: 'ltr', language: 'english', testament: 'both' },
   GAE: { direction: 'ltr', language: 'korean', testament: 'both' },
   KNT: { direction: 'ltr', language: 'korean', testament: 'both' },
-  WOORI: { direction: 'ltr', language: 'korean', testament: 'both' },
   SAENEW: { direction: 'ltr', language: 'korean', testament: 'both' },
   HAN: { direction: 'ltr', language: 'korean', testament: 'both' },
   SAE: { direction: 'ltr', language: 'korean', testament: 'both' },

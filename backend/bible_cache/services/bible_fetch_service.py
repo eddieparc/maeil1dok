@@ -21,7 +21,6 @@ from bible_cache.services.bible_fetch_service_constants import (
 )
 from bible_cache.services.cache_refresh_coordinator import CacheRefreshCoordinator
 from bible_cache.services.knt_bible_service import KntBibleService
-from bible_cache.services.woori_bible_service import WooriBibleService
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,6 @@ SUPPORTED_VERSIONS = frozenset({
     'SAENEW',   # 새번역
     'COG',      # 공동번역
     'COGNEW',   # 공동번역 개정판
-    'WOORI',    # 우리말성경 (두라노)
     # 원어/영어 역본 (API.Bible)
     'HEB',      # 히브리어 (Westminster Leningrad Codex)
     'GRK',      # 헬라어 (SBL Greek New Testament)
@@ -237,8 +235,6 @@ class BibleFetchService:
         # 한글 역본
         if version == 'KNT':
             return KntBibleService.fetch(book, chapter)
-        elif version == 'WOORI':
-            return WooriBibleService.fetch(book, chapter)
         else:
             return BibleFetchService._fetch_standard(version, book, chapter)
 

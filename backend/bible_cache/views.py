@@ -222,7 +222,6 @@ def get_supported_versions(request):
         'SAENEW': '새번역',
         'COG': '공동번역',
         'COGNEW': '공동번역 개정판',
-        'WOORI': '우리말성경',
         # 원어 역본
         'HEB': '히브리어 (WLC)',
         'GRK': '헬라어 (SBLGNT)',
@@ -308,13 +307,8 @@ def search_cached_content(request):
 
 
 def _get_fallback_url(version: str, book: str, chapter: int) -> str:
-    """직접 링크 생성 (대한성서공회 또는 두라노)"""
+    """직접 링크 생성 (대한성서공회)"""
     if version == 'KNT':
         return f"https://www.bskorea.or.kr/KNT/index.php?chapter={book.upper()}.{chapter}"
-    elif version == 'WOORI':
-        # 두라노 우리말성경 직접 링크
-        from bible_cache.services.woori_bible_service import WOORI_BOOK_CODE_MAP
-        vl = WOORI_BOOK_CODE_MAP.get(book.lower(), 1)
-        return f"https://www.duranno.com/bdictionary/result_woori.asp?s=r&kd=104&vl={vl}&ct={chapter}"
     else:
         return f"https://www.bskorea.or.kr/bible/korbibReadpage.php?version={version}&book={book}&chap={chapter}"
