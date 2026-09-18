@@ -23,10 +23,12 @@
         :compare-enabled="compareEnabled"
         :secondary-content="secondaryContent"
         :secondary-version-name="versionNames[secondaryVersion] || secondaryVersion"
+        :primary-version-code="currentVersion"
+        :secondary-version-code="secondaryVersion"
         :primary-meta="versionMeta[currentVersion]"
         :secondary-meta="versionMeta[secondaryVersion]"
         :is-secondary-loading="isSecondaryLoading"
-        @compare-select="openBookSelectorForCompare"
+        @compare-version-select="handleCompareColumnSelect"
         @compare-swap="swapCompareVersions"
         :is-loading="isLoading"
         :scroll-position="scrollPosition"
@@ -388,12 +390,14 @@ const toggleCompare = () => {
   if (compareEnabled.value && secondaryVersion.value === currentVersion.value) secondaryVersion.value = currentVersion.value === 'GAE' ? 'KNT' : 'GAE';
   persistCompare();
 };
-const openBookSelectorForCompare = (_column: 'primary' | 'secondary') => {
-  showBookSelector.value = true;
-};
 const handleCompareVersionSelect = (version: string) => {
   secondaryVersion.value = version;
   persistCompare();
+};
+// 비교 뷰어 컬럼 헤더 드롭다운에서 바로 역본을 바꾼다.
+const handleCompareColumnSelect = (column: 'primary' | 'secondary', version: string) => {
+  if (column === 'primary') handleVersionSelect(version);
+  else handleCompareVersionSelect(version);
 };
 const swapCompareVersions = async () => {
   const primary = currentVersion.value;

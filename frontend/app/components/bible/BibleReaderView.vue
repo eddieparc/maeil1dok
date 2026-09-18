@@ -101,10 +101,11 @@
     <BibleCompareViewer
       :enabled="compareEnabled" :primary-content="content" :secondary-content="secondaryContent || ''"
       :primary-version-name="currentVersionName" :secondary-version-name="secondaryVersionName || ''"
+      :primary-version-code="primaryVersionCode" :secondary-version-code="secondaryVersionCode"
       :primary-meta="primaryMeta" :secondary-meta="secondaryMeta"
       :is-primary-loading="isLoading" :is-secondary-loading="isSecondaryLoading"
-      @select-primary="$emit('compare-select', 'primary')"
-      @select-secondary="$emit('compare-select', 'secondary')" @swap="$emit('compare-swap')">
+      @version-select="(column, version) => $emit('compare-version-select', column, version)"
+      @swap="$emit('compare-swap')">
     <template #primary>
     <BibleViewer
       ref="bibleViewerRef"
@@ -329,6 +330,8 @@ interface Props {
   compareEnabled?: boolean;
   secondaryContent?: string;
   secondaryVersionName?: string;
+  primaryVersionCode?: string;
+  secondaryVersionCode?: string;
   isSecondaryLoading?: boolean;
   primaryMeta?: { direction: string; language: string; testament: string };
   secondaryMeta?: { direction: string; language: string; testament: string };
@@ -495,7 +498,7 @@ const emit = defineEmits<{
   'open-book-selector': [];
   'open-version-selector': [];
   'open-settings': [];
-  'compare-select': [column: 'primary' | 'secondary'];
+  'compare-version-select': [column: 'primary' | 'secondary', version: string];
   'compare-swap': [];
 
   // 사용자 액션

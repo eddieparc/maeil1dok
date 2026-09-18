@@ -27,9 +27,12 @@ for (const width of [390, 1280]) {
     await page.locator('.primary .verse').nth(2).click();
     await expect(page.getByTestId('selection-action-menu')).toBeVisible();
     await page.locator('.primary .verse').nth(2).click();
+    // 컬럼 헤더 버튼에서 바로 역본을 바꾼다 (시트를 열지 않는다).
     await page.locator('.secondary .version-btn').click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.keyboard.press('Escape');
+    await expect(page.locator('.version-menu')).toBeVisible();
+    await page.locator('.version-menu-item', { hasText: '개역개정' }).click();
+    await expect(page.locator('.secondary .version-btn')).toContainText('개역개정');
+    await expect(page.locator('.compare-column.secondary .verse')).toHaveCount(24);
     await page.locator('.swap-btn').click();
     await expect(page).toHaveURL(/version=GAE/);
     await page.reload();

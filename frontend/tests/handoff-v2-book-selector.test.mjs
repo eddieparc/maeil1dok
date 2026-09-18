@@ -284,12 +284,14 @@ test('numeric focus does not scroll an ancestor', { timeout: 5000 }, async () =>
 
 test('version chips preserve supported codes and emit without closing', { timeout: 5000 }, async () => {
   const view = await selector();
-  assert.equal(view.all('.version-chip').length, 8);
-  await act(view.all('.version-chip')[1], 'Click');
+  // 역본 비교 토글도 .version-chip 클래스를 쓰므로 목록 칩만 고른다.
+  const chips = () => view.all('.version-chip').filter(node => !node.matches('.compare-toggle'));
+  assert.equal(chips().length, 8);
+  await act(chips()[1], 'Click');
   assert.deepEqual(view.events, [['version-select', 'KNT']]);
   assert.equal(view.state.modelValue, true);
   await view.update({ currentVersion: 'KNT' });
-  assert.ok(view.all('.version-chip')[1].matches('.active'));
+  assert.ok(chips()[1].matches('.active'));
 });
 
 for (const [query, expected, action] of [
@@ -341,7 +343,7 @@ test('book selection retains staged verse entry and chapter list keeps two-argum
 test('search controls and selected locations expose accessible machine states', { timeout: 5000 }, async () => {
   const view = await selector();
   assert.ok(view.find('input').props['aria-label']);
-  assert.equal(view.all('.version-chip')[0].props['aria-pressed'], true);
+  assert.equal(view.all('.version-chip').filter(node => !node.matches('.compare-toggle'))[0].props['aria-pressed'], true);
   assert.equal(view.find('[data-id="jhn"]').props['aria-pressed'], true);
   assert.equal(view.find('[data-chapter="3"]').props['aria-current'], 'location');
   await input(view, '요한');
