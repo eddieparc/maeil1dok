@@ -39,8 +39,7 @@
         :is-tongdok-mode="isTongdokMode"
         :tongdok-schedule-range="tongdokScheduleRange"
         :tongdok-schedule-date="tongdokScheduleDate"
-        :tongdok-full-range="fullTongdokRange"
-        :tongdok-plan-name="readerPlanName"
+        :tongdok-schedule="tongdokScheduleRows"
         :tongdok-audio-link="tongdokAudioLink"
         :tongdok-guide-link="tongdokGuideLink"
         :tongdok-progress="tongdokProgress"
@@ -73,7 +72,7 @@
         @copy="handleCopyAction"
         @share="handleShareAction"
         @exit-tongdok="handleExitTongdok"
-        @tongdok-complete-click="handleTongdokComplete"
+        @tongdok-complete-click="handleTongdokComplete(undefined, undefined, true)"
         @today-tongdok="handleTodayTongdok"
         @audio-link-click="handleEmbeddedAudioLink"
         @audio-external-click="handleAudioLink"
@@ -289,13 +288,16 @@ const {
   isCompleting,
   initTongdokMode,
   getTongdokScheduleRange,
+  getScheduleRows,
   getFullScheduleRange,
   isLastChapterInTongdok,
   disableTongdokMode,
   enableTongdokMode,
   completeCurrentChapter,
+  uncompleteCurrentChapter,
   markAllScheduleChapters,
   isChapterCompleted,
+  isScheduleCompleted,
   getCurrentSectionChapters,
   readingDetailResponse,
   loadReadingDetail,
@@ -473,6 +475,7 @@ const tongdokScheduleRange = computed(() =>
   getTongdokScheduleRange(currentBook.value, currentChapter.value)
 );
 const fullTongdokRange = computed(() => getFullScheduleRange());
+const tongdokScheduleRows = computed(() => getScheduleRows());
 const isAtLastTongdokChapter = computed(() =>
   isLastChapterInTongdok(currentBook.value, currentChapter.value)
 );
@@ -1143,7 +1146,7 @@ const openCompletion = async (context: string, planId: number, scheduleId: numbe
     completionPreparing.value = false;
   }
 };
-const handleTongdokComplete = async (_payload?: unknown, audioSource?: AudioEndedSource) => {
+const handleTongdokComplete = async (_payload?: unknown, audioSource?: AudioEndedSource, allowUndo = false) => {
   if (!isTongdokMode.value || isCompleting.value || completionPreparing.value) return;
   if (!(await requireAuthWithPrompt('로그인해야 통독 기록을 저장할 수 있습니다'))) return;
   const context = readerContextKey.value;
@@ -1152,6 +1155,17 @@ const handleTongdokComplete = async (_payload?: unknown, audioSource?: AudioEnde
   await loadReadingDetail(tongdokPlanId.value, book, chapter);
   if (context !== readerContextKey.value || (audioSource && audioSource.audioContextKey !== audioContextKey.value)) return;
   // 버튼 클릭은 그날 일정 전체를 완료한다. 오디오 종료는 현재 장만 완료한다.
+  // 체크박스를 완료 상태에서 다시 누르면 잘못 체크한 완료를 되돌린다.
+  // (다음 장 확인 모달처럼 완료 의도가 명시된 경로는 되돌리지 않는다.)
+  if (allowUndo && !audioSource && isScheduleCompleted()) {
+    const result = await uncompleteCurrentChapter(book, chapter);
+    progressRevision.value++;
+    if (!pageActive || context !== readerContextKey.value || result.status === 'stale-context') return;
+    if (result.status === 'busy' || result.status === 'not-complete') return;
+    if (!result.ok) { toast.error('완료 취소에 실패했습니다'); return; }
+    toast.success('통독 완료를 취소했어요');
+    return;
+  }
   if (!audioSource) markAllScheduleChapters();
   const result = await completeCurrentChapter(book, chapter);
   progressRevision.value++;
