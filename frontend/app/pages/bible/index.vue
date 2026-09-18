@@ -93,14 +93,6 @@
         @confirm="handleTongdokComplete"
       />
 
-      <!-- 이미 완료된 통독 일정 모달 -->
-      <TongdokAlreadyCompleteModal
-        v-model="showAlreadyCompleteModal"
-        :schedule-range="fullTongdokRange"
-        :is-loading="isCompleting"
-        @action="handleAlreadyCompleteAction"
-      />
-
       <!-- 통독 완료 후 다음 일정 이동 모달 -->
       <TongdokNextScheduleModal
         v-model="showNextScheduleModal"
@@ -229,8 +221,6 @@ import type { SelectionSharePayload } from '~/components/bible/BibleViewer.vue';
 import BookSelector from '~/components/bible/BookSelector.vue';
 import VersionSelector from '~/components/bible/VersionSelector.vue';
 import TongdokCompleteModal from '~/components/bible/TongdokCompleteModal.vue';
-import TongdokAlreadyCompleteModal from '~/components/bible/TongdokAlreadyCompleteModal.vue';
-import type { AlreadyCompleteAction } from '~/components/bible/TongdokAlreadyCompleteModal.vue';
 import TongdokNextScheduleModal from '~/components/bible/TongdokNextScheduleModal.vue';
 import type { NextScheduleAction } from '~/components/bible/TongdokNextScheduleModal.vue';
 import TongdokCertificationModal from '~/components/bible/TongdokCertificationModal.vue';
@@ -247,6 +237,7 @@ import Toast from '~/components/Toast.vue';
 // 유틸리티
 import { getBookCode } from '~/constants/bible';
 import { parseSearchFocusParam } from '~/utils/bibleSearchRoute';
+import { selectTongdokLastChapterAction } from '~/utils/tongdokLastChapter';
 
 // 타입
 import type { VerseSelection } from '~/types/bible';
@@ -366,7 +357,6 @@ const {
   closeTongdokCompleteModal,
 } = useBibleModals();
 
-const showAlreadyCompleteModal = ref(false);
 const showNextScheduleModal = ref(false);
 const showCertificationModal = ref(false);
 const certificationCloseHandler = ref<(() => Promise<void> | void) | null>(null);
@@ -393,31 +383,6 @@ const openCertificationModal = (
   certificationContext.value = context;
   certificationCloseHandler.value = onClose ?? null;
   showCertificationModal.value = true;
-};
-
-const ALREADY_COMPLETE_ACTION_KEY = 'tongdokAlreadyCompleteAction';
-type SavedAlreadyCompleteAction = 're-complete' | 'go-next' | null;
-
-const getSavedAlreadyCompleteAction = (): SavedAlreadyCompleteAction => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const saved = localStorage.getItem(ALREADY_COMPLETE_ACTION_KEY);
-    if (saved === 're-complete' || saved === 'go-next') return saved;
-    return null;
-  } catch {
-    return null;
-  }
-};
-
-const saveAlreadyCompleteAction = (action: SavedAlreadyCompleteAction): void => {
-  if (typeof window === 'undefined') return;
-  try {
-    if (action) {
-      localStorage.setItem(ALREADY_COMPLETE_ACTION_KEY, action);
-    } else {
-      localStorage.removeItem(ALREADY_COMPLETE_ACTION_KEY);
-    }
-  } catch {}
 };
 
 // 통독 완료 후 다음 일정 이동 모달 관련
@@ -626,25 +591,21 @@ const goToPrevChapter = async () => {
 const goToNextChapter = async () => {
   // 통독 모드에서 마지막 장일 때
   if (isTongdokMode.value && isAtLastTongdokChapter.value) {
-    // 이미 완료된 일정이면 기존 AlreadyComplete 모달 표시
-    if (isScheduleCompleted()) {
-      const savedAction = getSavedAlreadyCompleteAction();
-      if (savedAction) {
-        await handleAlreadyCompleteAction({ action: savedAction, remember: true });
-        return;
-      }
-      showAlreadyCompleteModal.value = true;
-      return;
-    }
+    const action = selectTongdokLastChapterAction({
+      isScheduleCompleted: isScheduleCompleted(),
+      savedNextScheduleAction: getSavedNextScheduleAction(),
+    });
 
-    // 미완료 일정이면 완료 후 다음 일정 이동 모달 표시
-    const savedAction = getSavedNextScheduleAction();
-    if (savedAction) {
-      await handleNextScheduleAction({ action: savedAction, remember: true });
+    // 이미 완료된 일정이면 모달 없이 그냥 다음 장으로 이동
+    if (action === 'navigate') {
+      disableTongdokMode();
+    } else if (action === 'saved') {
+      await handleNextScheduleAction({ action: 'go-next-schedule', remember: true });
+      return;
+    } else {
+      showNextScheduleModal.value = true;
       return;
     }
-    showNextScheduleModal.value = true;
-    return;
   }
 
   goToNextChapterBase();
@@ -1035,39 +996,6 @@ const handleCertificationClose = async () => {
     return;
   }
   router.push('/plan');
-};
-
-const handleAlreadyCompleteAction = async (payload: { action: AlreadyCompleteAction; remember: boolean }) => {
-  if (payload.remember && payload.action !== 'cancel') {
-    saveAlreadyCompleteAction(payload.action);
-  }
-
-  showAlreadyCompleteModal.value = false;
-
-  switch (payload.action) {
-    case 're-complete': {
-      if (!requireAuth('로그인해야 통독 기록을 저장할 수 있습니다')) return;
-      const completionContext = getCertificationContext();
-      const success = await completeReading();
-      if (success) {
-        toast.success('통독을 다시 완료 처리했습니다!');
-        openCertificationModal(completionContext);
-      } else {
-        toast.error('완료 처리에 실패했습니다');
-      }
-      break;
-    }
-    case 'go-next': {
-      disableTongdokMode();
-      goToNextChapterBase();
-      loadBibleContent(currentBook.value, currentChapter.value);
-      scrollToTop();
-      break;
-    }
-    case 'cancel':
-    default:
-      break;
-  }
 };
 
 const continueToNextUnreadSchedule = async (planId: number): Promise<void> => {
