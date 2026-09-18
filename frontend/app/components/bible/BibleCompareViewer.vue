@@ -22,7 +22,7 @@
           aria-label="역본 교체"
           @click="handleSwapClick"
         >
-          <SwapIcon :size="16" :style="{ transform: `rotate(${swapRotation}deg)` }" />
+          <SwapIcon :size="16" />
         </button>
       </template>
       <span v-if="isSecondaryLoading" class="compare-loading">불러오는 중…</span>
@@ -125,7 +125,6 @@ const propVersions = (): [VersionSlot, VersionSlot] => [
 
 const displayVersions = ref<[VersionSlot, VersionSlot]>(propVersions());
 const swapLocked = ref(false);
-const swapRotation = ref(0);
 const swapFrozen = ref(false);
 let swapSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -188,33 +187,16 @@ const headerItems = computed<HeaderItem[]>(() => {
   return items;
 });
 
-const versionButtons = () =>
-  Array.from(headerRef.value?.querySelectorAll<HTMLElement>('.version-btn') ?? []);
-
 const handleSwapClick = async () => {
   if (swapLocked.value) return;
   swapLocked.value = true;
   closeMenu();
-  const before = new Map(versionButtons().map(el => [el, el.getBoundingClientRect()]));
-  // 낙관적 순서 교체: 버튼이 즉시 자리를 바꾸고 FLIP으로 이동한다.
-  // emit 전에 얼려야 부모의 동기 prop 갱신이 중간 상태를 밀어 넣지 않는다.
+  // 낙관적 순서 교체: emit 전에 얼려야 부모의 동기 prop 갱신이 중간 상태를 밀어 넣지 않는다.
   swapFrozen.value = true;
   displayVersions.value = [displayVersions.value[1], displayVersions.value[0]];
-  swapRotation.value += 180;
   emit('swap');
   await nextTick();
-  for (const el of versionButtons()) {
-    const from = before.get(el);
-    if (!from) continue;
-    const to = el.getBoundingClientRect();
-    const dx = from.left - to.left;
-    if (!dx) continue;
-    el.animate(
-      [{ transform: `translateX(${dx}px)`, zIndex: '1' }, { transform: 'translateX(0)', zIndex: '1' }],
-      { duration: 220, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
-    );
-  }
-  window.setTimeout(() => { swapLocked.value = false; }, 240);
+  window.setTimeout(() => { swapLocked.value = false; }, 100);
   // 최종 props가 오면 watcher가 동기화한다. 오지 않으면 3초 뒤 실제 값으로 복귀.
   if (swapSettleTimer) clearTimeout(swapSettleTimer);
   swapSettleTimer = setTimeout(() => {

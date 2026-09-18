@@ -84,6 +84,15 @@ export const buildNativeAppleLinkRequest = state => {
   }
 }
 
+export const isBetaHost = hostname =>
+  hostname === 'beta.maeil1dok.app'
+
+export const betaModeTargetUrl = enabled =>
+  enabled ? 'https://beta.maeil1dok.app/' : 'https://maeil1dok.app/'
+
+export const canShellSwitchBeta = win =>
+  win.__shellBetaMode === true
+
 export const parseNativeAppleLinkResult = message => {
   if (typeof message !== 'object' || message === null) return null
   if (message.type !== 'auth:apple:link:result') return null

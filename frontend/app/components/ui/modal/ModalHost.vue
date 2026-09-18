@@ -43,8 +43,8 @@ function handleClose(modal: ModalInstance): void {
   --modal-scrim: var(--color-overlay);
   --modal-radius: var(--radius-card);
   --modal-radius-sheet: 20px 20px 0 0;
-  --modal-enter: 220ms;
-  --modal-leave: 160ms;
+  --modal-enter: 120ms;
+  --modal-leave: 90ms;
   --modal-ease-out: cubic-bezier(0.32, 0.72, 0, 1);
   --modal-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --modal-settle: translateY(8px) scale(0.98);

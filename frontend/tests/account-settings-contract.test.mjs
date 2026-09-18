@@ -7,13 +7,16 @@ import * as Vue from 'vue';
 import { createSSRApp, defineComponent, h } from 'vue';
 import { renderToString } from '@vue/server-renderer';
 import {
+  betaModeTargetUrl,
   buildDeleteAccountPayload,
   buildNativeAppleLinkRequest,
   buildNotificationSettingsPayload,
   buildOAuthLinkUrl,
   buildPasswordMergePayload,
   buildSocialMergePayload,
+  canShellSwitchBeta,
   getProviderDisplayName,
+  isBetaHost,
   mergeEmailUpdateIntoAuthUser,
   parseNativeAppleLinkResult,
   shouldUseNativeAppleLink,
@@ -626,6 +629,29 @@ test('native Apple link results accept credentials but reject malformed messages
     type: 'auth:apple:link:result',
     data: { state: 'one-time-state', code: 'missing-token' },
   }), null);
+});
+
+test('beta mode helpers derive host, target URL, and shell capability', () => {
+  assert.equal(isBetaHost('beta.maeil1dok.app'), true);
+  assert.equal(isBetaHost('maeil1dok.app'), false);
+  assert.equal(isBetaHost('evilbeta.maeil1dok.app'), false);
+  assert.equal(betaModeTargetUrl(true), 'https://beta.maeil1dok.app/');
+  assert.equal(betaModeTargetUrl(false), 'https://maeil1dok.app/');
+  assert.equal(canShellSwitchBeta({ __shellBetaMode: true }), true);
+  assert.equal(canShellSwitchBeta({}), false);
+  assert.equal(canShellSwitchBeta({ __shellBetaMode: 'true' }), false);
+});
+
+test('account settings exposes a beta mode switch wired to the native bridge', () => {
+  const betaRows = findElements(node =>
+    node.tag === 'AppSwitch' &&
+    (node.props ?? []).some(prop =>
+      prop.type === 6 && prop.name === 'label' && prop.value?.content === '베타 모드',
+    ),
+  );
+  assert.equal(betaRows.length, 1);
+  assert.match(scriptSetupSource, /sendToNative\(\{ type: 'beta:set', enabled \}\)/);
+  assert.match(scriptSetupSource, /isBetaHost\(window\.location\.hostname\)/);
 });
 
 const editActionPattern = />\s*프로필 편집\s*<\/(?:button|AppButton)>/;

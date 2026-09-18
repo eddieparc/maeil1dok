@@ -188,6 +188,12 @@ export default defineNuxtConfig({
   },
   nitro: {
     routeRules: {
+      // Vercel 배포에서 브라우저 API 호출을 same-origin으로 프록시한다.
+      // NUXT_API_PROXY_TARGET이 있을 때만 활성 — OCI는 cloudflared가 /api를
+      // 백엔드로 먼저 라우팅하고, 로컬 dev는 이 변수가 없어 규칙이 생기지 않는다.
+      ...(process.env.NUXT_API_PROXY_TARGET
+        ? { '/api/v1/**': { proxy: `${process.env.NUXT_API_PROXY_TARGET}/api/v1/**` } }
+        : {}),
       '/**': {
         headers: {
           'cache-control': 'no-store'
