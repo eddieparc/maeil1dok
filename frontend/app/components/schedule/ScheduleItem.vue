@@ -55,15 +55,15 @@ function isCurrentLocation(schedule: Schedule) {
         <span class="check-circle" :class="{ checked: allCompleted }"><Check v-if="allCompleted" :size="16" aria-hidden="true" /><Minus v-else-if="mixed" :size="16" aria-hidden="true" /></span>
       </button>
       <div class="schedule-info">
-        <button v-if="schedules.length > 1" type="button" class="group-date" :class="{ 'is-complete': allCompleted }" :disabled="disabled" @click="emit('groupClick', schedules)"><span v-if="allCompleted" class="schedule-check" aria-hidden="true">✓</span>{{ formattedDate }}</button>
-        <span v-else class="schedule-date" :class="{ 'is-complete': allCompleted }"><span v-if="allCompleted" class="schedule-check" aria-hidden="true">✓</span>{{ formattedDate }}</span>
+        <button v-if="schedules.length > 1" type="button" class="group-date" :disabled="disabled" @click="emit('groupClick', schedules)">{{ formattedDate }}</button>
+        <span v-else class="schedule-date">{{ formattedDate }}</span>
         <div v-for="schedule in schedules" :key="schedule.id" class="schedule-reading-item" :class="{ 'current-location': isCurrentLocation(schedule) }">
           <button v-if="schedules.length > 1" type="button" class="checkbox" role="checkbox" :data-checkbox="schedule.id"
             :aria-checked="schedule.is_completed" :aria-label="`${title(schedule)} ${isBulkEditMode ? '범위 선택' : '읽음 표시'}`" :disabled="disabled" @click="emit('itemCheckbox', schedule)">
             <span class="check-circle" :class="{ checked: schedule.is_completed }"><Check v-if="schedule.is_completed" :size="16" aria-hidden="true" /></span>
           </button>
           <button type="button" class="schedule-reading" :data-schedule="schedule.id" :disabled="disabled" @click="emit('itemClick', schedule)">
-            <span v-if="isCurrentLocation(schedule)" class="current-location-badge">현재 위치</span><span :class="{ 'is-complete': schedule.is_completed }">{{ title(schedule) }}</span>
+            <span v-if="isCurrentLocation(schedule)" class="current-location-badge">현재 위치</span><span>{{ title(schedule) }}</span>
           </button>
           <StatusBadge v-if="schedules.length > 1" :status="status(schedule.is_completed)" />
         </div>
@@ -80,8 +80,6 @@ function isCurrentLocation(schedule: Schedule) {
 .schedule-reading-item { display: flex; align-items: center; gap: 4px; }
 .schedule-reading { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 6px; text-align: left; font-size: 15px; font-weight: 600; line-height: 1.5; }
 .schedule-date, .group-date { color: var(--color-text-tertiary); font-size: 12px; }
-.schedule-check { margin-right: 0.25rem; color: var(--color-accent-primary); font-weight: 700; }
-.schedule-date.is-complete, .group-date.is-complete, .schedule-reading .is-complete { text-decoration: line-through; text-decoration-thickness: 1px; }
 .group-date { width: 100%; text-align: left; }
 button { min-height: 32px; min-width: 32px; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; cursor: pointer; transition: background-color .15s, transform .15s; }
 button:hover:not(:disabled) { background: var(--color-accent-bg); }

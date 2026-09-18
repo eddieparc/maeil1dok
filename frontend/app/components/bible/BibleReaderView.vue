@@ -766,6 +766,18 @@ button.header-plan-name {
   text-overflow: ellipsis;
 }
 
+.header-check {
+  margin-right: 0.25rem;
+  color: var(--color-accent-primary);
+  font-weight: 700;
+}
+
+.header-range.is-complete,
+.header-context.is-complete {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 [data-theme="dark"] .header-context {
   color: var(--color-text-secondary);
 }
