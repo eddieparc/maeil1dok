@@ -62,7 +62,7 @@ nickname_suggestion = (
 
 ### 2.2 성경 역본 코드가 타입 없이 오갔다 — 고쳤다
 
-백엔드는 13개 역본만 받는데(`ASV COG COGNEW GAE GRK HAN HEB KJV KNT SAE SAENEW WEB WOORI`)
+백엔드는 12개 역본만 받는데(`ASV COG COGNEW GAE GRK HAN HEB KJV KNT SAE SAENEW WEB`)
 프론트는 `ref('GAE')`라는 임의 문자열을 넘기고 있었다. query 파라미터를 열거형으로 선언하자
 **타입체크가 즉시 잡았다**.
 

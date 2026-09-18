@@ -208,7 +208,7 @@ type BibleVersion = NonNullable<
 
 const BIBLE_VERSIONS = new Set<string>([
   'ASV', 'COG', 'COGNEW', 'GAE', 'GRK', 'HAN', 'HEB',
-  'KJV', 'KNT', 'SAE', 'SAENEW', 'WEB', 'WOORI',
+  'KJV', 'KNT', 'SAE', 'SAENEW', 'WEB',
 ] satisfies BibleVersion[]);
 
 function toBibleVersion(value: string): BibleVersion | undefined {

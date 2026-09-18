@@ -4,7 +4,6 @@ import {
   fetchFromCacheServer as fetchCachedChapter,
   fetchKntContentWithCache,
   fetchStandardContentWithCache,
-  fetchWooriContentFromCache,
   type BibleFetchResult,
 } from './bible/bibleFetchClient';
 
@@ -39,19 +38,9 @@ export function useBibleFetch() {
     return checkCacheServer(bibleCacheUrl);
   }
 
-  async function fetchWooriContent(
-    book: string,
-    chapter: number,
-  ): Promise<BibleFetchResult> {
-    return fetchWooriContentFromCache(bibleCacheUrl, book, chapter);
-  }
-
   function getFallbackUrl(version: string, book: string, chapter: number): string {
     if (version === 'KNT') {
       return `https://www.bskorea.or.kr/KNT/index.php?chapter=${book.toUpperCase()}.${chapter}`;
-    }
-    if (version === 'WOORI') {
-      return 'https://www.duranno.com/bdictionary/wuri_default.asp';
     }
     return `https://www.bskorea.or.kr/bible/korbibReadpage.php?version=${version}&book=${book}&chap=${chapter}`;
   }
@@ -59,7 +48,6 @@ export function useBibleFetch() {
   return {
     fetchKntContent,
     fetchStandardContent,
-    fetchWooriContent,
     fetchFromCacheServer,
     checkCacheServerAvailable,
     getFallbackUrl,

@@ -1,19 +1,17 @@
 """
 성경 본문 사전 캐싱 명령어
 
-성서공회/두라노 서버에서 성경 본문을 미리 가져와 캐시에 저장합니다.
+성서공회 서버에서 성경 본문을 미리 가져와 캐시에 저장합니다.
 자연스러운 트래픽 패턴을 위해 랜덤 순서와 랜덤 딜레이를 적용합니다.
 
 지원 버전:
     - 대한성서공회: GAE, HAN, SAE, SAENEW, COG, COGNEW, KNT
-    - 두라노: WOORI (우리말성경)
 
 사용법:
     python manage.py prefetch_bible GAE
-    python manage.py prefetch_bible WOORI
     python manage.py prefetch_bible --all
     python manage.py prefetch_bible GAE --book gen
-    python manage.py prefetch_bible WOORI --min-delay 3 --max-delay 6
+    python manage.py prefetch_bible KNT --min-delay 3 --max-delay 6
 """
 
 import random

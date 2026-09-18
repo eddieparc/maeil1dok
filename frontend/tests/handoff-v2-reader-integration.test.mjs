@@ -182,10 +182,10 @@ test('bare URL resumes the last reading position; in-app hub nav, back and reloa
   assert.equal(view.state.viewMode.value, 'reader'); assert.equal(view.router.currentRoute.value.query.book, 'exo'); assert.equal(view.state.scrollPosition.value, .42);
   await view.state.saveCurrentReadingPosition(true); assert.deepEqual(JSON.parse(view.values.get('lastReadingPosition')), { ...JSON.parse(saved), updated_at: JSON.parse(view.values.get('lastReadingPosition')).updated_at });
   await view.state.handleBookSelect('gen', 50); await settled(); assert.equal(view.router.currentRoute.value.query.chapter, '50');
-  await view.state.handleVersionSelect('WOORI'); await settled(); assert.equal(view.router.currentRoute.value.query.version, 'WOORI');
+  await view.state.handleVersionSelect('SAENEW'); await settled(); assert.equal(view.router.currentRoute.value.query.version, 'SAENEW');
   await view.route('/bible'); assert.equal(view.state.viewMode.value, 'home');
   const navigated = new Promise(resolve => { const off = view.router.afterEach(() => { off(); resolve(); }); }); view.router.back(); await navigated; await settled();
-  assert.equal(view.state.viewMode.value, 'reader'); assert.equal(view.state.currentVersion.value, 'WOORI');
+  assert.equal(view.state.viewMode.value, 'reader'); assert.equal(view.state.currentVersion.value, 'SAENEW');
 });
 
 test('explicit plan-only query updates reload context without erasing intent; plain chapters retain audio and auth readiness', { timeout: 10000 }, async t => {
@@ -429,7 +429,7 @@ test('guide callback uses native navigation', { timeout: 10000 }, async t => {
 
 test('a selection from a superseded version cannot open a card using the new version URL', { timeout: 10000 }, async t => {
   const view = await mount('/bible?book=gen&chapter=49'); t.after(view.close); await view.ready();
-  await view.state.handleVersionSelect('WOORI'); await settled();
+  await view.state.handleVersionSelect('SAENEW'); await settled();
   await emit('BibleViewer', 'share', { book: '창세기', chapter: 49, version: '개역개정', startVerse: 3, endVerse: 3, text: 'old version' });
   assert.equal(view.state.showShareSheet.value, false);
 });

@@ -73,7 +73,7 @@ export function useBibleContent(): UseBibleContentReturn {
   // Dependencies
   // ============================================
 
-  const { fetchKntContent, fetchStandardContent, fetchWooriContent, getFallbackUrl } = useBibleFetch();
+  const { fetchKntContent, fetchStandardContent, getFallbackUrl } = useBibleFetch();
   const { bookNames } = useBibleData();
   const readingSettingsStore = useReadingSettingsStore();
 
@@ -697,31 +697,6 @@ export function useBibleContent(): UseBibleContentReturn {
       : '<p class="no-content">내용을 찾을 수 없습니다.</p>';
   };
 
-  const parseWooriContent = (jsonData: any, book: string, chapter: number): string => {
-    const suffix = book === 'psa' ? '편' : '장';
-    const bookName = bookNames[book] || '';
-    chapterTitle.value = `${bookName} ${chapter}${suffix}`;
-
-    if (!jsonData.verses || !Array.isArray(jsonData.verses) || jsonData.verses.length === 0) {
-      return '<p class="no-content">내용을 찾을 수 없습니다.</p>';
-    }
-
-    const verses: string[] = [];
-
-    jsonData.verses.forEach((verse: { verse: number; text: string }) => {
-      const verseNum = verse.verse;
-      const verseText = verse.text;
-
-      verses.push(
-        `<div class="verse"><span class="verse-number">${verseNum}</span><span class="verse-text">${verseText}</span></div>`
-      );
-    });
-
-    return verses.length > 0
-      ? verses.join('')
-      : '<p class="no-content">내용을 찾을 수 없습니다.</p>';
-  };
-
   const generateErrorContent = (book: string, chapter: number, version: string = 'GAE'): string => {
     const fallbackUrl = getFallbackUrl(version, book, chapter);
     return `
@@ -762,24 +737,6 @@ export function useBibleContent(): UseBibleContentReturn {
           const jsonData = JSON.parse(result.content);
           if (jsonData.found) {
             content.value = parseKntContent(jsonData, book, chapter);
-          } else {
-            content.value = generateErrorContent(book, chapter, version);
-          }
-        } catch {
-          content.value = generateErrorContent(book, chapter, version);
-        }
-      } else if (version === 'WOORI') {
-        const result = await fetchWooriContent(book, chapter);
-
-        if (result.source === 'error') {
-          content.value = generateErrorContent(book, chapter, version);
-          return;
-        }
-
-        try {
-          const jsonData = JSON.parse(result.content);
-          if (jsonData.found && jsonData.verses) {
-            content.value = parseWooriContent(jsonData, book, chapter);
           } else {
             content.value = generateErrorContent(book, chapter, version);
           }
