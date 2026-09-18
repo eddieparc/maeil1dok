@@ -1,10 +1,11 @@
-import { defineAsyncComponent, type Component } from 'vue'
 import { useModalState } from './useModalState'
-import type { ModalOptions, ConfirmOptions, AlertOptions, UseModalReturn } from '~/types/modal'
+import type { ConfirmOptions, AlertOptions, UseModalReturn } from '~/types/modal'
 
-// 내장 모달 컴포넌트 (lazy load)
-const ConfirmModal = defineAsyncComponent(() => import('~/components/ui/modal/ConfirmModal.vue'))
-const AlertModal = defineAsyncComponent(() => import('~/components/ui/modal/AlertModal.vue'))
+// Built-in dialogs are imported statically: a lazy chunk made the scrim animate
+// over an empty panel until the chunk arrived, and callers rely on confirm()
+// joining the stack synchronously (they capture the top modal right after).
+import ConfirmModal from '~/components/ui/modal/ConfirmModal.vue'
+import AlertModal from '~/components/ui/modal/AlertModal.vue'
 
 export function useModal(): UseModalReturn {
   const state = useModalState()
@@ -49,7 +50,7 @@ export function useModal(): UseModalReturn {
         }
       })
     } catch {
-      // Alert 취소는 무시
+      // Dismissing an alert is not an error.
     }
   }
 
@@ -66,5 +67,4 @@ export function useModal(): UseModalReturn {
   }
 }
 
-// 기본 export
 export default useModal

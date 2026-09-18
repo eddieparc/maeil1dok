@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <TransitionGroup name="modal-stack">
+    <TransitionGroup name="modal">
       <ModalContainer
         v-for="modal in stack"
         :key="modal.id"
@@ -29,17 +29,25 @@ function handleClose(modal: ModalInstance): void {
 </script>
 
 <style>
-/* Modal tokens */
+/*
+ * Modal motion contract.
+ * The whole layer (scrim + panel) is ONE transition: the layer fades on a
+ * single clock and the panel adds a small settle transform on the same clock.
+ * The layer root carries the duration so Vue's TransitionGroup waits for it.
+ */
 :root {
   --modal-width-sm: 320px;
   --modal-width-md: 420px;
   --modal-width-lg: 560px;
   --modal-width-xl: 720px;
-  --modal-overlay-bg: var(--color-overlay);
+  --modal-scrim: var(--color-overlay);
   --modal-radius: var(--radius-card);
-  --modal-radius-bottom: 20px 20px 0 0;
-  --modal-duration: 200ms;
-  --modal-easing: cubic-bezier(0.16, 1, 0.3, 1);
+  --modal-radius-sheet: 20px 20px 0 0;
+  --modal-enter: 220ms;
+  --modal-leave: 160ms;
+  --modal-ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --modal-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --modal-settle: translateY(8px) scale(0.98);
 }
 
 .modal-wrapper {
@@ -53,45 +61,63 @@ function handleClose(modal: ModalInstance): void {
 }
 
 .modal-overlay {
-  z-index: 0;
-  position: fixed;
+  position: absolute;
   inset: 0;
-  background: var(--modal-overlay-bg);
+  background: var(--modal-scrim);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   pointer-events: auto;
 }
 
-/* Stack transition - overlay와 modal이 동시에 트랜지션 */
-.modal-stack-enter-active,
-.modal-stack-leave-active {
-  transition: opacity var(--modal-duration) var(--modal-easing);
+/* Enter: layer fades in while the panel settles into place. */
+.modal-enter-active {
+  transition: opacity var(--modal-enter) var(--modal-ease-out);
+}
+.modal-enter-active .modal-container {
+  transition: transform var(--modal-enter) var(--modal-ease-out);
 }
 
-.modal-stack-enter-active .modal-overlay,
-.modal-stack-leave-active .modal-overlay {
-  transition: opacity var(--modal-duration) var(--modal-easing),
-              backdrop-filter var(--modal-duration) var(--modal-easing);
+/* Leave: shorter, ease-in, same shape reversed. */
+.modal-leave-active {
+  transition: opacity var(--modal-leave) var(--modal-ease-in);
+}
+.modal-leave-active .modal-container {
+  transition: transform var(--modal-leave) var(--modal-ease-in);
 }
 
-.modal-stack-enter-from,
-.modal-stack-leave-to {
+.modal-enter-from,
+.modal-leave-to {
   opacity: 0;
 }
-
-.modal-stack-enter-from .modal-overlay,
-.modal-stack-leave-to .modal-overlay {
-  backdrop-filter: blur(0);
-  -webkit-backdrop-filter: blur(0);
+.modal-enter-from .modal-container,
+.modal-leave-to .modal-container {
+  transform: var(--modal-settle);
+}
+.modal-enter-from .modal-position-bottom,
+.modal-leave-to .modal-position-bottom {
+  transform: translateY(100%);
 }
 
-/* Reduced motion */
+@media (max-width: 640px) {
+  /* Responsive sheets slide instead of settling. */
+  .modal-enter-from .modal-container:not(.modal-size-full):not(.modal-size-sm),
+  .modal-leave-to .modal-container:not(.modal-size-full):not(.modal-size-sm) {
+    transform: translateY(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .modal-stack-enter-active,
-  .modal-stack-leave-active,
-  .modal-stack-enter-active .modal-overlay,
-  .modal-stack-leave-active .modal-overlay {
+  .modal-enter-active,
+  .modal-leave-active,
+  .modal-enter-active .modal-container,
+  .modal-leave-active .modal-container {
     transition: none;
+  }
+  .modal-enter-from .modal-container,
+  .modal-leave-to .modal-container,
+  .modal-enter-from .modal-position-bottom,
+  .modal-leave-to .modal-position-bottom {
+    transform: none;
   }
 }
 </style>

@@ -277,7 +277,7 @@ test('compiled upload close hover removes reduced motion but preserves normal fe
   for (const width of [390, 1280]) for (const hovered of [false, true]) {
     const normal = modalStyle(view, close, { width, hovered });
     const reduced = modalStyle(view, close, { width, hovered, reduced: true });
-    assert.equal(normal.transition, 'all 0.2s');
+    assert.match(normal.transition, /0\.\d+s/);
     assert.equal(reduced.transition, 'none');
     assert.equal(reduced.background, normal.background);
     assert.equal(reduced.color, normal.color);

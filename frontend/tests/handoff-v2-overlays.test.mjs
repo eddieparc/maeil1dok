@@ -258,7 +258,6 @@ async function plansModalRuntime(t) {
     const entered = r.signal(() => byClass(r.doc, 'modal-container')[0]?.contains(r.doc.activeElement))
     trigger.focus()
     clickControl(trigger)
-    await state.topModal.value.component.__asyncLoader()
     await entered; await r.flush()
     assert.equal(trigger.props.disabled, true, 'write lock remains held throughout confirmation')
     assert.equal(r.doc.body.style.overflow, 'hidden')
@@ -578,10 +577,12 @@ async function modalRuntime(t) {
   const r = runtime(t)
   const modal = r.load('~/composables/useModal').useModal()
   const state = r.load('~/composables/useModalState').useModalState()
-  // Preload the real lazy components via the exact promise Vue awaits.
+  // Built-in dialogs resolve their chunk before joining the stack.
   async function open(kind = 'confirm', options = {}) {
+    const depth = state.stack.value.length
+    const joined = r.signal(() => state.stack.value.length === depth + 1)
     const result = modal[kind]({ title: 'title', description: 'description', ...options })
-    await state.topModal.value.component.__asyncLoader()
+    await joined
     await r.flush()
     return { result, id: state.topModal.value.id }
   }
@@ -659,8 +660,9 @@ test('shared modal Escape never reaches an already-open sheet document listener'
   const sheetButton = r.doc.activeElement
   r.mount(r.load('~/components/ui/modal/ModalHost.vue').default)
   const modal = r.load('~/composables/useModal').useModal()
+  const joined = r.signal(() => modal.stack.value.length === 1)
   const pending = modal.confirm({ title: 'confirm' })
-  await modal.stack.value[0].component.__asyncLoader(); await r.flush()
+  await joined; await r.flush()
   r.doc.dispatch('keydown', { key: 'Escape' }); await r.flush()
   assert.equal(sheetOpen.value, true)
   assert.equal(modal.stack.value.length, 0)
@@ -778,4 +780,39 @@ test('toast host follows actual reader stack geometry and releases its observers
   assert.equal(rendered.props.style['--toast-bottom-inset'], undefined)
   host.unmount()
   assert.equal(r.observerCount, 0)
+})
+
+
+// A service dialog must be fully resolved before it joins the stack: the scrim
+// and the panel then enter in the same frame instead of the panel popping later.
+test('confirm joins the stack as a resolved component whose content renders on the first frame', async t => {
+  const r = runtime(t)
+  const modal = r.load('~/composables/useModal').useModal()
+  const state = r.load('~/composables/useModalState').useModalState()
+  r.mount(r.load('~/components/ui/modal/ModalHost.vue').default)
+  await r.flush()
+  const joined = r.signal(() => state.stack.value.length === 1)
+  const result = modal.confirm({ title: 'title', description: 'description' })
+  await joined
+  assert.equal(state.topModal.value.component.__asyncLoader, undefined, 'stack entry must not be an async wrapper')
+  await r.flush()
+  const panel = byClass(r.doc, 'modal-container')[0]
+  assert.ok(panel, 'panel rendered')
+  assert.ok(byClass(r.doc, 'confirm-title').length === 1 && panel.contains(byClass(r.doc, 'confirm-title')[0]), 'content is present with the panel, no loader awaited')
+  byClass(r.doc, 'confirm-btn-cancel')[0].props.onClick(); await r.flush()
+  assert.equal(await result, false)
+})
+
+test('ModalHost reduced-motion CSS disables the single layer transition', () => {
+  const rules = componentCSS('components/ui/modal/ModalHost.vue')
+  for (const selector of ['.modal-enter-active', '.modal-leave-active']) {
+    let transition
+    rules.walkAtRules('media', media => {
+      if (media.params !== '(prefers-reduced-motion: reduce)') return
+      media.walkRules(rule => {
+        if (rule.selectors.includes(selector)) rule.walkDecls('transition', declaration => { transition = declaration.value })
+      })
+    })
+    assert.equal(transition, 'none', `${selector} must not retain a duration under reduced motion`)
+  }
 })

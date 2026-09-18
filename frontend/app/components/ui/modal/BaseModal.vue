@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition :name="transitionName" appear>
+    <Transition name="modal-fade" appear>
       <div
         v-if="modelValue"
         class="base-modal-overlay"
@@ -15,7 +15,6 @@
           aria-modal="true"
           @click.stop
         >
-          <!-- Header -->
           <div v-if="!hideHeader" class="base-modal-header">
             <h3 class="base-modal-title">{{ title }}</h3>
             <slot name="header-extra" />
@@ -29,12 +28,10 @@
             </button>
           </div>
 
-          <!-- Body -->
           <div class="base-modal-body" :class="{ 'no-padding': noPadding }">
             <slot />
           </div>
 
-          <!-- Footer (optional) -->
           <div v-if="$slots.footer" class="base-modal-footer">
             <slot name="footer" />
           </div>
@@ -45,108 +42,82 @@
 </template>
 
 <script setup lang="ts">
-import { XIcon } from '@lucide/vue';
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { XIcon } from '@lucide/vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
-type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
-type ModalPosition = 'center' | 'bottom';
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full'
+type ModalPosition = 'center' | 'bottom'
 
-const props = withDefaults(
-  defineProps<{
-    modelValue: boolean;
-    title?: string;
-    size?: ModalSize;
-    position?: ModalPosition;
-    closeOnOverlay?: boolean;
-    closeOnEsc?: boolean;
-    hideHeader?: boolean;
-    noPadding?: boolean;
-    compact?: boolean;
-  }>(),
-  {
-    title: '',
-    size: 'md',
-    position: 'center',
-    closeOnOverlay: true,
-    closeOnEsc: true,
-    hideHeader: false,
-    noPadding: false,
-    compact: false,
-  }
-);
+const props = withDefaults(defineProps<{
+  modelValue: boolean
+  title?: string
+  size?: ModalSize
+  position?: ModalPosition
+  closeOnOverlay?: boolean
+  closeOnEsc?: boolean
+  hideHeader?: boolean
+  noPadding?: boolean
+  compact?: boolean
+}>(), {
+  title: '',
+  size: 'md',
+  position: 'center',
+  closeOnOverlay: true,
+  closeOnEsc: true,
+  hideHeader: false,
+  noPadding: false,
+  compact: false
+})
 
 const emit = defineEmits<{
-  'update:modelValue': [value: boolean];
-  close: [];
-}>();
+  'update:modelValue': [value: boolean]
+  close: []
+}>()
 
-const modalRef = ref<HTMLElement | null>(null);
+const modalRef = ref<HTMLElement | null>(null)
 
-// Classes
-const sizeClass = computed(() => `modal-size-${props.size}`);
-const positionClass = computed(() => `modal-position-${props.position}`);
-const transitionName = computed(() =>
-  props.position === 'bottom' ? 'modal-slide-up' : 'modal-fade'
-);
+const sizeClass = computed(() => `modal-size-${props.size}`)
+const positionClass = computed(() => `modal-position-${props.position}`)
 
-// Close modal
-const close = () => {
-  emit('update:modelValue', false);
-  emit('close');
-};
+function close(): void {
+  emit('update:modelValue', false)
+  emit('close')
+}
 
-// Handle overlay click
-const handleOverlayClick = () => {
-  if (props.closeOnOverlay) {
-    close();
-  }
-};
+function handleOverlayClick(): void {
+  if (props.closeOnOverlay) close()
+}
 
-// Handle ESC key
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && props.closeOnEsc && props.modelValue) {
-    close();
-  }
-};
+function handleKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && props.closeOnEsc && props.modelValue) close()
+}
 
-// Lock body scroll when modal is open
-watch(
-  () => props.modelValue,
-  (isOpen) => {
-    if (typeof document !== 'undefined') {
-      if (isOpen) {
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = '';
-      }
-    }
-  }
-);
+// Page-local modals keep their own body lock; the service host has its own.
+watch(() => props.modelValue, (isOpen) => {
+  if (typeof document === 'undefined') return
+  document.body.style.overflow = isOpen ? 'hidden' : ''
+})
 
 onMounted(() => {
-  if (typeof document !== 'undefined') {
-    document.addEventListener('keydown', handleKeydown);
-  }
-});
+  document.addEventListener('keydown', handleKeydown)
+})
 
 onUnmounted(() => {
-  if (typeof document !== 'undefined') {
-    document.removeEventListener('keydown', handleKeydown);
-    document.body.style.overflow = '';
-  }
-});
+  document.removeEventListener('keydown', handleKeydown)
+  document.body.style.overflow = ''
+})
 </script>
 
 <style scoped>
 .base-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
   padding: 1rem;
+  background: var(--color-overlay, rgba(0, 0, 0, 0.5));
 }
 
 .base-modal-overlay.modal-position-bottom {
@@ -155,34 +126,23 @@ onUnmounted(() => {
 }
 
 .base-modal-content {
-  background: var(--color-bg-card, #fff);
-  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   max-height: 85vh;
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  background: var(--color-bg-card, #fff);
+  border-radius: var(--modal-radius, 16px);
+  box-shadow: var(--shadow-lg, 0 25px 50px -12px rgba(0, 0, 0, 0.25));
+  will-change: transform;
 }
 
-/* Sizes */
-.modal-size-sm {
-  max-width: 320px;
-}
-
-.modal-size-md {
-  max-width: 420px;
-}
-
-.modal-size-lg {
-  max-width: 500px;
-}
-
-.modal-size-xl {
-  max-width: 640px;
-}
+.modal-size-sm { max-width: 320px; }
+.modal-size-md { max-width: 420px; }
+.modal-size-lg { max-width: 500px; }
+.modal-size-xl { max-width: 640px; }
 
 .modal-size-full {
   max-width: 100%;
@@ -191,44 +151,42 @@ onUnmounted(() => {
   border-radius: 0;
 }
 
-/* Position: Bottom */
 .modal-position-bottom .base-modal-content {
-  border-radius: 20px 20px 0 0;
   max-height: 90vh;
+  border-radius: var(--modal-radius-sheet, 20px 20px 0 0);
 }
 
-/* Header */
 .base-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--color-border, #e5e7eb);
-  flex-shrink: 0;
 }
 
 .base-modal-title {
+  margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-primary, #1f2937);
-  margin: 0;
 }
 
 .base-modal-close {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: var(--hit-min);
   height: var(--hit-min);
-  background: none;
-  border: none;
+  margin-left: auto;
   padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
   color: var(--text-secondary, #6b7280);
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  margin-left: auto;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .base-modal-close:hover {
@@ -236,7 +194,6 @@ onUnmounted(() => {
   color: var(--text-primary, #1f2937);
 }
 
-/* 컴팩트 변형: 헤더 높이를 줄인다 */
 .base-modal--compact .base-modal-header {
   padding: 0.5rem 1rem;
 }
@@ -246,160 +203,107 @@ onUnmounted(() => {
   height: 32px;
 }
 
-/* Body */
 .base-modal-body {
-  flex: 1 1 auto; /* grow, shrink, basis=auto로 콘텐츠 기반 확장 */
+  flex: 1 1 auto;
   width: 100%;
   min-width: 0;
-  min-height: 0; /* flex 자식이 shrink 가능 */
+  min-height: 0;
+  padding: 1rem;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 1rem;
   box-sizing: border-box;
 }
 
-/* no-padding: flex 컨테이너로 동작, 자식에서 스크롤 */
 .base-modal-body.no-padding {
-  padding: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 자식에서 스크롤 제어 */
+  padding: 0;
+  overflow: hidden;
 }
 
-/* Footer */
 .base-modal-footer {
+  flex-shrink: 0;
   padding: 0.75rem 1rem;
   border-top: 1px solid var(--color-border, #e5e7eb);
-  flex-shrink: 0;
 }
 
-/* Fade transition (center) — 부드러운 스프링 곡선 */
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.28s ease;
+/* Same single-clock motion as the service host: layer fades, panel settles. */
+.modal-fade-enter-active {
+  transition: opacity 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
-
 .modal-fade-enter-active .base-modal-content {
-  transition: transform 0.34s cubic-bezier(0.22, 1.2, 0.36, 1);
+  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
-
+.modal-fade-leave-active {
+  transition: opacity 0.16s cubic-bezier(0.4, 0, 1, 1);
+}
 .modal-fade-leave-active .base-modal-content {
-  transition: transform 0.2s ease-in;
+  transition: transform 0.16s cubic-bezier(0.4, 0, 1, 1);
 }
 
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
 }
-
-.modal-fade-enter-from .base-modal-content {
-  transform: scale(0.96) translateY(14px);
-}
-
+.modal-fade-enter-from .base-modal-content,
 .modal-fade-leave-to .base-modal-content {
-  transform: scale(0.97) translateY(8px);
+  transform: var(--modal-settle, translateY(8px) scale(0.98));
 }
-
-/* Slide up transition (bottom) */
-.modal-slide-up-enter-active,
-.modal-slide-up-leave-active {
-  transition: opacity 0.28s ease;
-}
-
-.modal-slide-up-enter-active .base-modal-content {
-  transition: transform 0.38s cubic-bezier(0.22, 1.1, 0.36, 1);
-}
-
-.modal-slide-up-leave-active .base-modal-content {
-  transition: transform 0.22s ease-in;
-}
-
-.modal-slide-up-enter-from,
-.modal-slide-up-leave-to {
-  opacity: 0;
-}
-
-.modal-slide-up-enter-from .base-modal-content,
-.modal-slide-up-leave-to .base-modal-content {
+.modal-fade-enter-from.modal-position-bottom .base-modal-content,
+.modal-fade-leave-to.modal-position-bottom .base-modal-content {
   transform: translateY(100%);
 }
 
-/* Responsive: Bottom sheet on mobile for non-bottom positioned modals */
 @media (max-width: 640px) {
   .base-modal-overlay.modal-position-center {
     align-items: flex-end;
     padding: 0;
   }
 
-  .modal-position-center.base-modal-content,
   .modal-position-center .base-modal-content {
     width: 100%;
     max-width: 100%;
-    border-radius: 20px 20px 0 0;
-    height: 90vh; /* 고정 높이로 바디 확장 공간 확보 */
+    height: 90vh;
     max-height: 90vh;
+    border-radius: var(--modal-radius-sheet, 20px 20px 0 0);
   }
 
-  /* Size classes should not limit width on mobile */
   .modal-size-sm,
   .modal-size-md,
   .modal-size-lg,
   .modal-size-xl {
     max-width: 100%;
   }
+
+  .modal-fade-enter-from .base-modal-content,
+  .modal-fade-leave-to .base-modal-content {
+    transform: translateY(100%);
+  }
 }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .base-modal-close,
   .modal-fade-enter-active,
   .modal-fade-leave-active,
-  .modal-slide-up-enter-active,
-  .modal-slide-up-leave-active,
   .modal-fade-enter-active .base-modal-content,
-  .modal-fade-leave-active .base-modal-content,
-  .modal-slide-up-enter-active .base-modal-content,
-  .modal-slide-up-leave-active .base-modal-content {
+  .modal-fade-leave-active .base-modal-content {
     transition: none;
   }
 
   .modal-fade-enter-from .base-modal-content,
-  .modal-fade-leave-to .base-modal-content,
-  .modal-slide-up-enter-from .base-modal-content,
-  .modal-slide-up-leave-to .base-modal-content {
+  .modal-fade-leave-to .base-modal-content {
     transform: none;
   }
 }
 
-/* Dark Mode */
-:root.dark .base-modal-content,
 [data-theme="dark"] .base-modal-content {
-  background: var(--color-bg-card);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-:root.dark .base-modal-header,
 [data-theme="dark"] .base-modal-header {
   border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
-:root.dark .base-modal-title,
-[data-theme="dark"] .base-modal-title {
-  color: var(--text-primary);
-}
-
-:root.dark .base-modal-close,
-[data-theme="dark"] .base-modal-close {
-  color: var(--text-secondary);
-}
-
-:root.dark .base-modal-close:hover,
-[data-theme="dark"] .base-modal-close:hover {
-  background: var(--color-bg-hover);
-  color: var(--text-primary);
-}
-
-:root.dark .base-modal-footer,
 [data-theme="dark"] .base-modal-footer {
   border-top-color: rgba(255, 255, 255, 0.06);
 }
