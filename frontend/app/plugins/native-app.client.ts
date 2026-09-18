@@ -21,20 +21,6 @@ declare global {
 let authCallback: AuthCallback | null = null
 let logoutCallback: LogoutCallback | null = null
 
-const ADSENSE_CLIENT_ID = 'ca-pub-8742107706365412'
-
-function loadAdSense() {
-  if (document.querySelector('script[src*="adsbygoogle"]')) {
-    return
-  }
-  
-  const script = document.createElement('script')
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`
-  script.async = true
-  script.crossOrigin = 'anonymous'
-  document.head.appendChild(script)
-}
-
 function isExternalUrl(url: string): boolean {
   try {
     const urlObj = new URL(url, window.location.origin)
@@ -107,8 +93,6 @@ export default defineNuxtPlugin({
       setupNativeAuthListener()
       
       sendToNative({ type: 'auth:request' })
-    } else {
-      loadAdSense()
     }
   }
 })

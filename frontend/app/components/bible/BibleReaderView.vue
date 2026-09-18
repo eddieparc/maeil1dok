@@ -155,6 +155,7 @@
             </div>
           </ClientOnly>
         </div>
+        <BibleFooterAd v-if="!isLoading && content.trim()" />
       </template>
     </BibleViewer>
 
@@ -273,6 +274,7 @@ import BibleToolPopover from '~/components/bible/BibleToolPopover.vue';
 import SelectionFloatingControls from '~/components/bible/SelectionFloatingControls.vue';
 import type { SelectionCopyFormat } from '~/components/bible/SelectionFloatingControls.vue';
 import TongdokAudioPlayer from '~/components/bible/TongdokAudioPlayer.vue';
+import BibleFooterAd from '~/components/bible/BibleFooterAd.vue';
 import FloatingBottomBar from '~/components/common/FloatingBottomBar.vue';
 import CheckIcon from '~/components/icons/CheckIcon.vue';
 import ChevronLeftIcon from '~/components/icons/ChevronLeftIcon.vue';
