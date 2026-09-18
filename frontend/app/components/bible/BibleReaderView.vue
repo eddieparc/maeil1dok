@@ -12,27 +12,41 @@
         >
           <ChevronLeftIcon :size="18" />
         </button>
-        <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
-          <span class="book-chapter-text book-name-full">
-            <span v-if="headerContext" class="header-context">{{ headerContext }}</span>
-            <span class="header-range">{{ headerRange }}</span>
-          </span>
-          <span class="book-chapter-text book-name-short">
-            <span v-if="headerContextShort" class="header-context">{{ headerContextShort }}</span>
-            <span class="header-range">{{ headerRangeShort }}</span>
-          </span>
-          <ChevronDownIcon class="selector-icon" :size="13" />
-        </button>
-        <button
-          v-if="isTongdokMode"
-          class="header-exit"
-          type="button"
-          @click="$emit('exit-tongdok')"
-          title="통독 모드 종료"
-          aria-label="통독 모드 종료"
-        >
-          <XMarkIcon :size="12" aria-hidden="true" />
-        </button>
+        <div class="header-title-stack">
+          <div class="header-context-row">
+            <button
+              v-if="headerContext"
+              class="header-context book-name-full"
+              type="button"
+              @click="$emit('open-book-selector')"
+            >{{ headerContext }}</button>
+            <button
+              v-if="headerContextShort"
+              class="header-context book-name-short"
+              type="button"
+              @click="$emit('open-book-selector')"
+            >{{ headerContextShort }}</button>
+            <button
+              v-if="isTongdokMode"
+              class="header-exit"
+              type="button"
+              @click="$emit('exit-tongdok')"
+              title="통독 모드 종료"
+              aria-label="통독 모드 종료"
+            >
+              <XMarkIcon :size="11" aria-hidden="true" />
+            </button>
+          </div>
+          <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
+            <span class="book-chapter-text book-name-full">
+              <span class="header-range">{{ headerRange }}</span>
+            </span>
+            <span class="book-chapter-text book-name-short">
+              <span class="header-range">{{ headerRangeShort }}</span>
+            </span>
+            <ChevronDownIcon class="selector-icon" :size="13" />
+          </button>
+        </div>
         <button
           class="nav-button next"
           type="button"
@@ -661,7 +675,24 @@ defineExpose({
   min-width: 0;
 }
 
-/* 타이틀 2줄: 위=컨텍스트(작은 글자), 아래=범위 */
+/* 타이틀 2줄: 위=컨텍스트(작은 글자)+✕, 아래=범위 */
+.header-title-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.header-context-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .book-chapter-text {
   display: flex;
   flex-direction: column;
@@ -674,6 +705,11 @@ defineExpose({
 .header-context {
   display: block;
   max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
   font-weight: 500;
   font-size: 0.6875rem;
   line-height: 1.25;
@@ -682,6 +718,7 @@ defineExpose({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .header-range {
@@ -697,16 +734,14 @@ defineExpose({
   color: var(--color-text-secondary);
 }
 
-/* 통독 종료 ✕ — 날짜 라인 옆에 붙는 작은 버튼 */
+/* 통독 종료 ✕ — 날짜 라인 바로 옆에 붙는 작은 버튼 */
 .header-exit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.125rem;
+  height: 1.125rem;
   padding: 0;
-  margin-top: 0.125rem;
-  align-self: flex-start;
   flex-shrink: 0;
   border: none;
   border-radius: 50%;
@@ -845,9 +880,9 @@ defineExpose({
   color: var(--text-secondary, #6b7280);
 }
 
-/* 책/장 선택 트리거는 타이틀 그룹 안에서 남은 공간을 채우고 말줄임한다 */
+/* 책/장 선택 트리거는 타이틀 스택 안에서 가로를 채우고 말줄임한다 */
 .header-title-group .book-selector-trigger {
-  flex: 1;
+  align-self: stretch;
   min-width: 0;
   overflow: hidden;
 }
