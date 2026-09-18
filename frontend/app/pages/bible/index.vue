@@ -40,7 +40,7 @@
         :has-next-chapter="hasNextChapter"
         :is-tongdok-mode="isTongdokMode"
         :tongdok-schedule-range="tongdokScheduleRange"
-        :tongdok-schedule-date="tongdokScheduleDate"
+        :tongdok-schedule-date="tongdokScheduleDateDisplay"
         :tongdok-plan-name="readerPlanName"
         :tongdok-schedule="tongdokScheduleRows"
         :tongdok-audio-link="tongdokAudioLink"
@@ -310,6 +310,7 @@ const {
   getScheduleRows,
   getFullScheduleRange,
   isLastChapterInTongdok,
+  isOffPlanDetail,
   disableTongdokMode,
   enableTongdokMode,
   completeCurrentChapter,
@@ -600,6 +601,8 @@ const tongdokAudioLink = computed(() =>
 );
 const tongdokGuideLink = computed(() => getGuideLink());
 const tongdokScheduleDate = computed(() => getScheduleDate());
+// 플랜에 없는 위치는 비통독처럼 보이되 플랜 이름만 유지하고 날짜·범위 자리는 '-'로 표시한다.
+const tongdokScheduleDateDisplay = computed(() => isOffPlanDetail() ? '-' : tongdokScheduleDate.value);
 const readerContextKey = computed(() => JSON.stringify([
   viewMode.value, auth.user.value?.id, isTongdokMode.value, tongdokPlanId.value,
   tongdokScheduleId.value, tongdokScheduleDate.value, currentBook.value,

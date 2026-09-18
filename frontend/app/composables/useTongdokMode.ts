@@ -506,7 +506,9 @@ export const useTongdokMode = () => {
     const isActiveChapterResponse = positiveId(data.plan_id) === requestIdentity.planId &&
       sameIdentity(requestIdentity, currentLoadedIdentity(data.book || '', positiveChapter(data.chapter) || 0));
     // Preserve the page's public contract: active rows/date with browsed metadata/audio.
-    readingDetailResponse.value = activeScheduleRange && isActiveChapterResponse
+    // A response with no schedule rows is an off-plan position — the pinned
+    // range must not leak into it, so the raw response is exposed instead.
+    readingDetailResponse.value = activeScheduleRange && isActiveChapterResponse && data.plan_detail?.length
       ? { data: { ...data, ...activeScheduleRange, is_complete: activeScheduleRange.plan_detail?.every(row => row.is_complete) } }
       : response;
     loadedDetailIdentity = { ...requestIdentity };
@@ -567,8 +569,24 @@ export const useTongdokMode = () => {
     });
   };
   const getGuideLink = (): string | null => readingDetailResponse.value?.data?.guide_link || null;
-  const getScheduleDate = (): string | null =>
-    tongdokScheduleDate.value || readingDetailResponse.value?.data?.plan_date || readingDetailResponse.value?.data?.schedule_date || null;
+
+  /** The loaded detail belongs to the active plan but has no schedule rows —
+   *  the browsed position is not in the plan. */
+  const isOffPlanDetail = (): boolean => {
+    const data = readingDetailResponse.value?.data;
+    return Boolean(
+      tongdokMode.value &&
+      data &&
+      positiveId(data.plan_id) !== null &&
+      positiveId(data.plan_id) === tongdokPlanId.value &&
+      !data.plan_detail?.length
+    );
+  };
+
+  const getScheduleDate = (): string | null => {
+    if (isOffPlanDetail()) return null;
+    return tongdokScheduleDate.value || readingDetailResponse.value?.data?.plan_date || readingDetailResponse.value?.data?.schedule_date || null;
+  };
 
   const getTongdokProgress = (currentBook: string, currentChapter: number): TongdokProgress | null => {
     if (!tongdokMode.value || !readingDetailResponse.value?.data?.plan_detail?.length) return null;
@@ -668,6 +686,7 @@ export const useTongdokMode = () => {
     book: string,
     chapter: number,
   ): Promise<CompleteCurrentChapterResult> => {
+    if (isOffPlanDetail()) return completeResult('out-of-range', null, null, null);
     const authoritative = getAuthoritativeDetail();
     if (!authoritative) return completeResult('invalid-context', null, null, null);
     const currentRows = authoritative.rows.filter(row => rowContains(row, book, chapter));
@@ -903,6 +922,7 @@ export const useTongdokMode = () => {
     isLastChapterInTongdok,
     isChapterCompleted,
     isScheduleCompleted,
+    isOffPlanDetail,
     disableTongdokMode,
     enableTongdokMode,
     setReadingDetailResponse,
