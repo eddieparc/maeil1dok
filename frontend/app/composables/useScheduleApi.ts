@@ -84,6 +84,31 @@ export function useScheduleApi() {
   }
 
   /**
+   * 연간 월별 진행 요약 조회 (월 도트용 — 12개월 일정을 한 번의 요청으로)
+   */
+  async function fetchYearProgress(
+    planId: number,
+    year: number,
+    options: { throwOnError?: boolean } = {},
+  ): Promise<components['schemas']['ProgressStatsMonthlyProgress'][]> {
+    pendingSchedules++;
+    isFetchingSchedules.value = true;
+
+    try {
+      const { data } = await api.GET('/api/v1/todos/stats/progress/', {
+        params: { plan_id: planId, year },
+      });
+      return data.monthly_progress ?? [];
+    } catch (error) {
+      handleApiError(error, '월별 진행 조회', { silent: true });
+      if (options.throwOnError) throw error;
+      return [];
+    } finally {
+      isFetchingSchedules.value = --pendingSchedules > 0;
+    }
+  }
+
+  /**
    * 다음 미완료 위치 조회
    */
   async function fetchNextPosition(
@@ -175,6 +200,7 @@ export function useScheduleApi() {
 
     // API 메서드
     fetchMonthlySchedules,
+    fetchYearProgress,
     fetchNextPosition,
     fetchCurrentPosition,
     updateReadingStatus,

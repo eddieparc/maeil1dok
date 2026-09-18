@@ -5478,6 +5478,11 @@ export interface components {
             email_verified?: boolean;
             has_usable_password_flag?: boolean;
         };
+        ProgressStatsMonthlyProgress: {
+            month: number;
+            done: number;
+            total: number;
+        };
         ProgressStatsResponse: {
             success: boolean;
             plan_name: string;
@@ -5485,6 +5490,9 @@ export interface components {
             theoretical_progress: number;
             /** Format: double */
             user_progress: number;
+            /** Format: date */
+            end_date: string | null;
+            monthly_progress?: components["schemas"]["ProgressStatsMonthlyProgress"][];
         };
         ProgressUpdateResponse: {
             success: boolean;
@@ -11096,6 +11104,8 @@ export interface operations {
             query?: {
                 /** @description Active public reading plan ID; defaults to the active default plan. */
                 plan_id?: number;
+                /** @description When set (1-9999), the response also includes monthly_progress: per-month schedule row totals and completed-row counts for that year. */
+                year?: number;
             };
             header?: never;
             path?: never;

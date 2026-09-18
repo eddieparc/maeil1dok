@@ -5672,6 +5672,12 @@ paths:
           type: integer
         description: Active public reading plan ID; defaults to the active default
           plan.
+      - in: query
+        name: year
+        schema:
+          type: integer
+        description: 'When set (1-9999), the response also includes monthly_progress:
+          per-month schedule row totals and completed-row counts for that year.'
       tags:
       - todos
       security:
@@ -9751,6 +9757,19 @@ components:
       - nickname
       - profile_image
       - username
+    ProgressStatsMonthlyProgress:
+      type: object
+      properties:
+        month:
+          type: integer
+        done:
+          type: integer
+        total:
+          type: integer
+      required:
+      - done
+      - month
+      - total
     ProgressStatsResponse:
       type: object
       properties:
@@ -9764,7 +9783,16 @@ components:
         user_progress:
           type: number
           format: double
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        monthly_progress:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressStatsMonthlyProgress'
       required:
+      - end_date
       - plan_name
       - success
       - theoretical_progress

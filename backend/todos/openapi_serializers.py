@@ -541,11 +541,19 @@ class PlanStatsResponseSerializer(serializers.Serializer):
     today_completed_users = serializers.IntegerField()
 
 
+class ProgressStatsMonthlyProgressSerializer(serializers.Serializer):
+    month = serializers.IntegerField()
+    done = serializers.IntegerField()
+    total = serializers.IntegerField()
+
+
 class ProgressStatsResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     plan_name = serializers.CharField()
     theoretical_progress = serializers.FloatField()
     user_progress = serializers.FloatField()
+    end_date = serializers.DateField(allow_null=True)
+    monthly_progress = ProgressStatsMonthlyProgressSerializer(many=True, required=False)
 
 
 class PushConfigResponseSerializer(serializers.Serializer):
