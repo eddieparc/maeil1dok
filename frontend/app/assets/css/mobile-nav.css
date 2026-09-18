@@ -27,7 +27,6 @@ body:has(.bottom-nav-container[data-density="reader"]) {
 /* The legacy reader now shares the desktop sidebar instead of its two-link bar. */
 @media (min-width: 1024px) {
   .bible-page:has(.floating-bottom-area) {
-    max-width: calc(var(--content-max) + var(--sidebar-width));
     padding-inline-start: var(--sidebar-width);
   }
 }

@@ -1317,8 +1317,10 @@ watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.s
 
 <style scoped>
 .bible-page {
-  /* 리더는 화면 너비를 전부 쓴다(역본 비교 포함). */
+  /* 리더는 화면 너비를 전부 쓴다(역본 비교 포함). 전역 bible-page.css의
+     768px 상한을 해제한다. */
   width: 100%;
+  max-width: none;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
