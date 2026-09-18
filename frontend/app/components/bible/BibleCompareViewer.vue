@@ -26,16 +26,8 @@
         </button>
       </template>
       <span v-if="isSecondaryLoading" class="compare-loading">불러오는 중…</span>
-      <!-- 세로(모바일) 단일 창: 활성 역본 하나 + 좌우 전환 화살표 -->
+      <!-- 세로(모바일) 단일 창: 현재 역본 + 다른 역본 전환 버튼 -->
       <div class="pane-nav">
-        <button
-          class="pane-arrow"
-          :disabled="mobilePane === 'primary'"
-          aria-label="왼쪽 역본 보기"
-          @click="mobilePane = 'primary'"
-        >
-          <ChevronLeftIcon :size="16" />
-        </button>
         <button
           class="version-btn pane-version"
           :aria-expanded="openMenu === mobilePane"
@@ -45,12 +37,12 @@
           {{ activePaneName }} <ChevronDownIcon :size="14" />
         </button>
         <button
-          class="pane-arrow"
-          :disabled="mobilePane === 'secondary'"
-          aria-label="오른쪽 역본 보기"
-          @click="mobilePane = 'secondary'"
+          class="pane-switch"
+          :aria-label="`${otherPaneName}로 전환`"
+          @click="mobilePane = otherPane"
         >
-          <ChevronRightIcon :size="16" />
+          <SwapIcon :size="14" />
+          <span>{{ otherPaneLabel }}</span>
         </button>
       </div>
     </div>
@@ -88,7 +80,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ArrowLeftRight as SwapIcon } from '@lucide/vue';
+import { ChevronDown as ChevronDownIcon, ArrowLeftRight as SwapIcon } from '@lucide/vue';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
 import { VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';
 
@@ -139,8 +131,19 @@ let swapSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
 // 세로 모바일 단일 창: 보여 줄 역본. 가로로 돌리면 CSS가 두 열을 다시 보여 준다.
 const mobilePane = ref<CompareColumn>('primary');
+const otherPane = computed<CompareColumn>(() =>
+  mobilePane.value === 'primary' ? 'secondary' : 'primary');
 const activePaneName = computed(() =>
   mobilePane.value === 'primary' ? props.primaryVersionName : props.secondaryVersionName);
+const otherPaneName = computed(() =>
+  mobilePane.value === 'primary' ? props.secondaryVersionName : props.primaryVersionName);
+// 받침이 있으면(ㄹ 제외) '으로', 모음·ㄹ 받침이면 '로'를 붙인다.
+const otherPaneLabel = computed(() => {
+  const name = otherPaneName.value ?? '';
+  const last = name.charCodeAt(name.length - 1);
+  const batchim = last >= 0xac00 && last <= 0xd7a3 ? (last - 0xac00) % 28 : 0;
+  return `${name}${batchim !== 0 && batchim !== 8 ? '으로' : '로'}`;
+});
 
 watch(
   () => [props.primaryVersionCode, props.primaryVersionName, props.secondaryVersionCode, props.secondaryVersionName],
@@ -368,30 +371,26 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.pane-arrow {
+.pane-switch {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
+  gap: 4px;
+  padding: 6px 10px;
   border: none;
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--color-bg-secondary);
   color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.pane-arrow:hover:not(:disabled) {
+.pane-switch:hover {
   background: var(--color-accent-primary);
   color: #fff;
-}
-
-.pane-arrow:disabled {
-  opacity: 0.3;
-  cursor: default;
 }
 
 @media (max-width: 767px) and (orientation: portrait) {
