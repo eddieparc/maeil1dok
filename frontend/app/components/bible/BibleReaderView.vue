@@ -24,6 +24,16 @@
           <ChevronDownIcon class="selector-icon" :size="13" />
         </button>
         <button
+          v-if="isTongdokMode"
+          class="header-exit"
+          type="button"
+          @click="$emit('exit-tongdok')"
+          title="통독 모드 종료"
+          aria-label="통독 모드 종료"
+        >
+          <XMarkIcon :size="12" aria-hidden="true" />
+        </button>
+        <button
           class="nav-button next"
           type="button"
           :disabled="!hasNextChapter"
@@ -237,30 +247,6 @@
           </button>
 
           <div v-if="isTongdokMode && tongdokProgress" class="reader-controls-progress">
-            <div class="tongdok-mode-pill" :class="{ 'is-complete': isTongdokComplete }">
-              <button
-                class="tongdok-complete-status pill-action"
-                :class="{ 'is-complete': isTongdokComplete }"
-                :aria-pressed="isTongdokComplete"
-                type="button"
-                :disabled="isCompleting"
-                @click="$emit('tongdok-complete-click')"
-                title="통독 완료"
-                aria-label="통독 완료"
-              >
-                <CheckIcon :size="13" :stroke-width="2.5" />
-              </button>
-              <span class="tongdok-mode-pill-label">{{ isTongdokComplete ? '완료됨' : '통독중' }}</span>
-              <button
-                class="pill-action pill-exit"
-                type="button"
-                @click="$emit('exit-tongdok')"
-                title="통독 모드 종료"
-                aria-label="통독 모드 종료"
-              >
-                <XMarkIcon :size="12" aria-hidden="true" />
-              </button>
-            </div>
             <div class="story-progress-bar">
               <div
                 v-for="i in tongdokProgress.total"
@@ -275,6 +261,19 @@
             <div class="progress-text-indicator">
               {{ tongdokDone ?? '—' }}/{{ tongdokProgress.total }}
             </div>
+            <button
+              class="tongdok-complete-status"
+              :class="{ 'is-complete': isTongdokComplete }"
+              :aria-pressed="isTongdokComplete"
+              type="button"
+              :disabled="isCompleting"
+              @click="$emit('tongdok-complete-click')"
+              title="통독 완료"
+              aria-label="통독 완료"
+            >
+              <CheckIcon :size="13" :stroke-width="2.5" />
+              <span class="tongdok-complete-label">{{ isTongdokComplete ? '완료됨' : '통독 완료' }}</span>
+            </button>
           </div>
           <div v-else class="reader-controls-spacer" aria-hidden="true"></div>
 
@@ -406,7 +405,7 @@ const tongdokDone = computed(() => props.tongdokProgress?.done
 const isTongdokComplete = computed(() => !!props.tongdokProgress?.total
   && tongdokDone.value === props.tongdokProgress.total);
 const bottomControlsHeight = computed(() =>
-  (props.tongdokAudioLink && props.isTongdokAudioPlayerOpen ? 44 : 0) + 46);
+  (props.tongdokAudioLink && props.isTongdokAudioPlayerOpen ? 44 : 0) + 40);
 
 const headerScheduleDate = computed(() => {
   if (!props.tongdokScheduleDate) return '';
@@ -696,6 +695,39 @@ defineExpose({
 
 [data-theme="dark"] .header-context {
   color: var(--color-text-secondary);
+}
+
+/* 통독 종료 ✕ — 날짜 라인 옆에 붙는 작은 버튼 */
+.header-exit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  margin-top: 0.125rem;
+  align-self: flex-start;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary, #9ca3af);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.header-exit:hover {
+  background: rgba(42, 17, 17, 0.1);
+  color: var(--color-accent-primary, #2A1111);
+}
+
+[data-theme="dark"] .header-exit {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .header-exit:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--color-accent-primary);
 }
 
 .reader-scroll-progress {
@@ -1710,79 +1742,58 @@ defineExpose({
 /* 통독 하단 진행 정보 */
 /* 통독 진행률은 reader-controls-row로 통합됨 */
 
-/* 통독 pill: [✓ 완료] [통독중/완료됨] [✕ 종료] — 완료·종료를 한 pill에 통합 */
-.tongdok-mode-pill {
+/* 통독 완료 버튼 (하단, 진행도 옆 별도 버튼) */
+.tongdok-complete-status {
   display: inline-flex;
   align-items: center;
-  gap: 0.125rem;
-  flex-shrink: 0;
-  height: 2rem;
-  padding: 0 0.25rem;
-  border: 1px solid var(--color-border-default, rgba(42, 17, 17, 0.14));
-  border-radius: var(--radius-control, 10px);
-  background: var(--color-bg-subtle, rgba(42, 17, 17, 0.05));
-  color: var(--color-text-secondary, #6b7280);
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.tongdok-mode-pill.is-complete {
-  border-color: rgba(42, 17, 17, 0.3);
-  background: rgba(42, 17, 17, 0.1);
-}
-
-.tongdok-mode-pill .pill-action {
-  display: inline-flex;
-  align-items: center;
+  gap: 0.25rem;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  border-radius: var(--radius-control, 10px);
+  color: var(--color-text-inverse, #fff);
+  background: var(--color-accent-primary, #2A1111);
+  border: 1px solid var(--color-accent-primary, #2A1111);
   flex-shrink: 0;
   transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
-.tongdok-mode-pill .pill-action:hover:not(:disabled) {
-  background: rgba(42, 17, 17, 0.14);
+.tongdok-complete-status:hover:not(:disabled) {
+  background: var(--color-accent-primary-hover, var(--color-accent-primary, #2A1111));
 }
 
-.tongdok-mode-pill .pill-action:active:not(:disabled) {
-  transform: scale(0.92);
+.tongdok-complete-status:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
-.tongdok-mode-pill .pill-action:disabled {
+.tongdok-complete-status:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.tongdok-mode-pill .tongdok-complete-status.is-complete {
+.tongdok-complete-status.is-complete {
+  background: transparent;
   color: var(--color-accent-primary, #2A1111);
 }
 
-.tongdok-mode-pill-label {
-  padding: 0 0.125rem;
+.tongdok-complete-label {
+  font-size: 0.75rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-[data-theme="dark"] .tongdok-mode-pill {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.12);
+[data-theme="dark"] .tongdok-complete-status {
   color: var(--color-accent-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-[data-theme="dark"] .tongdok-mode-pill.is-complete {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.2);
+[data-theme="dark"] .tongdok-complete-status:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
 }
 
-[data-theme="dark"] .tongdok-mode-pill .pill-action:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.16);
+[data-theme="dark"] .tongdok-complete-status.is-complete {
+  background: transparent;
 }
 
 .story-progress-bar {
@@ -1794,7 +1805,7 @@ defineExpose({
 
 .progress-segment {
   flex: 1;
-  height: 5px;
+  height: 4px;
   background: rgba(42, 17, 17, 0.16);
   border-radius: 999px;
   transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -1922,8 +1933,8 @@ defineExpose({
 }
 
 .reader-controls-row .nav-button {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   color: var(--color-text-secondary);
 }
 
