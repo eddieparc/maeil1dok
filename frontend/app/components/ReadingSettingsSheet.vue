@@ -8,6 +8,26 @@
       <p>{{ settingsStore.syncError }}</p>
       <AppButton data-testid="reading-settings-retry" variant="ghost" size="sm" :disabled="settingsStore.isLoading || settingsStore.isSyncing" @click="settingsStore.syncToServer()">다시 시도</AppButton>
     </div>
+    <section class="preview-section" aria-label="본문 미리보기">
+      <span class="preview-label">본문 미리보기</span>
+      <h3>창세기 1장</h3>
+      <div class="preview-content" :style="previewStyles" :class="{ 'highlight-names': settings.highlightNames }">
+        <p v-if="settings.verseJoining" class="verse-paragraph">
+          <sup v-if="settings.showVerseNumbers" class="verse-number">1</sup>태초에 <span class="bible-name">하나님</span>이 천지를 창조하시니라
+          <sup v-if="settings.showVerseNumbers" class="verse-number">2</sup>땅이 혼돈하고 공허하며 흑암이 깊음 위에 있고 <span class="bible-name">하나님</span>의 영은 수면 위에 운행하시니라
+        </p>
+        <template v-else>
+          <p class="preview-verse">
+            <span v-if="settings.showVerseNumbers" class="verse-number">1</span>
+            <span>태초에 <span class="bible-name">하나님</span>이 천지를 창조하시니라</span>
+          </p>
+          <p class="preview-verse">
+            <span v-if="settings.showVerseNumbers" class="verse-number">2</span>
+            <span>땅이 혼돈하고 공허하며 흑암이 깊음 위에 있고 <span class="bible-name">하나님</span>의 영은 수면 위에 운행하시니라</span>
+          </p>
+        </template>
+      </div>
+    </section>
     <section class="settings-section" aria-labelledby="font-label">
       <h2 id="font-label" class="section-title">글꼴</h2>
       <div class="font-options">
@@ -41,97 +61,39 @@
       <AppSwitch label="인명·지명 강조" :model-value="settings.highlightNames" @update:model-value="updateSetting('highlightNames', $event)" />
     </div>
 
-    <details class="advanced-settings">
-      <summary>추가 설정 및 데이터 관리</summary>
-      <section class="preview-section" aria-label="본문 미리보기">
-        <span class="preview-label">본문 미리보기</span>
-        <h3>창세기 1장</h3>
-        <div class="preview-content" :style="previewStyles" :class="{ 'highlight-names': settings.highlightNames }">
-          <p v-if="settings.verseJoining" class="verse-paragraph">
-            <sup v-if="settings.showVerseNumbers" class="verse-number">1</sup>태초에 <span class="bible-name">하나님</span>이 천지를 창조하시니라
-            <sup v-if="settings.showVerseNumbers" class="verse-number">2</sup>땅이 혼돈하고 공허하며 흑암이 깊음 위에 있고 <span class="bible-name">하나님</span>의 영은 수면 위에 운행하시니라
-          </p>
-          <template v-else>
-            <p class="preview-verse">
-              <span v-if="settings.showVerseNumbers" class="verse-number">1</span>
-              <span>태초에 <span class="bible-name">하나님</span>이 천지를 창조하시니라</span>
-            </p>
-            <p class="preview-verse">
-              <span v-if="settings.showVerseNumbers" class="verse-number">2</span>
-              <span>땅이 혼돈하고 공허하며 흑암이 깊음 위에 있고 <span class="bible-name">하나님</span>의 영은 수면 위에 운행하시니라</span>
-            </p>
-          </template>
-        </div>
-      </section>
-      <section class="settings-section">
-        <h2 class="section-title">테마</h2>
-        <div class="chip-buttons">
-          <button v-for="theme in themeOptions" :key="theme.value" type="button" class="chip-btn" :aria-pressed="settings.theme === theme.value" @click="updateSetting('theme', theme.value)">{{ theme.label }}</button>
-        </div>
-      </section>
-      <section class="settings-section">
-        <h2 class="section-title">두께</h2>
-        <div class="chip-buttons">
-          <button v-for="option in fontWeightOptions" :key="option.value" type="button" class="chip-btn" :aria-pressed="settings.fontWeight === option.value" :style="{ fontWeight: FONT_WEIGHTS[option.value] }" @click="updateSetting('fontWeight', option.value)">{{ option.label }}</button>
-        </div>
-      </section>
-      <section class="settings-section">
-        <h2 class="section-title">정렬</h2>
-        <div class="chip-buttons">
-          <button v-for="option in textAlignOptions" :key="option.value" type="button" class="chip-btn" :aria-pressed="settings.textAlign === option.value" @click="updateSetting('textAlign', option.value)">{{ option.label }}</button>
-        </div>
-      </section>
-      <AppSwitch v-for="option in readingOptions" :key="option.value" :label="option.label" :model-value="settings[option.value]" @update:model-value="updateSetting(option.value, $event)" />
-      <nav class="quick-links" aria-label="성경 기록">
-        <NuxtLink to="/bible/bookmarks">북마크</NuxtLink>
-        <NuxtLink to="/bible/notes">노트</NuxtLink>
-        <NuxtLink to="/bible/highlights">하이라이트</NuxtLink>
-      </nav>
-      <section class="settings-section danger-section">
-        <h2 class="section-title">데이터 관리</h2>
-        <p>아래 작업은 되돌릴 수 없습니다.</p>
-        <div class="danger-buttons">
-          <AppButton variant="danger" :disabled="isDeleting" @click="deleteAllBookmarks">북마크 전체 삭제</AppButton>
-          <AppButton variant="danger" :disabled="isDeleting" @click="deleteAllNotes">노트 전체 삭제</AppButton>
-          <AppButton variant="danger" :disabled="isDeleting" @click="deleteAllHighlights">하이라이트 전체 삭제</AppButton>
-          <AppButton variant="danger" :disabled="isDeleting" @click="resetAllSettings">모든 설정 초기화</AppButton>
-        </div>
-      </section>
-    </details>
+    <section class="settings-section">
+      <h2 class="section-title">두께</h2>
+      <div class="chip-buttons">
+        <button v-for="option in fontWeightOptions" :key="option.value" type="button" class="chip-btn" :aria-pressed="settings.fontWeight === option.value" :style="{ fontWeight: FONT_WEIGHTS[option.value] }" @click="updateSetting('fontWeight', option.value)">{{ option.label }}</button>
+      </div>
+    </section>
+    <section class="settings-section">
+      <h2 class="section-title">정렬</h2>
+      <div class="chip-buttons">
+        <button v-for="option in textAlignOptions" :key="option.value" type="button" class="chip-btn" :aria-pressed="settings.textAlign === option.value" @click="updateSetting('textAlign', option.value)">{{ option.label }}</button>
+      </div>
+    </section>
+    <AppSwitch v-for="option in readingOptions" :key="option.value" :label="option.label" :model-value="settings[option.value]" @update:model-value="updateSetting(option.value, $event)" />
   </BottomSheet>
-  <Toast />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import {
   useReadingSettingsStore,
   FONT_FAMILIES,
   FONT_WEIGHTS,
   type FontFamily,
-  type ThemeMode,
   type FontWeight,
   type TextAlign
 } from '~/stores/readingSettings';
-import { useAuthService } from '~/composables/useAuthService';
-import { useApi } from '~/composables/useApi';
-import { useErrorHandler } from '~/composables/useErrorHandler';
-import { useModal } from '~/composables/useModal';
-import { useToast } from '~/composables/useToast';
 import BottomSheet from '~/components/ui/BottomSheet.vue';
 import AppButton from '~/components/ui/AppButton.vue';
 import AppSwitch from '~/components/ui/AppSwitch.vue';
-import Toast from '~/components/Toast.vue';
 
 const props = withDefaults(defineProps<{ modelValue: boolean; currentVersion?: string }>(), { currentVersion: 'KRV' });
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();
 const settingsStore = useReadingSettingsStore();
-const auth = useAuthService();
-const api = useApi();
-const toast = useToast();
-const modal = useModal();
-const { handleApiError } = useErrorHandler();
-const isDeleting = ref(false);
 const settings = computed(() => settingsStore.settings);
 const closeSheet = () => emit('update:modelValue', false);
 onMounted(() => { if (props.modelValue) void settingsStore.initialize(); });
@@ -141,11 +103,6 @@ const fontOptions: Array<{ value: FontFamily; label: string }> = [
   { value: 'pretendard', label: 'Pretendard' },
   { value: 'kopub-batang', label: 'KoPub 바탕' },
   { value: 'ridi-batang', label: '리디바탕' },
-];
-const themeOptions: Array<{ value: ThemeMode; label: string }> = [
-  { value: 'light', label: '라이트' },
-  { value: 'dark', label: '다크' },
-  { value: 'system', label: '시스템' },
 ];
 const fontWeightOptions: Array<{ value: FontWeight; label: string }> = [
   { value: 'normal', label: '보통' },
@@ -176,95 +133,6 @@ const previewStyles = computed(() => ({
 const updateSetting = <K extends keyof typeof settings.value>(key: K, value: typeof settings.value[K]) => {
   settingsStore.updateSetting(key, value);
 };
-
-const deleteAllBookmarks = async () => {
-  if (!auth.isAuthenticated.value) {
-    toast.error('로그인이 필요합니다');
-    return;
-  }
-  const confirmed = await modal.confirm({
-    title: '북마크 전체 삭제',
-    description: '모든 북마크를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
-    confirmText: '삭제',
-    cancelText: '취소',
-    confirmVariant: 'danger',
-    icon: 'warning'
-  });
-  if (!confirmed) return;
-  isDeleting.value = true;
-  try {
-    await api.DELETE('/api/v1/todos/bible/bookmarks/delete-all/');
-    toast.success('북마크가 모두 삭제되었습니다');
-  } catch (error) {
-    handleApiError(error, '북마크 삭제');
-  } finally {
-    isDeleting.value = false;
-  }
-};
-
-const deleteAllNotes = async () => {
-  if (!auth.isAuthenticated.value) {
-    toast.error('로그인이 필요합니다');
-    return;
-  }
-  const confirmed = await modal.confirm({
-    title: '노트 전체 삭제',
-    description: '모든 노트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
-    confirmText: '삭제',
-    cancelText: '취소',
-    confirmVariant: 'danger',
-    icon: 'warning'
-  });
-  if (!confirmed) return;
-  isDeleting.value = true;
-  try {
-    await api.DELETE('/api/v1/todos/bible/notes/delete-all/');
-    toast.success('노트가 모두 삭제되었습니다');
-  } catch (error) {
-    handleApiError(error, '노트 삭제');
-  } finally {
-    isDeleting.value = false;
-  }
-};
-
-const deleteAllHighlights = async () => {
-  if (!auth.isAuthenticated.value) {
-    toast.error('로그인이 필요합니다');
-    return;
-  }
-  const confirmed = await modal.confirm({
-    title: '하이라이트 전체 삭제',
-    description: '모든 하이라이트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
-    confirmText: '삭제',
-    cancelText: '취소',
-    confirmVariant: 'danger',
-    icon: 'warning'
-  });
-  if (!confirmed) return;
-  isDeleting.value = true;
-  try {
-    await api.DELETE('/api/v1/todos/bible/highlights/delete-all/');
-    toast.success('하이라이트가 모두 삭제되었습니다');
-  } catch (error) {
-    handleApiError(error, '하이라이트 삭제');
-  } finally {
-    isDeleting.value = false;
-  }
-};
-
-const resetAllSettings = async () => {
-  const confirmed = await modal.confirm({
-    title: '설정 초기화',
-    description: '모든 설정을 기본값으로 초기화하시겠습니까?',
-    confirmText: '초기화',
-    cancelText: '취소',
-    confirmVariant: 'danger',
-    icon: 'warning'
-  });
-  if (!confirmed) return;
-  settingsStore.resetToDefaults();
-  toast.success('설정이 초기화되었습니다');
-};
 </script>
 
 <style scoped>
@@ -279,8 +147,6 @@ const resetAllSettings = async () => {
 :global(.reading-settings-sheet .bottom-sheet__close) { display: none; }
 :global(.reading-settings-sheet) { border-radius: 24px 24px 0 0; }
 .sync-error { color: var(--color-error); font-size: 13px; }
-.quick-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; }
-.quick-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-accent-primary); }
 .done-btn { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--color-accent-primary); }
 .settings-section { margin-bottom: 20px; }
 .section-title { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); }
@@ -298,14 +164,7 @@ const resetAllSettings = async () => {
 .slider-row input::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; margin-top: -8px; border-radius: 50%; background: var(--color-accent-primary); box-shadow: var(--shadow-sm); }
 .slider-row input::-moz-range-thumb { width: 20px; height: 20px; border: none; border-radius: 50%; background: var(--color-accent-primary); box-shadow: var(--shadow-sm); }
 .name-toggle { border-top: 1px solid var(--color-border-default); padding-top: 12px; }
-.advanced-settings { margin-top: 8px; }
-.advanced-settings summary { display: list-item; min-height: 44px; padding: 12px 0; box-sizing: border-box; cursor: pointer; font-size: 12px; color: var(--color-text-tertiary); }
-.advanced-settings summary:hover { color: var(--color-accent-primary); }
-.advanced-settings[open] summary { margin-bottom: 12px; }
-.danger-section { margin-top: 20px; }
-.danger-section p { font-size: 12px; color: var(--color-error); }
-.danger-buttons { display: grid; gap: 8px; }
-.font-button:focus-visible, .chip-btn:focus-visible, .slider-row input:focus-visible, summary:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
+.font-button:focus-visible, .chip-btn:focus-visible, .slider-row input:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; border-color: var(--color-accent-primary); }
 .font-button:active, .chip-btn:active { transform: scale(.97); }
 [data-theme="dark"] .font-button.active, [data-theme="dark"] .chip-btn[aria-pressed="true"] { background: var(--color-bg-card); border: 1.5px solid var(--color-accent-primary); }
 @media (prefers-reduced-motion: reduce) {
