@@ -146,6 +146,23 @@ services:
     restart: unless-stopped
     networks: [beta-app]
 
+  api-beta-edge:
+    image: caddy:2-alpine
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./.beta-edge/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./.beta-edge/origin.pem:/etc/caddy/origin.pem:ro
+      - ./.beta-edge/origin.key:/etc/caddy/origin.key:ro
+    depends_on:
+      web-beta:
+        condition: service_healthy
+    mem_limit: 64m
+    cpus: 0.25
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-app]
+
   cloudflared-beta:
     image: cloudflare/cloudflared:2025.7.0
     command: ["tunnel", "--config", "/etc/cloudflared/config.yml", "--no-autoupdate", "run"]
