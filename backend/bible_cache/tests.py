@@ -644,3 +644,160 @@ class BibleCacheAPITest(APITestCase):
         self.assertEqual(title_response.status_code, status.HTTP_200_OK)
         self.assertTrue(title_response.data['success'])
         self.assertEqual(title_response.data['count'], 0)
+
+    def test_search_matches_phrase_split_by_inline_tags(self):
+        """태그가 단어 사이를 갈라도 정규화 평문으로 매칭된다."""
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='act',
+            chapter=16,
+            content=(
+                '<span><span class="number">1&nbsp;</span>'
+                '바울이 <font class="name">더베</font>와 <b>루스드라</b>에도 '
+                '이르매 거기 <i>디모데</i>라 하는 제자가 있으니</span><br />'
+            ),
+            content_type='html',
+        )
+
+        response = self.client.get(
+            '/api/v1/bible-cache/search/',
+            {'q': '바울이 더베와 루스드라에도', 'version': 'GAE'},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['chapter'], 16)
+
+    def test_search_matches_word_split_by_inline_tags(self):
+        """태그가 단어 중간을 갈라도 단어 검색이 된다."""
+        BibleContentCache.save_to_cache(
+            version='COG',
+            book='luk',
+            chapter=14,
+            content=(
+                '<span><span class="number">1&nbsp;</span>'
+                '예수<font class="name">께서</font> 바리사이파의 지도자 한 사람의 '
+                '집에 들어가셨다</span><br />'
+            ),
+            content_type='html',
+        )
+
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': '예수께서', 'version': 'COG'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+
+    def test_search_normalizes_extra_whitespace_in_query(self):
+        """쿼리의 연속 공백은 본문의 단일 공백과 매칭된다."""
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=23,
+            content=(
+                '<span><span class="number">19&nbsp;</span>'
+                '그&nbsp;후에&nbsp;아브라함이&nbsp;그의&nbsp;아내&nbsp;사라를&nbsp;장사하였다</span><br />'
+            ),
+            content_type='html',
+        )
+
+        response = self.client.get(
+            '/api/v1/bible-cache/search/',
+            {'q': '그  후에  아브라함이', 'version': 'GAE'},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+
+    def test_search_decodes_nested_json_content(self):
+        """KNT처럼 JSON 안에 HTML 본문이 중첩돼 있어도 검색된다."""
+        knt_content = json.dumps({
+            'found': True,
+            'reference': 'GEN 1',
+            'content': (
+                '<h2 data-number="1" class="c">1</h2>'
+                '<p class="p"><span class="verse-span" data-verse-id="GEN.1.1">'
+                '<span data-number="1" class="v">1</span></span>'
+                '<span class="verse-span">처음에 하나님이 하늘과 땅을 창조하셨다. </span></p>'
+                '<p class="p"><span class="verse-span" data-verse-id="GEN.1.2">'
+                '<span data-number="2" class="v">2</span></span>'
+                '<span class="verse-span">땅은 혼돈하고 공허하였다. </span></p>'
+            ),
+        })
+        BibleContentCache.save_to_cache(
+            version='KNT',
+            book='gen',
+            chapter=1,
+            content=knt_content,
+            content_type='json',
+        )
+
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': '하나님', 'version': 'KNT'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+        self.assertIn('하나님', response.data['results'][0]['snippet'])
+
+    def test_search_matches_hebrew_without_diacritics(self):
+        """히브리어 니쿠드(모음기호) 없이 검색해도 매칭된다."""
+        BibleContentCache.save_to_cache(
+            version='HEB',
+            book='gen',
+            chapter=1,
+            content=json.dumps({
+                'verses': [
+                    {'verse': 1, 'text': 'בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים'},
+                ],
+            }),
+            content_type='json',
+        )
+
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': 'אלהים', 'version': 'HEB'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+
+    def test_search_matches_greek_without_accents(self):
+        """그리스어 악센트 없이 검색해도 매칭된다."""
+        BibleContentCache.save_to_cache(
+            version='GRK',
+            book='jhn',
+            chapter=1,
+            content=json.dumps({
+                'verses': [
+                    {'verse': 1, 'text': 'Ἐν ἀρχῇ ἦν ὁ λόγος'},
+                ],
+            }),
+            content_type='json',
+        )
+
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': 'λογος', 'version': 'GRK'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['success'])
+        self.assertEqual(response.data['count'], 1)
+
+    def test_save_to_cache_populates_search_text(self):
+        """save_to_cache가 정규화된 search_text를 채운다."""
+        obj, _ = BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content='<p><span>1 태초에&nbsp;&nbsp;하나님이</span></p>',
+            content_type='html',
+        )
+
+        # 절 번호는 본문이 아니므로 search_text에 포함되지 않는다
+        self.assertEqual(obj.search_text, '태초에 하나님이')

@@ -1,18 +1,21 @@
 import hashlib
-import json
-import re
 from dataclasses import dataclass
-from html import unescape
 
 from django.conf import settings
 from django.core.cache import cache as django_cache
 from django.db.models import Q
-from django.utils.html import strip_tags
 
 from bible_cache.models import BibleContentCache
+from bible_cache.text_utils import (
+    clean_text,
+    find_normalized_index,
+    normalize_for_search,
+    plain_text,
+    verse_texts,
+)
 
 
-SEARCH_CACHE_VERSION = 'v2'
+SEARCH_CACHE_VERSION = 'v3'
 SEARCH_CACHE_TIMEOUT_SECONDS = getattr(settings, 'BIBLE_SEARCH_CACHE_TIMEOUT_SECONDS', 60 * 60 * 24)
 
 BOOK_ORDER = {
@@ -54,7 +57,7 @@ class BibleCacheSearchService:
         limit: int | None = None,
     ) -> list[BibleCacheSearchResult]:
         del limit  # kept for backward-compatible call sites; search returns all matches.
-        normalized_query = query.strip()
+        normalized_query = normalize_for_search(query)
         if not normalized_query:
             return []
 
@@ -64,10 +67,15 @@ class BibleCacheSearchService:
         if isinstance(cached_results, list):
             return cached_results
 
+        # search_text는 저장 시점에 정규화된 평문이라 태그·엔티티·공백·
+        # 결합 문자 차이로 인한 미스가 없다. 아직 백필되지 않은 행을 위해
+        # 원본 content 매칭도 함께 둔다.
         queryset = BibleContentCache.objects.filter(
             fetch_success=True,
         ).filter(
-            Q(content__icontains=normalized_query) | Q(content_type='json'),
+            Q(search_text__icontains=normalized_query)
+            | Q(content__icontains=normalized_query)
+            | Q(content_type='json'),
         )
         if normalized_version:
             queryset = queryset.filter(version=normalized_version)
@@ -94,7 +102,7 @@ class BibleCacheSearchService:
 
     @staticmethod
     def _cache_key(query: str, version: str | None) -> str:
-        digest = hashlib.sha256(f'{version or "ALL"}:{query.lower()}'.encode('utf-8')).hexdigest()
+        digest = hashlib.sha256(f'{version or "ALL"}:{query}'.encode('utf-8')).hexdigest()
         return f'bible-cache-search:{SEARCH_CACHE_VERSION}:{digest}'
 
     @staticmethod
@@ -105,120 +113,28 @@ class BibleCacheSearchService:
         )
 
     @staticmethod
-    def _snippet(content: str, query: str) -> str:
-        text = BibleCacheSearchService._plain_text(content)
-        normalized = BibleCacheSearchService._clean_text(text)
-        index = normalized.lower().find(query.lower())
+    def _snippet(content: str, normalized_query: str) -> str:
+        text = plain_text(content)
+        normalized = clean_text(text)
+        index = find_normalized_index(normalized, normalized_query)
         if index < 0:
             return normalized[:160]
 
         start = max(0, index - 60)
-        end = min(len(normalized), index + len(query) + 100)
+        end = min(len(normalized), index + len(normalized_query) + 100)
         prefix = '...' if start > 0 else ''
         suffix = '...' if end < len(normalized) else ''
         return f'{prefix}{normalized[start:end]}{suffix}'
 
     @staticmethod
-    def _plain_text(content: str) -> str:
-        try:
-            parsed = json.loads(content)
-        except json.JSONDecodeError:
-            return strip_tags(content)
-
-        if not isinstance(parsed, dict):
-            return strip_tags(content)
-
-        verses = parsed.get('verses')
-        if isinstance(verses, list):
-            return ' '.join(
-                verse.get('text', '')
-                for verse in verses
-                if isinstance(verse, dict) and isinstance(verse.get('text'), str)
-            )
-
-        return strip_tags(content)
-
-    @staticmethod
-    def _matching_verse_hit(content: str, query: str) -> BibleCacheVerseSearchHit | None:
-        normalized_query = query.lower()
-        for verse in BibleCacheSearchService._verse_texts(content):
-            if normalized_query in verse.text.lower():
-                return verse
+    def _matching_verse_hit(content: str, normalized_query: str) -> BibleCacheVerseSearchHit | None:
+        for verse in verse_texts(content):
+            if normalized_query in normalize_for_search(verse.text):
+                return BibleCacheVerseSearchHit(verse=verse.verse, text=verse.text)
 
         return None
 
     @staticmethod
-    def _matching_verse(content: str, query: str) -> int | None:
-        hit = BibleCacheSearchService._matching_verse_hit(content, query)
+    def _matching_verse(content: str, normalized_query: str) -> int | None:
+        hit = BibleCacheSearchService._matching_verse_hit(content, normalized_query)
         return hit.verse if hit else None
-
-    @staticmethod
-    def _verse_texts(content: str) -> list[BibleCacheVerseSearchHit]:
-        try:
-            parsed = json.loads(content)
-        except json.JSONDecodeError:
-            return BibleCacheSearchService._verse_texts_from_html(content)
-
-        if isinstance(parsed, dict):
-            verses = parsed.get('verses')
-            if isinstance(verses, list):
-                hits: list[BibleCacheVerseSearchHit] = []
-                for verse in verses:
-                    if not isinstance(verse, dict):
-                        continue
-                    verse_text = verse.get('text')
-                    verse_number = verse.get('verse')
-                    if isinstance(verse_text, str):
-                        hits.append(
-                            BibleCacheVerseSearchHit(
-                                verse=verse_number if isinstance(verse_number, int) else None,
-                                text=BibleCacheSearchService._clean_text(verse_text),
-                            )
-                        )
-                return hits
-
-        if isinstance(parsed, list):
-            text = BibleCacheSearchService._clean_text(' '.join(str(item) for item in parsed))
-            return [BibleCacheVerseSearchHit(verse=None, text=text)] if text else []
-
-        text = BibleCacheSearchService._clean_text(strip_tags(content))
-        return [BibleCacheVerseSearchHit(verse=None, text=text)] if text else []
-
-    @staticmethod
-    def _verse_texts_from_html(content: str) -> list[BibleCacheVerseSearchHit]:
-        verses = [
-            BibleCacheVerseSearchHit(
-                verse=int(match.group(1)),
-                text=BibleCacheSearchService._clean_text(match.group(2)),
-            )
-            for match in re.finditer(
-                r'<span\b[^>]*>\s*<span\b[^>]*class=["\']number["\'][^>]*>\s*(\d{1,3})(?:&nbsp;|\s)*</span>([\s\S]*?)</span>\s*<br\s*/?>',
-                content,
-                re.IGNORECASE,
-            )
-        ]
-        if verses:
-            return verses
-
-        simple_span_verses = [
-            BibleCacheVerseSearchHit(
-                verse=int(match.group(1)),
-                text=BibleCacheSearchService._clean_text(match.group(2)),
-            )
-            for match in re.finditer(
-                r'<span\b[^>]*>\s*(\d{1,3})(?:&nbsp;|\s)+([\s\S]*?)</span>',
-                content,
-                re.IGNORECASE,
-            )
-        ]
-        if simple_span_verses:
-            return simple_span_verses
-
-        text = BibleCacheSearchService._clean_text(strip_tags(content))
-        return [BibleCacheVerseSearchHit(verse=None, text=text)] if text else []
-
-    @staticmethod
-    def _clean_text(text: str) -> str:
-        decoded = unescape(strip_tags(text)).replace('\xa0', ' ')
-        without_source_noise = re.sub(r'\s*직접입력\s*\[[^\]]+\]\s*', ' ', decoded)
-        return re.sub(r'\s+', ' ', without_source_noise).strip()

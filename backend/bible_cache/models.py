@@ -41,6 +41,11 @@ class BibleContentCache(models.Model):
     content = models.TextField(
         help_text="원본 HTML/JSON 콘텐츠"
     )
+    search_text = models.TextField(
+        blank=True,
+        default='',
+        help_text="검색용 정규화 평문 (태그·결합문자·공백 정규화 적용)"
+    )
     content_type = models.CharField(
         max_length=10,
         choices=CONTENT_TYPE_CHOICES,
@@ -102,6 +107,8 @@ class BibleContentCache(models.Model):
         """캐시에 콘텐츠 저장 (upsert)"""
         cache_key = cls.generate_cache_key(version, book, chapter)
 
+        from bible_cache.text_utils import search_text_for_content
+
         obj, created = cls.objects.update_or_create(
             cache_key=cache_key,
             defaults={
@@ -109,6 +116,7 @@ class BibleContentCache(models.Model):
                 'book': book.lower(),
                 'chapter': chapter,
                 'content': content,
+                'search_text': search_text_for_content(content),
                 'content_type': content_type,
                 'source_url': source_url,
                 'fetch_success': fetch_success,
