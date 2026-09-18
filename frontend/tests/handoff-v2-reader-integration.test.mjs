@@ -30,7 +30,7 @@ const boundary = name => Vue.defineComponent({ name, inheritAttrs: false,
     return () => Vue.h('boundary', { 'data-boundary': name }, [slots.bottom?.(), slots.primary?.()]);
   },
 });
-const boundaryNames = ['BibleCompareViewer', 'BibleViewer', 'SelectionFloatingControls', 'BibleHome', 'BibleTOC', 'BookSelector', 'TongdokCompleteModal', 'TongdokAlreadyCompleteModal', 'TongdokNextScheduleModal', 'TongdokCertificationModal', 'NoteQuickModal', 'HighlightModal', 'ReadingSettingsModal', 'ReadingSettingsSheet', 'PlanSelectorModal', 'BibleScheduleContent', 'BaseModal', 'ShareSheet', 'ReaderGuideSheet', 'Toast'];
+const boundaryNames = ['BibleCompareViewer', 'BibleViewer', 'SelectionFloatingControls', 'BibleHome', 'BibleTOC', 'BibleTabBar', 'BookSelector', 'TongdokCompleteModal', 'TongdokAlreadyCompleteModal', 'TongdokNextScheduleModal', 'TongdokCertificationModal', 'NoteQuickModal', 'HighlightModal', 'ReadingSettingsModal', 'ReadingSettingsSheet', 'PlanSelectorModal', 'BibleScheduleContent', 'BaseModal', 'ShareSheet', 'ReaderGuideSheet', 'Toast'];
 for (const name of boundaryNames) r[name] = boundary(name);
 const serviceModules = {
   useAuthService: 'export const useAuthService = () => globalThis.__readerIntegration.auth;',
@@ -51,6 +51,7 @@ const serviceModules = {
   };`,
   readingSettings: 'export const useReadingSettingsStore = () => globalThis.__readerIntegration.settings;',
   selectedPlan: 'export const useSelectedPlanStore = () => globalThis.__readerIntegration.selectedPlan;',
+  bibleTabs: 'export const useBibleTabsStore = () => globalThis.__readerIntegration.bibleTabs;',
   subscription: 'export const useSubscriptionStore = () => globalThis.__readerIntegration.subscriptions;',
   notifications: 'export const useNotificationsStore = () => ({ unreadCount: 0 });',
 };
@@ -131,6 +132,15 @@ async function mount(url = '/bible', options = {}) {
   };
   r.settings = Vue.reactive({ settings: { tongdokAutoComplete: false, audioPlaybackRate: 1, fontFamily: 'noto-serif', fontSize: 19, lineHeight: 1.8 }, updateSetting(k, v) { this.settings[k] = v; } });
   r.selectedPlan = Vue.reactive({ effectivePlanId: options.planId ?? null, selectedPlanId: options.planId ?? null, setSelectedPlanId(id) { this.effectivePlanId = id; this.selectedPlanId = id; } });
+  r.bibleTabs = Vue.reactive({
+    tabs: [], activeTabId: null, barVisible: false,
+    hydrate() {}, toggleBar() { this.barVisible = !this.barVisible; },
+    addTab(snapshot, label) { const tab = { id: `tab-${this.tabs.length + 1}`, label, snapshot }; this.tabs.push(tab); this.activeTabId = tab.id; return tab; },
+    switchTab(id) { const tab = this.tabs.find(t => t.id === id); if (tab) this.activeTabId = id; return tab ?? null; },
+    closeTab(id) { const i = this.tabs.findIndex(t => t.id === id); if (i < 0) return null; const wasActive = this.activeTabId === id; this.tabs.splice(i, 1); if (!wasActive) return null; const next = this.tabs[Math.min(i, this.tabs.length - 1)] ?? null; this.activeTabId = next?.id ?? null; return next; },
+    syncActiveTab(snapshot, label) { const tab = this.tabs.find(t => t.id === this.activeTabId); if (tab) { tab.snapshot = snapshot; tab.label = label; } },
+    updateActiveScroll(pos) { const tab = this.tabs.find(t => t.id === this.activeTabId); if (tab) tab.snapshot.scrollPosition = pos; },
+  });
   r.subscriptions = Vue.reactive({ activeSubscriptions: [{ plan_id: 7, plan_name: 'actual plan', is_default: true }], fetchSubscriptions: async () => {} });
   r.toast = Object.fromEntries(['success', 'error', 'info'].map(kind => [kind, message => r.messages.push({ kind, message })]));
   r.errors = { handleApiError: (error, context) => r.messages.push({ kind: 'error', error, context }), handleUserActionError: (error, context, fallback) => fallback?.() };

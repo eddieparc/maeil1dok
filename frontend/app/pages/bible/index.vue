@@ -1401,6 +1401,8 @@ onMounted(async () => {
   } catch (error) { console.warn('Failed to load compare preferences:', error); }
   routeLoad = applyReaderRoute(true);
   await routeLoad;
+  // 마운트 시점의 본문으로 활성 탭을 동기화한다 (watcher는 변경에만 반응)
+  syncActiveBibleTab();
   if (pageActive) window.addEventListener('beforeunload', handleBeforeUnload);
 });
 onBeforeUnmount(() => {
