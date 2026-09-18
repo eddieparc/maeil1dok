@@ -463,11 +463,14 @@ onBeforeUnmount(() => {
 .tongdok-audio-player {
   position: relative;
   box-sizing: border-box;
-  height: 44px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   background: var(--color-bg-card);
+  /* 진행도 바 위에 떠 있는 레이어로 읽히도록 위쪽 그림자 */
+  border-top: 1px solid var(--color-border-light);
+  box-shadow: 0 -4px 12px rgba(20, 16, 12, 0.08);
 }
 
 .player-speed-floating {
@@ -486,15 +489,19 @@ onBeforeUnmount(() => {
 }
 
 .player-speed-trigger {
-  min-width: var(--hit-min);
-  min-height: var(--hit-min);
-  padding: 0 0.5rem;
-  border-radius: 999px;
-  background: rgba(42, 17, 17, 0.1);
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 0.4rem;
+  border-radius: 8px;
+  background: transparent;
   color: var(--color-accent-primary, #2A1111);
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
+}
+
+.player-speed-trigger:hover {
+  background: var(--color-bg-hover);
 }
 
 .player-speed-menu {
@@ -601,20 +608,24 @@ onBeforeUnmount(() => {
 .player-control,
 .player-close {
   display: grid;
-  width: var(--hit-min);
-  height: var(--hit-min);
+  width: 30px;
+  height: 30px;
   place-items: center;
   flex-shrink: 0;
-  border-radius: 999px;
-  background: rgba(42, 17, 17, 0.1);
+  border-radius: 8px;
+  background: transparent;
   color: var(--color-accent-primary, #2A1111);
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
 }
 
+.player-control:hover,
+.player-close:hover {
+  background: var(--color-bg-hover);
+}
+
 .player-close {
-  background: rgba(15, 23, 42, 0.06);
   color: var(--text-secondary, #6b7280);
   font-size: 1rem;
 }
@@ -633,14 +644,18 @@ onBeforeUnmount(() => {
 
 .player-text-action {
   flex-shrink: 0;
-  min-height: var(--hit-min);
+  min-height: 30px;
   padding: 0.28rem 0.45rem;
-  border-radius: 7px;
-  background: rgba(42, 17, 17, 0.1);
+  border-radius: 8px;
+  background: transparent;
   color: var(--color-accent-primary, #2A1111);
   font-size: 0.7rem;
   font-weight: 800;
   line-height: 1;
+}
+
+.player-text-action:hover {
+  background: var(--color-bg-hover);
 }
 
 .player-fallback {
@@ -649,22 +664,12 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
-[data-theme="dark"] .player-control {
-  background: rgba(42, 17, 17, 0.18);
-}
-
-[data-theme="dark"] .player-speed-trigger,
 [data-theme="dark"] .player-speed-menu {
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(31, 41, 55, 0.94);
 }
 
 [data-theme="dark"] .player-speed-option {
-  color: var(--color-text-secondary, #d1d5db);
-}
-
-[data-theme="dark"] .player-close {
-  background: rgba(255, 255, 255, 0.08);
   color: var(--color-text-secondary, #d1d5db);
 }
 

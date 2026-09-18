@@ -3,6 +3,11 @@ module.exports = {
   // Dark mode via data-theme attribute (synced with themes.css)
   darkMode: ['selector', '[data-theme="dark"]'],
 
+  // hover: 유틸리티도 터치 기기에서 고착되지 않도록 hover 지원 포인터에서만 활성화
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
+
   theme: {
     extend: {
       screens: {

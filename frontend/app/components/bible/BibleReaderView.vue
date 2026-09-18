@@ -17,16 +17,6 @@
               type="button"
               @click="$emit('open-book-selector')"
             >{{ headerContextShort }}</button>
-            <button
-              v-if="isTongdokMode"
-              class="header-exit"
-              type="button"
-              @click="$emit('exit-tongdok')"
-              title="통독 모드 종료"
-              aria-label="통독 모드 종료"
-            >
-              <XMarkIcon :size="11" aria-hidden="true" />
-            </button>
           </div>
           <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
             <span class="book-chapter-text">
@@ -79,6 +69,8 @@
           @reading-plan-click="$emit('reading-plan-click')"
           @bookmark-toggle="$emit('bookmark-toggle')"
           @audio-link-click="$emit('audio-link-click', $event)"
+          :is-tongdok-mode="isTongdokMode"
+          @exit-tongdok="$emit('exit-tongdok')"
         />
         <!-- 통독모드 버튼 (로그인 사용자, 비통독 모드일 때) -->
         <button
@@ -308,7 +300,6 @@ import ChevronRightIcon from '~/components/icons/ChevronRightIcon.vue';
 import ChevronDownIcon from '~/components/icons/ChevronDownIcon.vue';
 import CheckCircleIcon from '~/components/icons/CheckCircleIcon.vue';
 import CheckCircleOutlineIcon from '~/components/icons/CheckCircleOutlineIcon.vue';
-import XMarkIcon from '~/components/icons/XMarkIcon.vue';
 
 // Highlight 인터페이스
 interface Highlight {
@@ -400,7 +391,7 @@ const tongdokDone = computed(() => props.tongdokProgress?.done
 const isTongdokComplete = computed(() => !!props.tongdokProgress?.total
   && tongdokDone.value === props.tongdokProgress.total);
 const bottomControlsHeight = computed(() =>
-  (props.tongdokAudioLink && props.isTongdokAudioPlayerOpen ? 44 : 0) + 40);
+  (props.tongdokAudioLink && props.isTongdokAudioPlayerOpen ? 36 : 0) + 40);
 
 const headerScheduleDate = computed(() => {
   if (!props.tongdokScheduleDate) return '';
@@ -424,7 +415,7 @@ const headerScheduleSummary = computed(() => {
   const remaining = rows
     .filter(row => row.book !== first.book)
     .reduce((count, row) => count + row.endChapter - row.startChapter + 1, 0);
-  return `${first.bookKor} ${chapters}${remaining > 0 ? ` 외 ${remaining}장` : ''}`;
+  return `${abbreviateBookName(first.bookKor)} ${chapters}${remaining > 0 ? ` 외 ${remaining}장` : ''}`;
 });
 
 const headerContext = computed(() => {
@@ -438,19 +429,13 @@ const headerRange = computed(() => `${props.currentBookName} ${props.currentChap
 
 const headerContextShort = computed(() => {
   if (props.isTongdokMode) {
-    const summary = headerScheduleSummary.value;
-    const firstBookKor = props.tongdokSchedule[0]?.bookKor;
-    const short = summary && firstBookKor
-      ? summary.replace(firstBookKor, abbreviateBookName(firstBookKor))
-      : '';
-    return [headerScheduleDate.value, short].filter(Boolean).join(' · ');
+    return [headerScheduleDate.value, headerScheduleSummary.value].filter(Boolean).join(' · ');
   }
   return props.currentVersionName || '';
 });
 
-// 책 이름 축약 (좁은 화면용)
+// 책 이름 축약 (날짜 옆 요약·좁은 화면용)
 const abbreviateBookName = (name: string): string => {
-  if (!name) return '';
   if (!name) return '';
   
   // 축약어 매핑
@@ -731,37 +716,6 @@ defineExpose({
   color: var(--color-text-secondary);
 }
 
-/* 통독 종료 ✕ — 날짜 라인 바로 옆에 붙는 작은 버튼 */
-.header-exit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.125rem;
-  height: 1.125rem;
-  padding: 0;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-secondary, #9ca3af);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.header-exit:hover {
-  background: rgba(42, 17, 17, 0.1);
-  color: var(--color-accent-primary, #2A1111);
-}
-
-[data-theme="dark"] .header-exit {
-  color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .header-exit:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--color-accent-primary);
-}
-
 .reader-scroll-progress {
   position: absolute;
   left: 0;
@@ -855,8 +809,8 @@ defineExpose({
 
 .book-chapter-text {
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(1rem, 4.4vw, 1.125rem);
-  font-weight: 700;
+  font-size: clamp(1.125rem, 5vw, 1.25rem);
+  font-weight: 800;
   color: #181818;
   white-space: nowrap;
   overflow: hidden;

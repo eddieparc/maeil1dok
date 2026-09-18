@@ -162,6 +162,12 @@ export default defineNuxtConfig({
     host: '0.0.0.0',
     port: 3019
   },
+  // 터치 기기 hover 고착 방지 — :hover 규칙을 @media (hover: hover)로 감싼다.
+  postcss: {
+    plugins: {
+      './postcss/hover-guard.mjs': {},
+    },
+  },
   // Vite 설정 추가
   vite: {
     build: {

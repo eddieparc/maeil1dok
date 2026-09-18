@@ -103,6 +103,19 @@
             <span class="item-label">읽기 설정</span>
           </div>
         </button>
+
+        <!-- 통독 모드 종료 -->
+        <template v-if="isTongdokMode">
+          <div class="popover-divider"></div>
+          <button data-testid="reader-exit-tongdok" class="popover-item danger" @click="handleExitTongdok">
+            <div class="item-icon">
+              <XMarkIcon />
+            </div>
+            <div class="item-content">
+              <span class="item-label">통독 모드 종료</span>
+            </div>
+          </button>
+        </template>
       </div>
     </Transition>
   </div>
@@ -110,7 +123,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { Ellipsis as EllipsisIcon, FileText as NoteIcon, Bookmark as BookmarkOutlineIcon, Bookmark as BookmarkFilledIcon, Settings as SettingsIcon, ListChecks as ListCheckIcon, Headphones as AudioIcon, BookOpen as GuideIcon, Share2 as ShareIcon } from '@lucide/vue';
+import { Ellipsis as EllipsisIcon, FileText as NoteIcon, Bookmark as BookmarkOutlineIcon, Bookmark as BookmarkFilledIcon, Settings as SettingsIcon, ListChecks as ListCheckIcon, Headphones as AudioIcon, BookOpen as GuideIcon, Share2 as ShareIcon, X as XMarkIcon } from '@lucide/vue';
 
 const props = defineProps<{
   noteCount: number;
@@ -119,6 +132,7 @@ const props = defineProps<{
   // 통독모드 액션 (좁은 화면에서 헤더에서 숨겨지므로 여기서 표시)
   audioLink?: string | null;
   guideLink?: string | null;
+  isTongdokMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -129,6 +143,7 @@ const emit = defineEmits<{
   'audio-link-click': [url: string];
   'open-settings': [];
   'open-change': [value: boolean];
+  'exit-tongdok': [];
 }>();
 
 const popoverRef = ref<HTMLElement | null>(null);
@@ -180,6 +195,11 @@ const handleAudioLink = () => {
   if (props.audioLink) {
     emit('audio-link-click', props.audioLink);
   }
+  closePopover();
+};
+
+const handleExitTongdok = () => {
+  emit('exit-tongdok');
   closePopover();
 };
 
@@ -283,6 +303,11 @@ onUnmounted(() => {
 
 .popover-item.active .item-icon {
   color: var(--color-accent-primary);
+}
+
+.popover-item.danger,
+.popover-item.danger .item-icon {
+  color: var(--color-error, #C0392B);
 }
 
 .item-icon {

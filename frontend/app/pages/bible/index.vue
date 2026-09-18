@@ -1153,14 +1153,22 @@ const handleTongdokComplete = async (_payload?: unknown, audioSource?: AudioEnde
   const book = currentBook.value;
   const chapter = currentChapter.value;
   await loadReadingDetail(tongdokPlanId.value, book, chapter);
-  if (context !== readerContextKey.value || (audioSource && audioSource.audioContextKey !== audioContextKey.value)) return;
+  // loadReadingDetail이 다른 날짜 일정을 채택하면 schedule/date가 바뀌어
+  // contextKey가 달라진다 — 그것은 이탈이 아니라 정상 채택이므로 위치만 비교한다.
+  const positionKey = (key: string) => {
+    const parts = JSON.parse(key) as unknown[];
+    return JSON.stringify([parts[0], parts[1], parts[2], parts[3], parts[6], parts[7], parts[8]]);
+  };
+  const contextChanged = positionKey(context) !== positionKey(readerContextKey.value);
+  if (contextChanged || (audioSource && audioSource.audioContextKey !== audioContextKey.value)) return;
+  const activeContext = readerContextKey.value;
   // 버튼 클릭은 그날 일정 전체를 완료한다. 오디오 종료는 현재 장만 완료한다.
   // 체크박스를 완료 상태에서 다시 누르면 잘못 체크한 완료를 되돌린다.
   // (다음 장 확인 모달처럼 완료 의도가 명시된 경로는 되돌리지 않는다.)
   if (allowUndo && !audioSource && isScheduleCompleted()) {
     const result = await uncompleteCurrentChapter(book, chapter);
     progressRevision.value++;
-    if (!pageActive || context !== readerContextKey.value || result.status === 'stale-context') return;
+    if (!pageActive || activeContext !== readerContextKey.value || result.status === 'stale-context') return;
     if (result.status === 'busy' || result.status === 'not-complete') return;
     if (!result.ok) { toast.error('완료 취소에 실패했습니다'); return; }
     toast.success('통독 완료를 취소했어요');
@@ -1169,14 +1177,14 @@ const handleTongdokComplete = async (_payload?: unknown, audioSource?: AudioEnde
   if (!audioSource) markAllScheduleChapters();
   const result = await completeCurrentChapter(book, chapter);
   progressRevision.value++;
-  if (!pageActive || context !== readerContextKey.value || result.status === 'stale-context') return;
+  if (!pageActive || activeContext !== readerContextKey.value || result.status === 'stale-context') return;
   if (result.status === 'out-of-range') { toast.info('오늘 일정 범위 밖의 장이에요'); return; }
   if (result.status === 'busy') return;
   if (!result.ok) { toast.error('완료 처리에 실패했습니다'); return; }
   if (!audioSource) toast.success(`${currentBookName.value} ${chapter}${chapterSuffix.value} 통독 완료`);
   if (result.scheduleCompleted && result.planId && result.selectedScheduleId) {
     const scheduleId = result.persistedScheduleIds.at(-1) ?? result.selectedScheduleId;
-    await openCompletion(context, result.planId, scheduleId);
+    await openCompletion(activeContext, result.planId, scheduleId);
   }
 };
 

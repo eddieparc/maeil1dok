@@ -445,21 +445,35 @@ export const useTongdokMode = () => {
     // chapter — that row IS the schedule the backend resolved for this chapter.
     if (requestIdentity.planId !== null && positiveId(data.plan_id) === requestIdentity.planId) {
       const browsedChapter = positiveChapter(data.chapter);
-      if (requestIdentity.scheduleId === null && browsedChapter !== null) {
-        const containing = data.plan_detail?.find(row =>
-          row.book === (data.book || requestIdentity.book) &&
-          browsedChapter >= row.start_chapter &&
-          browsedChapter <= row.end_chapter);
-        const adoptedId = positiveId(containing?.schedule_id);
-        if (adoptedId !== null) {
-          tongdokScheduleId.value = adoptedId;
-          requestIdentity.scheduleId = adoptedId;
-          if (requestIdentity.scheduleDate === null && containing?.date) {
-            tongdokScheduleDate.value = containing.date;
-            requestIdentity.scheduleDate = containing.date;
-          }
-          persistActiveContext();
+      const containing = browsedChapter === null ? undefined : data.plan_detail?.find(row =>
+        row.book === (data.book || requestIdentity.book) &&
+        browsedChapter >= row.start_chapter &&
+        browsedChapter <= row.end_chapter);
+      const adoptedId = positiveId(containing?.schedule_id);
+      const browsedDate = containing?.date ?? data.plan_date ?? data.schedule_date ??
+        data.plan_detail?.[0]?.date ?? null;
+      // Browsing a different scheduled day adopts that day's plan context so the
+      // header, progress and completion controls follow the browsed date.
+      if (data.plan_detail?.length && browsedDate !== null &&
+          (requestIdentity.scheduleId === null || browsedDate !== requestIdentity.scheduleDate)) {
+        const nextScheduleId = adoptedId ?? positiveId(data.plan_detail[0]?.schedule_id);
+        const dateChanged = browsedDate !== requestIdentity.scheduleDate;
+        // requestIdentity를 먼저 갱신해야 이후 범위 검증이 새 날짜를 본다.
+        if (nextScheduleId !== null) {
+          tongdokScheduleId.value = nextScheduleId;
+          requestIdentity.scheduleId = nextScheduleId;
         }
+        tongdokScheduleDate.value = browsedDate;
+        requestIdentity.scheduleDate = browsedDate;
+        if (dateChanged) {
+          // 날짜가 바뀌면 장 마크만 지운다. persisted/cancelled는 schedule_id
+          // 키라 날짜를 넘나들어도 안전하고, 돌아온 날의 완료/취소를 보존한다.
+          sessionChapterMarks.clear();
+          lastCompleteCurrentResult.value = null;
+          loadedDetailIdentity = null;
+          activeScheduleRange = null;
+        }
+        persistActiveContext();
       }
       // An old positional enable call may not know the date. Adopt it only after
       // plan and selected schedule both match the fetched response.

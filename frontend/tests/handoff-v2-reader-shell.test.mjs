@@ -172,20 +172,20 @@ test('header shows date + schedule summary and current chapter, counting remaini
     currentBookName: '사사기', currentChapter: 7 }); t.after(view.close);
   const header = byClass(view.host, 'bible-header')[0];
   const context = byClass(header, 'header-context').map(text);
-  assert.equal(context[0], '9/18(금) · 사사기 7-8장 외 3장', 'first line is date plus first-book range and remaining chapter count');
-  assert.equal(context[1], '9/18(금) · 삿 7-8장 외 3장', 'short variant keeps the summary with abbreviated book');
+  assert.equal(context[0], '9/18(금) · 삿 7-8장 외 3장', 'first line is date plus abbreviated first-book range and remaining chapter count');
+  assert.equal(context[1], '9/18(금) · 삿 7-8장 외 3장', 'short variant keeps the same abbreviated summary');
   const range = byClass(header, 'header-range').map(text);
   assert.deepEqual(range, ['사사기 7장'], 'second line is the full current book and chapter only');
   assert.ok(!text(header).includes('지금'), 'no current-position marker remains');
 
   view.props.tongdokSchedule = [{ book: 'jdg', bookKor: '사사기', startChapter: 7, endChapter: 8 }]; await Vue.nextTick();
-  assert.equal(text(byClass(header, 'header-context')[0]), '9/18(금) · 사사기 7-8장', 'single-book schedule drops the remainder suffix');
+  assert.equal(text(byClass(header, 'header-context')[0]), '9/18(금) · 삿 7-8장', 'single-book schedule drops the remainder suffix');
 
   view.props.tongdokSchedule = [
     { book: 'jdg', bookKor: '사사기', startChapter: 7, endChapter: 8 },
     { book: 'jdg', bookKor: '사사기', startChapter: 9, endChapter: 10 },
   ]; await Vue.nextTick();
-  assert.equal(text(byClass(header, 'header-context')[0]), '9/18(금) · 사사기 7-10장', 'same-book rows merge into the first-book range');
+  assert.equal(text(byClass(header, 'header-context')[0]), '9/18(금) · 삿 7-10장', 'same-book rows merge into the first-book range');
 
   // 현재 책이 시편이어도 첫 책 단위는 사사기의 '장'을 따른다.
   Object.assign(view.props, { currentBookName: '시편', currentChapter: 1, chapterSuffix: '편',
@@ -193,7 +193,7 @@ test('header shows date + schedule summary and current chapter, counting remaini
       { book: 'jdg', bookKor: '사사기', startChapter: 7, endChapter: 8 },
       { book: 'psa', bookKor: '시편', startChapter: 1, endChapter: 2 },
     ] }); await Vue.nextTick();
-  assert.equal(text(byClass(header, 'header-context')[0]), '9/18(금) · 사사기 7-8장 외 2장', 'first-book unit and remainder stay 장');
+  assert.equal(text(byClass(header, 'header-context')[0]), '9/18(금) · 삿 7-8장 외 2장', 'first-book unit and remainder stay 장');
   assert.equal(text(byClass(header, 'header-range')[0]), '시편 1편', 'second line keeps the current book unit');
 
   // 첫 책이 시편이면 범위 단위는 '편'이고 외 N장은 그대로 '장'이다.
@@ -202,7 +202,7 @@ test('header shows date + schedule summary and current chapter, counting remaini
       { book: 'psa', bookKor: '시편', startChapter: 1, endChapter: 2 },
       { book: 'jdg', bookKor: '사사기', startChapter: 7, endChapter: 8 },
     ] }); await Vue.nextTick();
-  assert.equal(text(byClass(header, 'header-context')[0]), '9/18(금) · 시편 1-2편 외 2장');
+  assert.equal(text(byClass(header, 'header-context')[0]), '9/18(금) · 시 1-2편 외 2장');
 
   view.props.isTongdokMode = false; await Vue.nextTick();
   assert.equal(text(byClass(header, 'header-context')[0]), '개역개정', 'non-tongdok header keeps the version context');
@@ -225,6 +225,21 @@ test('tools publishes open state and closes on outside click and Escape', async 
   click(byClass(view.host, 'tool-trigger-button')[0]); await Vue.nextTick(); assert.deepEqual(changes, [true]);
   view.env.documentEvent('keydown', { key: 'Escape' }); await Vue.nextTick(); assert.deepEqual(changes, [true, false]);
   click(byClass(view.host, 'tool-trigger-button')[0]); await Vue.nextTick(); view.env.documentEvent('click', { target: node('outside') }); await Vue.nextTick(); assert.deepEqual(changes, [true, false, true, false]);
+});
+
+test('tongdok exit lives in the tools popover, not the header', async t => {
+  const events = []; const view = await mount(Reader, { ...defaults, isTongdokMode: true, onExitTongdok: () => events.push('exit') }); t.after(view.close);
+  const header = byClass(view.host, 'bible-header')[0];
+  assert.equal(byClass(header, 'header-exit').length, 0, 'no header X button');
+  click(byClass(view.host, 'tool-trigger-button')[0]); await Vue.nextTick();
+  const exitItem = byTestId(view.host, 'reader-exit-tongdok');
+  assert.ok(exitItem, 'exit item exists in popover');
+  click(exitItem); await Vue.nextTick();
+  assert.deepEqual(events, ['exit']);
+
+  const plain = await mount(Reader, { ...defaults, isTongdokMode: false }); t.after(plain.close);
+  click(byClass(plain.host, 'tool-trigger-button')[0]); await Vue.nextTick();
+  assert.equal(byTestId(plain.host, 'reader-exit-tongdok'), undefined, 'exit item hidden outside tongdok');
 });
 
 test('one shared five-tab stack has no chapter row; plan interception is tongdok-only', { timeout: 3000 }, async t => {

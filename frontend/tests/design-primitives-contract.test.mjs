@@ -59,10 +59,10 @@ test('RingProgress 는 SVG 링이며 size/thickness/value 를 받는다', () => 
   }
 });
 
-test('BottomSheet 는 350ms 시트 모션과 핸들, 오버레이를 갖는다', () => {
+test('BottomSheet 는 350ms 시트 모션과 오버레이를 갖고 드래그 핸들은 없다', () => {
   const source = sources.get('BottomSheet.vue');
   assert.match(styleBlocks(source), /var\(--duration-sheet\)|350ms/);
-  assert.match(source, /handle/i);
+  assert.doesNotMatch(source, /handle/i);
   assert.match(source, /overlay|backdrop/i);
 });
 

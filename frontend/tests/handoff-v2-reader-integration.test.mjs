@@ -146,7 +146,14 @@ async function mount(url = '/bible', options = {}) {
       r.requests.push([path, args.params]);
       if (options.GET) { const response = await options.GET(path, args); if (response !== undefined) return response; }
       const p = args.params ?? {};
-      if (path.endsWith('/detail/')) return { data: { plan_id: p.plan_id, plan_name: 'actual plan', book: p.book, chapter: p.chapter, plan_date: '2026-09-06', plan_detail: p.plan_id ? structuredClone(r.rows) : [], audio_link: 'https://audio.test/chapter', guide_link: 'https://guide.test' } };
+      if (path.endsWith('/detail/')) {
+        // exo:3은 다음날(2026-09-07) 일정 — /schedules/month/의 id 3 행과 일치시킨다.
+        const nextDay = p.book === 'exo' && Number(p.chapter) >= 3 && Number(p.chapter) <= 5;
+        const detail = nextDay
+          ? [{ book: 'exo', start_chapter: 3, end_chapter: 5, is_complete: false, schedule_id: 3, date: '2026-09-07' }]
+          : structuredClone(r.rows);
+        return { data: { plan_id: p.plan_id, plan_name: 'actual plan', book: p.book, chapter: p.chapter, plan_date: nextDay ? '2026-09-07' : '2026-09-06', plan_detail: p.plan_id ? detail : [], audio_link: 'https://audio.test/chapter', guide_link: 'https://guide.test' } };
+      }
       if (path.endsWith('/reading-position/')) return { data: { success: false } };
       if (path.endsWith('/by-book/')) return { data: { success: true, read_chapters: [49] } };
       if (path.endsWith('/by-chapter/')) return { data: { highlights: r.highlights.filter(h => h.book === p.book && h.chapter === p.chapter) } };

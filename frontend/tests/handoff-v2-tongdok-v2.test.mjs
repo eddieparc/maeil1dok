@@ -317,13 +317,49 @@ function rangeDetail({ plan_id, book, chapter }) {
   return { ...base, plan_date: date, plan_detail: rows, is_complete: false, audio_link: `https://example.com/audio/${date}`, guide_link: `https://example.com/guide/${date}`, fallback_audio_links: [] }
 }
 
-for (const chapter of [3, 8]) {
-  test(`browsing ${chapter === 3 ? 'another date' : 'an unscheduled chapter'} preserves the active range and rejects completion without writes`, async () => {
+test('browsing another scheduled date adopts that day for header, progress and completion', async () => {
+  const runtime = tongdokRuntime({ query: { tongdok: 'true', plan: '7', schedule: '101' }, get: async params => rangeDetail(params) })
+  const { useTongdokMode } = await loadTongdok(runtime); const mode = useTongdokMode(); mode.initTongdokMode()
+  await mode.loadReadingDetail(7, 'exo', 1)
+  assert.deepEqual((await mode.completeCurrentChapter('exo', 1)).persistedScheduleIds, [102])
+
+  // 2026-09-07(gen 3-4, schedule 103)로 이동하면 그날 일정이 채택된다.
+  const browsed = await mode.loadReadingDetail(7, 'gen', 3)
+  assert.equal(browsed.plan_date, '2026-09-07')
+  assert.equal(mode.tongdokScheduleDate.value, '2026-09-07')
+  assert.equal(mode.tongdokScheduleId.value, 103)
+  assert.equal(mode.getScheduleDate(), '2026-09-07')
+  assert.deepEqual(mode.activeTongdokContext.value, { planId: 7, scheduleId: 103, scheduleDate: '2026-09-07' })
+  assert.deepEqual(mode.readingDetailResponse.value.data.plan_detail.map(row => row.schedule_id), ['103'])
+  assert.deepEqual(mode.getTongdokProgress('gen', 3), { current: 1, total: 2, done: 0, isCurrentInRange: true, isComplete: false })
+  assert.equal(mode.getAudioLink('gen', 3), 'https://example.com/audio/2026-09-07')
+  assert.equal(mode.getGuideLink(), 'https://example.com/guide/2026-09-07')
+
+  // 채택된 날짜의 일정은 그 자리에서 완료할 수 있다.
+  const progressed = await mode.completeCurrentChapter('gen', 3)
+  assert.equal(progressed.status, 'progressed')
+  await mode.loadReadingDetail(7, 'gen', 4)
+  const completed = await mode.completeCurrentChapter('gen', 4)
+  assert.equal(completed.status, 'completed')
+  assert.deepEqual(completed.persistedScheduleIds, [103])
+  assert.equal(mode.isScheduleCompleted(), true)
+
+  // 원래 날짜로 돌아오면 그날 일정과 완료 상태가 다시 보인다.
+  await mode.loadReadingDetail(7, 'gen', 1)
+  assert.equal(mode.tongdokScheduleDate.value, '2026-09-06')
+  assert.equal(mode.tongdokScheduleId.value, 101)
+  assert.equal(mode.isChapterCompleted('exo', 1), true)
+})
+
+for (const chapter of [8]) {
+  test('browsing an unscheduled chapter preserves the active range and rejects completion without writes', async () => {
     const runtime = tongdokRuntime({ query: { tongdok: 'true', plan: '7', schedule: '101' }, get: async params => rangeDetail(params) })
     const { useTongdokMode } = await loadTongdok(runtime); const mode = useTongdokMode(); mode.initTongdokMode()
     await mode.loadReadingDetail(7, 'exo', 1)
     assert.deepEqual((await mode.completeCurrentChapter('exo', 1)).persistedScheduleIds, [102])
     await mode.loadReadingDetail(7, 'gen', 1)
+    // 같은 날짜 안에서 이동하면 그 장을 포함하는 행의 schedule_id가 채택된다.
+    assert.equal(mode.tongdokScheduleId.value, 102)
     assert.equal((await mode.completeCurrentChapter('gen', 1)).status, 'progressed')
     const activeRows = structuredClone(Vue.toRaw(mode.readingDetailResponse.value.data.plan_detail))
     const activeSections = mode.getCurrentSectionChapters('gen')
@@ -340,7 +376,7 @@ for (const chapter of [3, 8]) {
     assert.equal(result.markedChapter, null)
     assert.deepEqual(result.persistedScheduleIds, [])
     assert.deepEqual(result.completedScheduleIds, [102])
-    assert.equal(result.selectedScheduleId, 101)
+    assert.equal(result.selectedScheduleId, 102)
     assert.equal(result.scheduleDate, '2026-09-06')
     const expectedProgress = { current: 0, total: 3, done: 2, isCurrentInRange: false, isComplete: false }
     assert.deepEqual(result.progress, expectedProgress)
@@ -357,7 +393,7 @@ for (const chapter of [3, 8]) {
     assert.equal(mode.readingDetailResponse.value.data.book, 'gen')
     assert.equal(mode.readingDetailResponse.value.data.chapter, String(chapter))
     assert.equal(mode.getScheduleDate(), '2026-09-06')
-    assert.deepEqual(mode.activeTongdokContext.value, { planId: 7, scheduleId: 101, scheduleDate: '2026-09-06' })
+    assert.deepEqual(mode.activeTongdokContext.value, { planId: 7, scheduleId: 102, scheduleDate: '2026-09-06' })
     assert.equal(mode.getAudioLink('gen', chapter), chapter === 3 ? 'https://example.com/audio/2026-09-07' : 'https://example.com/gen/8')
     assert.equal(mode.getGuideLink(), chapter === 3 ? 'https://example.com/guide/2026-09-07' : null)
 
@@ -381,10 +417,9 @@ test('explicit schedule and plan switches reset the retained active range and lo
   await mode.loadReadingDetail(7, 'gen', 1)
   await mode.completeCurrentChapter('gen', 1)
   await mode.loadReadingDetail(7, 'gen', 3)
+  // 이동으로 이미 2026-09-07 일정이 채택됐으므로 같은 식별자의 enable은 no-op이다.
   mode.enableTongdokMode(103, 7, '2026-09-07')
-  assert.equal(mode.readingDetailResponse.value, null)
-  assert.equal(mode.getTongdokProgress('gen', 3), null)
-  assert.equal(mode.lastCompleteCurrentResult.value, null)
+  assert.equal(mode.readingDetailResponse.value.data.plan_date, '2026-09-07')
   await mode.loadReadingDetail(7, 'gen', 3)
   assert.deepEqual(mode.readingDetailResponse.value.data.plan_detail.map(row => row.schedule_id), ['103'])
   assert.equal(mode.getScheduleDate(), '2026-09-07')
@@ -407,11 +442,13 @@ test('explicit schedule and plan switches reset the retained active range and lo
   assert.equal(mode.getTongdokProgress('gen', 1), null)
 })
 
-test('completion rejects a wrong selected identity without writing', async () => {
+test('a wrong selected schedule id is corrected to the browsed day before completion', async () => {
   const runtime = tongdokRuntime({ query: { tongdok: 'true', plan: '7', schedule: '999' }, get: async params => rangeDetail(params) })
   const { useTongdokMode } = await loadTongdok(runtime); const mode = useTongdokMode(); mode.initTongdokMode(); await mode.loadReadingDetail(7, 'gen', 1)
-  assert.equal((await mode.completeCurrentChapter('gen', 1)).status, 'invalid-context')
-  assert.equal(runtime.calls.some(call => call[0] === 'POST'), false)
+  // schedule=999는 그날 행에 없지만 이동한 날짜의 일정이 채택되어 복구된다.
+  assert.equal(mode.tongdokScheduleId.value, 101)
+  assert.equal(mode.tongdokScheduleDate.value, '2026-09-06')
+  assert.equal((await mode.completeCurrentChapter('gen', 1)).status, 'progressed')
 })
 
 test('an ambiguous chapter cannot mark or complete multiple schedule IDs', async () => {
