@@ -4,20 +4,22 @@
     <header class="bible-header" :class="{ 'has-extra-action': (isTongdokMode && tongdokGuideLink) || (isAuthenticated && !isTongdokMode) }">
       <div class="header-title-group">
         <div class="header-title-stack">
-          <div class="header-context-row">
-            <span v-if="isTongdokMode && tongdokPlanName" class="header-plan-name">{{ tongdokPlanName }}</span>
-            <button
-              v-if="headerContext"
-              class="header-context book-name-full"
-              type="button"
-              @click="$emit('open-book-selector')"
-            >{{ headerContext }}</button>
-            <button
-              v-if="headerContextShort"
-              class="header-context book-name-short"
-              type="button"
-              @click="$emit('open-book-selector')"
-            >{{ headerContextShort }}</button>
+          <div class="header-title-lines">
+            <div v-if="isTongdokMode && tongdokPlanName" class="header-plan-name">{{ tongdokPlanName }}</div>
+            <div class="header-context-row">
+              <button
+                v-if="headerContext"
+                class="header-context book-name-full"
+                type="button"
+                @click="$emit('open-book-selector')"
+              >{{ headerContext }}</button>
+              <button
+                v-if="headerContextShort"
+                class="header-context book-name-short"
+                type="button"
+                @click="$emit('open-book-selector')"
+              >{{ headerContextShort }}</button>
+            </div>
           </div>
           <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
             <span class="book-chapter-text">
@@ -670,13 +672,22 @@ defineExpose({
   min-width: 0;
 }
 
-/* 타이틀 스택: 위=플랜명+컨텍스트 한 줄, 아래=범위 */
+/* 타이틀 스택: 좌=플랜명/컨텍스트 2줄, 우=범위 트리거(수직 중앙) */
 .header-title-stack {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.375rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.header-title-lines {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
@@ -689,8 +700,7 @@ defineExpose({
 }
 
 .header-plan-name {
-  flex-shrink: 1;
-  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -698,12 +708,6 @@ defineExpose({
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: 0.01em;
-  color: var(--color-text-tertiary, #9ca3af);
-}
-
-.header-plan-name::after {
-  content: "·";
-  margin-left: 0.375rem;
   color: var(--color-text-tertiary, #9ca3af);
 }
 
@@ -718,7 +722,6 @@ defineExpose({
 
 .header-context {
   display: block;
-  flex-shrink: 0;
   max-width: 100%;
   padding: 0;
   border: none;
@@ -866,7 +869,6 @@ defineExpose({
 
 /* 책/장 선택 트리거는 콘텐츠 너비만 차지하고(호버 영역 최소화), 좁으면 말줄임한다 */
 .header-title-stack > .book-selector-trigger {
-  align-self: flex-start;
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
