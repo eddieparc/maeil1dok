@@ -4,6 +4,12 @@
     <header class="bible-header" :class="{ 'has-extra-action': (isTongdokMode && tongdokGuideLink) || (isAuthenticated && !isTongdokMode) }">
       <div class="header-title-group">
         <div class="header-title-stack">
+          <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
+            <span class="book-chapter-text">
+              <span class="header-range">{{ headerRange }}</span>
+            </span>
+            <ChevronDownIcon class="selector-icon" :size="13" />
+          </button>
           <div class="header-title-lines">
             <div v-if="isTongdokMode && tongdokPlanName" class="header-plan-name">{{ tongdokPlanName }}</div>
             <div class="header-context-row">
@@ -21,12 +27,6 @@
               >{{ headerContextShort }}</button>
             </div>
           </div>
-          <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
-            <span class="book-chapter-text">
-              <span class="header-range">{{ headerRange }}</span>
-            </span>
-            <ChevronDownIcon class="selector-icon" :size="13" />
-          </button>
         </div>
       </div>
       <span class="reader-scroll-progress" aria-hidden="true">
@@ -705,7 +705,7 @@ defineExpose({
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.3;
   letter-spacing: 0.01em;
   color: var(--color-text-tertiary, #9ca3af);
@@ -728,8 +728,8 @@ defineExpose({
   background: transparent;
   cursor: pointer;
   font-family: inherit;
-  font-weight: 500;
-  font-size: 0.6875rem;
+  font-weight: 600;
+  font-size: 0.75rem;
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--text-secondary, #6b7280);
