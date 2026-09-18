@@ -5,7 +5,7 @@
       class="modal-overlay"
       @click="isTopmost && modal.options.closeOnOverlay && emit('close')"
     />
-    <Transition :name="transitionName">
+    <Transition :name="transitionName" appear>
       <div
         v-if="modal"
         ref="containerRef"

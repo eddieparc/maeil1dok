@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition :name="transitionName">
+    <Transition :name="transitionName" appear>
       <div
         v-if="modelValue"
         class="base-modal-overlay"
