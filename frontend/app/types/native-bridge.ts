@@ -28,6 +28,7 @@ export type WebViewToNativeMessage =
   | { type: 'auth:expired' }
   | { type: 'auth:request' }
   | { type: 'auth:apple:link'; data: { state: string } }
+  | { type: 'beta:set'; enabled: boolean }
   | { type: 'navigate'; url: string }
 
 // Native → WebView 이벤트 타입
@@ -47,6 +48,7 @@ export type NativeToWebViewEvent =
 declare global {
   interface Window {
     isReactNativeWebView?: boolean
+    __shellBetaMode?: boolean
     ReactNativeWebView?: {
       postMessage: (message: string) => void
     }

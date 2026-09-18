@@ -6,18 +6,7 @@ import { compileTemplate, parse as parseSfc } from '@vue/compiler-sfc';
 import * as Vue from 'vue';
 import { createSSRApp, defineComponent, h } from 'vue';
 import { renderToString } from '@vue/server-renderer';
-import {
-  buildDeleteAccountPayload,
-  buildNativeAppleLinkRequest,
-  buildNotificationSettingsPayload,
-  buildOAuthLinkUrl,
-  buildPasswordMergePayload,
-  buildSocialMergePayload,
-  getProviderDisplayName,
-  mergeEmailUpdateIntoAuthUser,
-  parseNativeAppleLinkResult,
-  shouldUseNativeAppleLink,
-} from '../app/utils/accountSettingsRuntime.js';
+
 
 const settingsSource = await readFile(
   new URL('../app/pages/account/settings.vue', import.meta.url),
@@ -43,6 +32,10 @@ const authCallbackRuntimeSource = await readFile(
   new URL('../shared/utils/authCallbackRuntime.ts', import.meta.url),
   'utf8',
 );
+const accountSettingsRuntimeSource = await readFile(
+  new URL('../app/utils/accountSettingsRuntime.ts', import.meta.url),
+  'utf8',
+);
 const parsedSettings = parseSfc(settingsSource, { filename: 'settings.vue' }).descriptor;
 const parsedProfile = parseSfc(profileSource, { filename: 'profile.vue' }).descriptor;
 const templateAst = parsedSettings.template?.ast;
@@ -50,8 +43,8 @@ const scriptSetupSource = parsedSettings.scriptSetup?.content ?? '';
 const profileScriptSetupSource = parsedProfile.scriptSetup?.content ?? '';
 const callbackScriptSource = parseSfc(callbackSource, { filename: 'callback.vue' }).descriptor.scriptSetup?.content ?? '';
 
-const importAuthCallbackRuntime = async () => {
-  const { code } = await transform(authCallbackRuntimeSource, {
+const importTsModule = async (source) => {
+  const { code } = await transform(source, {
     format: 'esm',
     loader: 'ts',
     sourcemap: false,
@@ -59,6 +52,24 @@ const importAuthCallbackRuntime = async () => {
   const dataUrl = `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`;
   return import(`${dataUrl}#${Date.now()}-${Math.random()}`);
 };
+
+const importAuthCallbackRuntime = () => importTsModule(authCallbackRuntimeSource);
+
+const {
+  betaModeTargetUrl,
+  buildDeleteAccountPayload,
+  buildNativeAppleLinkRequest,
+  buildNotificationSettingsPayload,
+  buildOAuthLinkUrl,
+  buildPasswordMergePayload,
+  buildSocialMergePayload,
+  canShellSwitchBeta,
+  getProviderDisplayName,
+  isBetaHost,
+  mergeEmailUpdateIntoAuthUser,
+  parseNativeAppleLinkResult,
+  shouldUseNativeAppleLink,
+} = await importTsModule(accountSettingsRuntimeSource);
 
 const walkTemplate = (node, visitor) => {
   visitor(node);
@@ -215,6 +226,7 @@ async function renderAccountSettings(overrides = {}) {
         // Diagnostic shell-bundle line. Hidden in a browser, which is what this
         // harness renders as.
         shellIdentity: overrides.shellIdentity ?? { state: 'not-in-app', visible: false, label: '' },
+        betaModeEnabled: overrides.betaModeEnabled ?? false,
         mergeLoading: false,
         linkingProvider: overrides.linkingProvider ?? null,
         getProviderDisplayName,
@@ -235,6 +247,7 @@ async function renderAccountSettings(overrides = {}) {
         resetDeletePanel: noOp,
         handleMerge: noOp,
         closeMergeModal: noOp,
+        handleBetaToggle: noOp,
         navigateTo: noOp,
       };
     },
@@ -564,6 +577,44 @@ test('native Apple link results accept credentials but reject malformed messages
     type: 'auth:apple:link:result',
     data: { state: 'one-time-state', code: 'missing-token' },
   }), null);
+});
+
+test('beta mode helpers derive host, target URL, and shell capability', () => {
+  assert.equal(isBetaHost('beta.maeil1dok.app'), true);
+  assert.equal(isBetaHost('maeil1dok.app'), false);
+  assert.equal(isBetaHost('localhost'), false);
+  assert.equal(isBetaHost('evil-beta.maeil1dok.app'), false);
+
+  assert.equal(betaModeTargetUrl(true), 'https://beta.maeil1dok.app/');
+  assert.equal(betaModeTargetUrl(false), 'https://maeil1dok.app/');
+
+  assert.equal(canShellSwitchBeta({ __shellBetaMode: true }), true);
+  assert.equal(canShellSwitchBeta({ __shellBetaMode: false }), false);
+  assert.equal(canShellSwitchBeta({}), false);
+  assert.equal(canShellSwitchBeta({ __shellBetaMode: 'true' }), false);
+});
+
+test('account settings exposes a beta mode toggle wired to the native bridge', () => {
+  const betaRows = findElements(node =>
+    node.tag === 'label' &&
+    hasStaticProp(node, 'class', 'setting-row') &&
+    collectText(node).includes('베타 모드')
+  );
+  assert.equal(betaRows.length, 1);
+  assert.match(collectText(betaRows[0]), /테스트 버전\(beta\.maeil1dok\.app\)을 사용합니다/);
+
+  const betaToggles = findElements(node =>
+    node.tag === 'input' &&
+    hasStaticProp(node, 'type', 'checkbox') &&
+    hasStaticProp(node, 'role', 'switch') &&
+    hasDirective(node, 'on:change', 'handleBetaToggle')
+  );
+  assert.equal(betaToggles.length, 1);
+
+  assert.match(scriptSetupSource, /isBetaHost\(window\.location\.hostname\)/);
+  assert.match(scriptSetupSource, /sendToNative\(\{\s*type:\s*'beta:set',\s*enabled\s*\}\)/);
+  assert.match(scriptSetupSource, /canShellSwitchBeta/);
+  assert.match(scriptSetupSource, /window\.location\.assign\(betaModeTargetUrl\(enabled\)\)/);
 });
 
 test('profile page exposes account settings entry beside profile edit for own profile', async () => {

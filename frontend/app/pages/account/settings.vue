@@ -207,6 +207,28 @@
         </div>
       </section>
 
+      <!-- 앱 -->
+      <section class="settings-card fade-in delay-475">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">App</p>
+            <h3>앱</h3>
+          </div>
+        </div>
+        <label class="setting-row">
+          <div class="setting-info">
+            <p class="setting-label">베타 모드</p>
+            <p class="setting-description">테스트 버전(beta.maeil1dok.app)을 사용합니다</p>
+          </div>
+          <input
+            :checked="betaModeEnabled"
+            type="checkbox"
+            role="switch"
+            @change="handleBetaToggle"
+          >
+        </label>
+      </section>
+
       <!-- 계정 삭제 -->
       <section class="settings-card danger-card fade-in delay-500">
         <div class="section-heading">
@@ -328,14 +350,18 @@ import { classifyShellIdentity } from '~/composables/shellBundleIdentity'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import {
+  betaModeTargetUrl,
   buildDeleteAccountPayload,
   buildNativeAppleLinkRequest,
   buildOAuthLinkUrl,
   buildSocialMergePayload,
+  canShellSwitchBeta,
   getProviderDisplayName,
+  isBetaHost,
   parseNativeAppleLinkResult,
   shouldUseNativeAppleLink,
-} from '~/utils/accountSettingsRuntime.js'
+} from '~/utils/accountSettingsRuntime'
+import { isNativeApp, sendToNative } from '~/types/native-bridge'
 
 useHead({
   title: '계정 설정 - 매일일독',
@@ -354,11 +380,19 @@ const { goBack } = useNavigation()
  */
 const shellIdentity = ref(classifyShellIdentity({ isNativeApp: false, reported: undefined }))
 
+/**
+ * Whether this page is being served from the beta host. Read on mount rather
+ * than during SSR: the answer lives on `window.location`, and it must not be
+ * baked into a cached server render.
+ */
+const betaModeEnabled = ref(false)
+
 onMounted(() => {
   shellIdentity.value = classifyShellIdentity({
     isNativeApp: (window as any).isReactNativeWebView === true,
     reported: (window as any).__shellBundleIdentity,
   })
+  betaModeEnabled.value = isBetaHost(window.location.hostname)
 })
 
 type Provider = 'kakao' | 'google' | 'apple'
@@ -968,6 +1002,29 @@ const handleBack = () => {
   goBack('/')
 }
 
+const handleBetaToggle = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const enabled = input.checked
+  input.checked = betaModeEnabled.value
+
+  if (isNativeApp() && !canShellSwitchBeta(window)) {
+    await modal.alert({
+      title: '앱 업데이트가 필요합니다',
+      description: '베타 모드는 최신 버전의 앱에서만 사용할 수 있습니다. 앱을 업데이트해주세요.',
+      icon: 'error'
+    })
+    return
+  }
+
+  sendToNative({ type: 'beta:set', enabled })
+
+  // The new shell owns navigation after beta:set; only navigate here when
+  // there is no shell to do it (plain browser).
+  if (!(isNativeApp() && canShellSwitchBeta(window))) {
+    window.location.assign(betaModeTargetUrl(enabled))
+  }
+}
+
 const handleMerge = async (keepAccount: KeepAccount) => {
   if (!mergeInfo.value) return
   const payload = buildSocialMergePayload(mergeInfo.value, keepAccount)
@@ -1219,6 +1276,13 @@ onUnmounted(() => {
 .setting-row:last-child {
   border-bottom: 0;
   padding-bottom: 0.25rem;
+}
+
+.setting-row input[type="checkbox"] {
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  accent-color: var(--color-accent-primary);
 }
 
 .setting-row.highlight {
