@@ -122,6 +122,8 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
         { rel: 'manifest', href: '/manifest.json' },
+        { rel: 'preconnect', href: 'https://cdn.jsdelivr.net', crossorigin: '' },
+        { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard-dynamic-subset.css' },
         // Google Fonts - Noto Serif KR, Noto Sans KR
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
@@ -222,6 +224,14 @@ export default defineNuxtConfig({
           'cache-control': 'public, max-age=31536000, immutable'
         }
       },
+      // Public, non-fingerprinted images can be reused without caching page data.
+      ...Object.fromEntries([
+        '/images/**', '/icon-192x192.png', '/icon-512x512.png', '/youtube-icon.svg',
+        '/iOS1.png', '/iOS2.png', '/iOS3.png', '/iOS4.png',
+        '/Android1.png', '/Android2.png', '/Android3.png', '/Android4.png',
+      ].map(path => [path, {
+        headers: { 'cache-control': 'public, max-age=86400, stale-while-revalidate=604800' }
+      }])),
       '/favicon.ico': {
         headers: {
           'cache-control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400'
