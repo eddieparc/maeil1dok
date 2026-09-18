@@ -1,7 +1,7 @@
 <template>
   <!-- 비교 비활성: primary 슬롯만 렌더 -->
   <slot v-if="enabled === false" name="primary" />
-  <div v-else class="bible-compare-viewer" :class="[`theme-${effectiveTheme}`]">
+  <div v-else class="bible-compare-viewer" :class="[`theme-${effectiveTheme}`, `pane-${mobilePane}`]">
     <!-- 단일 헤더: 두 역본 선택 + 교체. 본문은 슬롯의 BibleViewer 하나가
          절 단위 병합 DOM을 렌더하므로 스크롤·선택·하이라이트가 그대로 동작한다. -->
     <div ref="headerRef" class="compare-header">
@@ -26,6 +26,33 @@
         </button>
       </template>
       <span v-if="isSecondaryLoading" class="compare-loading">불러오는 중…</span>
+      <!-- 세로(모바일) 단일 창: 활성 역본 하나 + 좌우 전환 화살표 -->
+      <div class="pane-nav">
+        <button
+          class="pane-arrow"
+          :disabled="mobilePane === 'primary'"
+          aria-label="왼쪽 역본 보기"
+          @click="mobilePane = 'primary'"
+        >
+          <ChevronLeftIcon :size="16" />
+        </button>
+        <button
+          class="version-btn pane-version"
+          :aria-expanded="openMenu === mobilePane"
+          aria-haspopup="listbox"
+          @click.stop="toggleMenu(mobilePane, $event)"
+        >
+          {{ activePaneName }} <ChevronDownIcon :size="14" />
+        </button>
+        <button
+          class="pane-arrow"
+          :disabled="mobilePane === 'secondary'"
+          aria-label="오른쪽 역본 보기"
+          @click="mobilePane = 'secondary'"
+        >
+          <ChevronRightIcon :size="16" />
+        </button>
+      </div>
     </div>
     <div class="compare-body">
       <slot name="primary" />
@@ -61,7 +88,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { ChevronDown as ChevronDownIcon, ArrowLeftRight as SwapIcon } from '@lucide/vue';
+import { ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, ArrowLeftRight as SwapIcon } from '@lucide/vue';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
 import { VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';
 
@@ -109,6 +136,11 @@ const swapLocked = ref(false);
 const swapRotation = ref(0);
 const swapFrozen = ref(false);
 let swapSettleTimer: ReturnType<typeof setTimeout> | null = null;
+
+// 세로 모바일 단일 창: 보여 줄 역본. 가로로 돌리면 CSS가 두 열을 다시 보여 준다.
+const mobilePane = ref<CompareColumn>('primary');
+const activePaneName = computed(() =>
+  mobilePane.value === 'primary' ? props.primaryVersionName : props.secondaryVersionName);
 
 watch(
   () => [props.primaryVersionCode, props.primaryVersionName, props.secondaryVersionCode, props.secondaryVersionName],
@@ -328,6 +360,100 @@ onBeforeUnmount(() => {
 .compare-body > :deep(*) {
   flex: 1;
   min-height: 0;
+}
+
+/* 세로(모바일) 단일 창: 헤더는 ‹ 역본 › 내비로 바뀌고 본문은 한 역본만 보인다.
+   가로 방향이나 넓은 화면에서는 기존 두 열 레이아웃 그대로. */
+.pane-nav {
+  display: none;
+}
+
+.pane-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pane-arrow:hover:not(:disabled) {
+  background: var(--color-accent-primary);
+  color: #fff;
+}
+
+.pane-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@media (max-width: 767px) and (orientation: portrait) {
+  .compare-header > .version-btn,
+  .compare-header > .swap-btn {
+    display: none;
+  }
+
+  .pane-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+  }
+
+  .bible-compare-viewer.pane-primary :deep(.pair-secondary),
+  .bible-compare-viewer.pane-secondary :deep(.pair-primary) {
+    display: none;
+  }
+
+  /* 활성 창은 자기 쪽 방향에서 슬라이드 인 (primary=왼쪽, secondary=오른쪽) */
+  .bible-compare-viewer.pane-primary :deep(.pair-primary) {
+    animation: pane-enter-left 180ms cubic-bezier(0, 0, 0.2, 1) both;
+  }
+
+  .bible-compare-viewer.pane-secondary :deep(.pair-secondary) {
+    animation: pane-enter-right 180ms cubic-bezier(0, 0, 0.2, 1) both;
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+  }
+}
+
+@keyframes pane-enter-left {
+  from {
+    transform: translateX(-1.5rem);
+    opacity: 0;
+  }
+}
+
+@keyframes pane-enter-right {
+  from {
+    transform: translateX(1.5rem);
+    opacity: 0;
+  }
+}
+
+@keyframes pane-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bible-compare-viewer.pane-primary :deep(.pair-primary),
+  .bible-compare-viewer.pane-secondary :deep(.pair-secondary) {
+    animation-name: pane-fade;
+    animation-duration: 120ms;
+  }
 }
 
 /* 역본 드롭다운 (body 텔레포트라 scoped가 아니라 :global 필요) */

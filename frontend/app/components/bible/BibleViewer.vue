@@ -870,8 +870,9 @@ defineExpose({
   text-align: right;
 }
 
-/* 좁은 화면에서는 상하로 쌓고 역본을 위쪽 구분선으로 나눈다 */
-@media (max-width: 767px) {
+/* 좁은 세로 화면에서는 상하로 쌓고 역본을 위쪽 구분선으로 나눈다.
+   (가로 방향은 비교 모드가 두 열을 유지한다) */
+@media (max-width: 767px) and (orientation: portrait) {
   .bible-content :deep(.verse-pair) {
     grid-template-columns: 1fr;
   }
@@ -922,7 +923,7 @@ defineExpose({
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 767px) and (orientation: portrait) {
   .bible-content :deep(.pair-primary) {
     --swap-x: 0;
     --swap-y: 1.25rem;
