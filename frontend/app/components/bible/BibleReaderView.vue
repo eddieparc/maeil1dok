@@ -6,7 +6,7 @@
         <div class="header-title-stack">
           <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
             <span class="book-chapter-text">
-              <span class="header-range">{{ headerRange }}</span>
+              <span class="header-range" :class="{ 'is-complete': isTongdokMode && isTongdokComplete }"><span v-if="isTongdokMode && isTongdokComplete" class="header-check" aria-hidden="true">✓</span>{{ headerRange }}</span>
             </span>
             <ChevronDownIcon class="selector-icon" :size="13" />
           </button>
@@ -21,12 +21,14 @@
               <button
                 v-if="headerContext"
                 class="header-context book-name-full"
+                :class="{ 'is-complete': isTongdokMode && isTongdokComplete }"
                 type="button"
                 @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')"
               >{{ headerContext }}</button>
               <button
                 v-if="headerContextShort"
                 class="header-context book-name-short"
+                :class="{ 'is-complete': isTongdokMode && isTongdokComplete }"
                 type="button"
                 @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')"
               >{{ headerContextShort }}</button>
@@ -101,11 +103,12 @@
       :primary-version-code="primaryVersionCode" :secondary-version-code="secondaryVersionCode"
       :is-secondary-loading="isSecondaryLoading"
       @version-select="(column, version) => $emit('compare-version-select', column, version)"
-      @swap="$emit('compare-swap')">
+      @swap="handleCompareSwap">
     <template #primary>
     <BibleViewer
       ref="bibleViewerRef"
-      :content="viewerContent"
+      :content="displayContent"
+      :swap-phase="swapPhase"
       :book="currentBookName"
       :chapter="currentChapter"
       :version="currentVersionName"
@@ -404,6 +407,31 @@ const viewerContent = computed(() => {
     props.secondaryMeta?.direction === 'rtl',
   );
 });
+
+// 역본 교체 애니메이션: v-html 재생성이 exit 애니메이션을 끊지 않도록
+// displayContent를 얼려 두고, exit이 끝난 뒤 새 DOM을 넣어 enter를 재생한다.
+const displayContent = ref(viewerContent.value);
+const swapPhase = ref<'' | 'exit' | 'enter'>('');
+const swapAnimating = ref(false);
+watch(viewerContent, (value) => {
+  if (!swapAnimating.value) displayContent.value = value;
+});
+
+const handleCompareSwap = () => {
+  if (swapAnimating.value) return;
+  swapAnimating.value = true;
+  swapPhase.value = 'exit';
+  emit('compare-swap');
+  window.setTimeout(() => {
+    displayContent.value = viewerContent.value;
+    swapPhase.value = 'enter';
+    window.setTimeout(() => {
+      swapPhase.value = '';
+      displayContent.value = viewerContent.value;
+      swapAnimating.value = false;
+    }, 220);
+  }, 170);
+};
 
 const boundAudioContextKey = computed(() => props.audioContextKey ?? JSON.stringify([
   props.isTongdokMode, props.tongdokScheduleDate, props.tongdokScheduleRange,
