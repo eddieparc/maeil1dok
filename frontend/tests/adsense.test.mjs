@@ -59,6 +59,16 @@ const footerCode = await transform(compileScript(descriptor, { id: 'reader-ad-te
   loader: 'ts', format: 'cjs', define: { 'import.meta.dev': 'false' },
 });
 
+function observerSignal() {
+  let resolve;
+  let reject;
+  const promise = new Promise((onReady, onError) => {
+    resolve = onReady;
+    reject = onError;
+  });
+  return { promise, resolve, reject };
+}
+
 // Vue owns rendering and lifecycle. Only browser observers and Google's SDK are
 // faked, so a missing v-if, wrong status, or unmount race changes the rendered tree.
 async function mountFooter({ native = false, width = 320, fill = 'filled' } = {}) {
@@ -67,7 +77,7 @@ async function mountFooter({ native = false, width = 320, fill = 'filled' } = {}
   const mutations = [];
   const requests = [];
   const timers = new Map();
-  let observing = Promise.withResolvers();
+  let observing = observerSignal();
   async function ready() {
     if (native) return Vue.nextTick();
     const deadline = setTimeout(() => observing.reject(new Error('Reader visibility observer was not registered')), 1000);
@@ -148,7 +158,7 @@ async function mountFooter({ native = false, width = 320, fill = 'filled' } = {}
     enter: () => intersections[0].callback([{ isIntersecting: true }]),
     unmount: () => renderer.render(null, root),
     remount: async () => {
-      observing = Promise.withResolvers();
+      observing = observerSignal();
       renderer.render(Vue.h(component), root);
       await ready();
     },
