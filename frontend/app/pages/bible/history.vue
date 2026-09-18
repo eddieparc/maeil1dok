@@ -109,6 +109,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '~/composables/useApi';
+import { useAuthService } from '~/composables/useAuthService';
 import { useBibleData } from '~/composables/useBibleData';
 import { useErrorHandler } from '~/composables/useErrorHandler';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
@@ -121,6 +122,7 @@ definePageMeta({
 
 const router = useRouter();
 const api = useApi();
+const auth = useAuthService();
 const { bibleBooks } = useBibleData();
 const { handleSilentError } = useErrorHandler();
 
@@ -170,6 +172,11 @@ const filteredBooks = computed(() => {
 
 // 통계 로드
 const loadStats = async () => {
+  if (!auth.isAuthenticated.value) {
+    isLoading.value = false;
+    return;
+  }
+
   try {
     const response = await api.GET('/api/v1/todos/bible/personal-records/stats/');
     if (response.data.success) {

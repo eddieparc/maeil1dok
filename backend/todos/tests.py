@@ -214,7 +214,7 @@ class HasenaSummaryTaskTest(SimpleTestCase):
             date='2026-06-25',
         )
         generate_summary.assert_not_called()
-        capture_issue.assert_called_once()
+        capture_issue.assert_not_called()
 
     def test_generates_current_service_date_video_after_feed_update(self):
         with (

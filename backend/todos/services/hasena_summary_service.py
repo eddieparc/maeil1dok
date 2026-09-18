@@ -253,8 +253,10 @@ def get_youtube_transcript(video_id: str, languages: list = None) -> str | None:
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
         from youtube_transcript_api._errors import (
+            IpBlocked,
             TranscriptsDisabled,
             NoTranscriptFound,
+            RequestBlocked,
             VideoUnavailable,
         )
         
@@ -263,6 +265,9 @@ def get_youtube_transcript(video_id: str, languages: list = None) -> str | None:
         full_text = ' '.join([snippet.text for snippet in transcript])
         return full_text
         
+    except (RequestBlocked, IpBlocked):
+        logger.warning("Transcript request blocked by YouTube: video_id=%s", video_id)
+        return None
     except TranscriptsDisabled:
         logger.warning(f"Transcripts disabled for video: {video_id}")
         return None

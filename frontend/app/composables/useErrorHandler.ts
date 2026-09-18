@@ -18,6 +18,10 @@ interface ErrorHandlerOptions {
   logToConsole?: boolean;
 }
 
+const isTransientNetworkFailure = (error: unknown): boolean =>
+  error instanceof TypeError
+  && /(?:failed to fetch|load failed|networkerror)/i.test(error.message);
+
 export function useErrorHandler() {
   const toast = useToast();
   const isDev = process.dev;
@@ -35,6 +39,14 @@ export function useErrorHandler() {
         : undefined;
       if (status !== undefined) {
         scope.setExtra('http_status', status);
+      }
+
+      if (isTransientNetworkFailure(error)) {
+        scope.setTag('network_failure', 'true');
+        Sentry.captureMessage(`Handled network failure: ${context}`, {
+          level: 'warning',
+        });
+        return;
       }
 
       if (error instanceof Error && (status === undefined || status >= 500)) {

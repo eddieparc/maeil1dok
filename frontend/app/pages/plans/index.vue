@@ -105,6 +105,8 @@
                   </div>
                   <button
                     class="action-button subscribe"
+                    :disabled="subscribingPlanIds.has(plan.id)"
+                    :aria-busy="subscribingPlanIds.has(plan.id)"
                     @click="handleSubscribe(plan)"
                   >
                     구독하기
@@ -151,6 +153,7 @@ const toast = useToast();
 const subscriptions = ref<Subscription[]>([]);
 const availablePlans = ref<Plan[]>([]);
 const isLoading = ref(true);
+const subscribingPlanIds = ref<Set<number>>(new Set());
 
 const modal = useModal();
 
@@ -172,10 +175,19 @@ async function fetchUserPlans() {
 
 // 플랜 구독
 async function handleSubscribe(plan: Plan) {
-  const success = await planApi.subscribeToPlan(plan.id);
-  if (success) {
-    toast.success(`${plan.name} 플랜을 구독했습니다.`);
-    await fetchUserPlans();
+  if (subscribingPlanIds.value.has(plan.id)) return;
+
+  subscribingPlanIds.value = new Set(subscribingPlanIds.value).add(plan.id);
+  try {
+    const success = await planApi.subscribeToPlan(plan.id);
+    if (success) {
+      toast.success(`${plan.name} 플랜을 구독했습니다.`);
+      await fetchUserPlans();
+    }
+  } finally {
+    const next = new Set(subscribingPlanIds.value);
+    next.delete(plan.id);
+    subscribingPlanIds.value = next;
   }
 }
 

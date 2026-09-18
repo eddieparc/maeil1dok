@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 import requests
 from django.test import SimpleTestCase, TestCase, override_settings
+from youtube_transcript_api._errors import RequestBlocked
 
 from todos.models import HasenaSummary
 from todos.services.hasena_summary_service import (
@@ -13,6 +14,7 @@ from todos.services.hasena_summary_service import (
     get_hasena_video_date,
     get_hasena_video_for_date,
     get_recent_hasena_videos,
+    get_youtube_transcript,
     is_cacheable_hasena_summary_result,
 )
 
@@ -88,6 +90,22 @@ class HasenaSummaryCacheableResultTest(SimpleTestCase):
 
 
 class HasenaSummaryServiceTest(TestCase):
+    def test_get_youtube_transcript_logs_request_block_as_warning_when_fallback_can_run(self) -> None:
+        with (
+            patch(
+                "youtube_transcript_api.YouTubeTranscriptApi.fetch",
+                side_effect=RequestBlocked("video-123"),
+            ),
+            patch("todos.services.hasena_summary_service.logger") as logger,
+        ):
+            result = get_youtube_transcript("video-123")
+
+        self.assertIsNone(result)
+        logger.warning.assert_called_once_with(
+            "Transcript request blocked by YouTube: video_id=%s",
+            "video-123",
+        )
+
     def test_get_recent_hasena_videos_uses_public_playlist_feed(self) -> None:
         class Response:
             content = """<?xml version="1.0" encoding="UTF-8"?>
