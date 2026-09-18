@@ -10,6 +10,7 @@
     <!-- 역본 선택 슬라이드 -->
     <div class="version-slide-section">
       <div class="version-row">
+        <span v-if="compareEnabled" class="version-row-label">본문</span>
         <div class="version-scroll-container">
           <button
             v-for="(name, code) in VISIBLE_VERSION_NAMES"
@@ -39,7 +40,6 @@
 
       <!-- 비교 역본 선택 (역본 비교 켜졌을 때 한 줄 추가) -->
       <div v-if="compareEnabled" class="version-row secondary">
-        <span class="version-row-label">비교</span>
         <div class="version-scroll-container">
           <button
             v-for="(name, code) in VISIBLE_VERSION_NAMES"
@@ -52,6 +52,7 @@
             {{ name }}
           </button>
         </div>
+        <span class="version-row-label">비교</span>
       </div>
     </div>
 
@@ -529,7 +530,7 @@ watch([booksSection, chaptersSection], () => {
 }
 
 :global(.book-selector-sheet .bottom-sheet__header) {
-  padding: 0 20px 12px;
+  padding: 12px 20px;
 }
 
 :global(.book-selector-sheet .bottom-sheet__content) {
@@ -565,6 +566,8 @@ button:focus-visible {
 }
 
 .version-row-label {
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
   font-size: 0.75rem;
   font-weight: 600;
@@ -580,10 +583,9 @@ button:focus-visible {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding: 0 20px;
-  /* 좌우 가장자리 블러 페이드 */
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+  /* 스크롤 가장자리 블러 페이드 (왼쪽은 미세하게, 오른쪽만 넓게) */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 4px, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 4px, #000 calc(100% - 20px), transparent 100%);
 }
 
 .version-scroll-container::-webkit-scrollbar {

@@ -4,26 +4,31 @@
     <header class="bible-header" :class="{ 'has-extra-action': (isTongdokMode && tongdokGuideLink) || (isAuthenticated && !isTongdokMode) }">
       <div class="header-title-group">
         <div class="header-title-stack">
-          <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
+          <button class="book-selector-trigger" type="button" @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')">
             <span class="book-chapter-text">
               <span class="header-range">{{ headerRange }}</span>
             </span>
             <ChevronDownIcon class="selector-icon" :size="13" />
           </button>
           <div class="header-title-lines">
-            <div v-if="isTongdokMode && tongdokPlanName" class="header-plan-name">{{ tongdokPlanName }}</div>
+            <button
+              v-if="isTongdokMode && tongdokPlanName"
+              class="header-plan-name"
+              type="button"
+              @click="$emit('reading-plan-click')"
+            >{{ tongdokPlanName }}</button>
             <div class="header-context-row">
               <button
                 v-if="headerContext"
                 class="header-context book-name-full"
                 type="button"
-                @click="$emit('open-book-selector')"
+                @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')"
               >{{ headerContext }}</button>
               <button
                 v-if="headerContextShort"
                 class="header-context book-name-short"
                 type="button"
-                @click="$emit('open-book-selector')"
+                @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')"
               >{{ headerContextShort }}</button>
             </div>
           </div>
@@ -93,9 +98,10 @@
     <BibleCompareViewer
       :enabled="compareEnabled"
       :primary-version-name="currentVersionName" :secondary-version-name="secondaryVersionName || ''"
+      :primary-version-code="primaryVersionCode" :secondary-version-code="secondaryVersionCode"
       :is-secondary-loading="isSecondaryLoading"
-      @select-primary="$emit('compare-select', 'primary')"
-      @select-secondary="$emit('compare-select', 'secondary')" @swap="$emit('compare-swap')">
+      @version-select="(column, version) => $emit('compare-version-select', column, version)"
+      @swap="$emit('compare-swap')">
     <template #primary>
     <BibleViewer
       ref="bibleViewerRef"
@@ -320,6 +326,8 @@ interface Props {
   compareEnabled?: boolean;
   secondaryContent?: string;
   secondaryVersionName?: string;
+  primaryVersionCode?: string;
+  secondaryVersionCode?: string;
   isSecondaryLoading?: boolean;
   primaryMeta?: { direction: string; language: string; testament: string };
   secondaryMeta?: { direction: string; language: string; testament: string };
@@ -486,7 +494,7 @@ const emit = defineEmits<{
   'open-book-selector': [];
   'open-version-selector': [];
   'open-settings': [];
-  'compare-select': [column: 'primary' | 'secondary'];
+  'compare-version-select': [column: 'primary' | 'secondary', version: string];
   'compare-swap': [];
 
   // 사용자 액션
@@ -709,6 +717,16 @@ defineExpose({
   line-height: 1.3;
   letter-spacing: 0.01em;
   color: var(--color-text-tertiary, #9ca3af);
+}
+
+button.header-plan-name {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .book-chapter-text {
