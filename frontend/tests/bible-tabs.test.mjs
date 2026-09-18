@@ -30,8 +30,6 @@ const snapshot = (overrides = {}) => ({
   chapter: 1,
   version: 'GAE',
   scrollPosition: 0,
-  tongdok: null,
-  readingDetail: null,
   ...overrides,
 });
 
@@ -120,7 +118,7 @@ test('setBarVisible toggles bar visibility', () => {
 test('serialize/parse round-trips tabs, active id, and visibility', () => {
   const state = createTabsState();
   const a = addTab(state, snapshot({ scrollPosition: 300 }), '창세기 1장');
-  addTab(state, snapshot({ book: 'psa', chapter: 23, tongdok: { enabled: true, scheduleId: 7, planId: 3 } }), '시편 23편');
+  addTab(state, snapshot({ book: 'psa', chapter: 23 }), '시편 23편');
   activateTab(state, a.id);
   setBarVisible(state, true);
 
@@ -128,7 +126,7 @@ test('serialize/parse round-trips tabs, active id, and visibility', () => {
   assert.equal(restored.tabs.length, 2);
   assert.equal(restored.activeTabId, a.id);
   assert.equal(restored.barVisible, true);
-  assert.equal(restored.tabs[1].snapshot.tongdok.scheduleId, 7);
+  assert.equal(restored.tabs[1].snapshot.book, 'psa');
 });
 
 test('parseTabsState survives malformed and empty input', () => {

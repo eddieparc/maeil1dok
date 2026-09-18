@@ -3,24 +3,17 @@
  *
  * 탭은 "저장된 본문 위치"다. 리더 자체는 항상 하나만 살아 있고,
  * 탭 전환 시 현재 상태를 스냅샷으로 저장한 뒤 대상 탭의 스냅샷을 복원한다.
+ * 통독모드는 전역 모드(다른 장으로 이동해도 유지되는 기존 동작)라 탭 스냅샷에
+ * 포함하지 않는다.
  * Pinia 스토어(app/stores/bibleTabs.ts)가 이 순수 함수들로 상태를 갱신하고
  * localStorage에 영속화한다.
  */
-
-export interface BibleTabTongdok {
-  enabled: boolean;
-  scheduleId: number | null;
-  planId: number | null;
-}
 
 export interface BibleTabSnapshot {
   book: string;
   chapter: number;
   version: string;
   scrollPosition: number;
-  tongdok: BibleTabTongdok | null;
-  /** useTongdokMode의 readingDetailResponse — 통독 범위·진행·오디오 폴백 */
-  readingDetail: unknown;
 }
 
 export interface BibleTab {

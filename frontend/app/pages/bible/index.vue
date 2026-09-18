@@ -423,37 +423,19 @@ const buildTabSnapshot = (): BibleTabSnapshot => ({
   chapter: currentChapter.value,
   version: currentVersion.value,
   scrollPosition: scrollPosition.value,
-  tongdok: tongdokMode.value
-    ? {
-        enabled: true,
-        scheduleId: tongdokScheduleId.value,
-        planId: tongdokPlanId.value,
-      }
-    : null,
-  readingDetail: readingDetailResponse.value,
 });
 
 const syncActiveBibleTab = () => {
   bibleTabsStore.syncActiveTab(buildTabSnapshot(), currentTabLabel.value);
 };
 
-/** 탭 스냅샷을 리더에 복원한다 (책·장·역본·스크롤·통독 상태). */
+/** 탭 스냅샷을 리더에 복원한다 (책·장·역본·스크롤). */
 const applyTabSnapshot = async (tab: BibleTab) => {
   const snap = tab.snapshot;
   currentBook.value = snap.book;
   currentChapter.value = snap.chapter;
   currentVersion.value = snap.version;
   viewMode.value = 'reader';
-
-  if (snap.tongdok?.enabled) {
-    // enableTongdokMode는 truthy 인자만 반영하므로 ref를 먼저 정확히 복원한다
-    tongdokScheduleId.value = snap.tongdok.scheduleId;
-    tongdokPlanId.value = snap.tongdok.planId;
-    enableTongdokMode();
-  } else if (tongdokMode.value) {
-    disableTongdokMode();
-  }
-  setReadingDetailResponse(snap.readingDetail as ReadingDetailResponse | null);
 
   resetReaderScrollPosition();
   await loadBibleContent(snap.book, snap.chapter);
@@ -1454,8 +1436,6 @@ watch(
     () => currentBook.value,
     () => currentChapter.value,
     () => currentVersion.value,
-    () => tongdokMode.value,
-    () => readingDetailResponse.value,
   ],
   () => {
     syncActiveBibleTab();
