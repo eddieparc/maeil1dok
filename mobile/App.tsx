@@ -1148,6 +1148,9 @@ function AppContent() {
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onMessage={handleMessage}
         javaScriptEnabled={true}
+        // Debug/dev builds only: lets Safari Web Inspector attach to the
+        // WKWebView for QA. No effect in release builds.
+        webviewDebuggingEnabled={__DEV__}
         domStorageEnabled={true}
         cacheEnabled={true}
         cacheMode="LOAD_DEFAULT"
