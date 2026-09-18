@@ -10028,7 +10028,13 @@ components:
         tongdok_auto_complete:
           type: boolean
           description: 통독모드 자동 완료
+        audio_playback_rate:
+          type: number
+          format: double
+          maximum: 2.0
+          minimum: 0.5
       required:
+      - audio_playback_rate
       - font_size
       - line_height
     ReadingSettingsData:

@@ -5608,6 +5608,8 @@ export interface components {
             show_footnotes?: boolean;
             /** @description 통독모드 자동 완료 */
             tongdok_auto_complete?: boolean;
+            /** Format: double */
+            audio_playback_rate: number;
         };
         ReadingSettingsData: {
             settings: components["schemas"]["ReadingSettings"];

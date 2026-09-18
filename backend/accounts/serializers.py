@@ -434,6 +434,7 @@ class NotificationSettingsSerializer(serializers.Serializer):
 class ReadingSettingsSerializer(serializers.ModelSerializer):
     font_size = serializers.IntegerField(min_value=14, max_value=24)
     line_height = serializers.FloatField(min_value=1.4, max_value=2.4)
+    audio_playback_rate = serializers.FloatField(min_value=0.5, max_value=2.0)
 
     class Meta:
         model = UserReadingSettings
@@ -451,4 +452,5 @@ class ReadingSettingsSerializer(serializers.ModelSerializer):
             'highlight_names',
             'show_footnotes',
             'tongdok_auto_complete',
+            'audio_playback_rate',
         ]

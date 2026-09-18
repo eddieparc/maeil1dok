@@ -376,6 +376,10 @@ class UserReadingSettings(models.Model):
         default=False,
         help_text='통독모드 자동 완료'
     )
+    audio_playback_rate = models.FloatField(
+        default=1.0,
+        help_text='오디오 재생 속도 (0.5-2.0)'
+    )
 
     # Superseded by todos.NotificationSettings (migration todos/0033), which is the
     # model every sender reads. Kept as columns so the absorbing migration stays
@@ -413,6 +417,10 @@ class UserReadingSettings(models.Model):
             models.CheckConstraint(
                 check=models.Q(line_height__gte=1.4) & models.Q(line_height__lte=2.4),
                 name='reading_settings_line_height_range',
+            ),
+            models.CheckConstraint(
+                check=models.Q(audio_playback_rate__gte=0.5) & models.Q(audio_playback_rate__lte=2.0),
+                name='reading_settings_audio_rate_range',
             ),
         ]
 
