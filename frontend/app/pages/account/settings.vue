@@ -129,6 +129,20 @@
         </ListCard>
       </section>
 
+      <section class="settings-group app-group" aria-labelledby="app-heading">
+        <h3 id="app-heading" class="group-label">앱</h3>
+        <ListCard :padded="false">
+          <div class="list-card-row setting-row">
+            <AppSwitch
+              label="베타 모드"
+              description="테스트 버전(beta.maeil1dok.app)을 사용합니다"
+              :model-value="betaModeEnabled"
+              @update:model-value="handleBetaToggle"
+            />
+          </div>
+        </ListCard>
+      </section>
+
       <section class="account-actions" aria-label="로그인 세션 및 계정 삭제">
         <div class="footer-links">
           <button type="button" @click="handleLogout" class="text-action">로그아웃</button>
@@ -255,14 +269,18 @@ import { useNotificationsStore, type NotificationSettings } from '~/stores/notif
 import { useReadingSettingsStore } from '~/stores/readingSettings'
 import { useProfileStore } from '~/stores/profile'
 import {
+  betaModeTargetUrl,
   buildDeleteAccountPayload,
   buildNativeAppleLinkRequest,
   buildOAuthLinkUrl,
   buildSocialMergePayload,
+  canShellSwitchBeta,
   getProviderDisplayName,
+  isBetaHost,
   parseNativeAppleLinkResult,
   shouldUseNativeAppleLink,
 } from '~/utils/accountSettingsRuntime.js'
+import { isNativeApp, sendToNative } from '~/types/native-bridge'
 import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
 
 useHead({
@@ -342,11 +360,19 @@ const handleEditProfile = async () => {
  */
 const shellIdentity = ref(classifyShellIdentity({ isNativeApp: false, reported: undefined }))
 
+/**
+ * Whether this page is being served from the beta host. Read on mount rather
+ * than during SSR: the answer lives on `window.location`, and it must not be
+ * baked into a cached server render.
+ */
+const betaModeEnabled = ref(false)
+
 onMounted(() => {
   shellIdentity.value = classifyShellIdentity({
     isNativeApp: (window as any).isReactNativeWebView === true,
     reported: (window as any).__shellBundleIdentity,
   })
+  betaModeEnabled.value = isBetaHost(window.location.hostname)
 })
 
 type Provider = 'kakao' | 'google' | 'apple'
@@ -966,6 +992,25 @@ const resetDeletePanel = () => {
 
 const handleBack = () => {
   goBack('/')
+}
+
+const handleBetaToggle = async (enabled: boolean) => {
+  if (isNativeApp() && !canShellSwitchBeta(window)) {
+    await modal.alert({
+      title: '앱 업데이트가 필요합니다',
+      description: '베타 모드는 최신 버전의 앱에서만 사용할 수 있습니다. 앱을 업데이트해주세요.',
+      icon: 'error'
+    })
+    return
+  }
+
+  sendToNative({ type: 'beta:set', enabled })
+
+  // The new shell owns navigation after beta:set; only navigate here when
+  // there is no shell to do it (plain browser).
+  if (!(isNativeApp() && canShellSwitchBeta(window))) {
+    window.location.assign(betaModeTargetUrl(enabled))
+  }
 }
 
 const handleMerge = async (keepAccount: KeepAccount) => {
