@@ -14,16 +14,6 @@ const open = computed(() => mounted.value && props.modelValue)
 useScrollLock({ enabled: open })
 const close = () => emit('update:modelValue', false)
 const { isTopmost, zIndex } = useFocusTrap(sheetRef, { enabled: open, onEscape: close })
-let dragStart: number | null = null
-function startDrag(event: PointerEvent) {
-  if (!isTopmost.value || !event.isPrimary || event.button !== 0) return
-  dragStart = event.clientY
-  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
-}
-function endDrag(event: PointerEvent) {
-  if (isTopmost.value && dragStart !== null && event.clientY - dragStart >= 48) close()
-  dragStart = null
-}
 onMounted(() => {
   mounted.value = true
 })
@@ -34,9 +24,6 @@ onMounted(() => {
     <Transition name="bottom-sheet" appear>
       <div v-if="open" class="bottom-sheet__overlay" :style="{ zIndex }" :inert="!isTopmost" @click.self="isTopmost && close()">
         <section ref="sheetRef" v-bind="$attrs" class="bottom-sheet" role="dialog" :aria-modal="isTopmost || undefined" :aria-hidden="!isTopmost || undefined" :aria-labelledby="title ? titleId : undefined" :aria-label="title ? undefined : ($attrs['aria-label'] as string || '대화상자')" tabindex="-1">
-          <div class="bottom-sheet__handle-area" aria-hidden="true" @pointerdown="startDrag" @pointerup="endDrag" @pointercancel="dragStart = null">
-            <span class="bottom-sheet__handle" />
-          </div>
           <div class="bottom-sheet__header">
             <h2 v-if="title" :id="titleId" class="bottom-sheet__title">{{ title }}</h2>
             <slot name="header-extra" :close="close" />
@@ -69,8 +56,6 @@ onMounted(() => {
 }
 /* The existing reading-settings class arrives through $attrs on the dialog. */
 .bottom-sheet.reading-settings-sheet { border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; }
-.bottom-sheet__handle-area { display: flex; align-items: center; justify-content: center; min-height: var(--hit-min); flex-shrink: 0; touch-action: none; cursor: grab; }
-.bottom-sheet__handle { width: 36px; height: 4px; border-radius: var(--radius-pill); background: var(--color-border-default); }
 .bottom-sheet__header { display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding-bottom: 12px; }
 .bottom-sheet__title { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.3; }
 .bottom-sheet__close { display: inline-flex; align-items: center; justify-content: center; min-width: var(--hit-min); min-height: var(--hit-min); margin-left: auto; padding: 0; border: 1px solid transparent; border-radius: var(--radius-pill); background: transparent; color: var(--color-accent-primary); cursor: pointer; transition: background-color var(--duration-micro) ease, transform var(--duration-micro) ease; }

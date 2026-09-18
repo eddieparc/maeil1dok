@@ -22,8 +22,8 @@
           </button>
         </div>
         <button
-          class="compare-toggle"
-          :class="{ active: compareEnabled }"
+          class="version-chip compare-toggle"
+          :class="{ 'is-on': compareEnabled }"
           :aria-pressed="compareEnabled"
           type="button"
           data-testid="book-selector-compare"
@@ -31,8 +31,8 @@
           aria-label="역본 비교"
           @click="$emit('compare-toggle')"
         >
-          <Columns2Icon :size="15" />
-          <span class="compare-toggle-label">역본 비교</span>
+          <Columns2Icon :size="14" />
+          <span>역본 비교</span>
         </button>
       </div>
 
@@ -589,30 +589,8 @@ button:focus-visible {
   display: none;
 }
 
-.compare-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex-shrink: 0;
-  padding: 0.375rem 0.625rem;
-  min-height: 32px;
-  border-radius: var(--radius-pill);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-default);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.compare-toggle:hover {
-  color: var(--color-text-primary);
-  background: var(--color-bg-hover);
-}
-
-.compare-toggle.active {
+/* 역본 비교 토글 — 칩 기본 형태 + 켜짐 상태만 액센트 아웃라인 */
+.compare-toggle.is-on {
   color: var(--color-accent-primary);
   border-color: var(--color-accent-primary);
   background: color-mix(in srgb, var(--color-accent-primary) 8%, transparent);

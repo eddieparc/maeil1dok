@@ -322,7 +322,7 @@ test('AppButton preserves button/link loading and disabled activation guards', {
   assert.equal(clicks, 2);
 });
 
-test('BottomSheet retains attrs, slots, focus/scroll integration and ESC/scrim/drag dismissal', { timeout: 5000 }, async () => {
+test('BottomSheet retains attrs, slots, focus/scroll integration and ESC/scrim dismissal', { timeout: 5000 }, async () => {
   installHost();
   const trigger = new Element('button');
   document.body.appendChild(trigger);
@@ -332,7 +332,7 @@ test('BottomSheet retains attrs, slots, focus/scroll integration and ESC/scrim/d
     default: () => Vue.h('button', 'content-action'),
     footer: ({ close }) => Vue.h('button', { onClick: close }, 'footer-action'),
   });
-  for (const dismiss of ['Escape', 'scrim', 'drag', 'close', 'footer']) {
+  for (const dismiss of ['Escape', 'scrim', 'close', 'footer']) {
     await view.update({ modelValue: true });
     const sheet = document.body.querySelector('section');
     assert.equal(sheet.props.role, 'dialog');
@@ -349,13 +349,6 @@ test('BottomSheet retains attrs, slots, focus/scroll integration and ESC/scrim/d
       fire(overlay, 'Click', { target: sheet });
       assert.equal(view.state.modelValue, true, 'content click must not dismiss');
       fire(overlay, 'Click');
-    } else if (dismiss === 'drag') {
-      const handle = sheet.querySelector('.bottom-sheet__handle-area');
-      fire(handle, 'Pointerdown', { isPrimary: true, button: 0, pointerId: 1, clientY: 100 });
-      fire(handle, 'Pointerup', { clientY: 147 });
-      assert.equal(view.state.modelValue, true);
-      fire(handle, 'Pointerdown', { isPrimary: true, button: 0, pointerId: 1, clientY: 100 });
-      fire(handle, 'Pointerup', { clientY: 148 });
     } else if (dismiss === 'close') fire(sheet.querySelector('.bottom-sheet__close'), 'Click');
     else fire(sheet.querySelector('footer').querySelector('button'), 'Click');
     await Vue.nextTick();
@@ -363,7 +356,7 @@ test('BottomSheet retains attrs, slots, focus/scroll integration and ESC/scrim/d
     assert.equal(document.body.style.overflow, '');
     assert.equal(document.activeElement, trigger);
   }
-  assert.equal(closes, 5);
+  assert.equal(closes, 4);
 });
 
 
