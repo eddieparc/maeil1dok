@@ -274,18 +274,25 @@ export const useTongdokMode = () => {
       return;
     }
 
+    const saved = loadTongdokState();
+
     if (query.tongdok === 'true' || query.plan) {
+      const queryPlanId = positiveId(query.plan);
       setModeIdentity(
         true,
         positiveId(query.schedule),
-        positiveId(query.plan),
+        queryPlanId,
         typeof query.date === 'string' ? query.date : null,
       );
+      // 같은 플랜의 저장된 이름이 있으면 persist 전에 복원해 덮어쓰지 않는다.
+      if (queryPlanId !== null && saved?.planId === queryPlanId &&
+          typeof saved.planName === 'string' && saved.planName) {
+        tongdokPlanName.value = saved.planName;
+      }
       persistActiveContext();
       return;
     }
 
-    const saved = loadTongdokState();
     if (saved?.enabled) {
       setModeIdentity(
         true,
