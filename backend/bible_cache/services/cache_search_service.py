@@ -161,6 +161,16 @@ class BibleCacheSearchService:
                 if all(word in normalized for word in query_words):
                     return BibleCacheVerseSearchHit(verse=verses[i].verse, text=pair)
 
+            # 같은 장의 떨어진 절에 단어가 나뉘는 경우: 장 전체에 모든 단어가
+            # 있으면 첫 단어가 등장하는 절을 결과로 쓴다.
+            chapter_text = ' '.join(v.text for v in verses)
+            if all(word in normalize_for_search(chapter_text) for word in query_words):
+                first = query_words[0]
+                for verse in verses:
+                    if first in normalize_for_search(verse.text):
+                        return BibleCacheVerseSearchHit(verse=verse.verse, text=verse.text)
+                return BibleCacheVerseSearchHit(verse=verses[0].verse, text=verses[0].text)
+
         return None
 
     @staticmethod

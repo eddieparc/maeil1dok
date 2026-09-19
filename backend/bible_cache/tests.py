@@ -918,3 +918,43 @@ class BibleCacheAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], 0)
+
+    def test_verse_range_marker_is_extracted(self):
+        """'2-3' 같은 절 범위 마커도 절로 추출한다 (첫 번호 사용)."""
+        obj, _ = BibleContentCache.save_to_cache(
+            version='HAN',
+            book='ezk',
+            chapter=25,
+            content=(
+                '<span><span class="number">1&nbsp;&nbsp;&nbsp;</span>여호와의 말씀이 임하여</span><br />'
+                '<span><span class="number">2-3&nbsp;&nbsp;&nbsp;</span>인자야 암몬 족속에게 이르기를 너희는 주 여호와의 말씀에 그것을 대하여</span><br />'
+                '<span><span class="number">4&nbsp;&nbsp;&nbsp;</span>그러므로 내가 너를 동방 사람에게</span><br />'
+            ),
+            content_type='html',
+        )
+
+        self.assertIn('그것을 대하여', obj.search_text)
+
+    def test_word_and_fallback_matches_words_in_distant_verses(self):
+        """모든 단어가 같은 장의 떨어진 절에 있어도 유사 검색이 매칭한다."""
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content=(
+                '<p><span><span class="number">1&nbsp;</span>태초에 하나님이 천지를 창조하시니라</span><br />'
+                '<span><span class="number">2&nbsp;</span>땅이 혼돈하고 공허하며</span><br />'
+                '<span><span class="number">3&nbsp;</span>하나님이 이르시되 빛이 있으라</span><br />'
+                '<span><span class="number">4&nbsp;</span>빛이 하나님 보시기에 좋았더라</span><br /></p>'
+            ),
+            content_type='html',
+        )
+
+        # '태초'(1절)와 '좋았더라'(4절) — 인접하지 않은 절에 분산
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': '태초 좋았더라', 'version': 'GAE'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['verse'], 1)
