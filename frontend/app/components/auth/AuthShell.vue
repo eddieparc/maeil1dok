@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { ChevronLeft } from '@lucide/vue'
 import { NuxtLink } from '#components'
+const { cdnAsset } = useCdnAsset();
 defineProps<{ back?: string }>()
 </script>
 
@@ -9,7 +11,7 @@ defineProps<{ back?: string }>()
     <div class="auth-column">
       <header class="auth-header">
         <NuxtLink v-if="back" :to="back" class="auth-back press" aria-label="뒤로가기"><ChevronLeft :size="22" aria-hidden="true" /></NuxtLink>
-        <NuxtImg src="/images/logo-transparent.png" alt="매일일독" class="auth-logo" loading="eager" format="webp" />
+        <NuxtImg :src="cdnAsset('/images/logo-transparent.png')" alt="매일일독" class="auth-logo" loading="eager" format="webp" />
       </header>
       <slot />
     </div>

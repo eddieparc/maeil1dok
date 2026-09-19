@@ -371,7 +371,7 @@ test('landing logo is eager and preloaded for first paint', () => {
   assert.doesNotMatch(logoBlock, /loading="lazy"/, 'first viewport landing logo should not be lazy loaded');
   assert.match(logoBlock, /loading="eager"/, 'first viewport landing logo should load eagerly');
   assert.match(landingPageSource, /rel:\s*'preload'/, 'first viewport landing logo should be preloaded');
-  assert.match(landingPageSource, /href:\s*'\/images\/logo-transparent\.png'/, 'first viewport landing logo preload should target the concrete asset');
+  assert.match(landingPageSource, /href:\s*cdnAsset\('\/images\/logo-transparent\.png'\)/, 'first viewport landing logo preload should target the concrete asset');
   assert.match(logoBlock, /fetchpriority="high"/, 'first viewport landing logo should have a high priority hint');
   assert.match(logoBlock, /width="376"/, 'first viewport landing logo should reserve the source width to keep the logo ratio');
   assert.match(logoBlock, /height="99"/, 'first viewport landing logo should reserve the source height to keep the logo ratio');
@@ -391,7 +391,7 @@ test('landing renders content immediately while dismissing the non-blocking skel
 
 test('above the fold app logos are not lazy loaded', () => {
   for (const { path, source } of logoSurfaceSources) {
-    const logoBlock = source.match(/<NuxtImg[\s\S]*?src="\/images\/logo-transparent\.png"[\s\S]*?\/>/)?.[0] ?? '';
+    const logoBlock = source.match(/<NuxtImg[\s\S]*?:src="cdnAsset\('\/images\/logo-transparent\.png'\)"[\s\S]*?\/>/)?.[0] ?? '';
 
     assert.notEqual(logoBlock, '', `${path} should render the Maeil1Dok logo`);
     assert.doesNotMatch(logoBlock, /loading="lazy"/, `${path} logo should not be lazy loaded`);

@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { useHead } from '#imports'
 import { ExternalLink, Mail } from '@lucide/vue'
 import InfoLayout from '~/components/info/InfoLayout.vue'
 import ListCard from '~/components/ui/ListCard.vue'
+const { cdnAsset } = useCdnAsset();
 
 useHead({
   title: '회사정보 - 매일일독',
@@ -18,7 +20,7 @@ useHead({
 
 <template>
   <InfoLayout>
-    <img src="/images/logo-transparent.png" alt="매일일독" class="company-logo">
+    <img :src="cdnAsset('/images/logo-transparent.png')" alt="매일일독" class="company-logo">
     <h2 class="company-heading">매일 말씀을 읽는 습관,<br>함께 만들어요</h2>
     <p class="company-intro">매일일독은 성경 통독을 꾸준히 이어가도록 돕는 서비스예요. 통독표, 오디오, 하세나하시조 영상, 함께 읽는 그룹까지 하루의 읽기를 한 곳에서 이어갑니다.</p>
     <div class="company-stats">

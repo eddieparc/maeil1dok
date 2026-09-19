@@ -3,7 +3,7 @@
     <header class="header">
       <NuxtLink to="/" class="logo-link">
         <NuxtImg
-          src="/images/logo-transparent.png"
+          :src="cdnAsset('/images/logo-transparent.png')"
           alt="매일일독"
           class="logo"
           loading="eager"
@@ -136,6 +136,7 @@
 </template>
 
 <script setup>
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import {
   CalendarDaysIcon,
   ClipboardListIcon,
@@ -155,6 +156,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { computed, ref, inject, onMounted, onUnmounted, watch } from 'vue'
 import Menu from '~/components/Menu.vue'
 import NotificationBell from '~/components/notifications/NotificationBell.vue'
+const { cdnAsset } = useCdnAsset();
 
 const auth = useAuthService()
 const readingSettingsStore = useReadingSettingsStore()
