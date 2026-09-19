@@ -108,7 +108,13 @@ export default defineNuxtPlugin({
       
       sendToNative({ type: 'auth:request' })
     } else {
-      loadAdSense()
+      // 광고 스크립트는 인터랙티브 이후에 로드해 초기 렌더를 막지 않는다.
+      const deferAdSense = () => loadAdSense()
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(deferAdSense, { timeout: 3000 })
+      } else {
+        setTimeout(deferAdSense, 1500)
+      }
     }
   }
 })
