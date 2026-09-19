@@ -107,13 +107,15 @@ def verse_texts(content: str) -> list[VerseSearchHit]:
 
 def _verse_texts_from_html(content: str) -> list[VerseSearchHit]:
     # API.Bible 형식: <span data-number="N" ...>N</span>본문
+    # 한 절이 여러 <p>에 걸칠 수 있으므로 다음 절 번호(또는 문서 끝)까지가
+    # 절 본문이다. <p>에서 끊으면 둘째 문단 이후가 유실된다.
     api_bible_verses = [
         VerseSearchHit(
             verse=int(match.group(1)),
             text=clean_text(match.group(2)),
         )
         for match in re.finditer(
-            r'<span\b[^>]*data-number=["\'](\d+)["\'][^>]*>[^<]*</span>([\s\S]*?)(?=<span\b[^>]*data-number=|<p\b|$)',
+            r'<span\b[^>]*data-number=["\'](\d+)["\'][^>]*>[^<]*</span>([\s\S]*?)(?=<span\b[^>]*data-number=|$)',
             content,
             re.IGNORECASE,
         )

@@ -836,3 +836,85 @@ class BibleCacheAPITest(APITestCase):
 
         self.assertIn('이삭이 리브가를 사랑하였더라', obj.search_text)
         self.assertNotIn('성경 단어 검색', obj.search_text)
+
+    def test_api_bible_verse_spanning_multiple_paragraphs_is_fully_extracted(self):
+        """한 절이 여러 <p>에 걸쳐 있어도 둘째 문단 이후가 유실되지 않는다."""
+        obj, _ = BibleContentCache.save_to_cache(
+            version='KNT',
+            book='job',
+            chapter=16,
+            content=(
+                '<p class="q1"><span data-number="3" class="v">3</span></span>'
+                '<span class="verse-span">부질없는 말에 끝이 있을까?</span></p>'
+                '<p class="q1"><span class="verse-span">무엇이 그대를 들쑤셔 대답하게 하는가?</span></p>'
+                '<p class="q1"><span data-number="4" class="v">4</span></span>'
+                '<span class="verse-span">나도 너희처럼 말할 수 있네.</span></p>'
+            ),
+            content_type='html',
+        )
+
+        self.assertIn('들쑤셔', obj.search_text)
+        self.assertIn('부질없는 말에 끝이 있을까', obj.search_text)
+
+    def test_phrase_spanning_verse_boundary_matches_starting_verse(self):
+        """절 경계를 넘는 구도 시작 절을 결과로 반환한다."""
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content=(
+                '<p><span><span class="number">1&nbsp;</span>태초에 하나님이 천지를 창조하시니라</span><br />'
+                '<span><span class="number">2&nbsp;</span>땅이 혼돈하고 공허하며</span><br />'
+                '<span><span class="number">3&nbsp;</span>하나님이 이르시되 빛이 있으라</span></p>'
+            ),
+            content_type='html',
+        )
+
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': '창조하시니라 땅이', 'version': 'GAE'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['verse'], 1)
+
+    def test_word_and_fallback_matches_scattered_words(self):
+        """정확 구가 없어도 모든 단어가 한 절에 있으면 유사 검색이 매칭한다."""
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content=(
+                '<p><span><span class="number">1&nbsp;</span>태초에 하나님이 천지를 창조하시니라</span><br />'
+                '<span><span class="number">2&nbsp;</span>땅이 혼돈하고 공허하며</span></p>'
+            ),
+            content_type='html',
+        )
+
+        # '태초 하나님'은 정확 구가 아니지만 두 단어 모두 1절에 있다
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': '태초 하나님', 'version': 'GAE'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['verse'], 1)
+
+    def test_word_and_fallback_requires_all_words(self):
+        """유사 검색도 모든 단어가 있어야 한다 — 일부만 있으면 0건."""
+        BibleContentCache.save_to_cache(
+            version='GAE',
+            book='gen',
+            chapter=1,
+            content=(
+                '<p><span><span class="number">1&nbsp;</span>태초에 하나님이 천지를 창조하시니라</span></p>'
+            ),
+            content_type='html',
+        )
+
+        response = self.client.get(
+            '/api/v1/bible-cache/search/', {'q': '태초 마귀', 'version': 'GAE'}
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 0)

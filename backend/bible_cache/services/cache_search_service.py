@@ -15,7 +15,7 @@ from bible_cache.text_utils import (
 )
 
 
-SEARCH_CACHE_VERSION = 'v3'
+SEARCH_CACHE_VERSION = 'v4'
 SEARCH_CACHE_TIMEOUT_SECONDS = getattr(settings, 'BIBLE_SEARCH_CACHE_TIMEOUT_SECONDS', 60 * 60 * 24)
 
 BOOK_ORDER = {
@@ -97,8 +97,71 @@ class BibleCacheSearchService:
                 )
             )
 
+        # 정확 매칭이 없으면 유사 검색 폴백: 쿼리의 모든 단어가 한 절(또는 절
+        # 경계를 넘는 범위)에 함께 있으면 매칭으로 본다. 순서·거리·조사 차이를
+        # 흡수하지만 단어 자체는 모두 있어야 한다.
+        if not results:
+            query_words = [w for w in normalized_query.split(' ') if len(w) >= 2]
+            if len(query_words) >= 2:
+                results = BibleCacheSearchService._word_and_search(
+                    query_words, normalized_version
+                )
+
         django_cache.set(cache_key, results, SEARCH_CACHE_TIMEOUT_SECONDS)
         return results
+
+    @staticmethod
+    def _word_and_search(
+        query_words: list[str],
+        normalized_version: str | None,
+    ) -> list[BibleCacheSearchResult]:
+        queryset = BibleContentCache.objects.filter(fetch_success=True)
+        for word in query_words:
+            queryset = queryset.filter(
+                Q(search_text__icontains=word) | Q(content__icontains=word)
+            )
+        if normalized_version:
+            queryset = queryset.filter(version=normalized_version)
+
+        results: list[BibleCacheSearchResult] = []
+        for cache in BibleCacheSearchService._ordered(queryset):
+            hit = BibleCacheSearchService._matching_verse_hit_for_words(
+                cache.content, query_words
+            )
+            if hit is None:
+                continue
+
+            results.append(
+                BibleCacheSearchResult(
+                    version=cache.version,
+                    book=cache.book,
+                    chapter=cache.chapter,
+                    verse=hit.verse,
+                    snippet=BibleCacheSearchService._snippet(hit.text, query_words[0]),
+                    updated_at=cache.updated_at.isoformat(),
+                )
+            )
+        return results
+
+    @staticmethod
+    def _matching_verse_hit_for_words(
+        content: str, query_words: list[str]
+    ) -> BibleCacheVerseSearchHit | None:
+        verses = verse_texts(content)
+        for verse in verses:
+            normalized = normalize_for_search(verse.text)
+            if all(word in normalized for word in query_words):
+                return BibleCacheVerseSearchHit(verse=verse.verse, text=verse.text)
+
+        # 인접한 두 절에 걸쳐 단어가 나뉘는 경우까지 허용한다.
+        if len(verses) > 1:
+            for i in range(len(verses) - 1):
+                pair = verses[i].text + ' ' + verses[i + 1].text
+                normalized = normalize_for_search(pair)
+                if all(word in normalized for word in query_words):
+                    return BibleCacheVerseSearchHit(verse=verses[i].verse, text=pair)
+
+        return None
 
     @staticmethod
     def _cache_key(query: str, version: str | None) -> str:
@@ -128,9 +191,26 @@ class BibleCacheSearchService:
 
     @staticmethod
     def _matching_verse_hit(content: str, normalized_query: str) -> BibleCacheVerseSearchHit | None:
-        for verse in verse_texts(content):
+        verses = verse_texts(content)
+        for verse in verses:
             if normalized_query in normalize_for_search(verse.text):
                 return BibleCacheVerseSearchHit(verse=verse.verse, text=verse.text)
+
+        # 절 경계를 넘는 구: 단일 절에는 없지만 장 전체에는 있을 수 있다.
+        # 구가 시작되는 절 = 그 절부터 끝까지 이어 붙인 텍스트에 구가 남아 있는
+        # 마지막 절이다. 그 절부터의 텍스트를 스니펫으로 쓴다.
+        if len(verses) > 1:
+            start_index = None
+            for i in range(len(verses)):
+                tail = ' '.join(v.text for v in verses[i:])
+                if normalized_query in normalize_for_search(tail):
+                    start_index = i
+                else:
+                    break
+            if start_index is not None:
+                verse = verses[start_index]
+                tail = ' '.join(v.text for v in verses[start_index:])
+                return BibleCacheVerseSearchHit(verse=verse.verse, text=tail)
 
         return None
 
