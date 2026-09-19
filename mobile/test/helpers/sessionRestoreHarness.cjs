@@ -3,7 +3,7 @@ const path = require('node:path');
 const ts = require('typescript');
 
 const mobileRoot = path.join(__dirname, '..', '..');
-const appPath = path.join(mobileRoot, 'App.tsx');
+const appPath = path.join(mobileRoot, 'screens', 'WebViewScreen.tsx');
 const appSource = readFileSync(appPath, 'utf8');
 const sessionRestorePath = path.join(mobileRoot, 'sessionRestore.ts');
 const sessionRestoreSource = readFileSync(sessionRestorePath, 'utf8');
@@ -29,7 +29,7 @@ const findVariableInitializer = (name) => {
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
-  if (!initializer) throw new Error(`Unable to find ${name} in App.tsx`);
+  if (!initializer) throw new Error(`Unable to find ${name} in screens/WebViewScreen.tsx`);
   return initializer.getText(sourceFile);
 };
 

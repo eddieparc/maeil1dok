@@ -8,6 +8,17 @@ test('successful Kakao return navigates the issued session bridge immediately', 
     navigateCount: 0,
     showLogin: [],
   };
+  // completeLogin is the post-login seam inside LoginScreen: bridge, persist
+  // the session, dismiss the modal, then navigate the WebView.
+  const completeLogin = instantiateClosure('completeLogin', {
+    initiateSessionBridge: async () => true,
+    signInWithTokens: async () => {},
+    dismissLogin: () => observations.showLogin.push(false),
+    navigateToPendingUrl: () => {
+      observations.navigateCount += 1;
+    },
+    controller: { remountWebView: () => {} },
+  });
   const handleKakaoLogin = instantiateClosure('handleKakaoLogin', {
     kakaoLogin: async () => ({ accessToken: 'kakao-access' }),
     setIsSubmitting: () => {},
@@ -23,14 +34,9 @@ test('successful Kakao return navigates the issued session bridge immediately', 
         refresh: 'maeil-refresh',
       }),
     }),
-    initiateSessionBridge: async () => true,
-    navigateToPendingUrl: () => {
-      observations.navigateCount += 1;
-    },
-    setShowLogin: (value) => observations.showLogin.push(value),
-    setWebViewKey: () => {},
-    pendingUrlRef: { current: null },
-    setPendingUrl: () => {},
+    completeLogin,
+    navigateToSocialSignup: () => {},
+    formatNativeAuthError: (data, fallback) => fallback,
     WEB_APP_URL: 'https://maeil1dok.app',
     Alert: { alert: () => {} },
     isErrorWithCode: () => false,

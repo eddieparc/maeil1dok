@@ -73,7 +73,7 @@ test('the shell logout call actually carries the header', () => {
   // The rule can be perfect while the call site forgets it, and no pure test can
   // see that. Scoped to the logout fetch block so an unrelated mention elsewhere
   // cannot satisfy it.
-  const source = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx'), 'utf8');
   const start = source.indexOf("auth/logout/");
   assert.notEqual(start, -1, 'logout call not found');
   const block = source.slice(Math.max(0, start - 400), start + 300);
@@ -100,7 +100,7 @@ test('the shell refresh call carries the header too', async () => {
 test('the session bridge issue call carries the header when cookies exist', async () => {
   // Given: the actual App closure and a shared cookie store populated by the
   // refresh response that immediately precedes this bridge call.
-  const appPath = path.join(__dirname, '..', 'App.tsx');
+  const appPath = path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx');
   const source = fs.readFileSync(appPath, 'utf8');
   const sourceFile = ts.createSourceFile(
     appPath,

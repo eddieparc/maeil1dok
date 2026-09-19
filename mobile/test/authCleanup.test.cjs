@@ -4,7 +4,7 @@ const { test } = require('node:test');
 const path = require('node:path');
 const ts = require('typescript');
 
-const appPath = path.join(__dirname, '..', 'App.tsx');
+const appPath = path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx');
 const appSource = readFileSync(appPath, 'utf8');
 const authCleanupPath = path.join(__dirname, '..', 'authCleanup.ts');
 const authCleanupSource = readFileSync(authCleanupPath, 'utf8');
@@ -30,7 +30,7 @@ const findVariableInitializer = (name) => {
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
-  if (!initializer) throw new Error(`Unable to find ${name} in App.tsx`);
+  if (!initializer) throw new Error(`Unable to find ${name} in screens/WebViewScreen.tsx`);
   return initializer.getText(sourceFile);
 };
 
