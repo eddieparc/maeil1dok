@@ -194,11 +194,11 @@ function AppContent() {
   }
 
   return (
-    <WebViewControllerProvider bundleIdentity={bundleIdentity}>
-      <AuthSessionProvider>
+    <AuthSessionProvider>
+      <WebViewControllerProvider bundleIdentity={bundleIdentity}>
         <ShellBody />
-      </AuthSessionProvider>
-    </WebViewControllerProvider>
+      </WebViewControllerProvider>
+    </AuthSessionProvider>
   );
 }
 

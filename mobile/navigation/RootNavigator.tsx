@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -43,14 +42,6 @@ function MainTabs() {
 export default function RootNavigator() {
   const { status } = useAuth();
 
-  // A signed-out session has no native home yet — the login modal becomes the
-  // root until signInWithTokens flips the status back.
-  useEffect(() => {
-    if (status === 'signedOut' && navigationRef.isReady()) {
-      navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
-    }
-  }, [status]);
-
   if (status === 'loading') {
     return (
       <View style={styles.loading}>
@@ -61,7 +52,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator initialRouteName="WebView" screenOptions={{ headerShown: false }}>
+      <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={MainTabs} />
         <Stack.Screen name="WebView" component={WebViewScreen} />
         <Stack.Screen

@@ -112,7 +112,6 @@ export default function MoreScreen() {
   }, [signOut]);
 
   const menuItems = buildMenuItems({
-    isStaff: user?.isStaff === true,
     betaEnabled: betaMode === true,
   });
 

@@ -78,7 +78,7 @@ export default function LoginScreen() {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else if (navigationRef.isReady()) {
-      navigationRef.reset({ index: 0, routes: [{ name: 'WebView' }] });
+      navigationRef.reset({ index: 0, routes: [{ name: 'Main' }] });
     }
   };
 

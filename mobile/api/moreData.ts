@@ -137,12 +137,10 @@ const WEB_LINKS: ReadonlyArray<{ readonly label: string; readonly path: string }
 /**
  * 더보기 메뉴 모델. 웹 링크 → 베타 모드 → 로그아웃 순서.
  *
- * 베타 행은 스태프에게만 보인다. 웹의 계정 설정 페이지는 모두에게 노출하지만
- * 네이티브 더보기 탭은 첫 화면에서 한 탭이면 닿는 자리라, 실수로 베타 스택에
- * 올라타는 일반 사용자를 막기 위해 스태프로 제한한다.
+ * 베타 행은 모든 사용자에게 보인다 — 웹의 계정 설정 페이지도 같은 토글을
+ * 전원에게 노출하므로 네이티브도 같은 계약을 따른다.
  */
 export function buildMenuItems(options: {
-  readonly isStaff: boolean;
   readonly betaEnabled: boolean;
 }): readonly MoreMenuItem[] {
   const items: MoreMenuItem[] = WEB_LINKS.map((link) => ({
@@ -151,9 +149,7 @@ export function buildMenuItems(options: {
     path: link.path,
   }));
 
-  if (options.isStaff) {
-    items.push({ kind: 'beta', label: '베타 모드', enabled: options.betaEnabled });
-  }
+  items.push({ kind: 'beta', label: '베타 모드', enabled: options.betaEnabled });
   items.push({ kind: 'logout', label: '로그아웃' });
   return items;
 }

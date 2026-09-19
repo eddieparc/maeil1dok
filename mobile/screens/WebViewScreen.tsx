@@ -40,7 +40,6 @@ import { buildLocationAssignmentScript } from '../deepLink';
 import { redactSensitiveUrl } from '../urlRedaction';
 import { csrfHeadersFrom } from '../csrfHeader';
 import { hasAuthCookies, runStoredSessionRestore } from '../sessionRestore';
-import { clearMobileAuth } from '../authCleanup';
 import { buildNativeClientObservationHeaders } from '../clientObservationHeaders';
 import { buildSessionBridgeConsumeUrl } from '../sessionBridgeNavigation';
 import { isFatalWebViewError, shouldAllowWebViewNavigation } from '../webviewNavigation';
@@ -60,6 +59,7 @@ import {
 } from '../appleNativeLink';
 import type { BundleIdentity } from '../bundleIdentity';
 import { useAppStack } from '../navigation/AppStackContext';
+import { useAuth } from '../auth/AuthSession';
 import { navigationRef, type RootStackParamList } from '../navigation/navigationRef';
 
 /**
@@ -194,6 +194,7 @@ export function WebViewControllerProvider({
   children: ReactNode;
 }) {
   const { stack, setBetaMode } = useAppStack();
+  const { signOut } = useAuth();
   const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
@@ -355,43 +356,21 @@ export function WebViewControllerProvider({
     }
   };
 
-  const clearStoredAuth = async () => {
-    await clearMobileAuth({
-      platform: Platform.OS === 'ios' ? 'ios' : 'android',
-      apiUrl: API_URL,
-      // Shared-domain cookies live on '.maeil1dok.app' whenever the current
-      // stack's host is under maeil1dok.app (prod apex AND beta subdomain).
-      // Computed inside the closure: harnesses inject WEB_APP_URL only.
-      cookieDomain: (() => {
-        try {
-          const host = new URL(WEB_APP_URL).hostname;
-          return host === 'maeil1dok.app' || host.endsWith('.maeil1dok.app')
-            ? '.maeil1dok.app'
-            : undefined;
-        } catch {
-          return undefined;
-        }
-      })(),
-      clearCookieByName: (url, name, useWebKit) =>
-        CookieManager.clearByName(url, name, useWebKit),
-      setCookie: (url, cookie) => CookieManager.set(url, cookie),
-      setCookieFromResponse: (url, cookie) => CookieManager.setFromResponse(url, cookie),
-      flushCookies: () => CookieManager.flush(),
-      deleteSecureValue: (key) => SecureStore.deleteItemAsync(key),
-    });
-  };
-
   const invalidateStoredSessionRestore = () => {
     restoreGenerationRef.current += 1;
     restorePromiseRef.current = null;
   };
 
+  // AuthSession.signOut runs the same clearMobileAuth cleanup this used to do
+  // inline AND flips the session status, so the native tabs stop rendering
+  // signed-in UI on dead tokens. Guests can browse the tabs now, so logout
+  // lands back on the tab bar instead of forcing the login modal. The remount
+  // stays: the WebView must reload on the cleared cookie store.
   const finishNativeLogout = async () => {
-    await clearStoredAuth().catch((error) => {
-      console.error('[Logout] Clear storage error:', error);
+    await signOut().catch((error) => {
+      console.error('[Logout] Sign-out error:', error);
     });
     setWebViewKey((previous) => previous + 1);
-    showNativeLogin();
   };
 
   /**

@@ -4,34 +4,43 @@ const { test } = require('node:test');
 const path = require('node:path');
 const ts = require('typescript');
 
-const appPath = path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx');
-const appSource = readFileSync(appPath, 'utf8');
+// Closures under test live in the screen and session files. Each file is
+// searched in order; the first file declaring the name wins.
+const closurePaths = [
+  path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx'),
+  path.join(__dirname, '..', 'auth', 'AuthSession.tsx'),
+];
+const sourceFiles = closurePaths.map((filePath) => ({
+  filePath,
+  sourceFile: ts.createSourceFile(
+    filePath,
+    readFileSync(filePath, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  ),
+}));
 const authCleanupPath = path.join(__dirname, '..', 'authCleanup.ts');
 const authCleanupSource = readFileSync(authCleanupPath, 'utf8');
-const sourceFile = ts.createSourceFile(
-  appPath,
-  appSource,
-  ts.ScriptTarget.Latest,
-  true,
-  ts.ScriptKind.TSX,
-);
 
 const findVariableInitializer = (name) => {
-  let initializer = null;
-  const visit = (node) => {
-    if (
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      node.name.text === name
-    ) {
-      initializer = node.initializer;
-      return;
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  if (!initializer) throw new Error(`Unable to find ${name} in screens/WebViewScreen.tsx`);
-  return initializer.getText(sourceFile);
+  for (const { filePath, sourceFile } of sourceFiles) {
+    let initializer = null;
+    const visit = (node) => {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.name.text === name
+      ) {
+        initializer = node.initializer;
+        return;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+    if (initializer) return initializer.getText(sourceFile);
+  }
+  throw new Error(`Unable to find ${name} in ${closurePaths.join(', ')}`);
 };
 
 const compiledAuthCleanup = ts.transpileModule(authCleanupSource, {
@@ -93,27 +102,39 @@ test('native logout removes only Maeil1Dok auth cookies', async () => {
   const SecureStore = {
     deleteItemAsync: async (key) => observations.secureDeletes.push(key),
   };
-  const clearStoredAuth = compileFunction(
-    'clearStoredAuth',
+  // The cookie-clearing contract moved with the cleanup: AuthSession.signOut
+  // now owns the clearMobileAuth call that WebViewScreen used to inline.
+  const signOut = compileFunction(
+    'signOut',
     [
+      'useCallback',
       'CookieManager',
       'SecureStore',
       'Platform',
-      'API_URL',
-      'WEB_APP_URL',
+      'apiUrl',
+      'webAppUrl',
       'clearMobileAuth',
+      'accessTokenRef',
+      'setAccessToken',
+      'setStatus',
+      'console',
     ],
     [
+      (fn) => fn,
       CookieManager,
       SecureStore,
       { OS: 'android' },
       'https://api.maeil1dok.app',
       'https://maeil1dok.app',
       clearMobileAuth,
+      { current: null },
+      () => {},
+      () => {},
+      { error: () => {} },
     ],
   );
 
-  await clearStoredAuth();
+  await signOut();
 
   assert.equal(observations.clearAllCalls, 0, 'logout must not destroy unrelated cookies');
   assert.deepEqual(
@@ -180,7 +201,7 @@ test('logout cleanup completes before the WebView remounts', async () => {
     signalCleanupStarted = resolve;
   });
   const observations = [];
-  const clearStoredAuth = async () => {
+  const signOut = async () => {
     observations.push('cleanup:start');
     signalCleanupStarted();
     await cleanupBarrier;
@@ -188,11 +209,10 @@ test('logout cleanup completes before the WebView remounts', async () => {
   };
   const finishNativeLogout = compileFunction(
     'finishNativeLogout',
-    ['clearStoredAuth', 'setWebViewKey', 'showNativeLogin', 'console'],
+    ['signOut', 'setWebViewKey', 'console'],
     [
-      clearStoredAuth,
+      signOut,
       () => observations.push('webview:remount'),
-      () => observations.push('login:show'),
       { error: () => {} },
     ],
   );
@@ -207,13 +227,12 @@ test('logout cleanup completes before the WebView remounts', async () => {
   assert.deepEqual(
     eventsBeforeCleanup,
     ['cleanup:start'],
-    'remount and login UI must wait for cleanup',
+    'the WebView remount must wait for sign-out cleanup',
   );
   assert.deepEqual(observations, [
     'cleanup:start',
     'cleanup:end',
     'webview:remount',
-    'login:show',
   ]);
 });
 

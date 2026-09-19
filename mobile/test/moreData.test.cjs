@@ -170,7 +170,7 @@ const EXPECTED_LINKS = [
 ];
 
 test('buildMenuItems emits the web destinations in order', () => {
-  const items = buildMenuItems({ isStaff: false, betaEnabled: false });
+  const items = buildMenuItems({ betaEnabled: false });
   const links = items.filter((item) => item.kind === 'link');
   assert.deepEqual(
     links.map((item) => [item.label, item.path]),
@@ -179,26 +179,25 @@ test('buildMenuItems emits the web destinations in order', () => {
 });
 
 test('buildMenuItems ends with the logout row', () => {
-  const items = buildMenuItems({ isStaff: false, betaEnabled: false });
+  const items = buildMenuItems({ betaEnabled: false });
   const last = items[items.length - 1];
   assert.equal(last.kind, 'logout');
   assert.equal(last.label, '로그아웃');
 });
 
-test('buildMenuItems shows the beta row only for staff', () => {
-  const member = buildMenuItems({ isStaff: false, betaEnabled: false });
-  assert.equal(member.some((item) => item.kind === 'beta'), false);
-
-  const staff = buildMenuItems({ isStaff: true, betaEnabled: false });
-  const beta = staff.find((item) => item.kind === 'beta');
-  assert.ok(beta, 'staff must see the beta row');
+test('buildMenuItems shows the beta row for every user', () => {
+  // The web exposes the toggle to all users (the QA account is non-staff), so
+  // the native menu does too — no staff gate.
+  const items = buildMenuItems({ betaEnabled: false });
+  const beta = items.find((item) => item.kind === 'beta');
+  assert.ok(beta, 'every user must see the beta row');
   assert.equal(beta.enabled, false);
   // Beta row sits between the web links and logout.
-  assert.equal(staff[staff.length - 1].kind, 'logout');
-  assert.equal(staff[staff.length - 2].kind, 'beta');
+  assert.equal(items[items.length - 1].kind, 'logout');
+  assert.equal(items[items.length - 2].kind, 'beta');
 });
 
 test('buildMenuItems reflects the current beta flag on the row', () => {
-  const on = buildMenuItems({ isStaff: true, betaEnabled: true });
+  const on = buildMenuItems({ betaEnabled: true });
   assert.equal(on.find((item) => item.kind === 'beta').enabled, true);
 });
