@@ -70,7 +70,7 @@ services:
       GOOGLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/google/callback
       APPLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/apple/callback
       PORT: "8000"
-      GUNICORN_WORKERS: "1"
+      GUNICORN_WORKERS: "2"
       SENTRY_DSN: ""
       SENTRY_ENVIRONMENT: beta
       RESEND_API_KEY: ""
