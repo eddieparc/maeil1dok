@@ -108,12 +108,18 @@ export default defineNuxtPlugin({
       
       sendToNative({ type: 'auth:request' })
     } else {
-      // 광고 스크립트는 인터랙티브 이후에 로드해 초기 렌더를 막지 않는다.
-      const deferAdSense = () => loadAdSense()
-      if ('requestIdleCallback' in window) {
-        window.requestIdleCallback(deferAdSense, { timeout: 3000 })
+      // 광고 스크립트는 초기 로드가 완전히 끝난 뒤에 로드해 networkidle을 막지 않는다.
+      const deferAdSense = () => {
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(() => loadAdSense(), { timeout: 10000 })
+        } else {
+          setTimeout(() => loadAdSense(), 5000)
+        }
+      }
+      if (document.readyState === 'complete') {
+        deferAdSense()
       } else {
-        setTimeout(deferAdSense, 1500)
+        window.addEventListener('load', deferAdSense, { once: true })
       }
     }
   }
