@@ -180,7 +180,7 @@ import { useToast } from '~/composables/useToast'
 import { useYouTubePlayer } from '~/composables/useYouTubePlayer'
 import { useHasenaSummary } from '~/composables/hasena/useHasenaSummary'
 import { renderHasenaVerses } from '~/composables/hasena/hasenaVerses'
-import { getTodayString, toLocalDateString } from '~/utils/dateFormat'
+import { getTodayString } from '~/utils/dateFormat'
 import ReadingSettingsSheet from '~/components/ReadingSettingsSheet.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
 import SkeletonHasenaCard from '~/components/ui/skeleton/SkeletonHasenaCard.vue'
@@ -196,7 +196,6 @@ import {
   SlidersHorizontalIcon,
   SparklesIcon,
 } from '@lucide/vue'
-import { formatHasenaSummary } from '~/utils/hasenaFormatters'
 import { buildHasenaEmbedUrl, withJsApiEnabled } from '~/utils/hasenaVideoUrl'
 
 const api = useApi()
@@ -352,7 +351,7 @@ const handleComplete = async () => {
     await hasenaStore.updateStatus(selectedDateObj.value)
     await Promise.all([fetchHasenaContent(), hasenaStore.fetchStats()])
     await nextTick()
-  } catch (err) {
+  } catch {
     toast.error('완료 처리에 실패했습니다')
   }
 }

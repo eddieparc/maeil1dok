@@ -21,7 +21,6 @@
       </div>
     </section>
   </BottomSheet>
-  <Toast />
 </template>
 
 <script setup lang="ts">
@@ -34,7 +33,6 @@ import { useModal } from '~/composables/useModal';
 import { useToast } from '~/composables/useToast';
 import BottomSheet from '~/components/ui/BottomSheet.vue';
 import AppButton from '~/components/ui/AppButton.vue';
-import Toast from '~/components/Toast.vue';
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();

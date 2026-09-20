@@ -21,22 +21,16 @@
       <ToastHost />
     </ClientOnly>
 
-    <!-- Nonrendering legacy adapter for injected/template-ref callers -->
-    <Toast ref="legacyToast" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, provide } from 'vue'
-import Toast from '~/components/Toast.vue'
+import { ref } from 'vue'
 import ModalHost from '~/components/ui/modal/ModalHost.vue'
 import ToastHost from '~/components/ui/toast/ToastHost.vue'
 import EmailVerificationBanner from '~/components/auth/EmailVerificationBanner.vue'
 import SessionUnknownBanner from '~/components/auth/SessionUnknownBanner.vue'
 
-// Preserve inject('toast').value.show without mounting another host.
-const legacyToast = ref<InstanceType<typeof Toast> | null>(null)
-provide('toast', legacyToast)
 
 // Auth initialization moved to plugins/auth-init.ts
 </script>

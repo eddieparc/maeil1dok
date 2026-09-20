@@ -52,8 +52,7 @@
         </AppButton>
       </div>
     </div>
-    <Toast />
-  </div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -68,7 +67,6 @@ import { useToast } from '~/composables/useToast';
 import { TIMING } from '~/constants/bible';
 import AppButton from '~/components/ui/AppButton.vue';
 import EmptyState from '~/components/common/EmptyState.vue';
-import Toast from '~/components/Toast.vue';
 import SkeletonCard from '~/components/ui/skeleton/SkeletonCard.vue';
 import SkeletonText from '~/components/ui/skeleton/SkeletonText.vue';
 

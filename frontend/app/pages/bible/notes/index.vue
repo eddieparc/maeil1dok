@@ -34,8 +34,7 @@
         <template #badges><span v-if="note.is_private" class="private-badge"><Lock :size="12" aria-hidden="true" />비공개</span></template>
       </BibleRecordRow>
     </ul>
-    <Toast />
-  </BibleSubpageLayout>
+</BibleSubpageLayout>
 </template>
 
 <script setup lang="ts">
@@ -49,7 +48,6 @@ import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import BibleRecordControls from '~/components/bible/BibleRecordControls.vue';
 import BibleRecordRow from '~/components/bible/BibleRecordRow.vue';
 import EmptyState from '~/components/common/EmptyState.vue';
-import Toast from '~/components/Toast.vue';
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 
 definePageMeta({ layout: 'default' });

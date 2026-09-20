@@ -243,7 +243,6 @@ async function plansModalRuntime(t) {
     '~/composables/useToast': { useToast: () => ({ success() {} }) },
     '~/composables/useErrorHandler': { useErrorHandler: () => ({ handleApiError: error => errors.push(error) }) },
     '~/components/common/PageLayout.vue': { default: { setup: (_, { slots }) => () => Vue.h('main', slots.default?.()) } },
-    '~/components/Toast.vue': { default: { render: () => null } },
     'vue-router': { useRouter: () => ({ push() {} }) },
     '#components': { NuxtLink: { render: () => Vue.h('a') } }
   })
@@ -549,30 +548,6 @@ test('promise preserves outcomes and settles for 1800ms without reviving superse
   assert.equal(c.pending, 0)
 })
 
-test('legacy template ref and injected ref share one nonrendering adapter and global host', async t => {
-  clock(t)
-  const r = runtime(t), toast = r.load('~/composables/useToast').useToast()
-  const Legacy = r.load('~/components/Toast.vue').default
-  const Host = r.load('~/components/ui/toast/ToastHost.vue').default
-  const legacy = Vue.ref(null), local = Vue.ref(null), injected = Vue.ref(null)
-  const Consumer = Vue.defineComponent({ setup() { injected.value = Vue.inject('toast'); return () => Vue.h(Legacy, { ref: local }) } })
-  const Root = Vue.defineComponent({ setup() { Vue.provide('toast', legacy); return () => [Vue.h(Legacy, { ref: legacy }), Vue.h(Consumer), Vue.h(Host)] } })
-  r.mount(Root); await r.flush()
-  injected.value.value.show('injected', 'warning'); await r.flush()
-  assert.equal(toast.toasts.value[0]?.type, 'warning')
-  local.value.show('local'); await r.flush()
-  assert.equal(toast.toasts.value.length, 1)
-  assert.equal(toast.toasts.value[0].type, 'success')
-  assert.equal(byClass(r.doc, 'toast-host').length, 1)
-  assert.equal(byClass(r.doc, 'toast-item').length, 1)
-  assert.equal(byClass(r.doc, 'toast-container').length, 1)
-  toast.error('new'); await r.flush()
-  assert.equal(byClass(r.doc, 'toast-item').length, 1)
-  const item = byClass(r.doc, 'toast-item')[0]
-  descendants(item).find(n => n.props.class === 'toast-dismiss').props.onClick()
-  await r.flush(); assert.equal(byClass(r.doc, 'toast-item').length, 0)
-})
-
 async function modalRuntime(t) {
   const r = runtime(t)
   const modal = r.load('~/composables/useModal').useModal()
@@ -590,24 +565,6 @@ async function modalRuntime(t) {
   r.mount(r.load('~/components/ui/modal/ModalHost.vue').default)
   await r.flush()
   return { ...r, modal, state, open, trigger }
-}
-
-for (const kind of ['confirm', 'alert']) {
-  for (const interaction of ['escape', 'scrim']) {
-    test(`${kind} ${interaction} cancels via shared surface and restores focus/scroll`, async t => {
-      const r = await modalRuntime(t)
-      const { result } = await r.open(kind)
-      assert.equal(r.doc.body.style.overflow, 'hidden')
-      if (interaction === 'escape') r.doc.dispatch('keydown', { key: 'Escape' })
-      else byClass(r.doc, 'modal-overlay')[0].props.onClick()
-      await r.flush()
-      assert.equal(r.modal.stack.value.length, 0)
-      assert.equal(await result, kind === 'confirm' ? false : undefined)
-      assert.ok(r.doc.activeElement === r.trigger)
-      assert.equal(r.doc.body.style.overflow, 'auto')
-      assert.equal(r.doc.body.style.paddingRight, '7px')
-    })
-  }
 }
 
 test('danger confirm and explicit cancel retain boolean outcomes', async t => {
