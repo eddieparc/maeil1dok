@@ -125,8 +125,7 @@ html {
  */
 
 :root {
-  /* Typography */
-  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  /* Typography — --font-sans is canonical in themes.css (Pretendard Variable stack) */
 
   /* Spacing */
   --spacing-1: 0.25rem;  /* 4px */

@@ -104,7 +104,7 @@ All spacing derives from 4px.
 | SegmentedControl | String/number `modelValue`; options `{value,label,disabled?,id?,controls?}`; optional group `disabled`; tablist/selected semantics, roving focus, arrows wrap enabled options, Home/End select first/last enabled; no width animation |
 | StatusBadge | Existing `ReadingStatus` and `STATUS_TEXT`: completed/current/not_completed/upcoming; never a separate today/missed enum |
 | ListCard | Static 20px card with title/default slot; no decorative hover or lift |
-| BottomSheet | `modelValue`, optional title; header-extra/default/footer slots with close; attrs on dialog; 36x4 handle; generic 20px top corners; existing `reading-settings-sheet` class selects 24px `--radius-sheet`; 350ms slide; ESC/scrim/down-drag dismissal; shared focus/scroll hooks |
+| BottomSheet | `modelValue`, optional title; header-extra/default/footer slots with close; attrs on dialog; generic 20px top corners (`--radius-sheet-top`); existing `reading-settings-sheet` class selects 18px `--radius-sheet`; 350ms slide; ESC/scrim dismissal (drag handle removed); shared focus/scroll hooks |
 | Common EmptyState | `title`/`description` override legacy `text`/`hint`, even when explicitly empty; legacy `guide` array and guide slot, `fullscreen`, icon/action slots and action event remain supported |
 
 Buttons, chips, segments, badges and inputs use `--radius-pill: 999px`; small controls use `--radius-control: 10px`, calendar cells `--radius-cell: 4px`.

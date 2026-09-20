@@ -48,7 +48,7 @@ onMounted(() => {
   max-height: 90dvh;
   padding: 0 24px 32px;
   padding-bottom: calc(32px + env(safe-area-inset-bottom));
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  border-radius: var(--radius-sheet-top, 20px) var(--radius-sheet-top, 20px) 0 0;
   background: var(--color-bg-card);
   box-shadow: var(--shadow-sheet);
   color: var(--color-text-primary);
