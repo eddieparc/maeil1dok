@@ -33,6 +33,7 @@ test('first iOS main-frame DNS failure remounts once before showing terminal err
   });
   const handleLoad = instantiateClosure('handleLoad', {
     dnsRetryAvailableRef,
+    webViewReadyRef: { current: false },
   });
   const event = {
     nativeEvent: {

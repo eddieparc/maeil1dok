@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Alert,
+  AppState,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
@@ -22,16 +23,29 @@ import type { WebViewNavigation } from 'react-native-webview';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import * as WebBrowser from 'expo-web-browser';
 import * as Font from 'expo-font';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as SecureStore from 'expo-secure-store';
+import {
+  getPushInstallationId,
+  isPushBridgeOrigin,
+  isPushBridgeRequest,
+  nativePushStateScript,
+  pushDestination,
+  readNativePushState,
+} from './nativePush';
 import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
 import CookieManager from '@react-native-cookies/cookies';
-import { resolveWebViewConfig } from './webviewConfig';
+import {
+  BETA_MODE_STORAGE_KEY,
+  BETA_STACK,
+  PROD_STACK,
+  parseBetaModeFlag,
+  resolveStack,
+} from './betaMode';
 import { buildDeepLinkNavigationUrl, buildLocationAssignmentScript } from './deepLink';
 import { redactSensitiveUrl } from './urlRedaction';
 import { csrfHeadersFrom } from './csrfHeader';
@@ -88,9 +102,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const WEBVIEW_CONFIG = resolveWebViewConfig(Constants.expoConfig?.extra ?? {});
-const WEB_APP_URL = WEBVIEW_CONFIG.webAppUrl;
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://api.maeil1dok.app';
 const APP_SCHEME = 'maeil1dok';
 const CERTIFICATION_IMAGE_MIME_TYPE = 'image/png';
 
@@ -142,8 +153,6 @@ type WebViewErrorLikeEvent = {
   };
 };
 
-const WEBVIEW_POLICY = { webAppUrl: WEB_APP_URL, apiUrl: API_URL };
-
 const GOOGLE_CLIENT_ID = Constants.expoConfig?.extra?.googleClientId || '';
 const NATIVE_CLIENT_OBSERVATION_HEADERS = buildNativeClientObservationHeaders({
   platform: Platform.OS === 'android' ? 'android' : 'ios',
@@ -164,13 +173,19 @@ function AppContent() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [isError, setIsError] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
+  const webViewReadyRef = useRef(false);
+  const handledNotificationRef = useRef<string | null>(null);
+  const lastNativePushTokenRef = useRef<string | null>(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  // null = SecureStore read still in flight; the loading screen holds until it
+  // resolves so the WebView never mounts on the wrong stack.
+  const [betaMode, setBetaMode] = useState<boolean | null>(null);
   
   const [showLogin, setShowLogin] = useState(false);
   const [webViewKey, setWebViewKey] = useState(0);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const pendingUrlRef = useRef<string | null>(null);
-  const currentWebViewUrlRef = useRef(WEB_APP_URL);
+  const currentWebViewUrlRef = useRef(PROD_STACK.web);
   const dnsRetryAvailableRef = useRef(true);
   const restoreGenerationRef = useRef(0);
   const restorePromiseRef = useRef<Promise<boolean> | null>(null);
@@ -198,6 +213,36 @@ function AppContent() {
   useEffect(() => {
     console.log(formatBundleIdentityLine(bundleIdentity));
   }, [bundleIdentity]);
+
+  const betaModeEnabled = betaMode === true;
+  const stack = resolveStack(betaModeEnabled);
+  // Derived per render from the persisted beta flag. The constant-style names
+  // are load-bearing: test harnesses extract these closures and inject the
+  // dependencies under exactly these identifiers.
+  const WEB_APP_URL = stack.web;
+  const API_URL = stack.api;
+  // Both stacks' origins are first-party so a beta:set toggle can navigate to
+  // the target stack before the WebView remounts onto it.
+  const WEBVIEW_POLICY = {
+    webAppUrl: WEB_APP_URL,
+    apiUrl: API_URL,
+    extraOrigins: [PROD_STACK.web, PROD_STACK.api, BETA_STACK.web, BETA_STACK.api],
+  };
+
+  useEffect(() => {
+    SecureStore.getItemAsync(BETA_MODE_STORAGE_KEY)
+      .then((value) => {
+        const enabled = parseBetaModeFlag(value);
+        currentWebViewUrlRef.current = resolveStack(enabled).web;
+        setBetaMode(enabled);
+      })
+      .catch((error) => {
+        // A failed read must not strand the app on the loading screen; prod is
+        // the safe default.
+        console.error('[BetaMode] SecureStore read failed:', error);
+        setBetaMode(false);
+      });
+  }, []);
 
   useEffect(() => {
     const loadFonts = async () => {
@@ -310,7 +355,19 @@ function AppContent() {
     await clearMobileAuth({
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
       apiUrl: API_URL,
-      cookieDomain: WEB_APP_URL === 'https://maeil1dok.app' ? '.maeil1dok.app' : undefined,
+      // Shared-domain cookies live on '.maeil1dok.app' whenever the current
+      // stack's host is under maeil1dok.app (prod apex AND beta subdomain).
+      // Computed inside the closure: harnesses inject WEB_APP_URL only.
+      cookieDomain: (() => {
+        try {
+          const host = new URL(WEB_APP_URL).hostname;
+          return host === 'maeil1dok.app' || host.endsWith('.maeil1dok.app')
+            ? '.maeil1dok.app'
+            : undefined;
+        } catch {
+          return undefined;
+        }
+      })(),
       clearCookieByName: (url, name, useWebKit) =>
         CookieManager.clearByName(url, name, useWebKit),
       setCookie: (url, cookie) => CookieManager.set(url, cookie),
@@ -673,8 +730,13 @@ function AppContent() {
   const handleDeepLink = useCallback((event: { url: string }) => {
     const target = buildDeepLinkNavigationUrl(event.url, WEB_APP_URL, APP_SCHEME);
     if (!target) return;
+    if (!webViewRef.current || !webViewReadyRef.current) {
+      pendingUrlRef.current = target;
+      setPendingUrl(target);
+      return;
+    }
     webViewRef.current?.injectJavaScript(buildLocationAssignmentScript(target));
-  }, []);
+  }, [WEB_APP_URL]);
 
   useEffect(() => {
     Linking.getInitialURL().then((url) => {
@@ -685,32 +747,42 @@ function AppContent() {
   }, [handleDeepLink]);
 
   useEffect(() => {
-    registerForPushNotifications();
-    const notificationSubscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const url = response.notification.request.content.data?.url as string | undefined;
-        if (url) handleDeepLink({ url });
-      }
-    );
-    return () => notificationSubscription.remove();
-  }, [handleDeepLink]);
+    if (betaMode === null) return;
+    const receive = (response: Notifications.NotificationResponse) => {
+      const request = response.notification.request;
+      if (handledNotificationRef.current === request.identifier) return;
+      const url = pushDestination(request.content.data?.url, WEB_APP_URL, request.content.data?.origin);
+      if (!url) return;
+      handledNotificationRef.current = request.identifier;
+      handleDeepLink({ url });
+      void Notifications.clearLastNotificationResponseAsync();
+    };
+    const notificationSubscription = Notifications.addNotificationResponseReceivedListener(receive);
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) receive(response);
+    });
+    const tokenSubscription = Notifications.addPushTokenListener((token) => {
+      const identity = JSON.stringify([token.type, token.data]);
+      if (lastNativePushTokenRef.current === identity) return;
+      lastNativePushTokenRef.current = identity;
+      void registerForPushNotifications();
+    });
+    const foreground = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void registerForPushNotifications();
+    });
+    return () => {
+      notificationSubscription.remove();
+      tokenSubscription.remove();
+      foreground.remove();
+    };
+  }, [handleDeepLink, betaMode]);
 
   const registerForPushNotifications = async () => {
-    if (!Device.isDevice) return;
-    try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== 'granted') return;
-      const token = await Notifications.getExpoPushTokenAsync({
-        projectId: Constants.expoConfig?.extra?.eas?.projectId,
-      });
-      setPushToken(token.data);
-    } catch (error) {
-      console.error('Error registering for push notifications:', error);
+    const origin = WEB_APP_URL;
+    const state = await readNativePushState('push:status', 'push:changed');
+    setPushToken(state.token);
+    if (isPushBridgeOrigin(currentWebViewUrlRef.current, origin)) {
+      webViewRef.current?.injectJavaScript(nativePushStateScript(state));
     }
   };
 
@@ -796,6 +868,7 @@ function AppContent() {
 
   const handleLoad = () => {
     dnsRetryAvailableRef.current = true;
+    webViewReadyRef.current = true;
   };
 
   const handleError = (syntheticEvent: WebViewErrorLikeEvent) => {
@@ -831,9 +904,19 @@ function AppContent() {
     console.log('[WebView] HttpError:', nativeEvent?.statusCode, nativeEvent?.description, 'url:', redactSensitiveUrl(nativeEvent?.url));
   };
 
-  const handleMessage = (event: { nativeEvent: { data: string } }) => {
+  const handleMessage = (event: { nativeEvent: { data: string; url?: string } }) => {
     try {
       const message = JSON.parse(event.nativeEvent.data);
+      if (isPushBridgeRequest(message)) {
+        const origin = WEB_APP_URL;
+        if (!isPushBridgeOrigin(event.nativeEvent.url, origin)) return;
+        void readNativePushState(message.type, message.requestId).then((state) => {
+          if (!isPushBridgeOrigin(currentWebViewUrlRef.current, origin)) return;
+          setPushToken(state.token);
+          webViewRef.current?.injectJavaScript(nativePushStateScript(state));
+        });
+        return;
+      }
       switch (message.type) {
         case 'requestLogout':
           invalidateStoredSessionRestore();
@@ -845,13 +928,16 @@ function AppContent() {
               // 통과한다 — 없이 보내면 403 이라 refresh 토큰이 블랙리스트되지 않고
               // 로그아웃이 서버에 붙지 않는다.
               const csrfCookies = await CookieManager.get(API_URL).catch(() => null);
+              const installationId = await getPushInstallationId();
               await fetch(`${API_URL}/api/v1/auth/logout/`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
+                  'Content-Type': 'application/json',
                   ...NATIVE_CLIENT_OBSERVATION_HEADERS,
                   ...csrfHeadersFrom(csrfCookies),
                 },
+                body: JSON.stringify({ installation_id: installationId }),
               });
             } catch (error) {
               console.error('Logout API error:', error);
@@ -893,6 +979,21 @@ function AppContent() {
         case 'requestPushToken':
           injectPushToken();
           break;
+        case 'beta:set': {
+          // The page asked to switch stacks; the shell owns the navigation.
+          // Persist first so a crash mid-switch still lands on the requested
+          // stack next launch, then remount the WebView on the new origin.
+          const enabled = message.enabled === true;
+          const target = resolveStack(enabled);
+          void SecureStore.setItemAsync(BETA_MODE_STORAGE_KEY, enabled ? '1' : '0')
+            .catch((error) => console.error('[BetaMode] SecureStore write failed:', error));
+          setBetaMode(enabled);
+          webViewReadyRef.current = false;
+          currentWebViewUrlRef.current = target.web;
+          setIsLoading(true);
+          setWebViewKey((previous) => previous + 1);
+          break;
+        }
         case 'certification:image':
           handleCertificationImageMessage(message, certificationImageDependencies)
             .then((handled) => {
@@ -918,7 +1019,7 @@ function AppContent() {
     webViewRef.current?.reload();
   };
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || betaMode === null) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#faf8f6" />
@@ -1088,6 +1189,9 @@ function AppContent() {
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onMessage={handleMessage}
         javaScriptEnabled={true}
+        // Debug/dev builds only: lets Safari Web Inspector attach to the
+        // WKWebView for QA. No effect in release builds.
+        webviewDebuggingEnabled={__DEV__}
         domStorageEnabled={true}
         cacheEnabled={true}
         cacheMode="LOAD_DEFAULT"
@@ -1104,6 +1208,10 @@ function AppContent() {
         injectedJavaScript={`
           (function() {
             window.isReactNativeWebView = true;
+            // Capability flag: the page uses this to know the shell can switch
+            // stacks on 'beta:set'. An old shell lacks it, so the page falls
+            // back to window.location.assign (browser) or an alert (old shell).
+            window.__shellBetaMode = true;
             // Which shell bundle the page is running inside. The native login
             // screen shows the same thing, but only when signed OUT — this is the
             // copy an operator can read while signed in. Its ABSENCE is also an

@@ -225,6 +225,7 @@ test('logout message invalidates restore before cleanup starts', async () => {
       'invalidateStoredSessionRestore',
       'finishNativeLogout',
       'console',
+      'isPushBridgeRequest',
     ],
     [
       () => observations.push('restore:invalidate'),
@@ -232,6 +233,7 @@ test('logout message invalidates restore before cleanup starts', async () => {
         observations.push('cleanup:start');
       },
       { error: () => {} },
+      () => false,
     ],
   );
 
