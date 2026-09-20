@@ -59,7 +59,8 @@ export const useSocialSignupSetup = (provider: SocialProvider) => {
   })
 
   const handleSubmit = async () => {
-    if (loading.value || !isNicknameChecked.value || nicknameError.value || (!providerId.value && !signupToken.value) || !nickname.value) return
+    const nicknameEmpty = provider === 'apple' ? !nickname.value.trim() : !nickname.value
+    if (loading.value || !isNicknameChecked.value || nicknameError.value || (!providerId.value && !signupToken.value) || nicknameEmpty) return
     loading.value = true
     submitError.value = ''
     submitCode.value = ''
