@@ -363,6 +363,7 @@ test('admin hasena waits for restored staff auth before loading summaries', { ti
     if (name === '~/composables/useAuthService') return { useAuthService: () => auth };
     if (name === '~/composables/useApi') return { useApi: () => api };
     if (name === '~/composables/useModal') return { useModal: () => ({ isModalOpen: () => false }) };
+    if (name === '~/composables/useCdnAsset') return { useCdnAsset: () => ({ cdnAsset: p => p, cdnBase: '' }) };
     if (name === '#components') return { NuxtLink: RouterLink };
     return require(name);
   }, module, module.exports);

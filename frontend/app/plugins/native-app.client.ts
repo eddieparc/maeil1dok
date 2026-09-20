@@ -135,7 +135,22 @@ export default defineNuxtPlugin({
       
       sendToNative({ type: 'auth:request' })
     } else {
-      loadAdSense()
+      // 광고 스크립트는 초기 로드가 완전히 끝난 뒤에 로드해 networkidle을 막지 않는다.
+      // load 이벤트 후에도 일정 시간을 두어 광고 요청이 초기 로드 측정을 오염시키지 않게 한다.
+      const deferAdSense = () => {
+        setTimeout(() => {
+          if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(() => loadAdSense(), { timeout: 5000 })
+          } else {
+            loadAdSense()
+          }
+        }, 3000)
+      }
+      if (document.readyState === 'complete') {
+        deferAdSense()
+      } else {
+        window.addEventListener('load', deferAdSense, { once: true })
+      }
     }
   }
 })

@@ -148,7 +148,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { CheckIcon, ChevronDownIcon, ClockIcon, LoaderCircleIcon, SearchIcon, XIcon } from '@lucide/vue';
 import type { paths } from '~/types/generated/api-schema';
 import { useApi } from '~/composables/useApi';
-import { useBibleData } from '~/composables/useBibleData';
+import { useBibleData, VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue';
 import {
@@ -215,8 +215,11 @@ function toBibleVersion(value: string): BibleVersion | undefined {
   return BIBLE_VERSIONS.has(value) ? (value as BibleVersion) : undefined;
 }
 
+// 검색은 캐시된 본문만 대상으로 하므로, 서비스가 실제로 제공하는 역본
+// (VISIBLE_VERSION_NAMES)만 선택지에 둔다. 미지원 역본을 노출하면
+// 항상 0건이 나오는 죽은 옵션이 된다.
 const versionOptions = computed(() =>
-  Object.entries(versionNames).map(([code, name]) => ({ code, name }))
+  Object.entries(VISIBLE_VERSION_NAMES).map(([code, name]) => ({ code, name }))
 );
 
 const versionChoices = computed(() => [{ code: '', name: '전체 역본' }, ...versionOptions.value]);

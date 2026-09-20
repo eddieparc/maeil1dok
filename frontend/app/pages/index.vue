@@ -3,7 +3,7 @@
     <div class="landing-skeleton" aria-hidden="true">
       <div class="landing-skeleton__inner">
         <header class="landing-skeleton__header">
-          <img src="/images/logo-transparent.png" alt="" class="landing-skeleton__logo" width="376" height="99" loading="eager" fetchpriority="high">
+          <img :src="cdnAsset('/images/logo-transparent.png')" alt="" class="landing-skeleton__logo" width="376" height="99" loading="eager" fetchpriority="high">
           <div class="landing-skeleton__actions">
             <span class="landing-skeleton__icon skeleton-shimmer"></span>
             <span class="landing-skeleton__icon skeleton-shimmer"></span>
@@ -50,7 +50,7 @@
       <div class="container">
         <header class="home-header">
           <NuxtImg
-            src="/images/logo-transparent.png"
+            :src="cdnAsset('/images/logo-transparent.png')"
             alt="Maeil1dok"
             class="logo-img"
             loading="eager"
@@ -81,6 +81,7 @@
 </template>
 
 <script setup lang="ts">
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { ref, onMounted, onUnmounted } from 'vue';
 import SidebarNav from '~/components/common/SidebarNav.vue';
 import RingProgress from '~/components/ui/RingProgress.vue';
@@ -93,10 +94,11 @@ import BottomNavigation from '~/components/BottomNavigation.vue';
 import Menu from '~/components/Menu.vue';
 import { useLandingAuthState } from '~/composables/useLandingAuthState';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
+const { cdnAsset } = useCdnAsset();
 
 const { isKnownAuthenticated } = useLandingAuthState();
 useHead({
-  link: [{ rel: 'preload', as: 'image', href: '/images/logo-transparent.png', fetchpriority: 'high' }],
+  link: [{ rel: 'preload', as: 'image', href: cdnAsset('/images/logo-transparent.png'), fetchpriority: 'high' }],
   style: [{
     key: 'landing-critical-shell',
     innerHTML: `

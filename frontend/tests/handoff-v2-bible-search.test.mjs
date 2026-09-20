@@ -15,7 +15,7 @@ globalThis.__bibleSearchTest = runtime;
 const exportsFor = name => Object.keys(runtime[name]).filter(key => key !== 'default' && /^[\w$]+$/.test(key))
   .map(key => `export const ${key} = globalThis.__bibleSearchTest.${name}.${key};`).join('\n');
 const compiled = await build({
-  stdin: { contents: 'export { default } from "./app/pages/bible/search.vue"; export { useBibleData } from "./app/composables/useBibleData";', resolveDir: root },
+  stdin: { contents: 'export { default } from "./app/pages/bible/search.vue"; export { useBibleData, VISIBLE_VERSION_NAMES } from "./app/composables/useBibleData";', resolveDir: root },
   bundle: true, format: 'esm', platform: 'node', write: false, logLevel: 'silent',
   plugins: [{ name: 'search-runtime', setup(builder) {
     builder.onResolve({ filter: /^(vue|@lucide\/vue)$/ }, ({ path }) => ({ path, namespace: 'runtime' }));
@@ -36,7 +36,7 @@ const compiled = await build({
     });
   } }],
 });
-const { default: SearchPage, useBibleData } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+const { default: SearchPage, useBibleData, VISIBLE_VERSION_NAMES } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
 
 test('compiled dark highlight selector targets only search marks; colors and hit areas use design tokens', async () => {
   const filename = `${root}app/pages/bible/search.vue`;
@@ -163,7 +163,8 @@ test('version popover exposes exactly the existing options and current selection
   assert.equal(view.trigger().props['aria-controls'], list.props.id);
   assert.ok(list.props['aria-label'] || list.props['aria-labelledby']);
   assert.equal(view.trigger().props['aria-expanded'], true);
-  const names = useBibleData().versionNames;
+  // 검색 선택지는 서비스가 제공하는 역본(VISIBLE_VERSION_NAMES)만 노출한다.
+  const names = VISIBLE_VERSION_NAMES;
   assert.deepEqual(view.options().map(option => option.value), ['', ...Object.keys(names)]);
   assert.deepEqual(view.options().slice(1).map(text), Object.values(names)); // shipped data equality
   assert.deepEqual(view.options().filter(option => option.props['aria-selected']).map(option => option.value), ['GAE']);

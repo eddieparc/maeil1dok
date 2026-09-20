@@ -1,7 +1,7 @@
 <template>
   <aside class="sidebar-nav">
     <NuxtLink to="/" class="sidebar-brand" aria-label="매일일독 홈">
-      <img src="/images/logo-transparent.png" alt="매일일독" width="376" height="99" />
+      <img :src="cdnAsset('/images/logo-transparent.png')" alt="매일일독" width="376" height="99" />
     </NuxtLink>
     <nav class="sidebar-menu" aria-label="주요 메뉴">
       <NuxtLink
@@ -43,10 +43,12 @@
 </template>
 
 <script setup>
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { computed } from 'vue'
 import { BellIcon, BookOpenIcon, CalendarIcon, HouseIcon, MonitorIcon, PlayIcon, UserIcon, UsersIcon } from '@lucide/vue'
 import { useAuthService } from '~/composables/useAuthService'
 import { useNotificationsStore } from '~/stores/notifications'
+const { cdnAsset } = useCdnAsset();
 
 const route = useRoute()
 const { user } = useAuthService()

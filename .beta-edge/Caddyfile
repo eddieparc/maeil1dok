@@ -1,0 +1,11 @@
+{
+	auto_https off
+}
+
+:8443 {
+	tls /etc/caddy/origin.pem /etc/caddy/origin.key
+	reverse_proxy web-beta:8000 {
+		header_up Host beta.maeil1dok.app
+		header_up X-Forwarded-Proto https
+	}
+}

@@ -164,3 +164,5 @@ maeil1dok-poc/mobile/app.json
 
 # 세션 검증 아티팩트 (로컬 전용)
 artifacts/
+.beta-edge/origin.pem
+.beta-edge/origin.key

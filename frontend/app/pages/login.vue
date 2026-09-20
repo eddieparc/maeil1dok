@@ -10,7 +10,7 @@
       <main class="login-content stagger">
         <div class="logo-container">
           <NuxtImg
-            src="/images/logo-transparent.png"
+            :src="cdnAsset('/images/logo-transparent.png')"
             alt="매일일독"
             class="logo"
             loading="eager"
@@ -21,7 +21,7 @@
 
         <div class="social-buttons">
           <button type="button" @click="handleKakaoLogin" class="social-button kakao-button press">
-            <NuxtImg src="/images/kakao.png" width="18" height="18" alt="" loading="lazy" format="webp" />
+            <NuxtImg :src="cdnAsset('/images/kakao.png')" width="18" height="18" alt="" loading="lazy" format="webp" />
             카카오로 시작하기
           </button>
           <button type="button" @click="handleGoogleLogin" class="social-button google-button press">
@@ -105,6 +105,7 @@
 </template>
 
 <script setup>
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { ref, computed, onMounted } from 'vue'
 import { ChevronLeft } from '@lucide/vue'
 import AppButton from '~/components/ui/AppButton.vue'
@@ -117,6 +118,7 @@ import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
 import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
 import { authErrorCode, authErrorMessage } from '~/utils/authFormUi'
+const { cdnAsset } = useCdnAsset();
 
 useHead({
   title: '로그인 - 매일일독',

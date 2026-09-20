@@ -155,9 +155,12 @@ class BetaSettingsTests(SimpleTestCase):
         # Base settings are already loaded with test-only env and an in-memory DB.
         with patch.dict(os.environ, {'BETA_SECRET_KEY': 'isolated-beta-test-key-not-a-secret-12345'}):
             from config import beta_settings as beta
+            from config import settings as primary
         self.assertFalse(beta.DEBUG)
-        self.assertEqual(beta.ALLOWED_HOSTS, ['beta.maeil1dok.app'])
-        self.assertEqual(beta.CORS_ALLOWED_ORIGINS, ['https://beta.maeil1dok.app'])
+        self.assertEqual(beta.ALLOWED_HOSTS, ['beta.maeil1dok.app', 'beta-v.maeil1dok.app'])
+        self.assertEqual(beta.CORS_ALLOWED_ORIGINS, [
+            'https://beta.maeil1dok.app', 'https://beta-v.maeil1dok.app',
+        ])
         self.assertEqual(beta.CSRF_TRUSTED_ORIGINS, beta.CORS_ALLOWED_ORIGINS)
         self.assertEqual(beta.OAUTH_CALLBACK_ORIGINS, beta.CORS_ALLOWED_ORIGINS)
         self.assertEqual(beta.FRONTEND_URL, beta.CORS_ALLOWED_ORIGINS[0])
@@ -179,9 +182,10 @@ class BetaSettingsTests(SimpleTestCase):
         self.assertTrue(beta.SESSION_COOKIE_SECURE)
         self.assertTrue(beta.CSRF_COOKIE_SECURE)
         self.assertEqual(beta.COOKIE_SAMESITE, 'Lax')
-        self.assertFalse(beta.CRON_SECRET)
-        self.assertFalse(beta.GEMINI_API_KEY)
-        self.assertFalse(beta.YOUTUBE_API_KEY)
+        for name in ('CRON_SECRET', 'GEMINI_API_KEY', 'YOUTUBE_API_KEY'):
+            self.assertTrue(getattr(beta, name) == getattr(primary, name), name)
+        self.assertTrue(beta.RESEND_API_KEY is None)
+        self.assertEqual(beta.ACCOUNT_MAIL_TRANSPORT, 'beta-spool')
 
     def test_real_beta_startup_csrf_and_refresh_never_use_primary_credentials(self):
         env = {

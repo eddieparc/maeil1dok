@@ -34,7 +34,7 @@ export default defineNuxtConfig({
   ],
   // 이미지 최적화 설정
   image: {
-    provider: 'ipx',
+    provider: process.env.NUXT_IMAGE_PROVIDER || 'ipx',
     domains: [
       'k.kakaocdn.net',
       't1.kakaocdn.net',
@@ -94,6 +94,7 @@ export default defineNuxtConfig({
       csrfCookieName: process.env.NUXT_PUBLIC_CSRF_COOKIE_NAME || 'csrftoken',
       testMailTransport: process.env.NUXT_PUBLIC_TEST_MAIL_TRANSPORT || '',
       bibleCacheUrl: process.env.NUXT_PUBLIC_BIBLE_CACHE_URL || '',
+      cdnBase: process.env.NUXT_PUBLIC_CDN_BASE || '',
       // 성경 캐시 서버 URL (failback용)
       KAKAO_CLIENT_ID: process.env.NUXT_PUBLIC_KAKAO_CLIENT_ID || process.env.KAKAO_CLIENT_ID,
       kakaoJsKey: process.env.NUXT_PUBLIC_KAKAO_JS_KEY || process.env.KAKAO_JS_KEY,

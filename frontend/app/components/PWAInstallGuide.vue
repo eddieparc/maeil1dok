@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import { Check, Download, Globe, Image, Plus, Share2 } from '@lucide/vue'
 import AppButton from '~/components/ui/AppButton.vue'
 import ListCard from '~/components/ui/ListCard.vue'
 import SegmentedControl from '~/components/ui/SegmentedControl.vue'
 import InstallImageViewer from '~/components/install/InstallImageViewer.vue'
+const { cdnAsset } = useCdnAsset();
 
 interface InstallPromptEvent extends Event {
   prompt(): Promise<void>
@@ -83,14 +85,14 @@ onUnmounted(() => {
 
 const guides = {
   ios: [
-    { title: 'Safari 브라우저로 매일일독에 접속하기', description: "Safari 브라우저로 매일일독에 접속하고, 하단의 '공유' 버튼을 탭하세요.", icon: Share2, images: [{ number: 1, src: '/iOS1.png', alt: 'Safari 공유 버튼' }] },
-    { title: '홈 화면에 추가 옵션 선택하기', description: "위로 쓸어올리고 '홈 화면에 추가' 옵션을 선택하세요.", icon: Plus, images: [{ number: 2, src: '/iOS2.png', alt: '홈 화면에 추가 옵션' }] },
-    { title: '추가 확인하고 앱 실행하기', description: "우측 상단의 '추가'를 탭하세요. 추가한 뒤에는 홈 화면에서 앱으로 매일일독을 사용할 수 있습니다!", icon: Check, images: [{ number: 3, src: '/iOS3.png', alt: '추가 확인' }, { number: 4, src: '/iOS4.png', alt: '홈 화면 아이콘' }] },
+    { title: 'Safari 브라우저로 매일일독에 접속하기', description: "Safari 브라우저로 매일일독에 접속하고, 하단의 '공유' 버튼을 탭하세요.", icon: Share2, images: [{ number: 1, src: cdnAsset('/iOS1.png'), alt: 'Safari 공유 버튼' }] },
+    { title: '홈 화면에 추가 옵션 선택하기', description: "위로 쓸어올리고 '홈 화면에 추가' 옵션을 선택하세요.", icon: Plus, images: [{ number: 2, src: cdnAsset('/iOS2.png'), alt: '홈 화면에 추가 옵션' }] },
+    { title: '추가 확인하고 앱 실행하기', description: "우측 상단의 '추가'를 탭하세요. 추가한 뒤에는 홈 화면에서 앱으로 매일일독을 사용할 수 있습니다!", icon: Check, images: [{ number: 3, src: cdnAsset('/iOS3.png'), alt: '추가 확인' }, { number: 4, src: cdnAsset('/iOS4.png'), alt: '홈 화면 아이콘' }] },
   ],
   android: [
-    { title: '매일일독 접속하기', description: 'Chrome 브라우저로 매일일독에 접속하세요.', tips: ["설치 버튼이 나타나면 '설치'를 탭하고 3단계로 진행하세요.", '설치 버튼이 없으면 주소창 오른쪽의 메뉴(⋮)를 탭하세요.'], icon: Globe, images: [{ number: 1, src: '/Android1.png', alt: 'Chrome 브라우저' }] },
-    { title: '홈 화면에 추가 선택하기', description: "메뉴 목록에서 '홈 화면에 추가'를 선택하세요.", icon: Plus, images: [{ number: 2, src: '/Android2.png', alt: '홈 화면에 추가 옵션' }] },
-    { title: '설치 확인하고 앱 실행하기', description: "'설치'를 선택하세요. 매일일독이 앱으로 설치되면 홈 화면에서 실행할 수 있습니다.", icon: Download, images: [{ number: 3, src: '/Android3.png', alt: '설치 버튼' }, { number: 4, src: '/Android4.png', alt: '설치 완료 예시' }] },
+    { title: '매일일독 접속하기', description: 'Chrome 브라우저로 매일일독에 접속하세요.', tips: ["설치 버튼이 나타나면 '설치'를 탭하고 3단계로 진행하세요.", '설치 버튼이 없으면 주소창 오른쪽의 메뉴(⋮)를 탭하세요.'], icon: Globe, images: [{ number: 1, src: cdnAsset('/Android1.png'), alt: 'Chrome 브라우저' }] },
+    { title: '홈 화면에 추가 선택하기', description: "메뉴 목록에서 '홈 화면에 추가'를 선택하세요.", icon: Plus, images: [{ number: 2, src: cdnAsset('/Android2.png'), alt: '홈 화면에 추가 옵션' }] },
+    { title: '설치 확인하고 앱 실행하기', description: "'설치'를 선택하세요. 매일일독이 앱으로 설치되면 홈 화면에서 실행할 수 있습니다.", icon: Download, images: [{ number: 3, src: cdnAsset('/Android3.png'), alt: '설치 버튼' }, { number: 4, src: cdnAsset('/Android4.png'), alt: '설치 완료 예시' }] },
   ],
 }
 const steps = computed(() => selectedPlatform.value === 'ios' ? guides.ios : guides.android)

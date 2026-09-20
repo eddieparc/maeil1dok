@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { computed, onMounted, ref, useId } from 'vue'
 import { useRoute } from 'vue-router'
 import { NuxtLink } from '#components'
@@ -6,6 +7,7 @@ import { BookOpen, CalendarDays, LogIn, ShieldAlert, Sparkles, UserRound, Users,
 import { useAuthService } from '~/composables/useAuthService'
 import AppButton from '~/components/ui/AppButton.vue'
 import Skeleton from '~/components/ui/Skeleton.vue'
+const { cdnAsset } = useCdnAsset();
 
 const props = withDefaults(defineProps<{
   title?: string
@@ -61,7 +63,7 @@ async function retry(): Promise<void> {
     <a class="admin-skip" :href="`#${mainId}`">본문으로 건너뛰기</a>
     <aside class="admin-sidebar">
       <NuxtLink to="/" class="admin-brand" aria-label="매일일독 홈">
-        <img src="/images/logo-transparent.png" alt="매일일독" width="376" height="99" />
+        <img :src="cdnAsset('/images/logo-transparent.png')" alt="매일일독" width="376" height="99" />
         <span class="admin-badge">ADMIN</span>
       </NuxtLink>
 

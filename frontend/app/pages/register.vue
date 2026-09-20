@@ -12,7 +12,7 @@
       <div>
         <NuxtImg
           class="mx-auto h-8 w-auto object-contain"
-          src="/images/logo-transparent.png"
+          :src="cdnAsset('/images/logo-transparent.png')"
           alt="매일일독"
           loading="eager"
           format="webp"
@@ -69,7 +69,7 @@
           <div class="flex gap-4 justify-center">
             <button type="button" @click="handleKakaoLogin" class="social-button kakao-button">
               <NuxtImg
-                src="/images/kakao.png"
+                :src="cdnAsset('/images/kakao.png')"
                 width="16"
                 height="16"
                 alt="카카오 로고"
@@ -92,6 +92,7 @@
 </template>
 
 <script setup>
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { ref, watch } from 'vue'
 import { useAuthService } from '~/composables/useAuthService'
 import { useApi } from '~/composables/useApi'
@@ -100,6 +101,7 @@ import { useHead } from '#imports'
 import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
 import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
+const { cdnAsset } = useCdnAsset();
 
 const { goBack } = useNavigation()
 const handleBack = () => goBack('/login')

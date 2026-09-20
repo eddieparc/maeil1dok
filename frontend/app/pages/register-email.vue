@@ -31,7 +31,7 @@
         </section>
         <div v-if="currentStep === 1" class="register-intro">
           <NuxtImg
-            src="/images/logo-transparent.png"
+            :src="cdnAsset('/images/logo-transparent.png')"
             alt="매일일독"
             class="logo"
             loading="eager"
@@ -170,6 +170,7 @@
 </template>
 
 <script setup lang="ts">
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { ref, computed } from 'vue'
 import { Check, ChevronLeft, CircleCheck } from '@lucide/vue'
 import AuthPasswordStrength from '~/components/auth/AuthPasswordStrength.vue'
@@ -181,6 +182,7 @@ import { useHead } from '#imports'
 import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
+const { cdnAsset } = useCdnAsset();
 
 useHead({
   title: '회원가입 - 매일일독',

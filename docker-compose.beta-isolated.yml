@@ -70,7 +70,7 @@ services:
       GOOGLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/google/callback
       APPLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/apple/callback
       PORT: "8000"
-      GUNICORN_WORKERS: "1"
+      GUNICORN_WORKERS: "3"
       SENTRY_DSN: ""
       SENTRY_ENVIRONMENT: beta
       RESEND_API_KEY: ""
@@ -97,7 +97,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 90s
-    mem_limit: 512m
+    mem_limit: 768m
     cpus: 0.75
     logging: *logging
     restart: unless-stopped
@@ -142,6 +142,23 @@ services:
       start_period: 40s
     mem_limit: 700m
     cpus: 1.0
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-app]
+
+  api-beta-edge:
+    image: caddy:2-alpine
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./.beta-edge/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./.beta-edge/origin.pem:/etc/caddy/origin.pem:ro
+      - ./.beta-edge/origin.key:/etc/caddy/origin.key:ro
+    depends_on:
+      web-beta:
+        condition: service_healthy
+    mem_limit: 64m
+    cpus: 0.25
     logging: *logging
     restart: unless-stopped
     networks: [beta-app]

@@ -2,7 +2,7 @@
 <template>
   <main class="auth-callback-page" :aria-busy="!callbackErrorCode">
     <div class="auth-callback-status" role="status" aria-live="polite">
-      <NuxtImg src="/images/logo-transparent.png" alt="매일일독" class="callback-logo" loading="eager" format="webp" />
+      <NuxtImg :src="cdnAsset('/images/logo-transparent.png')" alt="매일일독" class="callback-logo" loading="eager" format="webp" />
       <LoaderCircle v-if="!callbackErrorCode" class="auth-callback-spinner" aria-hidden="true" />
       <CircleAlert v-else :size="48" class="callback-error" aria-hidden="true" />
       <h1>{{ statusMessage }}</h1>
@@ -14,6 +14,7 @@
 </template>
 
 <script setup lang="ts">
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { ref, onMounted, onUnmounted } from 'vue'
 import { CircleAlert, LoaderCircle } from '@lucide/vue'
 import { useNavigation } from '~/composables/useNavigation'
@@ -31,6 +32,7 @@ import {
   type NativeAppState,
 } from '#shared/utils/authCallbackRuntime'
 
+const { cdnAsset } = useCdnAsset();
 const route = useRoute()
 const auth = useAuthService()
 const modal = useModal()

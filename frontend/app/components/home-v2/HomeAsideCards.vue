@@ -8,7 +8,8 @@ import AppButton from '~/components/ui/AppButton.vue';
 
 const props = defineProps<{ userId?: number; today: string }>();
 const api = useApi();
-const loading = ref(true);
+const hasenaLoading = ref(true);
+const groupLoading = ref(true);
 const hasena = ref<components['schemas']['HasenaCalendarEntry'] | null>(null);
 const group = ref<components['schemas']['ReadingGroupResponse'] | null>(null);
 const groupDay = ref<components['schemas']['GroupProgressDay'] | null>(null);
@@ -23,58 +24,72 @@ const thumbnail = computed(() => hasena.value?.video_id
   : '');
 
 onMounted(() => {
+  // 하세나 영상은 로그인 여부와 무관하게 오늘의 썸네일을 보여준다.
+  // userId 해석을 기다리지 않고 즉시 가져온다(인증 확인 전후로 watcher가
+  // 두 번 발화해 같은 요청이 중복되던 것을 방지).
+  watch([() => props.today, retry], async (_, __, onCleanup) => {
+    let active = true;
+    onCleanup(() => { active = false; });
+    hasenaLoading.value = true;
+    hasena.value = null;
+    hasenaError.value = false;
+    const params = { year: Number(props.today.slice(0, 4)), month: Number(props.today.slice(5, 7)) };
+    try {
+      const { data } = await api.GET('/api/v1/todos/hasena/calendar/', { params });
+      if (!data.success) throw new Error('하세나를 불러오지 못했습니다.');
+      // 오늘 영상이 아직 없으면(주말·미게시) 가장 최근 영상을 보여준다.
+      const entries = data.entries.filter(entry => entry.date <= props.today);
+      const entry = entries.find(e => e.date === props.today) ?? entries.at(-1) ?? null;
+      if (!active) return;
+      hasena.value = entry;
+    } catch {
+      if (!active) return;
+      hasenaError.value = true;
+    }
+    hasenaLoading.value = false;
+  }, { immediate: true });
+
+  // 그룹 진도는 로그인 사용자에게만 보인다.
   watch([() => props.userId, () => props.today, retry], async ([userId], _, onCleanup) => {
     let active = true;
     onCleanup(() => { active = false; });
-    loading.value = true;
-    hasena.value = null;
+    groupLoading.value = true;
     group.value = null;
     groupDay.value = null;
-    hasenaError.value = false;
     groupError.value = false;
-    const params = { year: Number(props.today.slice(0, 4)), month: Number(props.today.slice(5, 7)) };
-    // 하세나 영상은 로그인 여부와 무관하게 오늘의 썸네일을 보여준다.
-    const videoResult = await Promise.allSettled([
-      api.GET('/api/v1/todos/hasena/calendar/', { params }).then(({ data }) => {
-        if (!data.success) throw new Error('하세나를 불러오지 못했습니다.');
-        // 오늘 영상이 아직 없으면(주말·미게시) 가장 최근 영상을 보여준다.
-        const entries = data.entries.filter(entry => entry.date <= props.today);
-        return entries.find(entry => entry.date === props.today) ?? entries.at(-1) ?? null;
-      }),
-    ]).then(([result]) => result);
-    if (!active) return;
-    if (videoResult.status === 'fulfilled') hasena.value = videoResult.value;
-    else hasenaError.value = true;
-    // 그룹 진도는 로그인 사용자에게만 보인다.
-    if (userId) {
-      const groupResult = await Promise.allSettled([
-        (async () => {
-          const { data } = await api.GET('/api/v1/todos/groups/', { params: { only_mine: true } });
-          if (!data.success) throw new Error('그룹을 불러오지 못했습니다.');
-          const firstGroup = data.groups[0] ?? null;
-          if (!firstGroup || !firstGroup.plans.length) return { group: firstGroup, day: null };
-          const response = await api.GET(api.path('/api/v1/todos/groups/{group_id}/member-progress/', { group_id: firstGroup.id }), {
-            params: { ...params, plan_id: firstGroup.plans[0]!.id },
-          });
-          if (!response.data.success) throw new Error('그룹 진도를 불러오지 못했습니다.');
-          return { group: firstGroup, day: response.data.calendar[props.today] ?? null };
-        })(),
-      ]).then(([result]) => result);
-      if (!active) return;
-      if (groupResult.status === 'fulfilled') {
-        group.value = groupResult.value.group;
-        groupDay.value = groupResult.value.day;
-      } else groupError.value = true;
+    if (!userId) {
+      groupLoading.value = false;
+      return;
     }
-    loading.value = false;
+    const params = { year: Number(props.today.slice(0, 4)), month: Number(props.today.slice(5, 7)) };
+    try {
+      const { data } = await api.GET('/api/v1/todos/groups/', { params: { only_mine: true } });
+      if (!data.success) throw new Error('그룹을 불러오지 못했습니다.');
+      const firstGroup = data.groups[0] ?? null;
+      let day: components['schemas']['GroupProgressDay'] | null = null;
+      if (firstGroup && firstGroup.plans.length) {
+        const response = await api.GET(api.path('/api/v1/todos/groups/{group_id}/member-progress/', { group_id: firstGroup.id }), {
+          params: { ...params, plan_id: firstGroup.plans[0]!.id },
+        });
+        if (!response.data.success) throw new Error('그룹 진도를 불러오지 못했습니다.');
+        day = response.data.calendar[props.today] ?? null;
+      }
+      if (!active) return;
+      group.value = firstGroup;
+      groupDay.value = day;
+    } catch {
+      if (!active) return;
+      groupError.value = true;
+    }
+    groupLoading.value = false;
   }, { immediate: true });
 });
 </script>
 
 <template>
-  <section class="aside-card" aria-labelledby="home-hasena-title" :aria-busy="loading">
+  <section class="aside-card" aria-labelledby="home-hasena-title" :aria-busy="hasenaLoading">
     <h2 id="home-hasena-title">하세나하시조</h2>
-    <Skeleton v-if="loading" width="100%" height="146px" />
+    <Skeleton v-if="hasenaLoading" width="100%" height="146px" />
     <template v-else>
       <p v-if="hasenaError" class="card-message" role="status">하세나를 불러오지 못했습니다.</p>
       <NuxtLink to="/hasena" class="hasena-link" aria-label="하세나 페이지로 이동">
@@ -87,9 +102,9 @@ onMounted(() => {
       </NuxtLink>
     </template>
   </section>
-  <section class="aside-card" aria-labelledby="home-group-title" :aria-busy="loading">
+  <section class="aside-card" aria-labelledby="home-group-title" :aria-busy="groupLoading">
     <h2 id="home-group-title"><UsersIcon :size="18" aria-hidden="true" />그룹 진도</h2>
-    <Skeleton v-if="loading" width="100%" height="64px" />
+    <Skeleton v-if="groupLoading" width="100%" height="64px" />
     <p v-else-if="groupError" class="card-message" role="status">그룹 진도를 불러오지 못했습니다.</p>
     <template v-else-if="group">
       <NuxtLink :to="`/groups/${group.id}`" class="group-link"><strong>{{ group.name }}</strong><ChevronRightIcon :size="18" aria-hidden="true" /></NuxtLink>
