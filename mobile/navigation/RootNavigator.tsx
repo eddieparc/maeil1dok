@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -14,11 +15,11 @@ import LoginScreen from '../screens/LoginScreen';
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const TAB_ICONS: Record<keyof TabParamList, string> = {
-  Home: '🏠',
-  Bible: '📖',
-  Schedule: '🗓',
-  More: '⋯',
+const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
+  Home: 'home',
+  Bible: 'book',
+  Schedule: 'calendar',
+  More: 'ellipsis-horizontal',
 };
 
 function MainTabs() {
@@ -26,8 +27,8 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ color }) => (
-          <Text style={[styles.tabIcon, { color }]}>{TAB_ICONS[route.name]}</Text>
+        tabBarIcon: ({ color, size }) => (
+          <Ionicons name={TAB_ICONS[route.name]} color={color} size={size} />
         ),
       })}
     >
@@ -71,8 +72,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#faf8f6',
-  },
-  tabIcon: {
-    fontSize: 20,
   },
 });

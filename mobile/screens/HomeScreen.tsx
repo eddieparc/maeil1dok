@@ -130,14 +130,8 @@ export default function HomeScreen() {
   };
 
   const renderBody = () => {
-    if (status === 'loading' || state.kind === 'loading') {
-      return (
-        <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color="#4B9F7E" />
-        </View>
-      );
-    }
-
+    // signedOut must win over the initial 'loading' state — load() only runs
+    // when signedIn, so a guest would otherwise spin forever.
     if (status === 'signedOut') {
       return (
         <View style={styles.centerBox}>
@@ -149,6 +143,14 @@ export default function HomeScreen() {
           >
             <Text style={styles.primaryButtonText}>로그인</Text>
           </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (status === 'loading' || state.kind === 'loading') {
+      return (
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="large" color="#4B9F7E" />
         </View>
       );
     }
