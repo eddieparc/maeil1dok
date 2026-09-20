@@ -84,8 +84,8 @@ function prepared(id) {
   const bytes = `prepared transport fixture ${id}`;
   return { file: new File([bytes], 'maeil1dok-tongdok-certification.png', { type: 'image/png' }), dataUrl: `data:image/png;base64,${Buffer.from(bytes).toString('base64')}`, width: 720, height: 1280 };
 }
-function fixture(t, { adapter = true, open = true } = {}) {
-  const host = platform(), jobs = channel(), requests = [], shared = [], downloaded = [], copied = [], navigation = [], results = [];
+function fixture(t, { open = true } = {}) {
+  const host = platform(), jobs = channel(), shared = [], downloaded = [], copied = [], navigation = [], results = [];
   for (const [name, value] of Object.entries({
     window: { location: { origin: 'https://maeil1dok.app' } },
     document: { body: { append() {} }, createElement(tag) { assert.equal(tag, 'a', 'the transport must not generate artwork'); return { click() {}, remove() {} }; } },
@@ -99,17 +99,16 @@ function fixture(t, { adapter = true, open = true } = {}) {
   t.mock.method(URL, 'revokeObjectURL', () => {});
   const api = loader()('~/composables/bible/bibleShare');
   const load = loader({
-    '~/composables/useApi': { useApi: () => ({ GET: (path, options) => { const request = deferred(); requests.push({ ...request, path, options }); return request.promise; } }) },
     '~/composables/useFocusTrap': { useFocusTrap: () => ({ isTopmost: Vue.ref(true), zIndex: Vue.ref(200) }) },
     '~/composables/useScrollLock': { useScrollLock: () => {} },
     '~/composables/bible/bibleShare': { ...api, loadBibleShareAssets: async () => assets, prepareBibleShareImage: svg => {
       const job = { ...deferred(), svg }; jobs.publish(job); return job.promise;
     } },
   });
-  // Adapter, ShareSheet, BottomSheet, all card SFCs and transport are REAL. Only
+  // ShareSheet, BottomSheet, all card SFCs and transport are REAL. Only
   // native platform/layout/focus and the image-preparation boundary are supplied.
-  const component = load(adapter ? '~/components/bible/TongdokCertificationModal.vue' : '~/components/bible/share/ShareSheet.vue').default;
-  const props = Vue.reactive(adapter ? { modelValue: open, planId: 7, scheduleId: 13 } : {
+  const component = load('~/components/bible/share/ShareSheet.vue').default;
+  const props = Vue.reactive({
     modelValue: open, mode: 'complete', metadata: { readingRange: certification.card.readingRange, planName: certification.plan.name }, verses: [], shareUrl: 'https://maeil1dok.app/bible/history?plan_id=7&schedule_id=13',
   });
   const app = host.renderer.createApp({ render: () => Vue.h(component, {
@@ -120,7 +119,7 @@ function fixture(t, { adapter = true, open = true } = {}) {
     const enabled = host.changed(n => n.props['data-testid'] === 'share-send' && n.props.disabled === false);
     job.resolve(image); await enabled; await Vue.nextTick();
   };
-  return { host, jobs, requests, shared, downloaded, copied, navigation, results, props, api, enable };
+  return { host, jobs, shared, downloaded, copied, navigation, results, props, api, enable };
 }
 
 test('certification card renders its real metadata with an accessible summary', async () => {
@@ -138,7 +137,6 @@ test('certification card renders its real metadata with an accessible summary', 
 test('certification modal opens as a separate completion surface with required actions', async t => {
   const f = fixture(t);
   const starting = f.jobs.next();
-  f.requests[0].resolve({ data: certification });
   const job = await starting;
   const dialog = f.host.all().find(n => n.props.role === 'dialog');
   assert.equal(dialog.props['aria-modal'], true);
@@ -149,7 +147,7 @@ test('certification modal opens as a separate completion surface with required a
   assert.equal(f.host.find('share-save').props.disabled, false);
   assert.ok(f.host.byClass('share-copy'));
   const sharing = f.host.find('share-send').props.onClick();
-  assert.equal(f.shared[0].files[0], image.file, 'adapter must preserve prepared image behavior');
+  assert.equal(f.shared[0].files[0], image.file, 'sheet must preserve prepared image behavior');
   await sharing; await Vue.nextTick();
   // SNS 공유는 이미지만 전달한다 — 제목·본문·링크를 붙이지 않는다.
   assert.equal(f.shared[0].title, undefined);
@@ -168,7 +166,7 @@ test('completion success opens certification modal before plan navigation', asyn
   assert.equal(f.host.all().filter(n => n.props.role === 'dialog').length, 0);
   // Controlled root contract: completion opens; only close routes to the plan.
   f.props.modelValue = true; await Vue.nextTick();
-  const starting = f.jobs.next(); f.requests[0].resolve({ data: certification });
+  const starting = f.jobs.next();
   const job = await starting; await f.enable(job, prepared('completed'));
   assert.equal(f.host.all().filter(n => n.props.role === 'dialog').length, 1);
   assert.deepEqual(f.navigation, []);
@@ -186,7 +184,7 @@ test('certification image actions stay disabled until data and the selected imag
     await f.host.find(id).props.onClick();
   }
   assert.equal(f.shared.length + f.downloaded.length, 0);
-  const starting = f.jobs.next(); f.requests[0].resolve({ data: certification });
+  const starting = f.jobs.next();
   const job = await starting;
   assert.equal(f.host.find('share-send').props.disabled, true, 'API readiness alone is not image readiness');
   const failure = new Error('native image preparation failed');
@@ -201,7 +199,7 @@ test('certification image actions stay disabled until data and the selected imag
 });
 
 test('existing verse selection share behavior remains isolated', async t => {
-  const f = fixture(t, { adapter: false });
+  const f = fixture(t);
   await f.enable(await f.jobs.next(), prepared('old completion'));
   const verse = { id: 'JHN-3-16', reference: '요한복음 3:16', text: '하나님이 세상을 이처럼 사랑하사' };
   const url = f.api.buildBibleShareUrl('https://maeil1dok.app', { book: 'JHN', chapter: 3, version: 'GAE' }, { start: 16, end: 16 });

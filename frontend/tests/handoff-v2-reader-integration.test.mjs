@@ -30,7 +30,7 @@ const boundary = name => Vue.defineComponent({ name, inheritAttrs: false,
     return () => Vue.h('boundary', { 'data-boundary': name }, [slots.bottom?.(), slots.primary?.()]);
   },
 });
-const boundaryNames = ['BibleCompareViewer', 'BibleViewer', 'SelectionFloatingControls', 'BibleHome', 'BibleTOC', 'BibleTabBar', 'BookSelector', 'TongdokCompleteModal', 'TongdokAlreadyCompleteModal', 'TongdokNextScheduleModal', 'TongdokCertificationModal', 'NoteQuickModal', 'HighlightModal', 'ReadingSettingsModal', 'ReadingSettingsSheet', 'PlanSelectorModal', 'BibleScheduleContent', 'BaseModal', 'ShareSheet', 'ReaderGuideSheet', 'Toast'];
+const boundaryNames = ['BibleCompareViewer', 'BibleViewer', 'SelectionFloatingControls', 'BibleHome', 'BibleTOC', 'BibleTabBar', 'BookSelector', 'NoteQuickModal', 'HighlightModal', 'ReadingSettingsSheet', 'PlanSelectorModal', 'BibleScheduleContent', 'BaseModal', 'ShareSheet', 'ReaderGuideSheet', 'Toast'];
 for (const name of boundaryNames) r[name] = boundary(name);
 const serviceModules = {
   useAuthService: 'export const useAuthService = () => globalThis.__readerIntegration.auth;',
