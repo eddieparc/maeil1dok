@@ -367,8 +367,11 @@ const setupYouTubeListener = async () => {
   const iframe = document.querySelector<HTMLIFrameElement>('.video-container iframe')
   if (!iframe) return
 
+  // e2e fixture는 문자열 id로 player 생성을 감지한다 (hasena-sns-behavior.spec.ts).
+  iframe.id = 'hasena-youtube-player'
+
   // src는 이미 enablejsapi=1로 렌더되어 있으므로 다시 쓰지 않는다.
-  createYouTubePlayer(YT, iframe, {
+  createYouTubePlayer(YT, 'hasena-youtube-player', {
     onReady: (event) => {
       // 플레이어가 준비되면 현재 비디오 ID 가져오기
       const videoId = event.target.getVideoData().video_id
