@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import json
 from pathlib import Path
 
 
@@ -36,16 +37,17 @@ class FrontendDeploymentConfigTest(unittest.TestCase):
         self.assertIn("internal_api_base", source)
         self.assertIn("public_origin", source)
 
-    def test_frontend_uses_railway_safe_runtime_config(self) -> None:
+    def test_frontend_preserves_oci_defaults_and_vercel_beta_config(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
         nuxt_config = (repo_root / "frontend" / "nuxt.config.ts").read_text(
             encoding="utf-8",
         )
 
-        self.assertFalse((repo_root / "frontend" / "vercel.json").exists())
-        self.assertIn("provider: 'ipx'", nuxt_config)
+        vercel_config = json.loads((repo_root / "frontend" / "vercel.json").read_text(encoding="utf-8"))
+        self.assertEqual(vercel_config["regions"], ["icn1"])
+        self.assertIn("provider: process.env.NUXT_IMAGE_PROVIDER || 'ipx'", nuxt_config)
         self.assertNotIn("provider: 'vercel'", nuxt_config)
-        self.assertNotIn("Vercel", nuxt_config)
+        self.assertIn("process.env.NUXT_API_PROXY_TARGET", nuxt_config)
 
     def test_frontend_receives_public_kakao_runtime_config(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]

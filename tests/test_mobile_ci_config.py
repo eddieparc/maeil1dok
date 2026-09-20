@@ -210,20 +210,15 @@ class LocalBuildChannelGuardTest(unittest.TestCase):
 
 
 class LocalSigningWorkflowTest(unittest.TestCase):
-    """Store builds are produced locally and signed locally, by choice.
-
-    There is no Expo subscription, so cloud builds are not the path this project
-    ships on. That makes the local path first-class rather than a hazard to warn
-    about -- and it only became safe once `build.sh` started injecting and
-    verifying the update channel.
+    """Local builds keep local versioning and store-compatible signing.
 
     Two settings decide whether that path is coherent:
 
     - `appVersionSource: local` makes `app.json` the single version truth. Under
       `remote`, EAS ignored the values `build.sh` writes, which is how versionCode
       ended up disagreeing three ways (app.json 8 / EAS remote 16 / device 17).
-    - `credentialsSource: local` makes the build read `credentials.json` instead of
-      reaching for credentials stored in the Expo account.
+    - `credentialsSource: remote` uses the EAS-managed store upload key, including
+      when the build itself runs locally.
     """
 
     def setUp(self) -> None:
@@ -247,8 +242,8 @@ class LocalSigningWorkflowTest(unittest.TestCase):
         # version that ships is not the one that was reviewed.
         self.assertFalse(self.eas["build"]["production"]["autoIncrement"])
 
-    def test_production_signs_with_local_credentials(self) -> None:
-        self.assertEqual(self.eas["build"]["production"]["credentialsSource"], "local")
+    def test_production_uses_store_matching_remote_credentials(self) -> None:
+        self.assertEqual(self.eas["build"]["production"]["credentialsSource"], "remote")
 
     def test_submit_config_carries_the_values_we_can_know(self) -> None:
         # Placeholders here fail at submission time, after a build has been made.
