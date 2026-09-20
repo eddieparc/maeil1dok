@@ -27,6 +27,7 @@ test('first iOS main-frame DNS failure remounts once before showing terminal err
     redactSensitiveUrl: (url) => url,
     setIsLoading: () => {},
     setIsError: () => {},
+    firstLoadDoneRef: { current: false },
     SplashScreen: { hideAsync: () => {} },
     injectPushToken: () => {},
     navigateToPendingUrl: () => {},

@@ -204,6 +204,10 @@ export function WebViewControllerProvider({
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const pendingUrlRef = useRef<string | null>(null);
   const pendingScriptRef = useRef<string | null>(null);
+  // Injecting into a WebView that has not finished its first load loses the
+  // navigation silently — the in-flight document is replaced by the initial
+  // page. Pending navigations must wait for the first loadEnd.
+  const firstLoadDoneRef = useRef(false);
   const webViewMountedRef = useRef(false);
   const currentWebViewUrlRef = useRef(stack.web);
   const dnsRetryAvailableRef = useRef(true);
@@ -278,11 +282,20 @@ export function WebViewControllerProvider({
       const code = issueData.code;
 
       if (code) {
+        // A queued destination (e.g. a menu tap that opened this screen) must
+        // survive the bridge: consume redirects to `next`, so prefer the
+        // pending URL over the page currently loaded. A stale consume URL
+        // must never be reused — its one-time code is already spent.
+        const pendingTarget = pendingUrlRef.current;
+        const nextTarget =
+          pendingTarget && !pendingTarget.includes('/api/v1/auth/session/consume')
+            ? pendingTarget
+            : currentWebViewUrlRef.current;
         const consumeUrl = buildSessionBridgeConsumeUrl({
           apiUrl: API_URL,
           webAppUrl: WEB_APP_URL,
           code,
-          currentUrl: currentWebViewUrlRef.current,
+          currentUrl: nextTarget,
         });
         console.log('[SessionBridge] Session code issued');
         pendingUrlRef.current = consumeUrl;
@@ -300,7 +313,10 @@ export function WebViewControllerProvider({
   const navigateToPendingUrl = () => {
     const urlToNavigate = pendingUrlRef.current;
     const webView = webViewRef.current;
-    if (!urlToNavigate || !webView) return;
+    // Before the first loadEnd the injected location change races the
+    // in-flight initial document and is silently discarded. Keep the URL
+    // queued; handleLoadEnd retries once a real page is up.
+    if (!urlToNavigate || !webView || !firstLoadDoneRef.current) return;
 
     pendingUrlRef.current = null;
     setPendingUrl(null);
@@ -341,7 +357,10 @@ export function WebViewControllerProvider({
 
   const navigateToUrl = (url: string) => {
     const webView = webViewRef.current;
-    if (webView && webViewMountedRef.current) {
+    // A mounted-but-still-loading WebView cannot take an injected navigation
+    // either — route through the param path so the URL is queued and consumed
+    // on the first loadEnd instead of being lost.
+    if (webView && webViewMountedRef.current && firstLoadDoneRef.current) {
       webView.injectJavaScript(buildLocationAssignmentScript(url));
       return;
     }
@@ -517,6 +536,7 @@ export function WebViewControllerProvider({
     console.log('[WebView] LoadEnd:', redactSensitiveUrl(nativeEvent?.url));
     setIsLoading(false);
     setIsError(false);
+    firstLoadDoneRef.current = true;
     SplashScreen.hideAsync();
     injectPushToken();
     navigateToPendingUrl();
@@ -655,12 +675,14 @@ export function WebViewControllerProvider({
   const handleRetry = () => {
     setIsError(false);
     setIsLoading(true);
+    firstLoadDoneRef.current = false;
     webViewRef.current?.reload();
   };
 
   // The old shell's `setWebViewKey(prev => prev + 1)` after a failed bridge or
   // an explicit logout: remount the WebView so it reloads on current cookies.
   const remountWebView = () => {
+    firstLoadDoneRef.current = false;
     setWebViewKey((previous) => previous + 1);
   };
 
