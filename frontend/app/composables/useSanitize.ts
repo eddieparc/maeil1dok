@@ -10,7 +10,12 @@ import DOMPurify from 'dompurify';
  * full DOM sanitizer. Escaping neutralizes every tag so no executable markup can
  * ever reach the client from the SSR pass.
  */
-const escapeHtml = (html: string): string =>
+// Canonical definition lives in `~/utils/html` — this copy stays local because
+// tests/use-sanitize-ssr.test.mjs loads this file by transforming its raw
+// source (a static import would not resolve in that harness). Keep the two
+// implementations byte-identical; WP-99/WP-14 can switch this to an import once
+// the test stubs the module.
+export const escapeHtml = (html: string): string =>
   html
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
