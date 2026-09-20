@@ -19,8 +19,8 @@ type BibleCacheResponse = {
   readonly error?: string;
 };
 
-const PROXY_SLOW_FALLBACK_TIMEOUT = 3500;
-const CACHE_TIMEOUT = 15000;
+export const PROXY_SLOW_FALLBACK_TIMEOUT = 3500;
+export const CACHE_TIMEOUT = 15000;
 
 export async function fetchKntContentWithCache(
   bibleCacheUrl: string,
@@ -42,6 +42,7 @@ export async function fetchStandardContentWithCache(
   version: string,
   book: string,
   chapter: number,
+  proxyTimeoutMs = PROXY_SLOW_FALLBACK_TIMEOUT,
 ): Promise<BibleFetchResult> {
   return fetchWithCacheFallback({
     bibleCacheUrl,
@@ -49,7 +50,7 @@ export async function fetchStandardContentWithCache(
     book,
     chapter,
     contentType: 'html',
-    proxyFetch: () => fetchStandardFromProxy(version, book, chapter),
+    proxyFetch: () => fetchStandardFromProxy(version, book, chapter, proxyTimeoutMs),
   });
 }
 
@@ -200,10 +201,11 @@ async function fetchStandardFromProxy(
   version: string,
   book: string,
   chapter: number,
+  timeoutMs = PROXY_SLOW_FALLBACK_TIMEOUT,
 ): Promise<BibleFetchResult> {
   const response = await fetchWithTimeout(
     buildStandardProxyUrl(version, book, chapter),
-    PROXY_SLOW_FALLBACK_TIMEOUT,
+    timeoutMs,
   );
 
   if (!response.ok) {
