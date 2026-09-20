@@ -153,9 +153,6 @@
         </template>
       </main>
 
-      <!-- Toast 컴포넌트 -->
-      <Toast ref="toast" />
-
       <ReadingSettingsSheet v-model="isReadingSettingsOpen" />
 
       <!-- 달력 모달 -->
@@ -171,7 +168,7 @@
   </PageLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
@@ -179,7 +176,11 @@ import { useHasenaStore } from '~/stores/hasena'
 import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/readingSettings'
 import { useRouter } from 'vue-router'
 import { useSanitize } from '~/composables/useSanitize'
-import Toast from '~/components/Toast.vue'
+import { useToast } from '~/composables/useToast'
+import { useYouTubePlayer } from '~/composables/useYouTubePlayer'
+import { useHasenaSummary } from '~/composables/hasena/useHasenaSummary'
+import { renderHasenaVerses } from '~/composables/hasena/hasenaVerses'
+import { getTodayString, toLocalDateString } from '~/utils/dateFormat'
 import ReadingSettingsSheet from '~/components/ReadingSettingsSheet.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
 import SkeletonHasenaCard from '~/components/ui/skeleton/SkeletonHasenaCard.vue'
@@ -203,8 +204,9 @@ const auth = useAuthService()
 const hasenaStore = useHasenaStore()
 const readingSettings = useReadingSettingsStore()
 const router = useRouter()
-const toast = ref(null)
+const toast = useToast()
 const { sanitize } = useSanitize()
+const { loadYouTubeIframeApi, createYouTubePlayer } = useYouTubePlayer()
 
 // 달력 모달 상태
 const isCalendarOpen = ref(false)
@@ -235,8 +237,8 @@ const onCalendarUpdated = async () => {
 // 마운트 후 iframe.src를 갈아끼우면 진행 중인 플레이어 로드가 취소되고
 // 임베드가 광고 서브프레임 네비게이션을 다시 일으켜, iOS WebView에서
 // 첫 진입 시 전체화면 에러로 이어졌다(LAB-59).
-const videoUrl = computed(() => withJsApiEnabled(buildHasenaEmbedUrl(latestVideoId.value)))
 const latestVideoId = ref('') // 빈 값으로 초기화
+const videoUrl = computed(() => withJsApiEnabled(buildHasenaEmbedUrl(latestVideoId.value)))
 const isMobile = ref(false)
 const isIOS = ref(false)
 const isAndroid = ref(false)
@@ -269,99 +271,24 @@ const openYouTubeApp = () => {
 
 // 상태 변수들
 const isLoading = ref(true)
-const error = ref(null)
+const error = ref<string | null>(null)
 const bibleTitle = ref('')
 const parsedContent = ref('')
 const sanitizedContent = computed(() => sanitize(parsedContent.value))
 
-// AI 요약 관련 상태
-const summaryLoading = ref(false)
-const summaryError = ref(null)
-const summaryContent = ref('')
-
-// Markdown을 HTML로 변환 (고급 파싱 및 스타일링)
-const formattedSummary = computed(() => {
-  if (!summaryContent.value) return ''
-  
-  return sanitize(formatHasenaSummary(summaryContent.value))
-})
-
-// AI 요약 조회 (생성 없이)
-const loadAISummary = async () => {
-  if (!latestVideoId.value) return
-  
-  summaryLoading.value = true
-  summaryError.value = null
-  summaryContent.value = ''
-  
-  try {
-    const { data } = await api.GET('/api/v1/todos/hasena/summary/', {
-      params: { video_id: latestVideoId.value }
-    })
-    
-    if (data.success) {
-      summaryContent.value = data.summary
-    }
-  } catch (err) {
-    const status = err?.response?.status || err?.status
-    const apiError = err?.response?.data?.error || err?.data?.error
-
-    summaryError.value = status === 404
-      ? (apiError || '오늘 AI 요약은 아직 준비 중입니다.')
-      : (apiError || 'AI 요약을 불러오지 못했습니다.')
-  } finally {
-    summaryLoading.value = false
-  }
-}
-
-// AI 요약 생성/재생성 (관리자 전용)
-const generateAISummary = async () => {
-  if (!latestVideoId.value) {
-    summaryError.value = '영상 ID를 가져올 수 없습니다.'
-    return
-  }
-  
-  summaryLoading.value = true
-  summaryError.value = null
-  
-  try {
-    let data
-    
-    // 기존 요약이 있으면 재생성 API 호출, 없으면 생성 API 호출
-    if (summaryContent.value) {
-      // 재생성: POST /api/v1/todos/hasena/summaries/regenerate/
-      data = await api.POST('/api/v1/todos/hasena/summaries/regenerate/', {
-        video_id: latestVideoId.value
-      })
-    } else {
-      // 신규 생성: GET /api/v1/todos/hasena/summary/?generate=true
-      const response = await api.GET('/api/v1/todos/hasena/summary/', {
-        params: {
-          video_id: latestVideoId.value,
-          generate: true
-        }
-      })
-      data = response.data
-    }
-    
-    if (data.success) {
-      summaryContent.value = data.summary
-    } else {
-      summaryError.value = data.error || '요약을 생성할 수 없습니다.'
-    }
-  } catch (err) {
-    summaryError.value = err?.data?.error || err?.response?.data?.error || '요약 생성 중 오류가 발생했습니다.'
-  } finally {
-    summaryLoading.value = false
-  }
-}
+// AI 요약 (composables/hasena/useHasenaSummary.ts로 추출)
+const {
+  summaryLoading,
+  summaryError,
+  summaryContent,
+  formattedSummary,
+  resetSummary,
+  loadAISummary,
+  generateAISummary,
+} = useHasenaSummary(latestVideoId)
 
 // 날짜 관련
-const today = new Date()
-const formatApiDate = (date) => {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-const selectedDate = ref(formatApiDate(today))
+const selectedDate = ref(getTodayString())
 const selectedDateObj = computed(() => new Date(`${selectedDate.value}T00:00:00`))
 const formattedDate = computed(() => new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
@@ -375,15 +302,14 @@ const fetchHasenaContent = async () => {
   try {
     isLoading.value = true
     error.value = null
-    summaryError.value = null
-    summaryContent.value = ''
+    resetSummary()
 
     const { data } = await api.GET('/api/v1/todos/hasena/day/', {
       params: { date: selectedDate.value }
     })
 
     if (!data?.success || !data.entry) {
-      throw new Error(data?.error || '본문을 불러오는데 실패했습니다')
+      throw new Error((data as { error?: string })?.error || '본문을 불러오는데 실패했습니다')
     }
 
     const entry = data.entry
@@ -392,7 +318,7 @@ const fetchHasenaContent = async () => {
     latestVideoId.value = entry.video_id || ''
     hasenaStore.setCompletionStatus(Boolean(data.is_completed))
     await loadAISummary()
-  } catch (err) {
+  } catch (err: any) {
     error.value = err?.message || '본문을 불러오는데 실패했습니다'
     latestVideoId.value = ''
   } finally {
@@ -400,25 +326,7 @@ const fetchHasenaContent = async () => {
   }
 }
 
-const renderHasenaVerses = (verses) => {
-  return verses.map((verse) => `
-    <div class="hasena-verse">
-      <span class="hasena-verse-number">${escapeHtml(verse.number || '')}</span>
-      <span class="hasena-verse-text">${escapeHtml(verse.text || '')}</span>
-    </div>
-  `).join('')
-}
-
-const escapeHtml = (value) => {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-const selectHasenaDate = async (date) => {
+const selectHasenaDate = async (date: string) => {
   selectedDate.value = date
   await fetchHasenaContent()
   if (auth.isAuthenticated.value) {
@@ -444,43 +352,34 @@ const handleComplete = async () => {
     await hasenaStore.updateStatus(selectedDateObj.value)
     await Promise.all([fetchHasenaContent(), hasenaStore.fetchStats()])
     await nextTick()
-  } catch (error) {
-    toast.value?.show('완료 처리에 실패했습니다', 'error')
+  } catch (err) {
+    toast.error('완료 처리에 실패했습니다')
   }
 }
 
 // YouTube 현재 재생 비디오 가져오기
-const setupYouTubeListener = () => {
-  if (!window.YT) {
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    const firstScriptTag = document.getElementsByTagName('script')[0]
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
-    
-    window.onYouTubeIframeAPIReady = () => {
-      const iframe = document.querySelector('.video-container iframe')
-      if (iframe) {
-        // iframe의 ID 설정
-        iframe.id = 'hasena-youtube-player'
+// 로더는 composables/useYouTubePlayer.ts — 이전 버전은
+// window.onYouTubeIframeAPIReady를 덮어써 TongdokAudioPlayer의 ready 체인을
+// 깰 수 있었다(arch-map P1-8). 공유 로더는 이전 콜백을 보존한다.
+const setupYouTubeListener = async () => {
+  const YT = await loadYouTubeIframeApi()
+  if (!YT) return
 
-        // src는 이미 enablejsapi=1로 렌더되어 있으므로 다시 쓰지 않는다.
-        // YouTube Player 인스턴스 생성
-                new window.YT.Player('hasena-youtube-player', {
-          events: {
-            'onReady': (event) => {
-              // 플레이어가 준비되면 현재 비디오 ID 가져오기
-              const videoId = event.target.getVideoData().video_id
+  const iframe = document.querySelector<HTMLIFrameElement>('.video-container iframe')
+  if (!iframe) return
 
-              if (videoId && videoId !== latestVideoId.value) {
-                latestVideoId.value = videoId
-                loadAISummary()
-              }
-            }
-          }
-        })
+  // src는 이미 enablejsapi=1로 렌더되어 있으므로 다시 쓰지 않는다.
+  createYouTubePlayer(YT, iframe, {
+    onReady: (event) => {
+      // 플레이어가 준비되면 현재 비디오 ID 가져오기
+      const videoId = event.target.getVideoData().video_id
+
+      if (videoId && videoId !== latestVideoId.value) {
+        latestVideoId.value = videoId
+        loadAISummary()
       }
     }
-  }
+  })
 }
 
 onMounted(async () => {
