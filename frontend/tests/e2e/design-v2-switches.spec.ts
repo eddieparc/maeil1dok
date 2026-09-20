@@ -14,6 +14,7 @@ const notificationSettings = {
     reading_reminder_time: '06:00:00',
     hasena_reminder_time: '20:00:00',
     timezone: 'Asia/Seoul',
+    daily_push_limit: 3,
   },
 } satisfies components['schemas']['NotificationSettingsResponse'];
 
@@ -38,7 +39,7 @@ async function capturePatches(page: Page): Promise<SettingsPatch[]> {
       contentType: 'application/json',
       headers: {
         'access-control-allow-credentials': 'true',
-        'access-control-allow-origin': 'http://127.0.0.1:3019',
+        'access-control-allow-origin': `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT || 3019}`,
       },
       body: JSON.stringify({ success: true, settings: { ...notificationSettings.settings, ...patch } }),
     });

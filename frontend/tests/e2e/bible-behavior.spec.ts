@@ -28,7 +28,7 @@ const verse = (page: Page, number: number) => page.locator('.bible-content .vers
 const grantClipboardPermissions = async (page: Page): Promise<void> => {
   await page.context().grantPermissions(
     ['clipboard-read', 'clipboard-write'],
-    { origin: 'http://127.0.0.1:3019' },
+    { origin: `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT || 3019}` },
   );
 };
 

@@ -124,7 +124,7 @@ for (const record of [
     await api.authenticate();
     api.get(record.endpoint, { count: 1, results: [record.value] });
     await page.route(`**${record.endpoint}${record.value.id}/`, route => route.fulfill({
-      status: 204, headers: { 'access-control-allow-origin': 'http://127.0.0.1:3019', 'access-control-allow-credentials': 'true' },
+      status: 204, headers: { 'access-control-allow-origin': `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT || 3019}`, 'access-control-allow-credentials': 'true' },
     }));
     await page.goto(`/bible/${record.route}`);
     const row = page.locator('.record-row');

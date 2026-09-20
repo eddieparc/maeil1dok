@@ -108,7 +108,7 @@ test('account deletion action opens the project confirm modal', async ({ api, pa
   await page.context().addCookies([{
     name: 'access_token',
     value: 'playwright-access-token',
-    url: 'http://127.0.0.1:3019',
+    url: `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT || 3019}`,
   }]);
 
   const linkedAccountsResponse = page.waitForResponse((response) =>

@@ -64,8 +64,9 @@ const openCertificationAfterCompletion = async (page: Page, api: ApiMock): Promi
   mockTongdokCertification(api);
 
   await page.goto('/bible?book=jhn&chapter=3&tongdok=true&schedule=13&plan=7');
-  const completeButton = page.getByRole('button', { name: '통독 완료' });
+  const completeButton = page.getByRole('checkbox', { name: '통독 완료', exact: true });
   await expect(completeButton).toBeVisible();
+  await expect(completeButton).not.toBeChecked();
 
   // v2 completes immediately on click — there is no confirm dialog. The
   // certification payload is fetched after the completion write succeeds.

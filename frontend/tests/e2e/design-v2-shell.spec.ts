@@ -77,6 +77,7 @@ test('legacy colour names alias the v2 tokens in both themes', async ({ page }) 
   expect((await cssVar(page, '--text-primary')).toUpperCase()).toBe('#1F1A17');
 
   // Flip through the real header control, the same path a reader takes.
+  await expect(page.locator('.sanctuary-theme')).toHaveClass(/is-shell-ready/);
   await page.getByRole('button', { name: '다크 모드로 전환' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect((await cssVar(page, '--primary-color')).toUpperCase()).toBe('#F3EEEE');

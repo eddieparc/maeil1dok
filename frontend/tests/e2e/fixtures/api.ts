@@ -39,6 +39,7 @@ const READING_SETTINGS = {
       highlight_names: true,
       show_footnotes: true,
       tongdok_auto_complete: false,
+      audio_playback_rate: 1,
     },
   },
 } satisfies components['schemas']['ReadingSettingsResponse'];
@@ -66,7 +67,7 @@ const corsHeaders = {
   'access-control-allow-credentials': 'true',
   'access-control-allow-headers': 'Content-Type, X-CSRFToken',
   'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  'access-control-allow-origin': 'http://127.0.0.1:3019',
+  'access-control-allow-origin': `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT || 3019}`,
 };
 
 export class ApiMock {
@@ -118,8 +119,12 @@ export class ApiMock {
 
   async #handle(route: Route): Promise<void> {
     const request = route.request();
+    const headers = {
+      ...corsHeaders,
+      'access-control-allow-origin': request.headers().origin || corsHeaders['access-control-allow-origin'],
+    };
     if (request.method() === 'OPTIONS') {
-      await route.fulfill({ status: 204, headers: corsHeaders });
+      await route.fulfill({ status: 204, headers });
       return;
     }
 
@@ -131,7 +136,7 @@ export class ApiMock {
       await route.fulfill({
         status: 404,
         contentType: 'application/json',
-        headers: corsHeaders,
+        headers,
         body: JSON.stringify({ detail: `No Playwright API fixture for ${request.method()} ${url.pathname}` }),
       });
       return;
@@ -140,7 +145,7 @@ export class ApiMock {
     await route.fulfill({
       status: response.status,
       contentType: 'application/json',
-      headers: corsHeaders,
+      headers,
       body: response.status === 204 ? undefined : JSON.stringify(response.body),
     });
   }

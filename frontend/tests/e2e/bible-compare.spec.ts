@@ -24,8 +24,20 @@ for (const width of [390, 1280]) {
     expect(geometry.primary).toBeTruthy();
     expect(geometry.secondary).toBeTruthy();
     expect(geometry.overflow).toBe(false);
-    if (width < 768) expect(geometry.secondary!.top).toBeGreaterThan(geometry.primary!.top);
-    else expect(geometry.secondary!.left).toBeGreaterThan(geometry.primary!.left);
+    if (width < 768) {
+      await expect(page.locator('.pair-primary').first()).toBeVisible();
+      await expect(page.locator('.pair-secondary').first()).toBeHidden();
+      await page.locator('.pane-switch').click();
+      await expect(page.locator('.pair-primary').first()).toBeHidden();
+      await expect(page.locator('.pair-secondary').first()).toBeVisible();
+      await page.locator('.pair-secondary .verse').nth(2).click();
+      await expect(page.getByTestId('selection-action-menu')).toBeVisible();
+      await page.locator('.pair-secondary .verse').nth(2).click();
+      await page.locator('.pane-switch').click();
+      await expect(page.locator('.pair-primary').first()).toBeVisible();
+    } else {
+      expect(geometry.secondary!.left).toBeGreaterThan(geometry.primary!.left);
+    }
     // 단일 스크롤 컨테이너 — 별도 스크롤러가 없다.
     const scrollers = await page.evaluate(() =>
       [...document.querySelectorAll('.bible-compare-viewer *')].filter(el => el.scrollHeight > el.clientHeight + 4).length);
@@ -33,6 +45,16 @@ for (const width of [390, 1280]) {
     await page.locator('.pair-primary .verse').nth(2).click();
     await expect(page.getByTestId('selection-action-menu')).toBeVisible();
     await page.locator('.pair-primary .verse').nth(2).click();
+    if (width < 768) {
+      await page.setViewportSize({ width: 844, height: 390 });
+      await expect(page.locator('.pair-primary').first()).toBeVisible();
+      await expect(page.locator('.pair-secondary').first()).toBeVisible();
+      const [primary, secondary] = await Promise.all([
+        page.locator('.pair-primary').first().boundingBox(),
+        page.locator('.pair-secondary').first().boundingBox(),
+      ]);
+      expect(secondary!.x).toBeGreaterThan(primary!.x);
+    }
     // 헤더 버튼에서 바로 역본을 바꾼다 (시트를 열지 않는다).
     await page.locator('.compare-header .version-btn').nth(1).click();
     await expect(page.locator('.version-menu')).toBeVisible();
@@ -43,6 +65,7 @@ for (const width of [390, 1280]) {
     await page.reload();
     await expect(page.locator('.bible-compare-viewer')).toBeVisible();
     await expect(page.locator('.pair-secondary .verse')).toHaveCount(24);
+    await page.setViewportSize({ width, height: 844 });
     await page.screenshot({ path: `/tmp/lab127-compare-${width}.png`, fullPage: true });
     await page.locator('.book-selector-trigger').click();
     await page.getByTestId('book-selector-compare').click();
