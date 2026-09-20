@@ -116,7 +116,7 @@ test('loadReadingPosition normalizes valid stored positions at runtime', async (
   });
 });
 
-test('loadReadingPosition rejects the legacy jon book code at runtime', async () => {
+test('loadReadingPosition normalizes the legacy jon book code to jnh at runtime', async () => {
   setupBrowserGlobals();
   localStorage.setItem('lastReadingPosition', JSON.stringify({
     book: 'jon',
@@ -128,8 +128,12 @@ test('loadReadingPosition rejects the legacy jon book code at runtime', async ()
   const { useReadingPosition } = await importReadingPositionModule();
   const readingPosition = useReadingPosition();
 
-  assert.equal(await readingPosition.loadReadingPosition(), null);
-  assert.equal(readingPosition.lastReadingPosition.value, null);
+  assert.deepEqual(await readingPosition.loadReadingPosition(), {
+    book: 'jnh',
+    chapter: 3,
+    scroll_position: 0.42,
+    version: 'KNT',
+  });
 });
 
 test('saveReadingPosition stores the explicit reader scroll instead of window scroll at runtime', async () => {
