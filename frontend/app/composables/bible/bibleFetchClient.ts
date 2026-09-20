@@ -150,10 +150,16 @@ async function fetchWithCacheFallback(options: FallbackOptions): Promise<BibleFe
   return errorResult(options.contentType);
 }
 
+/** bskorea KNT upstream uses JON for Jonah; internal code is jnh. */
+const KNT_UPSTREAM_BOOK_CODES: Record<string, string> = {
+  jnh: 'JON',
+};
+
 export function buildKntProxyUrl(book: string, chapter: number): string {
+  const upstreamBook = KNT_UPSTREAM_BOOK_CODES[book] ?? book.toUpperCase();
   const params = new URLSearchParams({
     version: 'd7a4326402395391-01',
-    chapter: `${book.toUpperCase()}.${chapter}`,
+    chapter: `${upstreamBook}.${chapter}`,
   });
   return `/bible-proxy/KNT/get_chapter.php?${params.toString()}`;
 }
