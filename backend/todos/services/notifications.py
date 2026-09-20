@@ -1,4 +1,6 @@
 from collections import defaultdict
+from datetime import datetime, timedelta
+from urllib.parse import urlencode
 
 from django.db import transaction
 from django.db.models import Q
@@ -13,6 +15,7 @@ from todos.models import (
     Notification,
     NotificationSettings,
     PlanSubscription,
+    PersonalReadingRecord,
     UserBibleProgress,
 )
 
@@ -41,13 +44,25 @@ _READING_REMINDER = {
     'notification_type': 'reading_reminder',
     'title': '오늘의 통독이 기다리고 있어요',
     'body': '오늘 배정된 말씀을 읽고 흐름을 이어가볼까요?',
-    'target_url': '/plan',
+    'target_url': '/bible',
 }
 _HASENA_REMINDER = {
     'notification_type': 'hasena_reminder',
     'title': '오늘의 하세나하시조를 함께해요',
     'body': '잠시 멈추고 말씀을 마음에 새겨보세요.',
     'target_url': '/hasena',
+}
+_STREAK_REMINDER = {
+    'notification_type': 'streak_reminder',
+    'title': '연속 기록이 끊어질 수 있어요',
+    'body': '오늘의 말씀을 읽고 연속 기록을 이어가볼까요?',
+    'target_url': '/bible',
+}
+
+_REMINDER_TEMPLATES = {
+    'reading': _READING_REMINDER,
+    'hasena': _HASENA_REMINDER,
+    'streak': _STREAK_REMINDER,
 }
 
 
@@ -62,15 +77,35 @@ def _send_reminders_for_settings_batch(settings_iterable):
 
     _mark_eligible_reading([c for c in candidates if c['kind'] == 'reading'])
     _mark_eligible_hasena([c for c in candidates if c['kind'] == 'hasena'])
+    _mark_eligible_streak([c for c in candidates if c['kind'] == 'streak'])
+
+    # 같은 슬롯에 일반 통독 리마인더가 나가면 연속 기록 경고는 중복이다.
+    reading_due_users = {
+        c['user_id']
+        for c in candidates
+        if c['kind'] == 'reading' and c['eligible']
+    }
 
     created_count = 0
     for candidate in candidates:
         if not candidate['eligible']:
             continue
-        template = _READING_REMINDER if candidate['kind'] == 'reading' else _HASENA_REMINDER
+        if candidate['kind'] == 'streak' and candidate['user_id'] in reading_due_users:
+            continue
+        template = dict(_REMINDER_TEMPLATES[candidate['kind']])
+        if candidate.get('target_url'):
+            template['target_url'] = candidate['target_url']
+        if candidate.get('streak_scope') == 'plan':
+            template['title'] = '통독 연속 기록을 이어가세요'
         _notification, created = _create_notification(
             recipient=candidate['user'],
             dedupe_key=candidate['dedupe_key'],
+            data={
+                'local_date': candidate['local_date'].isoformat(),
+                **({'streak_scope': candidate['streak_scope'],
+                    'reading_date': _server_today().isoformat()}
+                   if candidate['kind'] == 'streak' else {}),
+            },
             **template,
         )
         created_count += int(created)
@@ -82,8 +117,12 @@ def _build_due_candidates(settings_iterable):
     for settings in settings_iterable:
         if not settings.notifications_enabled:
             continue
+        if _is_paused(settings):
+            continue
         local_now = _local_now(settings)
         local_date = local_now.date()
+        if local_date.weekday() not in settings.reminder_weekdays:
+            continue
         if settings.reading_reminders_enabled and _is_due(local_now, settings.reading_reminder_time):
             candidates.append({
                 'kind': 'reading',
@@ -93,7 +132,8 @@ def _build_due_candidates(settings_iterable):
                 'dedupe_key': f'reading-reminder:{settings.user_id}:{local_date.isoformat()}',
                 'eligible': False,
             })
-        if settings.hasena_reminders_enabled and _is_due(local_now, settings.hasena_reminder_time):
+        if (settings.hasena_reminders_enabled and local_date.weekday() != 6
+                and _is_due(local_now, settings.hasena_reminder_time)):
             candidates.append({
                 'kind': 'hasena',
                 'user': settings.user,
@@ -102,7 +142,21 @@ def _build_due_candidates(settings_iterable):
                 'dedupe_key': f'hasena-reminder:{settings.user_id}:{local_date.isoformat()}',
                 'eligible': False,
             })
+        if settings.streak_reminders_enabled and _is_due(local_now, settings.streak_reminder_time):
+            candidates.append({
+                'kind': 'streak',
+                'user': settings.user,
+                'user_id': settings.user_id,
+                'local_date': local_date,
+                'dedupe_key': f'streak-reminder:{settings.user_id}:{local_date.isoformat()}',
+                'eligible': False,
+            })
     return candidates
+
+
+def _is_paused(settings):
+    paused_until = settings.paused_until
+    return paused_until is not None and paused_until > timezone.now()
 
 
 def _drop_already_created(candidates):
@@ -114,12 +168,23 @@ def _drop_already_created(candidates):
             dedupe_key__in=dedupe_keys,
         ).values_list('recipient_id', 'dedupe_key')
     )
-    return [c for c in candidates if (c['user_id'], c['dedupe_key']) not in existing]
+    reading_in_this_slot = {
+        c['user_id'] for c in candidates
+        if c['kind'] == 'reading' and (c['user_id'], c['dedupe_key']) in existing
+    }
+    return [
+        c for c in candidates
+        if (c['user_id'], c['dedupe_key']) not in existing
+        and not (c['kind'] == 'streak' and c['user_id'] in reading_in_this_slot)
+    ]
 
 
 def _mark_eligible_reading(candidates):
     if not candidates:
         return
+    from todos.serializers import BIBLE_BOOKS_KOR
+
+    book_codes = {name: code for code, name in BIBLE_BOOKS_KOR.items()}
 
     user_ids = {c['user_id'] for c in candidates}
     local_dates = {c['local_date'] for c in candidates}
@@ -136,12 +201,14 @@ def _mark_eligible_reading(candidates):
 
     plan_ids = {sub['plan_id'] for sub in subscriptions}
     schedules_by_plan_date = defaultdict(list)
+    schedules_by_id = {}
     if plan_ids:
         for row in DailyBibleSchedule.objects.filter(
             plan_id__in=plan_ids,
             date__in=local_dates,
-        ).values('id', 'plan_id', 'date'):
+        ).order_by('id').values('id', 'plan_id', 'date', 'book', 'start_chapter'):
             schedules_by_plan_date[(row['plan_id'], row['date'])].append(row['id'])
+            schedules_by_id[row['id']] = row
 
     all_subscription_ids = set()
     all_schedule_ids = set()
@@ -179,6 +246,67 @@ def _mark_eligible_reading(candidates):
         )
         if completed_count < len(today_schedule_ids):
             candidate['eligible'] = True
+            for sub in subs_by_user[candidate['user_id']]:
+                pending = [
+                    schedule_id
+                    for schedule_id in schedules_by_plan_date[(sub['plan_id'], candidate['local_date'])]
+                    if (sub['id'], schedule_id) not in completed_pairs
+                ]
+                if pending:
+                    row = schedules_by_id[pending[0]]
+                    candidate['target_url'] = '/bible?' + urlencode({
+                        'book': book_codes.get(row['book'], row['book']),
+                        'chapter': row['start_chapter'], 'plan': sub['plan_id'], 'tongdok': 'true',
+                    })
+                    break
+
+
+def _mark_eligible_streak(candidates):
+    """일반 읽기와 통독 기록 각각의 서울 기준 연속 기록을 확인한다."""
+    if not candidates:
+        return
+
+    user_ids = {c['user_id'] for c in candidates}
+    server_today = _server_today()
+    yesterday = server_today - timedelta(days=1)
+    personal_dates = defaultdict(set)
+    for user_id, read_date in PersonalReadingRecord.objects.filter(
+        user_id__in=user_ids, read_date__in=[yesterday, server_today],
+    ).values_list('user_id', 'read_date'):
+        personal_dates[user_id].add(read_date)
+
+    completed_dates_by_user = defaultdict(set)
+    for user_id, completed_date in UserBibleProgress.objects.filter(
+        subscription__user_id__in=user_ids,
+        subscription__is_active=True,
+        is_completed=True,
+        schedule__date__gte=yesterday,
+        schedule__date__lte=server_today,
+    ).values_list('subscription__user_id', 'schedule__date'):
+        completed_dates_by_user[user_id].add(completed_date)
+
+    plan_candidates = []
+    for candidate in candidates:
+        user_id = candidate['user_id']
+        personal = personal_dates[user_id]
+        if yesterday in personal and server_today not in personal:
+            candidate.update(eligible=True, streak_scope='personal', target_url='/bible')
+            continue
+        completed_dates = completed_dates_by_user.get(user_id, set())
+        if yesterday in completed_dates and server_today not in completed_dates:
+            plan_candidate = dict(candidate, local_date=server_today)
+            plan_candidates.append((candidate, plan_candidate))
+    _mark_eligible_reading([plan for _original, plan in plan_candidates])
+    for candidate, plan in plan_candidates:
+        if plan['eligible']:
+            candidate.update(eligible=True, streak_scope='plan', target_url=plan['target_url'])
+
+
+def _server_today():
+    now = timezone.now()
+    if timezone.is_naive(now):
+        now = timezone.make_aware(now, timezone.get_default_timezone())
+    return now.astimezone(ZoneInfo('Asia/Seoul')).date()
 
 
 def _mark_eligible_hasena(candidates):
@@ -264,13 +392,18 @@ def _local_now(settings):
         user_timezone = ZoneInfo(settings.timezone)
     except (ZoneInfoNotFoundError, ValueError, TypeError):
         user_timezone = ZoneInfo('Asia/Seoul')
-    return timezone.now().astimezone(user_timezone)
+    now = timezone.now()
+    if timezone.is_naive(now):
+        now = timezone.make_aware(now, timezone.get_default_timezone())
+    return now.astimezone(user_timezone)
 
 
 def _is_due(local_now, reminder_time):
-    return local_now.time() >= reminder_time
+    due_at = datetime.combine(local_now.date(), reminder_time, tzinfo=local_now.tzinfo)
+    return timedelta(0) <= local_now - due_at < timedelta(minutes=30)
 
 
+@transaction.atomic
 def _create_notification(
     recipient,
     notification_type,
@@ -290,6 +423,7 @@ def _create_notification(
         'data': data or {},
     }
     if dedupe_key:
+        recipient.__class__.objects.select_for_update().get(pk=recipient.pk)
         try:
             notification, created = Notification.objects.get_or_create(
                 recipient=recipient,
@@ -321,6 +455,6 @@ def on_commit_notify_hasena_completed(actor, completed_date):
 
 
 def _queue_push_delivery(notification):
-    from todos.services.push_notifications import deliver_push_notification
+    from todos.tasks import deliver_notification_push_task
 
-    transaction.on_commit(lambda: deliver_push_notification(notification.id))
+    transaction.on_commit(lambda: deliver_notification_push_task.delay(notification.id), robust=True)

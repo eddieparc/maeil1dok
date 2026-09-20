@@ -1,5 +1,5 @@
 """Exercise operational dormancy through HTTP and the real sender/scoreboard surfaces."""
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 from unittest.mock import patch
 
 from django.core.cache import cache
@@ -21,13 +21,14 @@ from todos.services.push_notifications import deliver_push_notification
 
 class MemberDormancyIntegrationTests(TestCase):
     def setUp(self):
+        self.enterContext(patch('django.utils.timezone.now', return_value=datetime(2026, 3, 2, 20)))
         cache.clear()
         self.staff = User.objects.create_user(username='dormant-admin', nickname='dormant-admin', is_staff=True)
         self.user = User.objects.create_user(username='dormant-reader', nickname='dormant-reader')
         self.friend = User.objects.create_user(username='dormant-friend', nickname='dormant-friend')
         self.client = client_for(self.staff)
         self.preferences = NotificationSettings.objects.create(user=self.user,
-            reading_reminder_time=time(0), hasena_reminder_time=time(0))
+            reading_reminder_time=time(20), hasena_reminder_time=time(20))
         self.plan = BibleReadingPlan.objects.create(name='dormancy plan', created_by=self.staff)
         subscription = PlanSubscription.objects.create(user=self.user, plan=self.plan, start_date=timezone.now().date())
         self.schedule = DailyBibleSchedule.objects.create(plan=self.plan, date=timezone.now().date(),

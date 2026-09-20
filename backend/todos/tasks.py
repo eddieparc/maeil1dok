@@ -163,6 +163,33 @@ def _record_reminder_task_outcome(result):
     }
     cache.set(REMINDER_HEARTBEAT_CACHE_KEY, heartbeat, timeout=None)
 
+
+@shared_task
+def deliver_notification_push_task(notification_id):
+    from .services.push_notifications import deliver_push_notification
+
+    return deliver_push_notification(notification_id)
+
+
+@shared_task
+def check_expo_push_receipts_task():
+    from .services.push_notifications import check_expo_push_receipts
+
+    return check_expo_push_receipts()
+
+
+@shared_task
+def dispatch_pending_push_notifications_task():
+    from datetime import timedelta
+    from .models import Notification
+
+    pending = Notification.objects.filter(
+        push_attempted_at__isnull=True,
+        created_at__gte=timezone.now() - timedelta(minutes=30),
+    ).values_list('id', flat=True)[:200]
+    for notification_id in pending:
+        deliver_notification_push_task.delay(notification_id)
+
 @shared_task(bind=True, max_retries=0)
 def send_due_notification_reminders_task(self):
     from .services.notifications import send_due_reminder_notifications
