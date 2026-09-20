@@ -24,7 +24,16 @@ export interface StoredSessionRestoreDependencies {
   readonly isRestoreCurrent: () => boolean;
 }
 
-const AUTH_COOKIE_NAMES = ['access_token', 'refresh_token'] as const;
+// The beta backend prefixes its auth cookies (beta_access_token /
+// beta_refresh_token, measured from the real consume response). Both families
+// count as a live session; cookie names are host-scoped, so checking both can
+// never let a prod cookie satisfy a beta check or vice versa.
+const AUTH_COOKIE_NAMES = [
+  'access_token',
+  'refresh_token',
+  'beta_access_token',
+  'beta_refresh_token',
+] as const;
 
 export const hasAuthCookies = (cookies: unknown): boolean => {
   if (!cookies || typeof cookies !== 'object' || Array.isArray(cookies)) return false;

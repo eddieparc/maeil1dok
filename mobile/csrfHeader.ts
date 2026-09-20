@@ -18,6 +18,9 @@
  */
 
 export const CSRF_COOKIE_NAME = 'csrftoken';
+// The beta stack names its CSRF cookie beta_csrftoken (measured from the real
+// consume response). Both are tried; the first present wins.
+const CSRF_COOKIE_NAMES = [CSRF_COOKIE_NAME, 'beta_csrftoken'] as const;
 export const CSRF_HEADER_NAME = 'X-CSRFToken';
 
 function readCookieValue(entry: unknown): string | null {
@@ -33,7 +36,10 @@ function readCookieValue(entry: unknown): string | null {
 export function csrfHeadersFrom(cookies: unknown): Record<string, string> {
   if (!cookies || typeof cookies !== 'object' || Array.isArray(cookies)) return {};
 
-  const token = readCookieValue((cookies as Record<string, unknown>)[CSRF_COOKIE_NAME]);
+  const store = cookies as Record<string, unknown>;
+  const token = CSRF_COOKIE_NAMES
+    .map((name) => readCookieValue(store[name]))
+    .find((value) => value !== null) ?? null;
   // No header at all when there is no token. An empty header is worse than none:
   // Django compares it and rejects, turning "not configured" into a hard failure.
   return token ? { [CSRF_HEADER_NAME]: token } : {};

@@ -55,6 +55,18 @@ test('Given a plain string map Then it is read too', () => {
   });
 });
 
+test('Given the beta CSRF cookie Then it becomes a header too', () => {
+  // The beta stack names its CSRF cookie beta_csrftoken (measured from the
+  // real consume response). Without it the shell's own refresh/logout calls
+  // to the beta API fail Django's CSRF check.
+  assert.deepEqual(csrfHeadersFrom({ beta_csrftoken: 'tok-beta' }), {
+    [CSRF_HEADER_NAME]: 'tok-beta',
+  });
+  assert.deepEqual(csrfHeadersFrom({ beta_csrftoken: { value: 'tok-beta-obj' } }), {
+    [CSRF_HEADER_NAME]: 'tok-beta-obj',
+  });
+});
+
 test('Given no CSRF cookie Then no header is invented', () => {
   // Sending an empty header is worse than sending none: Django compares it and
   // rejects, turning "not configured" into a confusing hard failure.
