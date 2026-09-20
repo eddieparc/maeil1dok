@@ -16,6 +16,8 @@ const authGuardSource = await readFile(
 
 const importAuthService = async () => {
   const runnableSource = authServiceSource
+    .replace("import { isNativePushDevice, requestNativePushState } from '../utils/nativePushBridge'",
+      await readFile(new URL('../app/utils/nativePushBridge.ts', import.meta.url), 'utf8'))
     .replace("import { readCsrfToken, storeCsrfToken } from './csrfCookie'",
       await readFile(new URL('../app/composables/csrfCookie.ts', import.meta.url), 'utf8'))
     .replace(

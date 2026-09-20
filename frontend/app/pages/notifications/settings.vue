@@ -23,6 +23,7 @@
           <AppSwitch
             :model-value="settings.notifications_enabled === true"
             label="전체 알림"
+            data-testid="notifications-enabled"
             @update:model-value="settings.notifications_enabled = $event"
             description="통독과 친구 활동 알림을 한 번에 관리합니다."
           />
@@ -80,9 +81,14 @@
           />
         </div>
 
+        <NotificationDetailedSettings
+          :settings="settings"
+          :disabled="!settings.notifications_enabled"
+        />
+
         <div class="settings-actions">
           <NuxtLink to="/notifications" class="history-link">알림 내역 보기</NuxtLink>
-          <button class="save-button" type="submit" :disabled="notificationsStore.isSaving">
+          <button class="save-button" type="submit" :disabled="notificationsStore.isSaving" data-testid="notification-settings-save">
             {{ notificationsStore.isSaving ? '저장 중' : '저장' }}
           </button>
         </div>
@@ -98,6 +104,7 @@ import ErrorState from '~/components/ErrorState.vue'
 import EmptyState from '~/components/common/EmptyState.vue'
 import { useAuthService } from '~/composables/useAuthService'
 import DevicePushSetting from '~/components/notifications/DevicePushSetting.vue'
+import NotificationDetailedSettings from '~/components/notifications/NotificationDetailedSettings.vue'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import AppSwitch from '~/components/ui/AppSwitch.vue'
 import { useNotificationsStore, type NotificationSettings } from '~/stores/notifications'
@@ -115,10 +122,20 @@ const notificationsStore = useNotificationsStore()
 const toast = useToast()
 const settings = ref<NotificationSettings | null>(null)
 
+function cloneSettings(value: NotificationSettings): NotificationSettings {
+  const draft: NotificationSettings = { ...value }
+  // reminder_weekdays 같은 배열 필드는 저장 전에 스토어 상태를 오염시키지
+  // 않도록 새 배열로 복제한다.
+  draft.reminder_weekdays = Array.isArray(value.reminder_weekdays)
+    ? [...value.reminder_weekdays]
+    : [0, 1, 2, 3, 4, 5, 6]
+  return draft
+}
+
 watch(
   () => notificationsStore.settings,
   (value) => {
-    settings.value = value ? { ...value } : null
+    settings.value = value ? cloneSettings(value) : null
   },
   { immediate: true },
 )

@@ -5,6 +5,7 @@
  */
 
 import { computed, readonly } from 'vue'
+import { isNativePushDevice, requestNativePushState } from '../utils/nativePushBridge'
 import { readCsrfToken, storeCsrfToken } from './csrfCookie'
 import {
   fetchInitialAuthUser,
@@ -271,12 +272,24 @@ export function useAuthService() {
 
   async function performLogout(): Promise<void> {
     stopRefreshTimer()
+    // Stop pending device registration before awaiting native or server replies.
+    _authState.value = 'unauthenticated'
+    let logoutBody: { installation_id: string } | undefined
+    if (isNativePushDevice()) {
+      try {
+        const device = await requestNativePushState('push:disable')
+        logoutBody = { installation_id: device.installationId }
+      } catch (error) {
+        // A missing shell response must not prevent the user from signing out.
+        console.warn('[AuthService] Native push identity unavailable on logout',
+          error instanceof Error ? error.name : 'UnknownError')
+      }
+    }
     
     // 로그아웃 API 호출 (3초 타임아웃 - 실패해도 클라이언트 상태는 반드시 정리)
-    await apiRequest('POST', '/api/v1/auth/logout/', undefined, { timeout: 3000 })
+    await apiRequest('POST', '/api/v1/auth/logout/', logoutBody, { timeout: 3000 })
 
     _user.value = null
-    _authState.value = 'unauthenticated'
     saveUserToStorage(null)
 
     if (import.meta.client && typeof window !== 'undefined') {

@@ -27,11 +27,11 @@ const toast = useToast()
 
 const devicePushLabel = computed(() => {
   const state = notificationsStore.devicePush
-  if (state.permission === 'unsupported') return '이 브라우저는 푸시를 지원하지 않습니다.'
+  if (state.permission === 'unsupported') return '현재 환경은 기기 알림을 지원하지 않습니다.'
   if (state.permission === 'unavailable') return '푸시 알림 서버 설정이 아직 준비되지 않았습니다.'
-  if (state.permission === 'denied') return '브라우저에서 알림 권한이 차단되어 있습니다.'
-  if (state.subscribed) return '이 기기에서 OS 알림을 받고 있습니다.'
-  return '이 기기에서 OS 알림을 받을 수 있습니다.'
+  if (state.permission === 'denied') return '기기 설정에서 매일일독 알림을 허용해 주세요.'
+  if (state.subscribed) return '이 기기에 푸시 알림을 보내도록 설정했습니다.'
+  return '기기 알림을 켜면 앱 밖에서도 알림을 받을 수 있습니다.'
 })
 
 const pushStatusTone = computed(() => {

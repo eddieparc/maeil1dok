@@ -1,5 +1,7 @@
 import { useApi } from '~/composables/useApi'
 import type { DevicePushPermission } from '~/stores/notifications'
+import { isNativePushDevice } from './nativePushBridge'
+import { disableNativePush, enableNativePush, readNativePushState } from './nativePushRuntime'
 
 interface BrowserPushState {
   supported: boolean
@@ -8,6 +10,7 @@ interface BrowserPushState {
 }
 
 export function isDevicePushSupported(): boolean {
+  if (isNativePushDevice()) return true
   return typeof window !== 'undefined'
     && 'serviceWorker' in navigator
     && 'PushManager' in window
@@ -15,6 +18,7 @@ export function isDevicePushSupported(): boolean {
 }
 
 export async function readBrowserPushState(): Promise<BrowserPushState> {
+  if (isNativePushDevice()) return readNativePushState()
   if (!isDevicePushSupported()) {
     return {
       supported: false,
@@ -33,6 +37,7 @@ export async function readBrowserPushState(): Promise<BrowserPushState> {
 }
 
 export async function subscribeCurrentDevice(): Promise<void> {
+  if (isNativePushDevice()) return enableNativePush()
   const config = await fetchPushConfig()
   if (!config.enabled || !config.vapid_public_key) {
     throw new Error('푸시 알림 서버 설정이 아직 준비되지 않았습니다.')
@@ -57,6 +62,7 @@ export async function subscribeCurrentDevice(): Promise<void> {
 }
 
 export async function unsubscribeCurrentDevice(): Promise<void> {
+  if (isNativePushDevice()) return disableNativePush()
   const registration = await navigator.serviceWorker.getRegistration('/')
   const subscription = await registration?.pushManager.getSubscription()
   if (!subscription) return
@@ -109,7 +115,7 @@ function normalizeSubscriptionPayload(subscription: PushSubscription) {
   }
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
   const base64 = `${base64String}${padding}`
     .replace(/-/g, '+')

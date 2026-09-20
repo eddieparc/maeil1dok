@@ -1,5 +1,5 @@
 {
-  "total": 92,
+  "total": 91,
   "signatures": {
     "app/components/bible/BibleViewer.vue: TS2339: Property 'number' does not exist on type '{ number: number; text: string; } | undefined'.": 1,
     "app/components/bible/BibleViewer.vue: TS2339: Property 'text' does not exist on type '{ number: number; text: string; } | undefined'.": 1,
@@ -62,7 +62,6 @@
     "app/plugins/pinia-persistedstate.client.ts: TS18046: 'nuxtApp.$pinia' is of type 'unknown'.": 1,
     "app/plugins/pinia-persistedstate.client.ts: TS2322: Type 'Storage | null' is not assignable to type 'StorageLike | undefined'.": 1,
     "app/stores/calendarDisplay.ts: TS2322: Type '{ id?: number | undefined; subscription_id?: number | undefined; plan_id?: number | undefined; plan_name?: string | undefined; color?: string | undefined; display_order?: number | undefined; is_visible?: boolean | undefined; is_active?: boolean | undefined; }' is not assignable to type '{ id: number; subscription_id: number; plan_id: number; plan_name: string; color: string; display_order: number; is_visible: boolean; is_active: boolean; }'.": 2,
-    "app/stores/calendarDisplay.ts: TS2769: No overload matches this call.": 1,
-    "app/utils/devicePushRuntime.ts: TS2769: No overload matches this call.": 1
+    "app/stores/calendarDisplay.ts: TS2769: No overload matches this call.": 1
   }
 }

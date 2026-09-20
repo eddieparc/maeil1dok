@@ -1,4 +1,7 @@
 import type { AuthCredentials, NativeToWebViewEvent, WebViewToNativeMessage } from '~/types/native-bridge'
+import { watch } from 'vue'
+import { useAuthService } from '~/composables/useAuthService'
+import { syncNativePushRegistration } from '~/utils/nativePushRuntime'
 
 type AuthCallback = (credentials: AuthCredentials) => void
 type LogoutCallback = () => void
@@ -93,7 +96,7 @@ function setupNativeAuthListener() {
 export default defineNuxtPlugin({
   name: 'native-app',
   parallel: false,
-  setup() {
+  setup(nuxtApp) {
     if (typeof window === 'undefined') return
     
     window.__nativeBridge = {
@@ -105,6 +108,30 @@ export default defineNuxtPlugin({
     if (isNativeApp()) {
       setupExternalLinkHandler()
       setupNativeAuthListener()
+      const auth = useAuthService()
+      let generation = 0
+      const synchronize = () => {
+        const userId = auth.user.value?.id
+        const currentGeneration = ++generation
+        if (!userId || !auth.isAuthenticated.value) return
+        void nuxtApp.runWithContext(() => syncNativePushRegistration(
+          () => currentGeneration === generation
+            && auth.isAuthenticated.value && auth.user.value?.id === userId,
+        )).catch((error: unknown) => {
+          console.warn('[NativePush] Registration failed',
+            error instanceof Error ? error.name : 'UnknownError')
+        })
+      }
+      const stop = watch([auth.user, auth.isAuthenticated], synchronize, { immediate: true })
+      const onPushChanged = (event: Event) => {
+        if (event instanceof CustomEvent && event.detail?.requestId === 'push:changed') synchronize()
+      }
+      window.addEventListener('nativePushState', onPushChanged)
+      nuxtApp.vueApp.onUnmount(() => {
+        generation++
+        stop()
+        window.removeEventListener('nativePushState', onPushChanged)
+      })
       
       sendToNative({ type: 'auth:request' })
     } else {
