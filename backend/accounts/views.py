@@ -1720,6 +1720,9 @@ def logout_all_devices(request):
     user = request.user
     user.token_version += 1
     user.save(update_fields=['token_version'])
+    from todos.models import NativePushSubscription
+
+    NativePushSubscription.objects.filter(user=user, enabled=True).delete()
 
     # Bumping token_version revokes refresh tokens, but a handoff code already in
     # flight is stored in the cache and carries no token version, so it would
@@ -2399,6 +2402,9 @@ def delete_account(request):
                 'scheduled_deletion_at', 
                 'token_version'
             ])
+            from todos.models import NativePushSubscription
+
+            NativePushSubscription.objects.filter(user=user, enabled=True).delete()
             
             logger.info(f"계정 삭제 요청: user_id={user.id}, scheduled_deletion_at={user.scheduled_deletion_at}")
         

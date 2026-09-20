@@ -420,6 +420,17 @@ paths:
         - 쿠키 삭제는 인증 상태와 관계없이 수행되어야 함
       tags:
       - accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
       security:
       - cookieJwtAuth: []
       - bearerAuth: []
@@ -1792,6 +1803,17 @@ paths:
         - 쿠키 삭제는 인증 상태와 관계없이 수행되어야 함
       tags:
       - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
       security:
       - cookieJwtAuth: []
       - bearerAuth: []
@@ -4924,6 +4946,101 @@ paths:
               schema:
                 $ref: '#/components/schemas/PushConfigResponse'
           description: ''
+  /api/v1/todos/notifications/push/native/:
+    post:
+      operationId: todos_notifications_push_native_create
+      tags:
+      - todos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscriptionRegister'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscriptionRegister'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscriptionRegister'
+        required: true
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NativePushResponse'
+          description: ''
+    delete:
+      operationId: todos_notifications_push_native_destroy
+      tags:
+      - todos
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCountResponse'
+          description: ''
+  /api/v1/todos/notifications/push/native/remove/:
+    post:
+      operationId: todos_notifications_push_native_remove_create
+      tags:
+      - todos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscription'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscription'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscription'
+        required: true
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessCountResponse'
+          description: ''
+  /api/v1/todos/notifications/push/native/status/:
+    post:
+      operationId: todos_notifications_push_native_status_create
+      tags:
+      - todos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscription'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscription'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NativePushSubscription'
+        required: true
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NativePushStatusResponse'
+          description: ''
   /api/v1/todos/notifications/push/subscriptions/:
     post:
       operationId: todos_notifications_push_subscriptions_create
@@ -4973,6 +5090,17 @@ paths:
       operationId: todos_notifications_settings_partial_update
       tags:
       - todos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedNotificationSettings'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedNotificationSettings'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedNotificationSettings'
       security:
       - cookieJwtAuth: []
       - bearerAuth: []
@@ -8441,6 +8569,12 @@ components:
       - profile_image
       - provider
       - provider_display
+    LogoutRequest:
+      type: object
+      properties:
+        installation_id:
+          type: string
+          format: uuid
     MemberAction:
       type: object
       properties:
@@ -9066,6 +9200,67 @@ components:
       - plan_id
       - ranking
       - success
+    NativePushResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        enabled:
+          type: boolean
+      required:
+      - enabled
+      - success
+    NativePushStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        enabled:
+          type: boolean
+        registered:
+          type: boolean
+      required:
+      - enabled
+      - registered
+      - success
+    NativePushSubscription:
+      type: object
+      description: |-
+        네이티브 푸시 구독 등록/상태/해제 공통 입력.
+
+        token 과 installation_id 는 응답·로그에 다시 노출하지 않는다.
+      properties:
+        token:
+          type: string
+          maxLength: 255
+        installation_id:
+          type: string
+          maxLength: 64
+      required:
+      - installation_id
+      - token
+    NativePushSubscriptionRegister:
+      type: object
+      description: |-
+        네이티브 푸시 구독 등록/상태/해제 공통 입력.
+
+        token 과 installation_id 는 응답·로그에 다시 노출하지 않는다.
+      properties:
+        token:
+          type: string
+          maxLength: 255
+        installation_id:
+          type: string
+          maxLength: 64
+        platform:
+          $ref: '#/components/schemas/PlatformEnum'
+        explicit:
+          type: boolean
+          default: true
+      required:
+      - installation_id
+      - platform
+      - token
     NextReadingPositionResponse:
       type: object
       properties:
@@ -9418,6 +9613,53 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedNotificationSettings:
+      type: object
+      properties:
+        notifications_enabled:
+          type: boolean
+        reading_reminders_enabled:
+          type: boolean
+        hasena_reminders_enabled:
+          type: boolean
+        friend_activity_enabled:
+          type: boolean
+        reading_reminder_time:
+          type: string
+          format: time
+        hasena_reminder_time:
+          type: string
+          format: time
+        streak_reminders_enabled:
+          type: boolean
+        streak_reminder_time:
+          type: string
+          format: time
+        reminder_weekdays:
+          type: array
+          items:
+            type: integer
+            maximum: 6
+            minimum: 0
+        quiet_hours_enabled:
+          type: boolean
+        quiet_hours_start:
+          type: string
+          format: time
+        quiet_hours_end:
+          type: string
+          format: time
+        paused_until:
+          type: string
+          format: date-time
+          nullable: true
+        daily_push_limit:
+          type: integer
+          maximum: 10
+          minimum: 1
+        timezone:
+          type: string
+          maxLength: 64
     PatchedReflectionNote:
       type: object
       description: 묵상노트 Serializer
@@ -9618,6 +9860,14 @@ components:
       - completed_days
       - percent
       - total_days
+    PlatformEnum:
+      enum:
+      - ios
+      - android
+      type: string
+      description: |-
+        * `ios` - iOS
+        * `android` - Android
     ProfileCalendarData:
       type: object
       properties:
@@ -10489,9 +10739,38 @@ components:
         hasena_reminder_time:
           type: string
           format: time
+        streak_reminders_enabled:
+          type: boolean
+        streak_reminder_time:
+          type: string
+          format: time
+        reminder_weekdays:
+          type: array
+          items:
+            type: integer
+            maximum: 6
+            minimum: 0
+        quiet_hours_enabled:
+          type: boolean
+        quiet_hours_start:
+          type: string
+          format: time
+        quiet_hours_end:
+          type: string
+          format: time
+        paused_until:
+          type: string
+          format: date-time
+          nullable: true
+        daily_push_limit:
+          type: integer
+          maximum: 10
+          minimum: 1
         timezone:
           type: string
           maxLength: 64
+      required:
+      - daily_push_limit
     TodoSuccessMessageResponse:
       type: object
       properties:
@@ -10552,12 +10831,14 @@ components:
       enum:
       - reading_reminder
       - hasena_reminder
+      - streak_reminder
       - friend_activity
       - system
       type: string
       description: |-
         * `reading_reminder` - 통독 리마인더
         * `hasena_reminder` - 하세나하시조 리마인더
+        * `streak_reminder` - 연속 기록 리마인더
         * `friend_activity` - 친구 활동
         * `system` - 시스템
     UnfollowData:

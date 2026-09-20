@@ -807,6 +807,22 @@ ENDPOINTS = (
         _action("view_push_config", "push_configuration", "GET", AUTHENTICATED),
     ),
     _endpoint(
+        "notification.native.register",
+        "notification-native-register",
+        _action("manage_native_push", "native_push_subscription", "POST", AUTHENTICATED_OWNER),
+        _action("manage_native_push", "native_push_subscription", "DELETE", AUTHENTICATED_OWNER),
+    ),
+    _endpoint(
+        "notification.native.status",
+        "notification-native-status",
+        _action("manage_native_push", "native_push_subscription", "POST", AUTHENTICATED_OWNER),
+    ),
+    _endpoint(
+        "notification.native.remove",
+        "notification-native-remove",
+        _action("manage_native_push", "native_push_subscription", "POST", AUTHENTICATED_OWNER),
+    ),
+    _endpoint(
         "notification.push_subscription.register",
         "notification-push-register",
         _action("register_push_subscription", "push_subscription", "POST", AUTHENTICATED_OWNER),

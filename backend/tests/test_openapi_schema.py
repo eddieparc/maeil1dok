@@ -95,18 +95,18 @@ class OpenApiSchemaTest(SimpleTestCase):
             if route.name != "api-root" and route.callback not in endpoint_callbacks
         ]
 
-        self.assertEqual(225, len(api_routes))
+        self.assertEqual(228, len(api_routes))
         self.assertEqual(22, len(format_aliases))
         self.assertEqual([], uncovered)
         self.assertEqual(discovered_paths | {"/api/v1/todos/"}, schema_paths)
-        self.assertEqual(203, len(schema_paths))
+        self.assertEqual(206, len(schema_paths))
 
         operation_count = sum(
             method in HTTP_METHODS
             for path_item in schema["paths"].values()
             for method in path_item
         )
-        self.assertEqual(235, operation_count)
+        self.assertEqual(239, operation_count)
 
     def test_duplicate_account_prefixes_have_one_deprecated_alias(self):
         schema = yaml.safe_load(SCHEMA_PATH.read_text(encoding="utf-8"))

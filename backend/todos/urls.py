@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views, scoreboard_views, group_views, calendar_views, catchup_views, notification_views
 from .plan_summary_views import plan_summary
+from . import native_push_views
 
 router = DefaultRouter()
 router.register(r'bible-plans', views.BibleReadingPlanViewSet)
@@ -25,6 +26,9 @@ urlpatterns = [
     path('notifications/', notification_views.notification_inbox, name='notification-inbox'),
     path('notifications/settings/', notification_views.notification_settings, name='notification-settings'),
     path('notifications/push/config/', notification_views.push_config, name='notification-push-config'),
+    path('notifications/push/native/', native_push_views.native_push_subscription, name='notification-native-register'),
+    path('notifications/push/native/status/', native_push_views.native_push_status, name='notification-native-status'),
+    path('notifications/push/native/remove/', native_push_views.remove_native_push, name='notification-native-remove'),
     path('notifications/push/subscriptions/', notification_views.register_push_subscription, name='notification-push-register'),
     path('notifications/push/subscriptions/remove/', notification_views.remove_push_subscription, name='notification-push-remove'),
     path('notifications/<int:notification_id>/read/', notification_views.mark_notification_read, name='notification-read'),

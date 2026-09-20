@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "covered_route_count": 204,
+    "covered_route_count": 207,
     "excluded_route_count": 23,
     "personas": [
       "anonymous",
       "owner",
       "non_owner"
     ],
-    "route_count": 227,
+    "route_count": 230,
     "schema_version": 1
   },
   "excluded": {
@@ -6713,12 +6713,26 @@
               "type": "list"
             },
             "settings": {
+              "daily_push_limit": "<integer>",
               "friend_activity_enabled": "<boolean>",
               "hasena_reminder_time": "<string>",
               "hasena_reminders_enabled": "<boolean>",
               "notifications_enabled": "<boolean>",
+              "paused_until": "<null>",
+              "quiet_hours_enabled": "<boolean>",
+              "quiet_hours_end": "<string>",
+              "quiet_hours_start": "<string>",
               "reading_reminder_time": "<string>",
               "reading_reminders_enabled": "<boolean>",
+              "reminder_weekdays": {
+                "element_shapes": [
+                  "<integer>"
+                ],
+                "length": 7,
+                "type": "list"
+              },
+              "streak_reminder_time": "<string>",
+              "streak_reminders_enabled": "<boolean>",
               "timezone": "<string>"
             },
             "success": "<boolean>",
@@ -6749,12 +6763,26 @@
               "type": "list"
             },
             "settings": {
+              "daily_push_limit": "<integer>",
               "friend_activity_enabled": "<boolean>",
               "hasena_reminder_time": "<string>",
               "hasena_reminders_enabled": "<boolean>",
               "notifications_enabled": "<boolean>",
+              "paused_until": "<null>",
+              "quiet_hours_enabled": "<boolean>",
+              "quiet_hours_end": "<string>",
+              "quiet_hours_start": "<string>",
               "reading_reminder_time": "<string>",
               "reading_reminders_enabled": "<boolean>",
+              "reminder_weekdays": {
+                "element_shapes": [
+                  "<integer>"
+                ],
+                "length": 7,
+                "type": "list"
+              },
+              "streak_reminder_time": "<string>",
+              "streak_reminders_enabled": "<boolean>",
               "timezone": "<string>"
             },
             "success": "<boolean>",
@@ -6844,6 +6872,51 @@
         }
       }
     },
+    "api/v1/todos/notifications/push/native/": {
+      "method": "POST",
+      "name": "notification-native-register",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 400
+        },
+        "owner": {
+          "status": 400
+        }
+      }
+    },
+    "api/v1/todos/notifications/push/native/remove/": {
+      "method": "POST",
+      "name": "notification-native-remove",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 400
+        },
+        "owner": {
+          "status": 400
+        }
+      }
+    },
+    "api/v1/todos/notifications/push/native/status/": {
+      "method": "POST",
+      "name": "notification-native-status",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 400
+        },
+        "owner": {
+          "status": 400
+        }
+      }
+    },
     "api/v1/todos/notifications/push/subscriptions/": {
       "method": "POST",
       "name": "notification-push-register",
@@ -6902,12 +6975,26 @@
         "non_owner": {
           "shape": {
             "settings": {
+              "daily_push_limit": "<integer>",
               "friend_activity_enabled": "<boolean>",
               "hasena_reminder_time": "<string>",
               "hasena_reminders_enabled": "<boolean>",
               "notifications_enabled": "<boolean>",
+              "paused_until": "<null>",
+              "quiet_hours_enabled": "<boolean>",
+              "quiet_hours_end": "<string>",
+              "quiet_hours_start": "<string>",
               "reading_reminder_time": "<string>",
               "reading_reminders_enabled": "<boolean>",
+              "reminder_weekdays": {
+                "element_shapes": [
+                  "<integer>"
+                ],
+                "length": 7,
+                "type": "list"
+              },
+              "streak_reminder_time": "<string>",
+              "streak_reminders_enabled": "<boolean>",
               "timezone": "<string>"
             },
             "success": "<boolean>"
@@ -6917,12 +7004,26 @@
         "owner": {
           "shape": {
             "settings": {
+              "daily_push_limit": "<integer>",
               "friend_activity_enabled": "<boolean>",
               "hasena_reminder_time": "<string>",
               "hasena_reminders_enabled": "<boolean>",
               "notifications_enabled": "<boolean>",
+              "paused_until": "<null>",
+              "quiet_hours_enabled": "<boolean>",
+              "quiet_hours_end": "<string>",
+              "quiet_hours_start": "<string>",
               "reading_reminder_time": "<string>",
               "reading_reminders_enabled": "<boolean>",
+              "reminder_weekdays": {
+                "element_shapes": [
+                  "<integer>"
+                ],
+                "length": 7,
+                "type": "list"
+              },
+              "streak_reminder_time": "<string>",
+              "streak_reminders_enabled": "<boolean>",
               "timezone": "<string>"
             },
             "success": "<boolean>"

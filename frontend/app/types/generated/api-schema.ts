@@ -3328,6 +3328,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/todos/notifications/push/native/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["todos_notifications_push_native_create"];
+        delete: operations["todos_notifications_push_native_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/todos/notifications/push/native/remove/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["todos_notifications_push_native_remove_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/todos/notifications/push/native/status/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["todos_notifications_push_native_status_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/todos/notifications/push/subscriptions/": {
         parameters: {
             query?: never;
@@ -4921,6 +4969,10 @@ export interface components {
             linked_at: string;
             can_unlink: boolean;
         };
+        LogoutRequest: {
+            /** Format: uuid */
+            installation_id?: string;
+        };
         MemberAction: {
             action: components["schemas"]["MemberActionActionEnum"];
             provider?: components["schemas"]["ProviderEnum"];
@@ -5168,6 +5220,36 @@ export interface components {
             month?: string | null;
             plan_id: number | null;
         };
+        NativePushResponse: {
+            success: boolean;
+            enabled: boolean;
+        };
+        NativePushStatusResponse: {
+            success: boolean;
+            enabled: boolean;
+            registered: boolean;
+        };
+        /**
+         * @description 네이티브 푸시 구독 등록/상태/해제 공통 입력.
+         *
+         *     token 과 installation_id 는 응답·로그에 다시 노출하지 않는다.
+         */
+        NativePushSubscription: {
+            token: string;
+            installation_id: string;
+        };
+        /**
+         * @description 네이티브 푸시 구독 등록/상태/해제 공통 입력.
+         *
+         *     token 과 installation_id 는 응답·로그에 다시 노출하지 않는다.
+         */
+        NativePushSubscriptionRegister: {
+            token: string;
+            installation_id: string;
+            platform: components["schemas"]["PlatformEnum"];
+            /** @default true */
+            explicit: boolean;
+        };
         NextReadingPositionResponse: {
             success: boolean;
             status: string;
@@ -5352,6 +5434,29 @@ export interface components {
             /** Format: date-time */
             readonly updated_at?: string;
         };
+        PatchedNotificationSettings: {
+            notifications_enabled?: boolean;
+            reading_reminders_enabled?: boolean;
+            hasena_reminders_enabled?: boolean;
+            friend_activity_enabled?: boolean;
+            /** Format: time */
+            reading_reminder_time?: string;
+            /** Format: time */
+            hasena_reminder_time?: string;
+            streak_reminders_enabled?: boolean;
+            /** Format: time */
+            streak_reminder_time?: string;
+            reminder_weekdays?: number[];
+            quiet_hours_enabled?: boolean;
+            /** Format: time */
+            quiet_hours_start?: string;
+            /** Format: time */
+            quiet_hours_end?: string;
+            /** Format: date-time */
+            paused_until?: string | null;
+            daily_push_limit?: number;
+            timezone?: string;
+        };
         /** @description 묵상노트 Serializer */
         PatchedReflectionNote: {
             readonly id?: number;
@@ -5432,6 +5537,12 @@ export interface components {
              */
             percent: number;
         };
+        /**
+         * @description * `ios` - iOS
+         *     * `android` - Android
+         * @enum {string}
+         */
+        PlatformEnum: "ios" | "android";
         ProfileCalendarData: {
             calendar: components["schemas"]["ProfileCalendarEntry"][];
             plans: components["schemas"]["ProfileCalendarPlan"][];
@@ -5786,6 +5897,18 @@ export interface components {
             reading_reminder_time?: string;
             /** Format: time */
             hasena_reminder_time?: string;
+            streak_reminders_enabled?: boolean;
+            /** Format: time */
+            streak_reminder_time?: string;
+            reminder_weekdays?: number[];
+            quiet_hours_enabled?: boolean;
+            /** Format: time */
+            quiet_hours_start?: string;
+            /** Format: time */
+            quiet_hours_end?: string;
+            /** Format: date-time */
+            paused_until?: string | null;
+            daily_push_limit: number;
             timezone?: string;
         };
         TodoSuccessMessageResponse: {
@@ -5812,11 +5935,12 @@ export interface components {
         /**
          * @description * `reading_reminder` - 통독 리마인더
          *     * `hasena_reminder` - 하세나하시조 리마인더
+         *     * `streak_reminder` - 연속 기록 리마인더
          *     * `friend_activity` - 친구 활동
          *     * `system` - 시스템
          * @enum {string}
          */
-        TypeEnum: "reading_reminder" | "hasena_reminder" | "friend_activity" | "system";
+        TypeEnum: "reading_reminder" | "hasena_reminder" | "streak_reminder" | "friend_activity" | "system";
         UnfollowData: {
             unfollowed_user_id: number;
         };
@@ -6375,7 +6499,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LogoutRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LogoutRequest"];
+                "multipart/form-data": components["schemas"]["LogoutRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -7640,7 +7770,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LogoutRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LogoutRequest"];
+                "multipart/form-data": components["schemas"]["LogoutRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -10472,6 +10608,100 @@ export interface operations {
             };
         };
     };
+    todos_notifications_push_native_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativePushSubscriptionRegister"];
+                "application/x-www-form-urlencoded": components["schemas"]["NativePushSubscriptionRegister"];
+                "multipart/form-data": components["schemas"]["NativePushSubscriptionRegister"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativePushResponse"];
+                };
+            };
+        };
+    };
+    todos_notifications_push_native_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessCountResponse"];
+                };
+            };
+        };
+    };
+    todos_notifications_push_native_remove_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativePushSubscription"];
+                "application/x-www-form-urlencoded": components["schemas"]["NativePushSubscription"];
+                "multipart/form-data": components["schemas"]["NativePushSubscription"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessCountResponse"];
+                };
+            };
+        };
+    };
+    todos_notifications_push_native_status_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativePushSubscription"];
+                "application/x-www-form-urlencoded": components["schemas"]["NativePushSubscription"];
+                "multipart/form-data": components["schemas"]["NativePushSubscription"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativePushStatusResponse"];
+                };
+            };
+        };
+    };
     todos_notifications_push_subscriptions_create: {
         parameters: {
             query?: never;
@@ -10536,7 +10766,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedNotificationSettings"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedNotificationSettings"];
+                "multipart/form-data": components["schemas"]["PatchedNotificationSettings"];
+            };
+        };
         responses: {
             200: {
                 headers: {

@@ -9,6 +9,9 @@ from datetime import time
 
 VISITOR_COUNT_INCREMENT_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
 
+def all_reminder_weekdays():
+    return list(range(7))
+
 class BibleReadingPlan(models.Model):
     """성경 읽기 플랜"""
     name = models.CharField(max_length=100)
@@ -308,6 +311,58 @@ class HasenaSummaryFailure(models.Model):
         ]
 
 
+class NativePushOptOut(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    installation_id = models.UUIDField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'installation_id'], name='native_optout_user_install'),
+        ]
+
+
+class NativePushSubscription(models.Model):
+    """네이티브(Expo) 푸시 구독 — 모바일 셸의 Expo push token 바인딩.
+
+    token 은 디바이스가 발급받는 Expo push token 이고 installation_id 는 앱
+    설치 식별자다. 활성(enabled) 바인딩은 다른 계정이 임의로 가져갈 수 없고,
+    비활성 바인딩이나 동일 installation_id 를 든 요청만 재바인딩된다.
+    """
+
+    PLATFORM_CHOICES = [
+        ('ios', 'iOS'),
+        ('android', 'Android'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='native_push_subscriptions',
+    )
+    token = models.CharField(max_length=255, unique=True)
+    platform = models.CharField(max_length=16, choices=PLATFORM_CHOICES)
+    installation_id = models.UUIDField(unique=True)
+    enabled = models.BooleanField(default=True)
+    generation = models.PositiveIntegerField(default=0)
+    failure_count = models.PositiveIntegerField(default=0)
+    last_ticket_id = models.CharField(max_length=64, null=True, blank=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_failure_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=['user', 'enabled'],
+                name='native_push_user_enabled_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.platform}"
+
+
 class HasenaEntry(models.Model):
     date = models.DateField(unique=True, db_index=True, help_text="하세나 기준 날짜")
     video_id = models.CharField(max_length=20, db_index=True)
@@ -346,6 +401,17 @@ class NotificationSettings(models.Model):
     service_notice_enabled = models.BooleanField(default=True)
     reading_reminder_time = models.TimeField(default=time(20, 0))
     hasena_reminder_time = models.TimeField(default=time(7, 0))
+    streak_reminders_enabled = models.BooleanField(default=False)
+    streak_reminder_time = models.TimeField(default=time(22, 0))
+    reminder_weekdays = models.JSONField(
+        default=all_reminder_weekdays,
+        help_text='예약 리마인더를 보낼 요일 (0=월요일, 6=일요일)',
+    )
+    quiet_hours_enabled = models.BooleanField(default=False)
+    quiet_hours_start = models.TimeField(default=time(23, 0))
+    quiet_hours_end = models.TimeField(default=time(7, 0))
+    paused_until = models.DateTimeField(null=True, blank=True)
+    daily_push_limit = models.PositiveIntegerField(default=3)
     timezone = models.CharField(max_length=64, default='Asia/Seoul')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -356,6 +422,13 @@ class NotificationSettings(models.Model):
             models.Index(fields=['notifications_enabled', 'reading_reminders_enabled']),
             models.Index(fields=['notifications_enabled', 'hasena_reminders_enabled']),
             models.Index(fields=['notifications_enabled', 'friend_activity_enabled']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(daily_push_limit__gte=1)
+                & models.Q(daily_push_limit__lte=10),
+                name='notification_settings_daily_push_limit_range',
+            ),
         ]
         verbose_name = '알림 설정'
         verbose_name_plural = '알림 설정'
@@ -397,6 +470,7 @@ class Notification(models.Model):
     TYPE_CHOICES = [
         ('reading_reminder', '통독 리마인더'),
         ('hasena_reminder', '하세나하시조 리마인더'),
+        ('streak_reminder', '연속 기록 리마인더'),
         ('friend_activity', '친구 활동'),
         ('system', '시스템'),
     ]
@@ -420,6 +494,8 @@ class Notification(models.Model):
     data = models.JSONField(default=dict, blank=True)
     dedupe_key = models.CharField(max_length=160, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
+    push_attempted_at = models.DateTimeField(null=True, blank=True)
+    push_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -428,6 +504,7 @@ class Notification(models.Model):
             models.Index(fields=['recipient', '-created_at']),
             models.Index(fields=['recipient', 'read_at']),
             models.Index(fields=['dedupe_key']),
+            models.Index(fields=['recipient', 'push_attempted_at'], name='notification_push_budget_idx'),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -446,6 +523,17 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.recipient.nickname} - {self.title}"
+
+class NativePushReceipt(models.Model):
+    subscription = models.ForeignKey(NativePushSubscription, on_delete=models.CASCADE)
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
+    ticket_id = models.CharField(max_length=100, unique=True)
+    token_fingerprint = models.CharField(max_length=64)
+    subscription_generation = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    checked_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    error_code = models.CharField(max_length=80, blank=True)
+
 
 class VisitorCount(models.Model):
     """일일 방문자 수 카운터"""
