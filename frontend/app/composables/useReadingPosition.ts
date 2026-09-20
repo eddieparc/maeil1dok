@@ -31,10 +31,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isValidScrollPosition = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
 
-const normalizeBookCode = (book: string): string => {
-  const normalizedBook = book.trim().toLowerCase();
-  return normalizedBook === 'jon' ? 'jnh' : normalizedBook;
-};
+const normalizeBookCode = (book: string): string => book.trim().toLowerCase();
 
 const normalizeVersionCode = (version: string): string => version.trim().toUpperCase();
 
