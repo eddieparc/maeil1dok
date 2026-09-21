@@ -1,60 +1,56 @@
 /**
- * Web path → native route mapping (pure logic, test target).
+ * routeMap — 웹 경로를 네이티브 라우트로 매핑하는 순수 모듈 (test target).
  *
- * The shell's deep links and (later) in-app navigation decisions share one
- * table: which web paths have a native home, and which still fall back to the
- * WebView. Keeping it pure lets node --test pin the contract without a device.
+ * 네이티브 탭(홈/성경/통독표/함께/내 정보)에 해당하는 웹 경로는 탭으로,
+ * 나머지는 WebView 스택 화면으로 보낸다. 탭으로 보낼 때는 deep link의
+ * 원래 URL을 params로 함께 넘겨 WebView 탭이 그 페이지를 열 수 있게 한다.
  */
 
-export type TabRouteName = 'Home' | 'Bible' | 'Schedule' | 'More';
+export type TabRouteName = 'Home' | 'Bible' | 'Schedule' | 'Together' | 'Profile';
 
 export type RouteTarget =
-  | { readonly type: 'tab'; readonly name: TabRouteName }
+  | { readonly type: 'tab'; readonly name: TabRouteName; readonly url?: string }
   | { readonly type: 'webview'; readonly url: string }
   | { readonly type: 'login' };
 
-type TabSection = {
-  readonly prefix: string;
-  readonly name: TabRouteName;
+const normalizePath = (pathname: string): string => {
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
 };
 
-/**
- * Section prefixes match the path itself or anything below it ('/bible' and
- * '/bible/reading/...' both land on the Bible tab). A look-alike prefix like
- * '/bible-study' does NOT match — the trailing-slash requirement keeps section
- * boundaries honest.
- */
-const TAB_SECTIONS: readonly TabSection[] = [
+const TAB_ROUTES: ReadonlyArray<{ readonly prefix: string; readonly name: TabRouteName }> = [
   { prefix: '/bible', name: 'Bible' },
   { prefix: '/plan', name: 'Schedule' },
-  { prefix: '/account/settings', name: 'More' },
+  { prefix: '/groups', name: 'Together' },
+  { prefix: '/profile', name: 'Profile' },
 ];
 
-const matchesSection = (pathname: string, prefix: string): boolean =>
-  pathname === prefix || pathname.startsWith(`${prefix}/`);
+const matchesPrefix = (path: string, prefix: string): boolean =>
+  path === prefix || path.startsWith(`${prefix}/`);
 
-export const mapWebPathToRoute = (
-  pathname: string | null | undefined,
-  search?: string | null,
-): RouteTarget => {
-  if (typeof pathname !== 'string' || pathname.length === 0 || !pathname.startsWith('/')) {
+export function mapWebPathToRoute(pathname: string | null | undefined, search = ''): RouteTarget {
+  if (!pathname) {
     return { type: 'webview', url: '/' };
   }
 
-  if (pathname === '/') {
-    return { type: 'tab', name: 'Home' };
-  }
+  const path = normalizePath(pathname);
+  const url = `${path}${search || ''}`;
 
-  if (matchesSection(pathname, '/login')) {
+  if (matchesPrefix(path, '/login')) {
     return { type: 'login' };
   }
 
-  for (const section of TAB_SECTIONS) {
-    if (matchesSection(pathname, section.prefix)) {
-      return { type: 'tab', name: section.name };
+  if (path === '/') {
+    return { type: 'tab', name: 'Home' };
+  }
+
+  for (const route of TAB_ROUTES) {
+    if (matchesPrefix(path, route.prefix)) {
+      return { type: 'tab', name: route.name, url };
     }
   }
 
-  const query = typeof search === 'string' ? search : '';
-  return { type: 'webview', url: `${pathname}${query}` };
-};
+  return { type: 'webview', url };
+}

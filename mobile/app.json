@@ -26,7 +26,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.maeil1dok.app",
-      "buildNumber": "24",
+      "buildNumber": "25",
       "icon": "./assets/icon-ios.png",
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -72,7 +72,7 @@
           ]
         }
       ],
-      "versionCode": 24
+      "versionCode": 25
     },
     "web": {
       "favicon": "./assets/favicon.png"

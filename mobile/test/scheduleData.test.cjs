@@ -5,6 +5,21 @@ const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
 
+// scheduleData.ts imports ./bibleBooks — register a .ts loader so the
+// transpiled CommonJS require() can resolve it (same as homeData.test.cjs).
+require.extensions['.ts'] = (moduleInstance, filename) => {
+  const source = fs.readFileSync(filename, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+    fileName: filename,
+  });
+  moduleInstance._compile(transpiled.outputText, filename);
+};
+
 function loadTsModule(fileName) {
   const filePath = path.join(__dirname, '..', fileName);
   const source = fs.readFileSync(filePath, 'utf8');
@@ -26,11 +41,18 @@ function loadTsModule(fileName) {
 
 const {
   normalizeMonthSchedules,
+  normalizeSubscriptions,
+  normalizeNextPosition,
   groupByDate,
   buildMonthGrid,
   pickDefaultPlan,
   summarizeDay,
   shiftMonth,
+  formatScheduleDate,
+  scheduleTitle,
+  readingStatus,
+  monthSummary,
+  sortSchedules,
 } = loadTsModule('api/scheduleData.ts');
 
 const entry = (overrides = {}) => ({
@@ -228,4 +250,126 @@ test('shiftMonth crosses year boundaries both ways', () => {
   assert.deepEqual(shiftMonth(2026, 12, 1), { year: 2027, month: 1 });
   assert.deepEqual(shiftMonth(2026, 9, 1), { year: 2026, month: 10 });
   assert.deepEqual(shiftMonth(2026, 9, -1), { year: 2026, month: 8 });
+});
+
+// --- normalizeSubscriptions (GET /api/v1/todos/plan/) ----------------------
+
+test('normalizeSubscriptions maps the signed-in subscription shape', () => {
+  const out = normalizeSubscriptions([
+    { id: 11, plan_id: 7, plan_name: '2026 성경통독', is_active: true, is_default: true, start_date: '2026-01-01' },
+    { id: 12, plan_id: 8, plan_name: '열왕기', is_active: false, is_default: false, start_date: '2026-02-01' },
+  ]);
+  assert.equal(out.length, 2);
+  assert.deepEqual(out[0], {
+    id: 11, plan_id: 7, plan_name: '2026 성경통독',
+    is_active: true, is_default: true, start_date: '2026-01-01',
+  });
+  assert.equal(out[1].is_active, false);
+});
+
+test('normalizeSubscriptions maps the guest public-plan shape (no id/is_active)', () => {
+  const out = normalizeSubscriptions([
+    { plan_id: 7, plan_name: '2026 성경통독', is_default: true },
+    { plan_id: 8, plan_name: '다른 플랜', is_default: false },
+  ]);
+  assert.equal(out.length, 2);
+  assert.equal(out[0].id, 7);
+  assert.equal(out[0].is_active, true);
+  assert.equal(out[0].is_default, true);
+  assert.equal(out[1].plan_id, 8);
+});
+
+test('normalizeSubscriptions drops rows without a usable plan_id and non-arrays', () => {
+  assert.deepEqual(normalizeSubscriptions(null), []);
+  assert.deepEqual(normalizeSubscriptions({ subscriptions: [] }), []);
+  const out = normalizeSubscriptions([
+    { plan_name: 'no id' },
+    { plan_id: 'x' },
+    { plan_id: 9, plan_name: 'ok' },
+    'garbage',
+  ]);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].plan_id, 9);
+});
+
+// --- normalizeNextPosition (GET /api/v1/todos/next-position/) ---------------
+
+test('normalizeNextPosition accepts known statuses with a date', () => {
+  for (const status of ['next_incomplete', 'all_completed', 'today', 'nearest', 'no_schedule']) {
+    const out = normalizeNextPosition({ success: true, status, date: '2026-09-20', message: 'm' });
+    assert.equal(out.status, status);
+    assert.equal(out.date, '2026-09-20');
+    assert.equal(out.message, 'm');
+  }
+});
+
+test('normalizeNextPosition returns null for unknown status or non-object', () => {
+  assert.equal(normalizeNextPosition({ status: 'weird' }), null);
+  assert.equal(normalizeNextPosition(null), null);
+  assert.equal(normalizeNextPosition('x'), null);
+});
+
+test('normalizeNextPosition tolerates missing date/message', () => {
+  const out = normalizeNextPosition({ success: false, status: 'no_schedule' });
+  assert.equal(out.status, 'no_schedule');
+  assert.equal(out.date, null);
+  assert.equal(out.message, null);
+});
+
+// --- formatScheduleDate -----------------------------------------------------
+
+test('formatScheduleDate renders M/D(요일)', () => {
+  // 2026-09-01 is a Tuesday.
+  assert.equal(formatScheduleDate('2026-09-01'), '9/1(화)');
+  // 2026-09-06 is a Sunday.
+  assert.equal(formatScheduleDate('2026-09-06'), '9/6(일)');
+  assert.equal(formatScheduleDate('bad'), 'bad');
+});
+
+// --- scheduleTitle ----------------------------------------------------------
+
+test('scheduleTitle uses 편 for 시편 and 장 otherwise, en-dash ranges', () => {
+  assert.equal(scheduleTitle({ book: '시편', start_chapter: 7, end_chapter: 12 }), '시편 7–12편');
+  assert.equal(scheduleTitle({ book: '시편', start_chapter: 23, end_chapter: 23 }), '시편 23편');
+  assert.equal(scheduleTitle({ book: '창세기', start_chapter: 1, end_chapter: 3 }), '창세기 1–3장');
+  assert.equal(scheduleTitle({ book: '창세기', start_chapter: 1, end_chapter: 1 }), '창세기 1장');
+  // 코드 형태로 들어와도 동일하게 동작해야 한다.
+  assert.equal(scheduleTitle({ book: 'psa', start_chapter: 7, end_chapter: 12 }), '시편 7–12편');
+  assert.equal(scheduleTitle({ book: 'gen', start_chapter: 1, end_chapter: 3 }), '창세기 1–3장');
+});
+
+// --- readingStatus ----------------------------------------------------------
+
+test('readingStatus: completed wins; else today=current, past=not_completed, future=upcoming', () => {
+  const today = '2026-09-20';
+  assert.equal(readingStatus('2026-09-19', true, today), 'completed');
+  assert.equal(readingStatus('2026-09-20', true, today), 'completed');
+  assert.equal(readingStatus('2026-09-20', false, today), 'current');
+  assert.equal(readingStatus('2026-09-19', false, today), 'not_completed');
+  assert.equal(readingStatus('2026-09-21', false, today), 'upcoming');
+});
+
+// --- monthSummary -----------------------------------------------------------
+
+test('monthSummary counts fully-completed days and percent', () => {
+  const grouped = groupByDate([
+    entry({ id: 1, date: '2026-09-01', is_completed: true }),
+    entry({ id: 2, date: '2026-09-02', is_completed: true }),
+    entry({ id: 3, date: '2026-09-02', is_completed: false }), // day not fully done
+    entry({ id: 4, date: '2026-09-03', is_completed: false }),
+  ]);
+  assert.deepEqual(monthSummary(grouped), { totalDays: 3, completedDays: 1, percent: 33 });
+  assert.deepEqual(monthSummary({}), { totalDays: 0, completedDays: 0, percent: 0 });
+});
+
+// --- sortSchedules ----------------------------------------------------------
+
+test('sortSchedules orders by date then canonical book order then id', () => {
+  const out = sortSchedules([
+    entry({ id: 3, date: '2026-09-02', book: '시편' }),
+    entry({ id: 1, date: '2026-09-01', book: '창세기' }),
+    entry({ id: 2, date: '2026-09-01', book: '출애굽기' }),
+    entry({ id: 4, date: '2026-09-01', book: '창세기' }),
+  ]);
+  assert.deepEqual(out.map((s) => s.id), [4, 1, 2, 3]);
 });

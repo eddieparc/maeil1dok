@@ -32,14 +32,16 @@ test('root path maps to the Home tab', () => {
   });
 });
 
-test('bible section maps to the Bible tab', () => {
+test('bible section maps to the Bible tab with the deep-link URL', () => {
   assert.deepEqual(mapWebPathToRoute('/bible', ''), {
     type: 'tab',
     name: 'Bible',
+    url: '/bible',
   });
   assert.deepEqual(mapWebPathToRoute('/bible/reading/genesis/1', ''), {
     type: 'tab',
     name: 'Bible',
+    url: '/bible/reading/genesis/1',
   });
 });
 
@@ -47,21 +49,44 @@ test('plan section maps to the Schedule tab', () => {
   assert.deepEqual(mapWebPathToRoute('/plan', ''), {
     type: 'tab',
     name: 'Schedule',
+    url: '/plan',
   });
   assert.deepEqual(mapWebPathToRoute('/plan/2026', ''), {
     type: 'tab',
     name: 'Schedule',
+    url: '/plan/2026',
   });
 });
 
-test('account settings maps to the More tab', () => {
-  assert.deepEqual(mapWebPathToRoute('/account/settings', ''), {
+test('groups section maps to the Together tab', () => {
+  assert.deepEqual(mapWebPathToRoute('/groups', ''), {
     type: 'tab',
-    name: 'More',
+    name: 'Together',
+    url: '/groups',
+  });
+  assert.deepEqual(mapWebPathToRoute('/groups/12', ''), {
+    type: 'tab',
+    name: 'Together',
+    url: '/groups/12',
+  });
+});
+
+test('profile section maps to the Profile tab', () => {
+  assert.deepEqual(mapWebPathToRoute('/profile/7', ''), {
+    type: 'tab',
+    name: 'Profile',
+    url: '/profile/7',
+  });
+});
+
+test('account settings falls back to the webview', () => {
+  assert.deepEqual(mapWebPathToRoute('/account/settings', ''), {
+    type: 'webview',
+    url: '/account/settings',
   });
   assert.deepEqual(mapWebPathToRoute('/account/settings/notifications', ''), {
-    type: 'tab',
-    name: 'More',
+    type: 'webview',
+    url: '/account/settings/notifications',
   });
 });
 
