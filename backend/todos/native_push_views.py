@@ -11,6 +11,7 @@ from .models import NativePushSubscription, NativePushOptOut
 from .notification_serializers import (
     NativePushOwnershipConflict,
     NativePushSubscriptionRegisterSerializer,
+    NativePushSubscriptionRemoveSerializer,
     NativePushSubscriptionSerializer,
 )
 from .openapi_serializers import SuccessCountResponseSerializer
@@ -35,9 +36,10 @@ def _authorized(request):
 @transaction.atomic
 def _remove(request, data):
     request.user.__class__.objects.select_for_update().get(pk=request.user.pk)
-    NativePushOptOut.objects.get_or_create(
-        user=request.user, installation_id=data['installation_id'],
-    )
+    if data['opt_out']:
+        NativePushOptOut.objects.get_or_create(
+            user=request.user, installation_id=data['installation_id'],
+        )
     count = NativePushSubscription.objects.filter(
         user=request.user, token=data['token'],
         installation_id=data['installation_id'],
@@ -47,7 +49,7 @@ def _remove(request, data):
 
 @extend_schema(methods=['POST'], request=NativePushSubscriptionRegisterSerializer,
                responses={200: NativePushResponseSerializer})
-@extend_schema(methods=['DELETE'], request=NativePushSubscriptionSerializer,
+@extend_schema(methods=['DELETE'], request=NativePushSubscriptionRemoveSerializer,
                responses={200: SuccessCountResponseSerializer})
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -56,7 +58,7 @@ def native_push_subscription(request):
     if denial is not None:
         return denial
     serializer_type = (NativePushSubscriptionRegisterSerializer
-                       if request.method == 'POST' else NativePushSubscriptionSerializer)
+                       if request.method == 'POST' else NativePushSubscriptionRemoveSerializer)
     serializer = serializer_type(data=request.data)
     serializer.is_valid(raise_exception=True)
     if request.method == 'DELETE':
@@ -97,7 +99,7 @@ def native_push_status(request):
     })
 
 
-@extend_schema(request=NativePushSubscriptionSerializer,
+@extend_schema(request=NativePushSubscriptionRemoveSerializer,
                responses={200: SuccessCountResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -105,6 +107,6 @@ def remove_native_push(request):
     denial = _authorized(request)
     if denial is not None:
         return denial
-    serializer = NativePushSubscriptionSerializer(data=request.data)
+    serializer = NativePushSubscriptionRemoveSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     return _remove(request, serializer.validated_data)

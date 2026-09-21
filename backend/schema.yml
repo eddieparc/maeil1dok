@@ -4996,13 +4996,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NativePushSubscription'
+              $ref: '#/components/schemas/NativePushSubscriptionRemove'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/NativePushSubscription'
+              $ref: '#/components/schemas/NativePushSubscriptionRemove'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/NativePushSubscription'
+              $ref: '#/components/schemas/NativePushSubscriptionRemove'
         required: true
       security:
       - cookieJwtAuth: []
@@ -9260,6 +9260,25 @@ components:
       required:
       - installation_id
       - platform
+      - token
+    NativePushSubscriptionRemove:
+      type: object
+      description: |-
+        네이티브 푸시 구독 등록/상태/해제 공통 입력.
+
+        token 과 installation_id 는 응답·로그에 다시 노출하지 않는다.
+      properties:
+        token:
+          type: string
+          maxLength: 255
+        installation_id:
+          type: string
+          maxLength: 64
+        opt_out:
+          type: boolean
+          default: true
+      required:
+      - installation_id
       - token
     NextReadingPositionResponse:
       type: object

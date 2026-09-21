@@ -16,7 +16,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 from accounts.authentication import REFRESH_TOKEN_COOKIE
 
-from .models import NativePushSubscription
+from .models import NativePushOptOut, NativePushSubscription
 
 User = get_user_model()
 
@@ -94,6 +94,45 @@ class NativePushRegisterTest(TestCase):
         self.assertFalse(NativePushSubscription.objects.get(token=TOKEN_A).enabled)
         enabled = self.client.post(NATIVE_URL, _payload(), format='json')
         self.assertEqual(enabled.data, {'success': True, 'enabled': True})
+
+    def test_environment_suspension_disables_transport_without_opt_out(self):
+        self.client.post(NATIVE_URL, _payload(), format='json')
+
+        response = self.client.post(
+            REMOVE_URL,
+            {'token': TOKEN_A, 'installation_id': INSTALL_A, 'opt_out': False},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(NativePushSubscription.objects.get(token=TOKEN_A).enabled)
+        self.assertFalse(NativePushOptOut.objects.filter(user=self.user).exists())
+
+    def test_returning_to_environment_can_restore_suspended_transport(self):
+        self.client.post(NATIVE_URL, _payload(), format='json')
+        self.client.post(
+            REMOVE_URL,
+            {'token': TOKEN_A, 'installation_id': INSTALL_A, 'opt_out': False},
+            format='json',
+        )
+
+        response = self.client.post(NATIVE_URL, {**_payload(), 'explicit': False}, format='json')
+
+        self.assertEqual(response.data, {'success': True, 'enabled': True})
+
+    def test_environment_suspension_preserves_existing_manual_opt_out(self):
+        self.client.post(NATIVE_URL, _payload(), format='json')
+        self.client.post(REMOVE_URL, _payload(), format='json')
+
+        self.client.post(
+            REMOVE_URL,
+            {'token': TOKEN_A, 'installation_id': INSTALL_A, 'opt_out': False},
+            format='json',
+        )
+
+        self.assertTrue(NativePushOptOut.objects.filter(user=self.user).exists())
+        response = self.client.post(NATIVE_URL, {**_payload(), 'explicit': False}, format='json')
+        self.assertEqual(response.data, {'success': True, 'enabled': False})
 
     def test_register_creates_enabled_subscription(self):
         response = self.client.post(NATIVE_URL, _payload(), format='json')

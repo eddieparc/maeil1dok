@@ -252,6 +252,10 @@ class NativePushSubscriptionSerializer(serializers.Serializer):
             raise serializers.ValidationError('installation_id는 UUID 형식이어야 합니다.')
 
 
+class NativePushSubscriptionRemoveSerializer(NativePushSubscriptionSerializer):
+    opt_out = serializers.BooleanField(default=True)
+
+
 class NativePushSubscriptionRegisterSerializer(NativePushSubscriptionSerializer):
     platform = serializers.ChoiceField(choices=NativePushSubscription.PLATFORM_CHOICES)
     explicit = serializers.BooleanField(default=True)

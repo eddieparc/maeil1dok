@@ -5250,6 +5250,17 @@ export interface components {
             /** @default true */
             explicit: boolean;
         };
+        /**
+         * @description 네이티브 푸시 구독 등록/상태/해제 공통 입력.
+         *
+         *     token 과 installation_id 는 응답·로그에 다시 노출하지 않는다.
+         */
+        NativePushSubscriptionRemove: {
+            token: string;
+            installation_id: string;
+            /** @default true */
+            opt_out: boolean;
+        };
         NextReadingPositionResponse: {
             success: boolean;
             status: string;
@@ -10661,9 +10672,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NativePushSubscription"];
-                "application/x-www-form-urlencoded": components["schemas"]["NativePushSubscription"];
-                "multipart/form-data": components["schemas"]["NativePushSubscription"];
+                "application/json": components["schemas"]["NativePushSubscriptionRemove"];
+                "application/x-www-form-urlencoded": components["schemas"]["NativePushSubscriptionRemove"];
+                "multipart/form-data": components["schemas"]["NativePushSubscriptionRemove"];
             };
         };
         responses: {
