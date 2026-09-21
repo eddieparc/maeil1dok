@@ -50,6 +50,7 @@ yarn-error.*
 *.orig.*
 
 # Credentials
+google-services.json
 google-service-account.json
 credentials.json
 
