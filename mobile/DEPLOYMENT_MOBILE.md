@@ -366,6 +366,19 @@ Firebase 설정을 추가하거나 바꾸면 Android 네이티브 빌드가 필�
 절차 상세: [Expo FCM V1 자격 설정](https://docs.expo.dev/push-notifications/fcm-credentials/),
 [EAS 파일 환경변수](https://docs.expo.dev/eas/environment-variables/).
 
+### 모바일 오류 수집과 소스맵
+
+모바일은 매일일독 Sentry 조직 `c919d9f9be39`의 기존
+`maeil1dok-mobile` 프로젝트(ID `4512081872093264`)를 사용한다.
+`app.json`의 Sentry 플러그인은 소스맵 업로드 대상을 지정하고,
+`EXPO_PUBLIC_SENTRY_DSN`은 같은 프로젝트의 오류 수집 주소를 지정한다.
+
+EAS의 production, preview, development 환경에 DSN과 secret
+`SENTRY_AUTH_TOKEN`이 연결되어 있다. 로컬 빌드 토큰은 저장소나 `.env`가 아닌
+macOS Keychain의 `maeil1dok-sentry` 서비스, `automation-token` 계정에서
+실행 시 주입한다. 토큰에 다른 조직의 권한만 있으면 업로드는 403으로 실패한다.
+토큰 값이나 EAS의 인코딩된 로컬 빌드 작업 데이터를 로그에 출력하지 않는다.
+
 ---
 
 ## 9. 트러블슈팅

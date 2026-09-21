@@ -40,7 +40,7 @@ test('native crash telemetry is wired into Expo and the app root', () => {
     (plugin) => Array.isArray(plugin) && plugin[0] === '@sentry/react-native/expo',
   );
   assert.deepEqual(sentryPlugin?.[1], {
-    organization: 'jgplabs',
+    organization: 'c919d9f9be39',
     project: 'maeil1dok-mobile',
   });
   assert.match(appSource, /import \* as Sentry from '@sentry\/react-native'/);

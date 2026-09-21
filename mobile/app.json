@@ -110,7 +110,7 @@
       [
         "@sentry/react-native/expo",
         {
-          "organization": "jgplabs",
+          "organization": "c919d9f9be39",
           "project": "maeil1dok-mobile"
         }
       ]
