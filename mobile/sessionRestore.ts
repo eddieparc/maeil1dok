@@ -24,7 +24,9 @@ export interface StoredSessionRestoreDependencies {
   readonly isRestoreCurrent: () => boolean;
 }
 
-const AUTH_COOKIE_NAMES = ['access_token', 'refresh_token'] as const;
+const AUTH_COOKIE_NAMES = [
+  'access_token', 'refresh_token', 'beta_access_token', 'beta_refresh_token',
+] as const;
 
 export const hasAuthCookies = (cookies: unknown): boolean => {
   if (!cookies || typeof cookies !== 'object' || Array.isArray(cookies)) return false;

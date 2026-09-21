@@ -118,9 +118,9 @@ test('native logout removes only Maeil1Dok auth cookies', async () => {
   assert.equal(observations.clearAllCalls, 0, 'logout must not destroy unrelated cookies');
   assert.deepEqual(
     [...new Set(observations.cookieSets.map(({ cookie }) => cookie.name))].sort(),
-    ['access_token', 'refresh_token'],
+    ['access_token', 'beta_access_token', 'beta_refresh_token', 'refresh_token'],
   );
-  assert.equal(observations.cookieResponseSets.length, 4);
+  assert.equal(observations.cookieResponseSets.length, 8);
   assert.ok(
     observations.cookieResponseSets.every(({ cookie }) => cookie.includes('Max-Age=0')),
   );
@@ -162,6 +162,10 @@ test('iOS logout clears auth cookies from native and WebKit stores only', async 
     { url: 'https://api.maeil1dok.app', name: 'access_token', useWebKit: true },
     { url: 'https://api.maeil1dok.app', name: 'refresh_token', useWebKit: false },
     { url: 'https://api.maeil1dok.app', name: 'refresh_token', useWebKit: true },
+    { url: 'https://api.maeil1dok.app', name: 'beta_access_token', useWebKit: false },
+    { url: 'https://api.maeil1dok.app', name: 'beta_access_token', useWebKit: true },
+    { url: 'https://api.maeil1dok.app', name: 'beta_refresh_token', useWebKit: false },
+    { url: 'https://api.maeil1dok.app', name: 'beta_refresh_token', useWebKit: true },
   ]);
   assert.equal(observations.setCalls, 0);
   assert.deepEqual(observations.secureDeletes.sort(), [

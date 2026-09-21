@@ -1,4 +1,6 @@
-const AUTH_COOKIE_NAMES = ['access_token', 'refresh_token'] as const;
+const AUTH_COOKIE_NAMES = [
+  'access_token', 'refresh_token', 'beta_access_token', 'beta_refresh_token',
+] as const;
 const SECURE_STORE_TOKEN_KEYS = [
   'maeil1dok_access_token',
   'maeil1dok_refresh_token',

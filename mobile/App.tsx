@@ -748,7 +748,9 @@ function AppContent() {
 
   useEffect(() => {
     if (betaMode === null) return;
+    let active = true;
     const receive = (response: Notifications.NotificationResponse) => {
+      if (!active || !isPushBridgeOrigin(currentWebViewUrlRef.current, WEB_APP_URL)) return;
       const request = response.notification.request;
       if (handledNotificationRef.current === request.identifier) return;
       const url = pushDestination(request.content.data?.url, WEB_APP_URL, request.content.data?.origin);
@@ -771,6 +773,7 @@ function AppContent() {
       if (state === 'active') void registerForPushNotifications();
     });
     return () => {
+      active = false;
       notificationSubscription.remove();
       tokenSubscription.remove();
       foreground.remove();
@@ -985,13 +988,16 @@ function AppContent() {
           // stack next launch, then remount the WebView on the new origin.
           const enabled = message.enabled === true;
           const target = resolveStack(enabled);
-          void SecureStore.setItemAsync(BETA_MODE_STORAGE_KEY, enabled ? '1' : '0')
-            .catch((error) => console.error('[BetaMode] SecureStore write failed:', error));
-          setBetaMode(enabled);
-          webViewReadyRef.current = false;
-          currentWebViewUrlRef.current = target.web;
-          setIsLoading(true);
-          setWebViewKey((previous) => previous + 1);
+          void (async () => {
+            await SecureStore.setItemAsync(BETA_MODE_STORAGE_KEY, enabled ? '1' : '0');
+            pendingUrlRef.current = null;
+            setPendingUrl(null);
+            webViewReadyRef.current = false;
+            currentWebViewUrlRef.current = target.web;
+            setBetaMode(enabled);
+            setIsLoading(true);
+            setWebViewKey((previous) => previous + 1);
+          })().catch((error) => console.error('[BetaMode] SecureStore write failed:', error));
           break;
         }
         case 'certification:image':
