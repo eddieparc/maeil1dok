@@ -46,7 +46,10 @@ export const useSocialSignupSetup = (provider: SocialProvider) => {
     }
     if (!providerId.value) {
       providerId.value = route.query[`${provider}_id`] as string || route.query.provider_id as string || null
-      nickname.value = route.query.suggested_nickname as string || ''
+      // apple은 query에 suggested_nickname이 없으면 sessionStorage 값을 보존한다 (원본 페이지 동작).
+      nickname.value = provider === 'apple'
+        ? (typeof route.query.suggested_nickname === 'string' ? route.query.suggested_nickname : nickname.value)
+        : (route.query.suggested_nickname as string || '')
       profileImage.value = route.query.profile_image as string || null
       email.value = route.query.email as string || null
       signupToken.value = route.query.signup_token as string || null
