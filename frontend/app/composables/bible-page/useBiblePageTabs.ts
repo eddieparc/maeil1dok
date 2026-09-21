@@ -53,13 +53,14 @@ export function useBiblePageTabs(options: UseBiblePageTabsOptions) {
   /** 탭 스냅샷을 리더에 복원한다 (책·장·역본·스크롤). */
   const applyTabSnapshot = async (tab: BibleTab) => {
     const snap = tab.snapshot;
-    currentBook.value = snap.book;
+    // localStorage에 남은 legacy 'jon' 코드를 canonical 'jnh'로 정규화한다.
+    currentBook.value = snap.book === 'jon' ? 'jnh' : snap.book;
     currentChapter.value = snap.chapter;
     currentVersion.value = snap.version;
     viewMode.value = 'reader';
 
     resetReaderScrollPosition();
-    await loadBibleContent(snap.book, snap.chapter);
+    await loadBibleContent(currentBook.value, snap.chapter);
     if (snap.scrollPosition > 0) {
       await restoreSavedScrollPosition(snap.scrollPosition);
     }
