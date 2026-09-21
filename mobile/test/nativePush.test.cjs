@@ -43,7 +43,11 @@ function loadPush(options = {}) {
 }
 
 function appClosure(name, context) {
-  const file = path.join(__dirname, '../App.tsx');
+  const owner = ['registerForPushNotifications', 'handleMessage'].includes(name)
+    ? 'screens/WebViewScreen.tsx'
+    : name === 'setBetaMode' ? 'navigation/AppStackContext.tsx'
+      : name === 'handleBetaToggle' ? 'screens/MoreScreen.tsx' : 'App.tsx';
+  const file = path.join(__dirname, '..', owner);
   const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let expression;
   function visit(node) {
@@ -71,6 +75,8 @@ test('startup token discovery never asks for notification permission', async () 
   const injected = [];
   const register = appClosure('registerForPushNotifications', {
     WEB_APP_URL: 'https://maeil1dok.app',
+    authStatus: 'signedIn',
+    pushRuntime: { sync: () => native.readNativePushState('push:status', 'push:changed') },
     currentWebViewUrlRef: { current: 'https://maeil1dok.app/notifications/settings' },
     webViewRef: { current: { injectJavaScript: script => injected.push(script) } },
     ...native,
@@ -97,6 +103,8 @@ test('repeated native token callbacks cannot recursively renew the Expo token', 
   });
   const context = {
     WEB_APP_URL: 'https://maeil1dok.app',
+    authStatus: 'signedIn',
+    pushRuntime: { sync: () => native.readNativePushState('push:status', 'push:changed') },
     betaMode: false,
     currentWebViewUrlRef: { current: 'https://maeil1dok.app/' },
     webViewRef: { current: { injectJavaScript() {} } },
@@ -246,22 +254,91 @@ for (const [origin, nextOrigin] of [
   });
 }
 
-test('a cold-start deep link is retained until a WebView is ready', () => {
-  const pendingUrlRef = { current: null };
+test('a cold-start deep link is retained until native navigation is ready', () => {
+  const pendingDeepLinkRef = { current: null };
   const handle = appClosure('handleDeepLink', {
     WEB_APP_URL: 'https://maeil1dok.app',
     APP_SCHEME: 'maeil1dok',
-    webViewRef: { current: null },
-    webViewReadyRef: { current: false },
-    pendingUrlRef,
-    setPendingUrl() {},
+    navigationRef: { isReady: () => false },
+    pendingDeepLinkRef,
+    mapWebPathToRoute: () => ({ type: 'web' }),
+    controllerRef: { current: { navigateToUrl() {} } },
     buildDeepLinkNavigationUrl: (url, origin) => new URL(url.replace('maeil1dok://', ''), origin).href,
     buildLocationAssignmentScript: url => `window.location.href=${JSON.stringify(url)}`,
   });
 
   handle({ url: 'maeil1dok://bible?book=jhn&chapter=3' });
 
-  assert.equal(pendingUrlRef.current, 'https://maeil1dok.app/bible?book=jhn&chapter=3');
+  assert.equal(pendingDeepLinkRef.current, 'maeil1dok://bible?book=jhn&chapter=3');
+});
+
+test('a ready notification destination retains the requested chapter in the reader', () => {
+  const destinations = [];
+  const handle = appClosure('handleDeepLink', {
+    WEB_APP_URL: 'https://maeil1dok.app',
+    APP_SCHEME: 'maeil1dok',
+    navigationRef: { isReady: () => true, navigate: (...args) => destinations.push(args) },
+    pendingDeepLinkRef: { current: null },
+    mapWebPathToRoute: () => ({ type: 'tab', name: 'Bible' }),
+    controllerRef: { current: { navigateToUrl: url => destinations.push(url) } },
+    buildDeepLinkNavigationUrl: () => 'https://maeil1dok.app/bible?book=jhn&chapter=3',
+  });
+  handle({ url: 'maeil1dok://bible?book=jhn&chapter=3' });
+  assert.deepEqual(destinations, ['https://maeil1dok.app/bible?book=jhn&chapter=3']);
+});
+
+test('a cold notification is delivered once after native navigation becomes ready', { timeout: 5000 }, async () => {
+  const origin = 'https://beta.maeil1dok.app';
+  const native = loadPush();
+  const response = { notification: { request: {
+    identifier: 'cold-reading',
+    content: { data: { origin, url: '/bible?book=jhn&chapter=3' } },
+  } } };
+  const launchResponse = Promise.resolve(response);
+  const destinations = [];
+  const pendingDeepLinkRef = { current: null };
+  let ready = false;
+  let receive;
+  let cleared = 0;
+  const context = {
+    WEB_APP_URL: origin,
+    APP_SCHEME: 'maeil1dok',
+    betaMode: true,
+    currentWebViewUrlRef: { current: origin },
+    pendingDeepLinkRef,
+    handledNotificationRef: { current: null },
+    lastNativePushTokenRef: { current: null },
+    navigationRef: { isReady: () => ready },
+    mapWebPathToRoute: () => ({ type: 'tab', name: 'Bible' }),
+    controllerRef: { current: { navigateToUrl: url => destinations.push(url) } },
+    buildDeepLinkNavigationUrl: url => new URL(url.replace('maeil1dok://', ''), origin).href,
+    registerForPushNotifications() {},
+    ...native,
+    Notifications: {
+      addNotificationResponseReceivedListener(callback) {
+        receive = callback;
+        return { remove() {} };
+      },
+      getLastNotificationResponseAsync: () => launchResponse,
+      clearLastNotificationResponseAsync: async () => { cleared++; },
+      addPushTokenListener: () => ({ remove() {} }),
+    },
+    AppState: { addEventListener: () => ({ remove() {} }) },
+  };
+  context.handleDeepLink = appClosure('handleDeepLink', context);
+  const cleanup = appClosure('notificationEffect', context)();
+  try {
+    await launchResponse;
+    assert.deepEqual(destinations, []);
+    ready = true;
+    appClosure('handleNavigationReady', context)();
+    receive(response);
+    assert.deepEqual(destinations, [`${origin}/bible?book=jhn&chapter=3`]);
+    assert.equal(cleared, 1);
+    assert.equal(pendingDeepLinkRef.current, null);
+  } finally {
+    cleanup();
+  }
 });
 
 test('beta toggle persists before remounting and clears the previous environment destination', { timeout: 5000 }, async () => {
@@ -277,12 +354,15 @@ test('beta toggle persists before remounting and clears the previous environment
   const handle = appClosure('handleMessage', {
     isPushBridgeRequest: () => false,
     resolveStack: () => ({ web: 'https://beta.maeil1dok.app' }),
-    BETA_MODE_STORAGE_KEY: 'maeil1dok_beta_mode',
-    SecureStore: { setItemAsync: () => write },
-    setBetaMode: value => modes.push(value),
+    setBetaMode: appClosure('setBetaMode', {
+      transitionRef: { current: commit => commit() },
+      BETA_MODE_STORAGE_KEY: 'maeil1dok_beta_mode',
+      SecureStore: { setItemAsync: () => write },
+      setBetaModeState: value => modes.push(value),
+    }),
     pendingUrlRef,
     setPendingUrl: value => pending.push(value),
-    webViewReadyRef: { current: true },
+    firstLoadDoneRef: { current: true },
     currentWebViewUrlRef,
     setIsLoading() {},
     setWebViewKey: finishSwitch,
@@ -302,4 +382,61 @@ test('beta toggle persists before remounting and clears the previous environment
   assert.equal(currentWebViewUrlRef.current, 'https://beta.maeil1dok.app');
   assert.equal(pendingUrlRef.current, null);
   assert.deepEqual(pending, [null]);
+});
+
+test('foreground token refresh uses the single native registration owner', async () => {
+  let synchronized = 0;
+  const native = loadPush();
+  const register = appClosure('registerForPushNotifications', {
+    WEB_APP_URL: 'https://maeil1dok.app',
+    authStatus: 'signedIn',
+    currentWebViewUrlRef: { current: 'https://maeil1dok.app/' },
+    webViewRef: { current: null },
+    setPushToken() {},
+    isPushBridgeOrigin: native.isPushBridgeOrigin,
+    readNativePushState: async () => { throw new Error('bypassed registration owner'); },
+    pushRuntime: {
+      async sync() { synchronized++; return { token: 'ExpoPushToken[device]' }; },
+    },
+  });
+  await register();
+  assert.equal(synchronized, 1);
+});
+
+test('environment persistence waits for the native subscription transition', { timeout: 5000 }, async () => {
+  let release;
+  const suspended = new Promise(resolve => { release = resolve; });
+  const events = [];
+  const change = appClosure('setBetaMode', {
+    transitionRef: { current: async commit => { await suspended; await commit(); } },
+    SecureStore: { async setItemAsync() { events.push('persist'); } },
+    BETA_MODE_STORAGE_KEY: 'beta',
+    setBetaModeState() { events.push('switch'); },
+  });
+  const changed = change(true);
+  try {
+    assert.deepEqual(events, []);
+  } finally {
+    release();
+  }
+  await changed;
+  assert.deepEqual(events, ['persist', 'switch']);
+});
+
+test('the native beta control does not remount the old environment while switching', { timeout: 5000 }, async () => {
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  const remounts = [];
+  const toggle = appClosure('handleBetaToggle', {
+    setBetaMode: () => pending,
+    remountWebView: () => remounts.push('old'),
+    Alert: { alert() {} },
+  });
+  const changed = toggle(true);
+  try {
+    assert.deepEqual(remounts, []);
+  } finally {
+    release();
+  }
+  await changed;
 });

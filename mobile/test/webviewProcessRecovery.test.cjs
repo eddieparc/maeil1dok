@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
 
-const filePath = path.join(__dirname, '..', 'App.tsx');
+const filePath = path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx');
 const sourceFile = ts.createSourceFile(
   filePath,
   fs.readFileSync(filePath, 'utf8'),
@@ -28,7 +28,7 @@ function findWebView(node) {
 test('iOS WebContent 종료 시 기존 재시도 경로로 WebView를 복구한다', () => {
   // Given: the production WebView JSX node
   const webView = findWebView(sourceFile);
-  assert.ok(webView, 'App.tsx must render a WebView');
+  assert.ok(webView, 'screens/WebViewScreen.tsx must render a WebView');
 
   // When: inspecting the callback consumed by react-native-webview on iOS
   const attribute = webView.attributes.properties.find(

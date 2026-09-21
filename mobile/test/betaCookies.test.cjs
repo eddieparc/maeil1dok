@@ -29,6 +29,37 @@ test('beta host CSRF cookie takes precedence over a parent-domain cookie', () =>
   }), { 'X-CSRFToken': 'beta-csrf' });
 });
 
+test('a parent production cookie cannot satisfy the beta session scope', () => {
+  const { hasAuthCookies } = load('sessionRestore.ts');
+  const names = ['beta_access_token', 'beta_refresh_token'];
+  assert.equal(hasAuthCookies({ access_token: 'production-access' }, names), false);
+  assert.equal(hasAuthCookies({ beta_access_token: 'beta-access' }, names), true);
+});
+
+test('scoped beta logout preserves production tokens and cookies', async () => {
+  const { clearMobileAuth } = load('authCleanup.ts');
+  const values = new Map([
+    ['maeil1dok_access_token', 'production-access'],
+    ['maeil1dok_refresh_token', 'production-refresh'],
+    ['maeil1dok_beta_access_token', 'beta-access'],
+    ['maeil1dok_beta_refresh_token', 'beta-refresh'],
+  ]);
+  const cleared = [];
+  await clearMobileAuth({
+    platform: 'ios',
+    apiUrl: 'https://beta.maeil1dok.app',
+    cookieNames: ['beta_access_token', 'beta_refresh_token'],
+    secureStoreTokenKeys: ['maeil1dok_beta_access_token', 'maeil1dok_beta_refresh_token'],
+    clearCookieByName: async (_url, name) => { cleared.push(name); return true; },
+    deleteSecureValue: async key => { values.delete(key); },
+  });
+  assert.deepEqual([...values], [
+    ['maeil1dok_access_token', 'production-access'],
+    ['maeil1dok_refresh_token', 'production-refresh'],
+  ]);
+  assert.deepEqual(cleared, ['beta_access_token', 'beta_access_token', 'beta_refresh_token', 'beta_refresh_token']);
+});
+
 test('beta logout clears its native and WebKit auth cookies without clearing all cookies', async () => {
   const { clearMobileAuth } = load('authCleanup.ts');
   const cleared = [];

@@ -25,13 +25,19 @@ export interface StoredSessionRestoreDependencies {
 }
 
 const AUTH_COOKIE_NAMES = [
-  'access_token', 'refresh_token', 'beta_access_token', 'beta_refresh_token',
+  'access_token',
+  'refresh_token',
+  'beta_access_token',
+  'beta_refresh_token',
 ] as const;
 
-export const hasAuthCookies = (cookies: unknown): boolean => {
+export const hasAuthCookies = (
+  cookies: unknown,
+  cookieNames: readonly string[] = AUTH_COOKIE_NAMES,
+): boolean => {
   if (!cookies || typeof cookies !== 'object' || Array.isArray(cookies)) return false;
 
-  return AUTH_COOKIE_NAMES.some((name) => {
+  return cookieNames.some((name) => {
     const entry = Reflect.get(cookies, name);
     if (typeof entry === 'string') return entry.length > 0;
     if (!entry || typeof entry !== 'object') return false;

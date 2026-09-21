@@ -32,10 +32,11 @@ afterEach(() => {
   delete globalThis.__nativePushApi;
 });
 
-function shell({ permission = 'granted', token = 'ExpoPushToken[qa-device]' } = {}) {
+function shell({ permission = 'granted', token = 'ExpoPushToken[qa-device]', managed = false, subscribed = false } = {}) {
   const messages = [];
   const target = new EventTarget();
   target.isReactNativeWebView = true;
+  target.nativePushManaged = managed;
   target.ReactNativeWebView = {
     postMessage(raw) {
       const message = JSON.parse(raw);
@@ -46,11 +47,37 @@ function shell({ permission = 'granted', token = 'ExpoPushToken[qa-device]' } = 
         token,
         platform: 'ios',
         installationId: '4a27689b-0b9c-4c4e-b849-9bad38ca2dd9',
+        managed,
+        subscribed,
       } }));
     },
   };
   globalThis.window = target;
   return messages;
+}
+
+for (const operation of ['read', 'enable', 'disable', 'sync']) {
+  test(`managed native ${operation} never creates a second web API writer`, async () => {
+    const messages = shell({ managed: true });
+    const calls = [];
+    globalThis.__nativePushApi = {
+      async POST(path) {
+        calls.push(path);
+        return { success: true, enabled: true, registered: true };
+      },
+    };
+    if (operation === 'read') {
+      assert.equal((await runtime.readBrowserPushState()).subscribed, false);
+    } else if (operation === 'enable') {
+      await runtime.subscribeCurrentDevice();
+    } else if (operation === 'disable') {
+      await runtime.unsubscribeCurrentDevice();
+    } else {
+      await runtime.syncNativePushRegistration(() => true);
+    }
+    assert.deepEqual(calls, []);
+    assert.equal(messages[0].managed, true);
+  });
 }
 
 test('native device status uses the shell without browser PushManager or a permission prompt', async () => {

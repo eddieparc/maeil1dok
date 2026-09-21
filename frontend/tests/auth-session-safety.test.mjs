@@ -30,10 +30,12 @@ const authSessionPolicySource = await readFile(
   'utf8',
 );
 
-const mobileAppSource = await readFile(
-  new URL('../../mobile/App.tsx', import.meta.url),
-  'utf8',
-);
+const mobileAppSource = (await Promise.all([
+  'App.tsx',
+  'screens/WebViewScreen.tsx',
+  'screens/LoginScreen.tsx',
+  'auth/AuthSession.tsx',
+].map(path => readFile(new URL(`../../mobile/${path}`, import.meta.url), 'utf8')))).join('\n');
 
 const mobileUrlRedactionSource = await readFile(
   new URL('../../mobile/urlRedaction.ts', import.meta.url),
@@ -535,7 +537,11 @@ test('a failed session restore preserves webview cookies and stored tokens', asy
   // Explicit logout keeps clearing everything: that is a user instruction, not an
   // inference from a failed request.
   const mobileAppSource = await readFile(
-    new URL('../../mobile/App.tsx', import.meta.url),
+    new URL('../../mobile/screens/WebViewScreen.tsx', import.meta.url),
+    'utf8',
+  );
+  const nativeAuthSource = await readFile(
+    new URL('../../mobile/auth/AuthSession.tsx', import.meta.url),
     'utf8',
   );
 
@@ -544,7 +550,7 @@ test('a failed session restore preserves webview cookies and stored tokens', asy
   // file -- which swept the legitimate logout call sites into this slice and made
   // the assertion below fail against correct code.
   const restoreStart = mobileAppSource.indexOf('const restoreStoredSession');
-  const restoreEnd = mobileAppSource.indexOf('const handleEmailLogin');
+  const restoreEnd = mobileAppSource.indexOf('const requestAppleCredential');
   assert.ok(restoreStart > 0, 'restoreStoredSession must exist');
   assert.ok(
     restoreEnd > restoreStart,
@@ -553,7 +559,7 @@ test('a failed session restore preserves webview cookies and stored tokens', asy
   const restoreBody = mobileAppSource.slice(restoreStart, restoreEnd);
 
   assert.ok(
-    !/clearStoredAuth\(\)/.test(restoreBody),
+    !/(?:clearStoredAuth|clearMobileAuth|finishNativeLogout|signOut)\(/.test(restoreBody),
     'the restore path must not clear cookies or stored tokens on failure',
   );
   assert.match(
@@ -566,17 +572,18 @@ test('a failed session restore preserves webview cookies and stored tokens', asy
   // platform-aware cleanup. `CookieManager.clearAll()` was too coarse on iOS:
   // it did not prove both the native and WebKit stores were cleared.
   assert.match(
-    mobileAppSource,
-    /const clearStoredAuth = async \(\) => \{[\s\S]*?clearMobileAuth\(\{/,
+    nativeAuthSource,
+    /const signOut = useCallback\(async \(\) => \{[\s\S]*?clearMobileAuth\(\{/,
     'explicit logout must still clear cookies and stored tokens',
   );
 
-  const clearCallSites = mobileAppSource.match(/clearStoredAuth\(\)/g) ?? [];
+  const clearCallSites = nativeAuthSource.match(/clearMobileAuth\(\{/g) ?? [];
   assert.equal(
     clearCallSites.length,
     1,
-    'only the shared explicit-logout finisher may clear stored auth',
+    'only the native auth owner may clear stored auth',
   );
+  assert.match(mobileAppSource, /const finishNativeLogout = async \(\) => \{[\s\S]*?await signOut\(\)/);
 
   const finishCallSites = mobileAppSource.match(/finishNativeLogout\(\)/g) ?? [];
   assert.equal(

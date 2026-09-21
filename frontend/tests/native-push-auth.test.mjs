@@ -28,7 +28,8 @@ async function authRuntime() {
   return module.exports.useAuthService;
 }
 
-test('native logout preserves installation identity when token refresh is unavailable', async t => {
+for (const managed of [false, true]) {
+test(`native logout preserves installation identity with managed=${managed}`, async t => {
   const storage = new Map();
   const states = new Map([
     ['auth:user', Vue.ref({ id: 42, username: 'reader', nickname: 'reader' })],
@@ -37,13 +38,18 @@ test('native logout preserves installation identity when token refresh is unavai
   const calls = [];
   const window = new EventTarget();
   window.isReactNativeWebView = true;
+  window.nativePushManaged = managed;
+  const messages = [];
   window.ReactNativeWebView = {
     postMessage(raw) {
       const request = JSON.parse(raw);
+      messages.push(request);
       window.dispatchEvent(new CustomEvent('nativePushState', { detail: {
         requestId: request.requestId, permission: 'granted',
         token: 'ExpoPushToken[logout-fixture]', platform: 'ios',
         installationId: '4a27689b-0b9c-4c4e-b849-9bad38ca2dd9',
+        managed,
+        subscribed: false,
         ...(request.type === 'push:status' ? { error: 'token-service-offline' } : {}),
       } }));
     },
@@ -88,4 +94,6 @@ test('native logout preserves installation identity when token refresh is unavai
     authenticated: false,
   }]);
   assert.equal(auth.user.value, null);
+  assert.equal(messages[0].type, managed ? 'push:logout' : 'push:disable');
 });
+}

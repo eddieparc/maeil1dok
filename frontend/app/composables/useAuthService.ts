@@ -277,7 +277,9 @@ export function useAuthService() {
     let logoutBody: { installation_id: string } | undefined
     if (isNativePushDevice()) {
       try {
-        const device = await requestNativePushState('push:disable')
+        const device = await requestNativePushState(
+          window.nativePushManaged === true ? 'push:logout' : 'push:disable',
+        )
         logoutBody = { installation_id: device.installationId }
       } catch (error) {
         // A missing shell response must not prevent the user from signing out.

@@ -5,6 +5,8 @@ export interface NativePushState {
   readonly platform: 'ios' | 'android'
   readonly installationId: string
   readonly error?: string
+  readonly managed?: boolean
+  readonly subscribed?: boolean
 }
 
 export function isNativePushDevice(): boolean {
@@ -22,10 +24,13 @@ function isNativePushState(value: unknown): value is NativePushState {
     && 'platform' in value && (value.platform === 'ios' || value.platform === 'android')
     && 'installationId' in value && typeof value.installationId === 'string'
     && (!('error' in value) || typeof value.error === 'string')
+    && (!('managed' in value) || typeof value.managed === 'boolean')
+    && (!('managed' in value) || value.managed !== true
+      || ('subscribed' in value && typeof value.subscribed === 'boolean'))
 }
 
 export function requestNativePushState(
-  type: 'push:status' | 'push:enable' | 'push:disable',
+  type: 'push:status' | 'push:enable' | 'push:disable' | 'push:logout',
 ): Promise<NativePushState> {
   const bridge = window.ReactNativeWebView
   if (!bridge) return Promise.reject(new Error('앱에서 기기 알림을 설정해 주세요.'))
@@ -49,7 +54,7 @@ export function requestNativePushState(
     }, 8000)
     window.addEventListener('nativePushState', receive)
     try {
-      bridge.postMessage(JSON.stringify({ type, requestId }))
+      bridge.postMessage(JSON.stringify({ type, requestId, managed: window.nativePushManaged === true }))
     } catch (error) {
       cleanup()
       reject(error)

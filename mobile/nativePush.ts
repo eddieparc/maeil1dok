@@ -10,7 +10,7 @@ const TOKEN_KEY = 'maeil1dok_push_token';
 let installationPromise: Promise<string> | null = null;
 let lastToken: string | null = null;
 
-export type PushAction = 'push:status' | 'push:enable' | 'push:disable';
+export type PushAction = 'push:status' | 'push:enable' | 'push:disable' | 'push:identity' | 'push:logout';
 export interface NativePushState {
   readonly requestId: string;
   readonly permission: 'granted' | 'denied' | 'default';
@@ -18,6 +18,8 @@ export interface NativePushState {
   readonly platform: 'ios' | 'android';
   readonly installationId: string;
   readonly error?: string;
+  readonly managed?: boolean;
+  readonly subscribed?: boolean;
 }
 
 export function getPushInstallationId(): Promise<string> {
@@ -58,7 +60,7 @@ export async function readNativePushState(
     }
     permission = authorization.granted ? 'granted'
       : authorization.status === 'denied' ? 'denied' : 'default';
-    if (permission === 'granted' && action !== 'push:disable') {
+    if (permission === 'granted' && (action === 'push:status' || action === 'push:enable')) {
       if (!Device.isDevice) {
         return { requestId, permission, token: null, platform, installationId,
           error: '실제 기기에서 푸시 알림을 설정해 주세요.' };
@@ -85,11 +87,12 @@ export async function readNativePushState(
 }
 
 export function isPushBridgeRequest(value: unknown): value is {
-  readonly type: PushAction; readonly requestId: string;
+  readonly type: PushAction; readonly requestId: string; readonly managed?: unknown;
 } {
   return typeof value === 'object' && value !== null
     && 'type' in value
-    && (value.type === 'push:status' || value.type === 'push:enable' || value.type === 'push:disable')
+    && (value.type === 'push:status' || value.type === 'push:enable'
+      || value.type === 'push:disable' || value.type === 'push:identity' || value.type === 'push:logout')
     && 'requestId' in value && typeof value.requestId === 'string'
     && value.requestId.length > 0 && value.requestId.length <= 100;
 }

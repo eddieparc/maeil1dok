@@ -1,5 +1,11 @@
+// Both stacks' cookie families must be cleared: the beta backend prefixes its
+// auth cookies (beta_access_token / beta_refresh_token), and a logout that
+// only removes the unprefixed names leaves the beta web session alive.
 const AUTH_COOKIE_NAMES = [
-  'access_token', 'refresh_token', 'beta_access_token', 'beta_refresh_token',
+  'access_token',
+  'refresh_token',
+  'beta_access_token',
+  'beta_refresh_token',
 ] as const;
 const SECURE_STORE_TOKEN_KEYS = [
   'maeil1dok_access_token',
@@ -13,6 +19,8 @@ interface AuthCleanupDependencies {
   readonly platform: MobilePlatform;
   readonly apiUrl: string;
   readonly cookieDomain?: string;
+  readonly cookieNames?: readonly string[];
+  readonly secureStoreTokenKeys?: readonly string[];
   readonly clearCookieByName: (
     url: string,
     name: string,
@@ -46,9 +54,10 @@ const throwFirstFailure = (results: readonly PromiseSettledResult<unknown>[]): v
 };
 
 const clearCookies = async (dependencies: AuthCleanupDependencies): Promise<void> => {
+  const cookieNames = dependencies.cookieNames ?? AUTH_COOKIE_NAMES;
   if (dependencies.platform === 'ios') {
     const results = await Promise.allSettled(
-      AUTH_COOKIE_NAMES.flatMap((name) => [
+      cookieNames.flatMap((name) => [
         dependencies.clearCookieByName(dependencies.apiUrl, name, false),
         dependencies.clearCookieByName(dependencies.apiUrl, name, true),
       ]),
@@ -58,7 +67,7 @@ const clearCookies = async (dependencies: AuthCleanupDependencies): Promise<void
   }
 
   const results = await Promise.allSettled(
-    AUTH_COOKIE_NAMES.flatMap((name) => {
+    cookieNames.flatMap((name) => {
       const baseCookie = {
         name,
         value: '',
@@ -92,7 +101,8 @@ export const clearMobileAuth = async (
 ): Promise<void> => {
   const results = await Promise.allSettled([
     clearCookies(dependencies),
-    ...SECURE_STORE_TOKEN_KEYS.map((key) => dependencies.deleteSecureValue(key)),
+    ...(dependencies.secureStoreTokenKeys ?? SECURE_STORE_TOKEN_KEYS)
+      .map((key) => dependencies.deleteSecureValue(key)),
   ]);
   throwFirstFailure(results);
 };

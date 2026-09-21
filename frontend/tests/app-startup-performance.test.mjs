@@ -36,7 +36,7 @@ const landingPageSource = await readFile(
 );
 
 const mobileAppSource = await readFile(
-  new URL('../../mobile/App.tsx', import.meta.url),
+  new URL('../../mobile/screens/WebViewScreen.tsx', import.meta.url),
   'utf8',
 );
 

@@ -3,7 +3,12 @@ const path = require('node:path');
 const ts = require('typescript');
 
 const mobileRoot = path.join(__dirname, '..', '..');
-const appPath = path.join(mobileRoot, 'App.tsx');
+const tokenModule = { exports: {} };
+new Function('module', 'exports', ts.transpileModule(
+  readFileSync(path.join(mobileRoot, 'api/authTokens.ts'), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+).outputText)(tokenModule, tokenModule.exports);
+const appPath = path.join(mobileRoot, 'screens', 'WebViewScreen.tsx');
 const appSource = readFileSync(appPath, 'utf8');
 const sessionRestorePath = path.join(mobileRoot, 'sessionRestore.ts');
 const sessionRestoreSource = readFileSync(sessionRestorePath, 'utf8');
@@ -29,7 +34,7 @@ const findVariableInitializer = (name) => {
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
-  if (!initializer) throw new Error(`Unable to find ${name} in App.tsx`);
+  if (!initializer) throw new Error(`Unable to find ${name} in screens/WebViewScreen.tsx`);
   return initializer.getText(sourceFile);
 };
 
@@ -48,6 +53,7 @@ new Function('module', 'exports', compiledSessionRestore)(
 const { runStoredSessionRestore } = sessionRestoreModule.exports;
 
 const createRestoreHarness = ({
+  betaMode = false,
   refreshToken = 'stored-refresh',
   cookieStores = [
     { csrftoken: { value: 'csrf-value' } },
@@ -139,6 +145,7 @@ module.exports = { restoreStoredSession };`,
     'restoreGenerationRef',
     'restorePromiseRef',
     'NATIVE_CLIENT_OBSERVATION_HEADERS',
+    'tokenStore',
     compiled,
   );
   instantiate(
@@ -146,7 +153,7 @@ module.exports = { restoreStoredSession };`,
     module.exports,
     SecureStore,
     CookieManager,
-    'https://api.maeil1dok.app',
+    betaMode ? 'https://beta.maeil1dok.app' : 'https://api.maeil1dok.app',
     csrfHeadersFrom,
     fetch,
     initiateSessionBridge,
@@ -162,6 +169,7 @@ module.exports = { restoreStoredSession };`,
       'X-App-Platform': 'android',
       'X-App-Version': '1.2.3',
     },
+    tokenModule.exports.createTokenStore(SecureStore, betaMode),
   );
 
   return {
