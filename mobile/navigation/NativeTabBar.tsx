@@ -16,9 +16,14 @@ type NativeTabBarProps = ViewProps & {
   readonly onTabSelect: (event: NativeSyntheticEvent<{ index: number }>) => void;
 };
 
-const NativeTabBarView = Platform.OS === 'ios'
-  ? requireNativeViewManager<NativeTabBarProps>('NativeTabBar', 'NativeTabBarView')
-  : null;
+let NativeTabBarView: React.ComponentType<NativeTabBarProps> | null = null;
+if (Platform.OS === 'ios') {
+  try {
+    NativeTabBarView = requireNativeViewManager<NativeTabBarProps>('NativeTabBar', 'NativeTabBarView');
+  } catch {
+    NativeTabBarView = null;
+  }
+}
 
 const items: Record<string, NativeTabBarItem> = {
   Home: { label: '홈', symbol: 'house', selectedSymbol: 'house.fill' },

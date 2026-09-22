@@ -15,6 +15,10 @@ test('keeps the React Native tab bar as the Android implementation', () => {
   );
   assert.match(
     source,
-    /Platform\.OS === 'ios'\s*\?\s*requireNativeViewManager/,
+    /Platform\.OS === 'ios'/,
+  );
+  assert.match(
+    source,
+    /requireNativeViewManager/,
   );
 });
