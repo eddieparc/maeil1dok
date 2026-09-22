@@ -175,8 +175,14 @@ export const useNotificationsStore = defineStore('notifications', {
       this.devicePush.isSyncing = true
       this.devicePush.error = null
       try {
-        Object.assign(this.devicePush, await readBrowserPushState())
+        Object.assign(this.devicePush, await readBrowserPushState(), { error: null })
       } catch (error) {
+        // The capability check already passed — a failed read is a transient
+        // bridge/runtime failure, not an unsupported environment. Keep the
+        // device marked supported and surface the real error instead of the
+        // misleading 'unsupported' label.
+        this.devicePush.supported = true
+        this.devicePush.permission = 'unavailable'
         this.devicePush.error = getErrorMessage(error, '기기 알림 상태를 확인할 수 없습니다.')
       } finally {
         this.devicePush.isSyncing = false

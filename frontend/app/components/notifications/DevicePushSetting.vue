@@ -14,6 +14,15 @@
     >
       {{ devicePushButtonLabel }}
     </button>
+    <button
+      v-else-if="showDevicePushRetry"
+      class="push-button"
+      type="button"
+      :disabled="notificationsStore.devicePush.isSyncing"
+      @click="notificationsStore.syncDevicePushState()"
+    >
+      다시 시도
+    </button>
   </div>
 </template>
 
@@ -27,6 +36,10 @@ const toast = useToast()
 
 const devicePushLabel = computed(() => {
   const state = notificationsStore.devicePush
+  // A stored error is the real cause (bridge failure, save failure) — show it
+  // before any generic permission label so a transient failure never
+  // masquerades as an unsupported environment or missing server setup.
+  if (state.error) return state.error
   if (state.permission === 'unsupported') return '현재 환경은 기기 알림을 지원하지 않습니다.'
   if (state.permission === 'unavailable') return '푸시 알림 서버 설정이 아직 준비되지 않았습니다.'
   if (state.permission === 'denied') return '기기 설정에서 매일일독 알림을 허용해 주세요.'
@@ -44,6 +57,11 @@ const pushStatusTone = computed(() => {
 const showDevicePushButton = computed(() => {
   const permission = notificationsStore.devicePush.permission
   return notificationsStore.devicePush.supported && permission !== 'denied' && permission !== 'unavailable'
+})
+
+const showDevicePushRetry = computed(() => {
+  const state = notificationsStore.devicePush
+  return state.supported && state.permission === 'unavailable'
 })
 
 const devicePushButtonLabel = computed(() => {

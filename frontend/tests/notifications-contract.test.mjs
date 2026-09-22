@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { compileScript, parse } from '@vue/compiler-sfc';
+import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc';
 import * as Vue from 'vue';
 import { renderToString } from '@vue/server-renderer';
 
@@ -106,12 +106,20 @@ async function loadNotificationsStore() {
           }));
           pluginBuild.onLoad({ filter: /^devicePushRuntime$/, namespace: 'stubs' }, () => ({
             contents: `
-              export function isDevicePushSupported() { return false; }
+              const mock = () => globalThis.__devicePushRuntimeMock;
+              export function isDevicePushSupported() {
+                return mock()?.isDevicePushSupported?.() ?? false;
+              }
               export async function readBrowserPushState() {
+                if (mock()?.readBrowserPushState) return mock().readBrowserPushState();
                 return { supported: false, permission: 'unsupported', subscribed: false };
               }
-              export async function subscribeCurrentDevice() {}
-              export async function unsubscribeCurrentDevice() {}
+              export async function subscribeCurrentDevice() {
+                return mock()?.subscribeCurrentDevice?.();
+              }
+              export async function unsubscribeCurrentDevice() {
+                return mock()?.unsubscribeCurrentDevice?.();
+              }
             `,
           }));
         },
@@ -554,6 +562,151 @@ test('notification pending lifecycle distinguishes unresolved, loaded-empty, and
 
   assert.equal(store.hasLoadedSettings, true, 'a rejected first settings request must settle the initial pending state');
   assert.equal(store.error, 'offline');
+});
+
+test('a failed device push read on a supported device must not claim unsupported', async (t) => {
+  t.after(() => { delete globalThis.__devicePushRuntimeMock; });
+  const { useNotificationsStore } = await loadNotificationsStore();
+  const store = useNotificationsStore();
+
+  // Native bridge present (supported) but the status read rejects — e.g. the
+  // shell is not signed in or the bridge request timed out.
+  globalThis.__devicePushRuntimeMock = {
+    isDevicePushSupported: () => true,
+    readBrowserPushState: async () => { throw new Error('알림 설정 화면을 다시 열어 주세요.'); },
+  };
+
+  await store.syncDevicePushState();
+
+  assert.equal(store.devicePush.supported, true, 'a readable bridge keeps the device marked supported');
+  assert.notEqual(store.devicePush.permission, 'unsupported',
+    'a failed read must not masquerade as an unsupported environment');
+  assert.equal(store.devicePush.error, '알림 설정 화면을 다시 열어 주세요.',
+    'the real error stays visible');
+
+  // A later successful read recovers the real permission and clears the error.
+  globalThis.__devicePushRuntimeMock = {
+    isDevicePushSupported: () => true,
+    readBrowserPushState: async () => ({ supported: true, permission: 'granted', subscribed: true }),
+  };
+
+  await store.syncDevicePushState();
+
+  assert.equal(store.devicePush.permission, 'granted');
+  assert.equal(store.devicePush.subscribed, true);
+  assert.equal(store.devicePush.error, null, 'a successful retry clears the stale error');
+
+  delete globalThis.__devicePushRuntimeMock;
+});
+
+test('device push setting renders the real bridge error instead of a generic fallback', async () => {
+  useNotificationFixtures();
+  globalThis.__notificationStore.devicePush = {
+    supported: true,
+    permission: 'unavailable',
+    subscribed: false,
+    isSyncing: false,
+    error: 'BRIDGE_READ_FAILURE_SENTINEL',
+  };
+
+  const html = await renderNotificationComponent(DevicePushSetting);
+
+  assert.ok(html.includes(globalThis.__notificationStore.devicePush.error),
+    'the stored bridge error must be rendered');
+});
+
+test('device push setting keeps genuine unsupported and denied labels without retry', async () => {
+  useNotificationFixtures();
+
+  globalThis.__notificationStore.devicePush = {
+    supported: false, permission: 'unsupported', subscribed: false, isSyncing: false, error: null,
+  };
+  let html = await renderNotificationComponent(DevicePushSetting);
+  assert.doesNotMatch(html, /<button/, 'unsupported offers no action button');
+
+  globalThis.__notificationStore.devicePush = {
+    supported: true, permission: 'denied', subscribed: false, isSyncing: false, error: null,
+  };
+  html = await renderNotificationComponent(DevicePushSetting);
+  assert.doesNotMatch(html, /<button/, 'denied keeps offering no in-app button');
+});
+
+async function compileDevicePushSettingInteractive() {
+  const { descriptor, errors } = parse(devicePushSettingSource, { filename: 'DevicePushSetting.vue' });
+  assert.deepEqual(errors, []);
+  const script = compileScript(descriptor, { id: 'device-push-interactive', inlineTemplate: false });
+  const template = compileTemplate({
+    ast: descriptor.template.ast,
+    filename: 'DevicePushSetting.vue',
+    id: 'device-push-interactive',
+    compilerOptions: { bindingMetadata: script.bindings },
+  });
+  const result = await build({
+    stdin: {
+      contents: `
+        import Component from 'virtual:script';
+        import { render } from 'virtual:template';
+        Component.render = render;
+        export default Component;
+      `,
+      loader: 'ts',
+      resolveDir: new URL('../', import.meta.url).pathname,
+      sourcefile: 'device-push-interactive.ts',
+    },
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    write: false,
+    logLevel: 'silent',
+    plugins: [{
+      name: 'device-push-interactive-stubs',
+      setup(pluginBuild) {
+        pluginBuild.onResolve({ filter: /^virtual:script$/ }, () => ({ path: 'script', namespace: 'dp' }));
+        pluginBuild.onResolve({ filter: /^virtual:template$/ }, () => ({ path: 'template', namespace: 'dp' }));
+        pluginBuild.onLoad({ filter: /^script$/, namespace: 'dp' }, () => ({ contents: script.content, loader: 'ts' }));
+        pluginBuild.onLoad({ filter: /^template$/, namespace: 'dp' }, () => ({ contents: template.code, loader: 'ts' }));
+        pluginBuild.onResolve({ filter: /^vue$/ }, () => ({ path: 'vue', namespace: 'dpv' }));
+        pluginBuild.onResolve({ filter: /^~\/stores\/notifications$/ }, () => ({ path: 'store', namespace: 'dpv' }));
+        pluginBuild.onResolve({ filter: /^~\/composables\/useToast$/ }, () => ({ path: 'toast', namespace: 'dpv' }));
+        pluginBuild.onLoad({ filter: /.*/, namespace: 'dpv' }, ({ path }) => ({
+          contents: {
+            vue: vueRuntimeExports,
+            store: 'export const useNotificationsStore = () => globalThis.__notificationStore;',
+            toast: 'export const useToast = () => globalThis.__notificationToast;',
+          }[path],
+        }));
+      },
+    }],
+  });
+  const dataUrl = `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`;
+  return (await import(dataUrl)).default;
+}
+
+test('device push retry re-reads state through syncDevicePushState', async () => {
+  const Component = await compileDevicePushSettingInteractive();
+  const calls = [];
+  globalThis.__notificationStore = {
+    devicePush: {
+      supported: true,
+      permission: 'unavailable',
+      subscribed: false,
+      isSyncing: false,
+      error: 'bridge timeout',
+    },
+    syncDevicePushState: async () => { calls.push('sync'); },
+    enableDevicePush: async () => ({ success: true }),
+    disableDevicePush: async () => ({ success: true }),
+  };
+  globalThis.__notificationToast = { success: () => {}, error: () => {} };
+
+  const bindings = Component.setup({}, { expose: () => {} });
+  const tree = Component.render({}, [], {}, Vue.proxyRefs(bindings));
+  const children = Array.isArray(tree.children) ? tree.children : [];
+  const button = children.find(child => child && child.type === 'button');
+
+  assert.ok(button, 'a supported transient failure must offer a retry action');
+  await button.props.onClick();
+  assert.deepEqual(calls, ['sync'], 'retry must re-read state via syncDevicePushState');
 });
 
 test('notification pages render CJK-safe Korean inbox and settings controls', async () => {
