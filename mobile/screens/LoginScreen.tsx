@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
@@ -326,9 +327,17 @@ export default function LoginScreen() {
     navigateToPendingUrl();
   };
 
+  const handleLegalLink = (path: string) => {
+    queuePendingUrl(`${WEB_APP_URL}${path}`);
+    dismissLogin();
+    navigateToPendingUrl();
+  };
+
+  const isSubmitDisabled = isSubmitting || !email.trim() || !password;
+
   return (
     <SafeAreaView style={styles.loginContainer}>
-      <StatusBar barStyle="dark-content" backgroundColor="#faf8f6" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FAF8F5" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -338,110 +347,137 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.loginBox}>
-            <TouchableOpacity style={styles.backButton} onPress={hideNativeLogin}>
-              <Text style={styles.backButtonText}>←</Text>
-            </TouchableOpacity>
-
-            <View style={styles.logoContainer}>
-              <Image
-                source={require('../assets/logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
-
-            <View style={styles.socialButtons}>
-              {Platform.OS === 'ios' && (
-                <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                  cornerRadius={6}
-                  style={styles.appleButton}
-                  onPress={handleAppleLogin}
-                />
-              )}
-
+            <View style={styles.appbar}>
               <TouchableOpacity
-                style={styles.kakaoButton}
-                onPress={handleKakaoLogin}
-                activeOpacity={0.8}
-                disabled={isSubmitting}
+                style={styles.backButton}
+                onPress={hideNativeLogin}
+                accessibilityLabel="뒤로가기"
+                accessibilityRole="button"
               >
-                <Image
-                  source={require('../assets/kakao-icon.png')}
-                  style={styles.kakaoIcon}
-                  resizeMode="contain"
-                />
-                <Text style={styles.kakaoButtonText}>카카오로 시작하기</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.googleButton}
-                onPress={handleGoogleLogin}
-                activeOpacity={0.8}
-                disabled={isSubmitting}
-              >
-                <Image
-                  source={require('../assets/google-icon.png')}
-                  style={styles.googleIcon}
-                  resizeMode="contain"
-                />
-                <Text style={styles.googleButtonText}>구글로 시작하기</Text>
+                <Ionicons name="chevron-back" size={22} color="#1F1A17" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>또는 이메일로 계속</Text>
-              <View style={styles.dividerLine} />
-            </View>
+            <View style={styles.content}>
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require('../assets/logo.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.tagline}>매일 말씀과 함께, 기록은 여기에</Text>
+              </View>
 
-            <View style={styles.inputGroup}>
-              <TextInput
-                style={[styles.input, styles.inputTop]}
-                placeholder="이메일"
-                placeholderTextColor="#94a3b8"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isSubmitting}
-              />
-              <TextInput
-                style={[styles.input, styles.inputBottom]}
-                placeholder="비밀번호"
-                placeholderTextColor="#94a3b8"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!isSubmitting}
-              />
-            </View>
+              <View style={styles.socialButtons}>
+                <TouchableOpacity
+                  style={styles.kakaoButton}
+                  onPress={handleKakaoLogin}
+                  activeOpacity={0.8}
+                  disabled={isSubmitting}
+                >
+                  <Image
+                    source={require('../assets/kakao-icon.png')}
+                    style={styles.socialIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.kakaoButtonText}>카카오로 시작하기</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-              onPress={handleEmailLogin}
-              activeOpacity={0.8}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.submitButtonText}>
-                {isSubmitting ? '로그인 중...' : '로그인'}
+                <TouchableOpacity
+                  style={styles.googleButton}
+                  onPress={handleGoogleLogin}
+                  activeOpacity={0.8}
+                  disabled={isSubmitting}
+                >
+                  <Image
+                    source={require('../assets/google-icon.png')}
+                    style={styles.socialIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.googleButtonText}>구글로 시작하기</Text>
+                </TouchableOpacity>
+
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity
+                    style={styles.appleButton}
+                    onPress={handleAppleLogin}
+                    activeOpacity={0.8}
+                    disabled={isSubmitting}
+                  >
+                    <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
+                    <Text style={styles.appleButtonText}>Apple로 시작하기</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>또는 이메일로</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="이메일 또는 아이디"
+                  placeholderTextColor="#9B928A"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isSubmitting}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="비밀번호"
+                  placeholderTextColor="#9B928A"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  editable={!isSubmitting}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.submitButton, isSubmitDisabled && styles.submitButtonDisabled]}
+                onPress={handleEmailLogin}
+                activeOpacity={0.8}
+                disabled={isSubmitDisabled}
+              >
+                <Text style={styles.submitButtonText}>
+                  {isSubmitting ? '로그인 중...' : '로그인'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.authLinks}>
+                <TouchableOpacity onPress={handleForgotPassword} style={styles.authLink}>
+                  <Text style={styles.forgotLink}>비밀번호 찾기</Text>
+                </TouchableOpacity>
+                <Text style={styles.linkSeparator}>|</Text>
+                <TouchableOpacity onPress={handleRegister} style={styles.authLink}>
+                  <Text style={styles.registerLink}>이메일로 회원가입</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.legalLinks}>
+                <TouchableOpacity onPress={() => handleLegalLink('/terms')}>
+                  <Text style={styles.legalLink}>이용약관</Text>
+                </TouchableOpacity>
+                <Text style={styles.legalSeparator}>·</Text>
+                <TouchableOpacity onPress={() => handleLegalLink('/privacy')}>
+                  <Text style={styles.legalLink}>개인정보처리방침</Text>
+                </TouchableOpacity>
+                <Text style={styles.legalSeparator}>·</Text>
+                <TouchableOpacity onPress={() => handleLegalLink('/company')}>
+                  <Text style={styles.legalLink}>사업자 정보</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.bundleIdentityText}>
+                {formatBundleIdentityLabel(bundleIdentity)}
               </Text>
-            </TouchableOpacity>
-
-            <View style={styles.authLinks}>
-              <TouchableOpacity onPress={handleForgotPassword}>
-                <Text style={styles.forgotLink}>비밀번호를 잊으셨나요?</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleRegister}>
-                <Text style={styles.registerLink}>이메일로 회원가입</Text>
-              </TouchableOpacity>
             </View>
-
-            <Text style={styles.bundleIdentityText}>
-              {formatBundleIdentityLabel(bundleIdentity)}
-            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -450,62 +486,61 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Deliberately quiet: this is a diagnostic surface for the OTA reach test, not
-  // product copy. It must be readable when asked for and ignorable otherwise.
-  bundleIdentityText: {
-    marginTop: 24,
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#94a3b8',
-  },
   loginContainer: {
     flex: 1,
-    backgroundColor: '#faf8f6',
+    backgroundColor: '#FAF8F5',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
   },
   loginBox: {
+    flex: 1,
     width: '100%',
-    maxWidth: 448,
+    maxWidth: 480,
     alignSelf: 'center',
-    gap: 32,
+  },
+  appbar: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
   backButton: {
-    alignSelf: 'flex-start',
-    padding: 8,
-    marginLeft: -8,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#64748b',
-    fontFamily: 'Pretendard-Regular',
+  content: {
+    flex: 1,
+    paddingTop: 36,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    gap: 14,
+    marginBottom: 44,
   },
   logo: {
-    height: 32,
-    width: 120,
+    height: 22,
+    width: 84,
+  },
+  tagline: {
+    fontFamily: 'Pretendard-Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#6B625B',
+    letterSpacing: -0.4,
   },
   socialButtons: {
-    gap: 12,
+    gap: 10,
   },
-  appleButton: {
-    width: '100%',
-    height: 44,
-  },
-  kakaoIcon: {
-    width: 18,
-    height: 18,
-  },
-  googleIcon: {
+  socialIcon: {
     width: 18,
     height: 18,
   },
@@ -513,119 +548,164 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 52,
+    paddingHorizontal: 20,
+    borderRadius: 26,
     backgroundColor: '#FEE500',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 6,
     gap: 8,
   },
   kakaoButtonText: {
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
-    color: '#000000',
-    letterSpacing: -0.8,
+    fontFamily: 'Pretendard-SemiBold',
+    fontSize: 15,
+    color: '#191600',
+    letterSpacing: -0.4,
   },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 52,
+    paddingHorizontal: 20,
+    borderRadius: 26,
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#E9E4DE',
     gap: 8,
   },
   googleButtonText: {
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
-    color: '#1f2937',
-    letterSpacing: -0.8,
+    fontFamily: 'Pretendard-SemiBold',
+    fontSize: 15,
+    color: '#1F1A17',
+    letterSpacing: -0.4,
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 52,
+    paddingHorizontal: 20,
+    borderRadius: 26,
+    backgroundColor: '#1F1A17',
+    gap: 8,
+  },
+  appleButtonText: {
+    fontFamily: 'Pretendard-SemiBold',
+    fontSize: 15,
+    color: '#FFFFFF',
+    letterSpacing: -0.4,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 8,
+    gap: 12,
+    marginTop: 28,
+    marginBottom: 20,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#cbd5e1',
+    backgroundColor: '#E9E4DE',
   },
   dividerText: {
     fontFamily: 'Pretendard-Regular',
-    paddingHorizontal: 8,
-    fontSize: 14,
-    color: '#64748b',
-    letterSpacing: -0.7,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#9B928A',
+    letterSpacing: -0.4,
   },
   inputGroup: {
-    borderRadius: 6,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    gap: 10,
   },
   input: {
-    fontFamily: 'Pretendard-Regular',
-    backgroundColor: '#fff',
-    paddingVertical: 12,
+    fontFamily: 'Pretendard-Medium',
+    height: 48,
     paddingHorizontal: 16,
     fontSize: 14,
-    color: '#1e293b',
+    color: '#1F1A17',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    letterSpacing: -0.8,
-  },
-  inputTop: {
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-    borderBottomWidth: 0,
-  },
-  inputBottom: {
-    borderBottomLeftRadius: 6,
-    borderBottomRightRadius: 6,
+    borderColor: '#E9E4DE',
+    borderRadius: 14,
+    letterSpacing: -0.4,
   },
   submitButton: {
-    backgroundColor: '#4B9F7E',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 6,
+    height: 52,
+    marginTop: 6,
+    paddingHorizontal: 20,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    justifyContent: 'center',
+    backgroundColor: '#2A1111',
+    shadowColor: '#14100C',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 3,
   },
   submitButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   submitButtonText: {
-    fontFamily: 'Pretendard-Medium',
-    color: '#fff',
-    fontSize: 14,
-    letterSpacing: -0.8,
+    fontFamily: 'Pretendard-SemiBold',
+    color: '#FFFFFF',
+    fontSize: 15,
+    letterSpacing: -0.4,
   },
   authLinks: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginTop: 8,
+  },
+  authLink: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   forgotLink: {
-    fontFamily: 'Pretendard-Regular',
-    color: '#64748b',
-    fontSize: 14,
-    letterSpacing: -0.7,
+    fontFamily: 'Pretendard-Medium',
+    color: '#6B625B',
+    fontSize: 13,
+    letterSpacing: -0.4,
   },
   registerLink: {
     fontFamily: 'Pretendard-Medium',
-    color: '#4B9F7E',
-    fontSize: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    letterSpacing: -0.7,
+    color: '#2A1111',
+    fontSize: 13,
+    letterSpacing: -0.4,
+  },
+  linkSeparator: {
+    color: '#E9E4DE',
+    fontSize: 13,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 'auto',
+    paddingTop: 24,
+  },
+  legalLink: {
+    fontFamily: 'Pretendard-Regular',
+    color: '#9B928A',
+    fontSize: 11,
+    letterSpacing: -0.4,
+  },
+  legalSeparator: {
+    color: '#9B928A',
+    fontSize: 11,
+  },
+  // Deliberately quiet: this is a diagnostic surface for the OTA reach test, not
+  // product copy. It must be readable when asked for and ignorable otherwise.
+  bundleIdentityText: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#9B928A',
   },
 });

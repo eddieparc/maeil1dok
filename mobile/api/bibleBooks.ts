@@ -54,6 +54,16 @@ export const isBibleBook = (id: string | null | undefined): boolean =>
 export const bookName = (id: string | null | undefined): string =>
   (typeof id === 'string' ? BY_ID.get(id)?.name : undefined) ?? id ?? '';
 
+/** 한글 책 이름 → 코드. 모르는 이름이면 null. */
+export const bookCode = (name: string | null | undefined): string | null => {
+  if (typeof name !== 'string') return null;
+  return BIBLE_BOOKS.find((b) => b.name === name)?.id ?? null;
+};
+
+/** 책 코드 또는 한글 책 이름을 앱의 정규 코드로 맞춘다. */
+export const resolveBibleBookCode = (value: string | null | undefined): string | null =>
+  typeof value === 'string' && isBibleBook(value) ? value : bookCode(value);
+
 export const chapterCount = (id: string | null | undefined): number =>
   (typeof id === 'string' ? BY_ID.get(id)?.chapters : undefined) ?? 0;
 
@@ -80,6 +90,26 @@ export interface ChapterRef {
   readonly book: string;
   readonly chapter: number;
 }
+
+/**
+ * 앱이 수신하는 성경 URL을 정규 위치로 파싱한다.
+ * 스케줄 API의 한글 책명, 앱 내부 코드, 쿼리 순서, 리더 경로를 모두 수용한다.
+ */
+export const parseBibleReaderLocation = (url: string): ChapterRef | null => {
+  const parsed = new URL(url, 'https://maeil1dok.app');
+  const queryBook = resolveBibleBookCode(parsed.searchParams.get('book'));
+  const queryChapter = Number(parsed.searchParams.get('chapter'));
+  if (queryBook && Number.isInteger(queryChapter) && queryChapter >= 1 && queryChapter <= chapterCount(queryBook)) {
+    return { book: queryBook, chapter: queryChapter };
+  }
+
+  const readerMatch = /^\/bible\/reading\/([^/]+)\/(\d+)\/?$/.exec(parsed.pathname);
+  if (!readerMatch) return null;
+  const book = resolveBibleBookCode(decodeURIComponent(readerMatch[1]));
+  const chapter = Number(readerMatch[2]);
+  if (!book || !Number.isInteger(chapter) || chapter < 1 || chapter > chapterCount(book)) return null;
+  return { book, chapter };
+};
 
 /** 다음 장 위치. 책 끝이면 다음 책 1장, 마지막이면 null. */
 export const nextChapter = (ref: ChapterRef): ChapterRef | null => {

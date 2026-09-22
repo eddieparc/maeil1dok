@@ -253,7 +253,7 @@ eas build:view
 
 1. **App Store Connect**에서 앱 생성
    - https://appstoreconnect.apple.com
-   - 번들 ID: `app.maeil1dok.mobile`
+   - 번들 ID: `com.maeil1dok.app`
    - 앱 이름, 설명, 스크린샷 등록
 
 2. **eas.json 설정 확인:**
@@ -281,6 +281,22 @@ eas submit --platform ios
 ```bash
 eas build --profile production --platform ios --auto-submit
 ```
+
+#### TestFlight만 업데이트하기
+
+기존 App Store Connect 앱 `6758072829`를 사용한다. 최신 TestFlight의 화면과
+네이티브 모듈을 보존하고, 이미 업로드한 번호보다 큰 `ios.buildNumber`로 빌드한다.
+
+```bash
+eas build --profile testflight --platform ios --non-interactive
+# 위 빌드의 정확한 ID를 지정한다. 다른 빌드를 고를 수 있는 --latest는 피한다.
+eas submit --profile production --platform ios --id <build-id> --non-interactive
+```
+
+`testflight` 빌드는 store 서명과 별도 `testflight` OTA 채널을 사용한다.
+시크릿은 EAS preview 환경에서 가져오며 앱의 베타 모드 토글은 그대로 유지된다.
+Apple 처리 완료와 기존 내부 테스트 그룹의 설치 가능 상태까지 확인한다.
+TestFlight 업로드는 App Store 공개 출시나 운영 OTA 게시가 아니다.
 
 ### 7.2 Google Play Store 제출
 

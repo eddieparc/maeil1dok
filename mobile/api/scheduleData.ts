@@ -13,6 +13,8 @@
  * node --test 로 전부 검증한다.
  */
 
+import { BIBLE_BOOKS, bookName } from './bibleBooks';
+
 export interface ScheduleEntry {
   readonly id: number;
   readonly plan: number;
@@ -198,3 +200,138 @@ export const shiftMonth = (
   const total = (year * 12 + (month - 1)) + delta;
   return { year: Math.floor(total / 12), month: (total % 12) + 1 };
 };
+
+/**
+ * GET /api/v1/todos/plan/ 응답 정규화. 로그인 사용자는 구독 행(id·is_active)
+ * 을 받고, 게스트는 공개 플랜 목록(id 없이 plan_id 만)을 받는다 — 둘 다 같은
+ * PlanSubscription 모양으로 맞춘다. 게스트 행은 id=plan_id, is_active=true.
+ * plan_id 가 없는 행은 버린다.
+ */
+export const normalizeSubscriptions = (json: unknown): PlanSubscription[] => {
+  if (!Array.isArray(json)) return [];
+  const out: PlanSubscription[] = [];
+  for (const raw of json) {
+    if (!isRecord(raw)) continue;
+    const planId = toPositiveInt(raw.plan_id);
+    if (planId === null) continue;
+    const id = toPositiveInt(raw.id) ?? planId;
+    out.push({
+      id,
+      plan_id: planId,
+      plan_name: toStringOrEmpty(raw.plan_name),
+      is_default: raw.is_default === true,
+      is_active: typeof raw.is_active === 'boolean' ? raw.is_active : true,
+      start_date: toStringOrEmpty(raw.start_date),
+    });
+  }
+  return out;
+};
+
+export interface NextPosition {
+  readonly status: string;
+  readonly date: string | null;
+  readonly message: string | null;
+}
+
+const NEXT_POSITION_STATUSES = new Set([
+  'next_incomplete',
+  'all_completed',
+  'today',
+  'nearest',
+  'no_schedule',
+]);
+
+/** GET /api/v1/todos/next-position/ 응답. 알 수 없는 status 는 null. */
+export const normalizeNextPosition = (json: unknown): NextPosition | null => {
+  if (!isRecord(json)) return null;
+  const status = toStringOrNull(json.status);
+  if (!status || !NEXT_POSITION_STATUSES.has(status)) return null;
+  return {
+    status,
+    date: toStringOrNull(json.date),
+    message: toStringOrNull(json.message),
+  };
+};
+
+const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'] as const;
+
+/** 'YYYY-MM-DD' → '9/1(화)'. 파싱 불가면 원문을 그대로 돌려준다. */
+export const formatScheduleDate = (date: string): string => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return date;
+  const [, y, m, d] = match;
+  const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+  if (Number.isNaN(parsed.getTime())) return date;
+  return `${Number(m)}/${Number(d)}(${WEEKDAY_NAMES[parsed.getDay()]})`;
+};
+
+const PSALM_NAMES = new Set(['psa', '시편']);
+
+/** '시편 7–12편' / '창세기 1–3장' / '창세기 1장'. book 은 코드든 한글이든 된다. */
+export const scheduleTitle = (schedule: {
+  readonly book: string;
+  readonly start_chapter: number;
+  readonly end_chapter: number;
+}): string => {
+  const name = bookName(schedule.book) || schedule.book;
+  const unit = PSALM_NAMES.has(schedule.book) || name === '시편' ? '편' : '장';
+  if (schedule.start_chapter === schedule.end_chapter) {
+    return `${name} ${schedule.start_chapter}${unit}`;
+  }
+  return `${name} ${schedule.start_chapter}–${schedule.end_chapter}${unit}`;
+};
+
+export type ReadingStatus = 'completed' | 'current' | 'not_completed' | 'upcoming';
+
+/**
+ * 카드 상태: 완료가 최우선, 그 다음 오늘=current, 과거=not_completed, 미래=upcoming.
+ * today 는 'YYYY-MM-DD'.
+ */
+export const readingStatus = (
+  date: string,
+  isCompleted: boolean,
+  today: string,
+): ReadingStatus => {
+  if (isCompleted) return 'completed';
+  if (date === today) return 'current';
+  return date < today ? 'not_completed' : 'upcoming';
+};
+
+export interface MonthSummary {
+  readonly totalDays: number;
+  readonly completedDays: number;
+  readonly percent: number;
+}
+
+/** 월 요약: 일정이 있는 날 중 전부 완료한 날의 수와 비율. */
+export const monthSummary = (
+  byDate: Record<string, ScheduleEntry[]>,
+): MonthSummary => {
+  const days = Object.values(byDate);
+  const totalDays = days.length;
+  const completedDays = days.filter((list) =>
+    list.length > 0 && list.every((s) => s.is_completed),
+  ).length;
+  const percent = totalDays === 0 ? 0 : Math.round((completedDays / totalDays) * 100);
+  return { totalDays, completedDays, percent };
+};
+
+const BOOK_ORDER = new Map(BIBLE_BOOKS.map((b, i) => [b.id, i] as const));
+const BOOK_ORDER_BY_NAME = new Map(BIBLE_BOOKS.map((b, i) => [b.name, i] as const));
+
+const bookOrder = (book: string): number =>
+  BOOK_ORDER.get(book) ?? BOOK_ORDER_BY_NAME.get(book) ?? Number.MAX_SAFE_INTEGER;
+
+/**
+ * 날짜 오름차순 → 성경 권 순서 → id 내림차순. 같은 날 같은 책의 여러 일정은
+ * 나중에 추가된(큰 id) 행을 먼저 보여준다 — 웹 통독표의 표시 순서와 동일.
+ */
+export const sortSchedules = (
+  schedules: readonly ScheduleEntry[],
+): ScheduleEntry[] =>
+  [...schedules].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    const orderDiff = bookOrder(a.book) - bookOrder(b.book);
+    if (orderDiff !== 0) return orderDiff;
+    return b.id - a.id;
+  });

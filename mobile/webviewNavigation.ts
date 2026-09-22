@@ -95,6 +95,20 @@ function matchesMediaDomain(host: string): boolean {
 const NATIVE_SCHEMES = ['youtube://', 'vnd.youtube://', 'intent://'] as const;
 
 /**
+ * Tab routes arrive from the native deep-link mapper as paths (`/groups`),
+ * whereas WKWebView treats a bare path as a local `file:` document. Turn
+ * those paths into the currently selected web-stack URL before assigning
+ * them to a WebView source. Full URLs are preserved for session bridges.
+ */
+export function resolveWebTabUrl(webAppUrl: string, urlOrPath: string): string {
+  if (/^https?:\/\//i.test(urlOrPath)) {
+    return urlOrPath;
+  }
+  const path = urlOrPath.startsWith('/') ? urlOrPath : `/${urlOrPath}`;
+  return new URL(path, webAppUrl).toString();
+}
+
+/**
  * 사용자에게 알릴 가치가 없는 실패들.
  * -999: NSURLErrorCancelled (iOS, 정책상 차단 포함)
  *  102: WebKitErrorFrameLoadInterruptedByPolicyChange

@@ -42,11 +42,11 @@ function loadPush(options = {}) {
   return { ...module.exports, calls, storage };
 }
 
-function appClosure(name, context) {
-  const owner = ['registerForPushNotifications', 'handleMessage'].includes(name)
+function appClosure(name, context, ownerOverride) {
+  const owner = ownerOverride ?? (['registerForPushNotifications', 'handleMessage'].includes(name)
     ? 'screens/WebViewScreen.tsx'
     : name === 'setBetaMode' ? 'navigation/AppStackContext.tsx'
-      : name === 'handleBetaToggle' ? 'screens/MoreScreen.tsx' : 'App.tsx';
+      : 'App.tsx');
   const file = path.join(__dirname, '..', owner);
   const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let expression;
@@ -423,20 +423,39 @@ test('environment persistence waits for the native subscription transition', { t
   assert.deepEqual(events, ['persist', 'switch']);
 });
 
-test('the native beta control does not remount the old environment while switching', { timeout: 5000 }, async () => {
+test('the profile tab beta control does not remount the old environment while switching', { timeout: 5000 }, async () => {
   let release;
   const pending = new Promise(resolve => { release = resolve; });
   const remounts = [];
-  const toggle = appClosure('handleBetaToggle', {
+  let didSwitch;
+  const switched = new Promise(resolve => { didSwitch = resolve; });
+  const handler = appClosure('handleMessage', {
     setBetaMode: () => pending,
-    remountWebView: () => remounts.push('old'),
-    Alert: { alert() {} },
-  });
-  const changed = toggle(true);
+    resolveStack: () => ({ web: 'https://beta.maeil1dok.app' }),
+    currentUrlRef: { current: 'https://maeil1dok.app' },
+    firstLoadDoneRef: { current: true },
+    pendingUrlRef: { current: null },
+    setIsLoading() {},
+    setWebViewKey() { remounts.push('new'); didSwitch(); },
+    isPushBridgeRequest: () => false,
+  }, 'screens/WebViewTabScreen.tsx');
+  handler({ nativeEvent: { data: JSON.stringify({ type: 'beta:set', enabled: true }) } });
   try {
     assert.deepEqual(remounts, []);
   } finally {
     release();
   }
-  await changed;
+  await switched;
+  assert.deepEqual(remounts, ['new']);
+});
+
+test('signed-out profile can await a durable beta switch without a WebView', async () => {
+  const changes = [];
+  const toggle = appClosure('handleBetaToggle', {
+    setBetaMode: async enabled => { changes.push(enabled); },
+    Alert: { alert() {} },
+  }, 'navigation/RootNavigator.tsx');
+  await toggle(true);
+  await toggle(false);
+  assert.deepEqual(changes, [true, false]);
 });

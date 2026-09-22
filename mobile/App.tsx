@@ -82,7 +82,10 @@ function ShellBody() {
     const route = mapWebPathToRoute(pathname, search);
     if (route.type === 'tab' && !search) {
       if (navigationRef.isReady()) {
-        navigationRef.navigate('Main', { screen: route.name });
+        navigationRef.navigate('Main', {
+          screen: route.name,
+          params: route.url ? { url: route.url } : undefined,
+        });
       }
       return;
     }
@@ -193,14 +196,21 @@ function AppContent() {
 
   useEffect(() => {
     const loadFonts = async () => {
-      await Font.loadAsync({
-        'Pretendard-Regular': require('./assets/fonts/Pretendard-Regular.otf'),
-        'Pretendard-Medium': require('./assets/fonts/Pretendard-Medium.otf'),
-        'Pretendard-SemiBold': require('./assets/fonts/Pretendard-SemiBold.otf'),
-        'Pretendard-Bold': require('./assets/fonts/Pretendard-Bold.otf'),
-      });
-      setFontsLoaded(true);
-      SplashScreen.hideAsync();
+      try {
+        await Font.loadAsync({
+          'Pretendard-Regular': require('./assets/fonts/Pretendard-Regular.otf'),
+          'Pretendard-Medium': require('./assets/fonts/Pretendard-Medium.otf'),
+          'Pretendard-SemiBold': require('./assets/fonts/Pretendard-SemiBold.otf'),
+          'Pretendard-Bold': require('./assets/fonts/Pretendard-Bold.otf'),
+          'NotoSerifKR-Bold': require('./assets/fonts/NotoSerifKR-Bold.ttf'),
+          'NotoSerifKR-Regular': require('./assets/fonts/NotoSerifKR-Regular.ttf'),
+        });
+      } catch (error) {
+        console.warn('[App] font load failed:', error);
+      } finally {
+        setFontsLoaded(true);
+        SplashScreen.hideAsync();
+      }
     };
     loadFonts();
   }, []);

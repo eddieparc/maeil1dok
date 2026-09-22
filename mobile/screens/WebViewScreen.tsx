@@ -899,9 +899,11 @@ export default function WebViewScreen() {
             };
             document.documentElement.style.setProperty('--native-top-inset', '${insets.top}px');
             document.documentElement.style.setProperty('--native-bottom-inset', '${insets.bottom}px');
-            document.body.classList.add('native-app');
-            if (${Platform.OS === 'android'}) {
-              document.body.classList.add('android-native-app');
+            if (document.body) {
+              document.body.classList.add('native-app');
+              if (${Platform.OS === 'android'}) {
+                document.body.classList.add('android-native-app');
+              }
             }
           })();
           true;

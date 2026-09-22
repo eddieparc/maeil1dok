@@ -45,6 +45,15 @@
       },
       "credentialsSource": "remote"
     },
+    "testflight": {
+      "extends": "production",
+      "distribution": "store",
+      "channel": "testflight",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_ENV": "testflight"
+      }
+    },
     "diagnostic": {
       "extends": "preview",
       "channel": "diagnostic",

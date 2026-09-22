@@ -33,6 +33,7 @@ const authSessionPolicySource = await readFile(
 const mobileAppSource = (await Promise.all([
   'App.tsx',
   'screens/WebViewScreen.tsx',
+  'screens/WebViewTabScreen.tsx',
   'screens/LoginScreen.tsx',
   'auth/AuthSession.tsx',
 ].map(path => readFile(new URL(`../../mobile/${path}`, import.meta.url), 'utf8')))).join('\n');

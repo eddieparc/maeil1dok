@@ -166,3 +166,153 @@ export const parseHomeStats = (json: unknown): HomeStats => {
     recentRecords,
   };
 };
+
+// --- 웹 홈 패리티용 추가 파서 ---------------------------------------------
+
+export interface HomeUser {
+  readonly id: number;
+  readonly nickname: string;
+  readonly username: string;
+  readonly email: string | null;
+  readonly emailVerified: boolean;
+  readonly hasUsablePassword: boolean;
+}
+
+/** GET /api/v1/auth/user/ 응답 → 홈 헤더/인사말/배너에 쓰는 형태. */
+export const parseHomeUser = (json: unknown): HomeUser | null => {
+  if (!isRecord(json)) return null;
+  const id = asNumber(json.id);
+  if (id === null) return null;
+  return {
+    id,
+    nickname: asString(json.nickname) ?? '',
+    username: asString(json.username) ?? '',
+    email: asString(json.email),
+    emailVerified: json.email_verified === true,
+    hasUsablePassword: json.has_usable_password_flag === true,
+  };
+};
+
+export interface CalendarEntry {
+  readonly date: string;
+  readonly plan_id: number;
+  readonly schedule_id: number;
+  readonly book: string;
+  readonly start_chapter: number;
+  readonly end_chapter: number;
+  readonly is_completed: boolean;
+}
+
+/** GET /api/v1/auth/profile/{id}/calendar/ 응답의 calendar 배열 정규화. */
+export const parseCalendarEntries = (json: unknown): CalendarEntry[] => {
+  if (!isRecord(json)) return [];
+  const data = isRecord(json.data) ? json.data : json;
+  const list = Array.isArray(data.calendar) ? data.calendar : [];
+  const out: CalendarEntry[] = [];
+  for (const raw of list) {
+    if (!isRecord(raw)) continue;
+    const date = asString(raw.date);
+    const book = asString(raw.book);
+    const start = asNumber(raw.start_chapter);
+    if (!date || !book || start === null) continue;
+    out.push({
+      date,
+      plan_id: asNumber(raw.plan_id) ?? 0,
+      schedule_id: asNumber(raw.schedule_id) ?? 0,
+      book,
+      start_chapter: start,
+      end_chapter: asNumber(raw.end_chapter) ?? start,
+      is_completed: raw.is_completed === true,
+    });
+  }
+  return out;
+};
+
+/** GET /api/v1/auth/profile/{id}/ 응답에서 current_streak 추출. */
+export const parseStreak = (json: unknown): number | null => {
+  if (!isRecord(json)) return null;
+  const data = isRecord(json.data) ? json.data : json;
+  const profile = isRecord(data.profile) ? data.profile : data;
+  return asNumber(profile.current_streak);
+};
+
+/** GET /api/v1/todos/stats/progress/ 응답 → 0-100 정수 퍼센트. */
+export const parseProgress = (json: unknown): number => {
+  if (!isRecord(json)) return 0;
+  const value = asNumber(json.user_progress);
+  if (value === null) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+};
+
+/** GET /api/v1/todos/schedules/ 응답에서 마지막 일정 날짜(YYYY-MM-DD). */
+export const parseFinalScheduleDate = (json: unknown): string | null => {
+  if (!Array.isArray(json)) return null;
+  let latest: string | null = null;
+  for (const raw of json) {
+    if (!isRecord(raw)) continue;
+    const date = asString(raw.date);
+    if (date && (latest === null || date > latest)) latest = date;
+  }
+  return latest;
+};
+
+/** GET /api/v1/todos/notifications/ 응답 → 읽지 않은 알림 수. */
+export const parseUnreadNotifications = (json: unknown): number => {
+  if (!isRecord(json)) return 0;
+  const unread = asNumber(json.unread_count);
+  if (unread !== null) return unread;
+  const list = Array.isArray(json.notifications)
+    ? json.notifications
+    : Array.isArray(json.results)
+      ? json.results
+      : [];
+  return list.filter(
+    (n) => isRecord(n) && n.is_read === false,
+  ).length;
+};
+
+export type WeekDayState = 'read' | 'today' | 'upcoming' | 'missed';
+
+export interface WeekDay {
+  readonly date: string;
+  readonly label: string;
+  readonly number: number;
+  readonly isToday: boolean;
+  readonly state: WeekDayState;
+}
+
+const WEEK_LABELS = ['월', '화', '수', '목', '금', '토', '일'] as const;
+
+/**
+ * 이번 주(월~일) 7일을 만든다. today 는 'YYYY-MM-DD'. entries 는 해당 플랜의
+ * 캘린더 행 — 그 날의 행이 전부 완료면 'read'.
+ */
+export const buildWeek = (
+  today: string,
+  entries: readonly CalendarEntry[],
+): WeekDay[] => {
+  const monday = new Date(`${today}T00:00:00Z`);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday);
+    date.setUTCDate(date.getUTCDate() + index);
+    const key = date.toISOString().slice(0, 10);
+    const dayEntries = entries.filter((e) => e.date === key);
+    const read = dayEntries.length > 0 && dayEntries.every((e) => e.is_completed);
+    const isToday = key === today;
+    const state: WeekDayState = read
+      ? 'read'
+      : isToday
+        ? 'today'
+        : key > today
+          ? 'upcoming'
+          : 'missed';
+    return {
+      date: key,
+      label: WEEK_LABELS[index],
+      number: date.getUTCDate(),
+      isToday,
+      state,
+    };
+  });
+};
