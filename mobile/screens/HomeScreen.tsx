@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Modal,
@@ -15,9 +15,21 @@ import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../auth/AuthSession';
 import { useAppStack } from '../navigation/AppStackContext';
 import { navigationRef } from '../navigation/navigationRef';
-import { bookCode } from '../api/bibleBooks';
+import { useNativeTabBarInset } from '../navigation/NativeTabBar';
+import { NativeButton } from '../components/ui/NativeButton';
+import { NativeStateView } from '../components/ui/NativeStateView';
+import type { ApiFetch } from '../api/nativeApi';
 import {
+  assignmentUrl,
   buildWeek,
+  parseHomePlans,
+  pickEffectivePlanId,
+  readHomeResponse,
+  recentCompleted,
+  parseHomeHasena,
+  parseFirstHomeGroup,
+  parseHomeGroupProgress,
+  type HomeHasena,
   parseCalendarEntries,
   parseFinalScheduleDate,
   parseHomeUser,
@@ -66,11 +78,11 @@ const openTab = (name: 'Schedule' | 'Together' | 'Bible' | 'Profile') => {
   if (navigationRef.isReady()) navigationRef.navigate('Main', { screen: name });
 };
 
-const openBibleChapter = (book: string, chapter: number) => {
+const openBibleChapter = (url: string) => {
   if (navigationRef.isReady()) {
     navigationRef.navigate('Main', {
       screen: 'Bible',
-      params: { url: `/bible?book=${book}&chapter=${chapter}` },
+      params: { url },
     });
   }
 };
@@ -83,7 +95,7 @@ interface PlanCardData {
   readonly passage: string;
   readonly description: string;
   readonly remainingDays: number | null;
-  readonly route: { book: string; chapter: number } | null;
+  readonly route: string | null;
 }
 
 interface DashboardData {
@@ -93,27 +105,38 @@ interface DashboardData {
   readonly planCards: PlanCardData[];
   readonly availablePlans: { id: number; name: string; is_default: boolean }[];
   readonly unread: number;
-  readonly error: string | null;
+  readonly primaryPlanId: number | null;
 }
 
 export default function HomeScreen() {
-  const { status, apiFetch } = useAuth();
+  const { status, apiFetch, accessToken } = useAuth();
   const { stack } = useAppStack();
   const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [subscribeResult, setSubscribeResult] = useState<'success' | 'error' | null>(null);
+  const [resendResult, setResendResult] = useState<'success' | 'error' | null>(null);
+  const submitting = useMemo(() => ({ subscribe: false, resend: false, active: true }),
+    [status, stack, accessToken, apiFetch]);
+  const generation = useRef(0);
   const [retry, setRetry] = useState(0);
+  const tabBarInset = useNativeTabBarInset();
 
   const signedIn = status === 'signedIn';
 
-  const load = useCallback(async () => {
+  // Focus cleanup invalidates requests from a previous account or stack.
+  const load = useCallback(async (request: number) => {
     if (!signedIn) {
       setData(null);
+      setLoading(false);
       return;
     }
     setLoading(true);
+    setError(null);
     try {
       const userRes = await apiFetch('/api/v1/auth/user/');
       if (!userRes.ok) throw new Error(`user ${userRes.status}`);
@@ -144,36 +167,36 @@ export default function HomeScreen() {
         ),
       ]);
 
-      const plansJson = plansRes.ok ? await plansRes.json() : null;
-      const plansObj = plansJson && typeof plansJson === 'object' ? plansJson as Record<string, unknown> : {};
-      const subscriptions = Array.isArray(plansObj.subscriptions)
-        ? plansObj.subscriptions as { id: number; plan_id: number; plan_name?: string; is_active?: boolean }[]
-        : [];
-      const availablePlans = Array.isArray(plansObj.available_plans)
-        ? plansObj.available_plans as { id: number; name: string; is_default: boolean }[]
-        : [];
-
-      const streak = profileRes.ok ? parseStreak(await profileRes.json()) : null;
+      const { subscriptions, availablePlans } = parseHomePlans(await readHomeResponse(plansRes));
+      const streak = parseStreak(await readHomeResponse(profileRes));
+      if (streak === null) throw new Error('Invalid streak');
       const calendarJsons = await Promise.all(
-        calResponses.map((r) => (r.ok ? r.json() : null)),
+        calResponses.map(readHomeResponse),
       );
       const calendar = calendarJsons.flatMap((j) => parseCalendarEntries(j));
-      const unread = notifRes.ok ? parseUnreadNotifications(await notifRes.json()) : 0;
+      const unread = parseUnreadNotifications(await readHomeResponse(notifRes));
 
       const activeSubs = subscriptions.filter(
         (s: { is_active?: boolean }) => s.is_active,
       );
+      const primaryPlanId = pickEffectivePlanId(activeSubs);
       const cardSubs = activeSubs.slice(0, 3);
+      // A default outside the first three still owns the stats.
+      const primarySub = activeSubs.find(s => s.plan_id === primaryPlanId);
+      const fetchedSubs = primarySub && !cardSubs.includes(primarySub) ? [...cardSubs, primarySub] : cardSubs;
       const cardResults = await Promise.all(
-        cardSubs.map(async (sub: { id: number; plan_id: number; plan_name?: string }) => {
+        fetchedSubs.map(async (sub) => {
           const [progRes, schedRes] = await Promise.all([
             apiFetch(`/api/v1/todos/stats/progress/?plan_id=${sub.plan_id}`),
             apiFetch(`/api/v1/todos/schedules/?plan_id=${sub.plan_id}`),
           ]);
-          const progress = progRes.ok ? parseProgress(await progRes.json()) : 0;
-          const finalDate = schedRes.ok
-            ? parseFinalScheduleDate(await schedRes.json())
-            : null;
+          const progressJson = await readHomeResponse(progRes);
+          if (!progressJson || typeof progressJson !== 'object' || !('user_progress' in progressJson)
+            || typeof progressJson.user_progress !== 'number') throw new Error('Invalid progress');
+          const progress = parseProgress(progressJson);
+          const schedules = await readHomeResponse(schedRes);
+          if (!Array.isArray(schedules)) throw new Error('Invalid schedules');
+          const finalDate = parseFinalScheduleDate(schedules);
           const remaining = finalDate
             ? Math.max(
                 0,
@@ -186,7 +209,6 @@ export default function HomeScreen() {
           const todayEntry = calendar.find(
             (e) => e.plan_id === sub.plan_id && e.date === today,
           );
-          const code = todayEntry ? bookCode(todayEntry.book) : null;
           const unit = todayEntry?.book === '시편' ? '편' : '장';
           const passage = todayEntry
             ? `${todayEntry.book} ${todayEntry.start_chapter === todayEntry.end_chapter ? todayEntry.start_chapter : `${todayEntry.start_chapter}-${todayEntry.end_chapter}`}${unit}`
@@ -204,11 +226,12 @@ export default function HomeScreen() {
               ? `총 ${chapters}${unit} · 오늘의 통독`
               : '오늘 예정된 본문이 없어요',
             remainingDays: remaining,
-            route: todayEntry && code ? { book: code, chapter: todayEntry.start_chapter } : null,
+            route: todayEntry ? assignmentUrl(todayEntry) : null,
           } satisfies PlanCardData;
         }),
       );
 
+      if (generation.current !== request) return;
       setData({
         user,
         streak,
@@ -216,34 +239,44 @@ export default function HomeScreen() {
         planCards: cardResults,
         availablePlans,
         unread,
-        error: null,
+        primaryPlanId,
       });
     } catch (error) {
-      console.error('[Home] load failed:', error);
-      setData((prev) =>
-        prev
-          ? { ...prev, error: '읽기 기록을 불러오지 못했습니다.' }
-          : null,
-      );
+      if (generation.current === request) setError('읽기 기록을 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      if (generation.current === request) setLoading(false);
     }
   }, [signedIn, apiFetch]);
 
   useFocusEffect(
     useCallback(() => {
-      if (status !== 'loading') void load();
-    }, [status, load, retry]),
+      const request = ++generation.current;
+      if (status !== 'loading') void load(request);
+      return () => { generation.current++; };
+    }, [status, load, retry, stack, accessToken]),
   );
 
+  useEffect(() => {
+    setData(null);
+    setError(null);
+    setBannerDismissed(false);
+    setSubscribeResult(null);
+    setResendResult(null);
+    submitting.active = true;
+    setSubscribing(false);
+    setResending(false);
+    return () => { submitting.active = false; };
+  }, [submitting]);
+
   const today = todayKey();
-  const primaryCard = data?.planCards[0] ?? null;
+  const primaryCard = data?.planCards.find(c => c.planId === data.primaryPlanId) ?? null;
   const planCalendar = useMemo(
     () => (data && primaryCard ? data.calendar.filter((e) => e.plan_id === primaryCard.planId) : []),
     [data, primaryCard],
   );
   const week = useMemo(() => buildWeek(today, planCalendar), [today, planCalendar]);
   const weeklyCompleted = week.filter((d) => d.state === 'read').length;
+  const recentRecords = recentCompleted(planCalendar, today);
 
   const showEmailBanner =
     signedIn &&
@@ -254,28 +287,47 @@ export default function HomeScreen() {
     !data.user.emailVerified;
 
   const resendVerification = async () => {
+    if (submitting.resend || !submitting.active) return;
+    submitting.resend = true;
+    setResending(true);
+    setResendResult(null);
     try {
-      await apiFetch('/api/v1/auth/resend-verification/', { method: 'POST' });
+      await readHomeResponse(await apiFetch('/api/v1/auth/resend-verification/', { method: 'POST' }));
+      if (submitting.active) setResendResult('success');
     } catch (error) {
-      console.error('[Home] resend verification failed:', error);
+      if (submitting.active) setResendResult('error');
+    } finally {
+      if (submitting.active) {
+        submitting.resend = false;
+        setResending(false);
+      }
     }
   };
 
   const subscribeToDefault = async () => {
     const plan = data?.availablePlans.find((p) => p.is_default) ?? data?.availablePlans[0];
-    if (!plan || subscribing) return;
+    if (!plan || submitting.subscribe || !submitting.active) return;
+    submitting.subscribe = true;
     setSubscribing(true);
+    setSubscribeResult(null);
     try {
       const res = await apiFetch('/api/v1/todos/plan/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan_id: plan.id }),
       });
-      if (res.ok) setRetry((r) => r + 1);
+      await readHomeResponse(res);
+      if (submitting.active) {
+        setSubscribeResult('success');
+        setRetry((r) => r + 1);
+      }
     } catch (error) {
-      console.error('[Home] subscribe failed:', error);
+      if (submitting.active) setSubscribeResult('error');
     } finally {
-      setSubscribing(false);
+      if (submitting.active) {
+        submitting.subscribe = false;
+        setSubscribing(false);
+      }
     }
   };
 
@@ -289,19 +341,28 @@ export default function HomeScreen() {
       {showEmailBanner && (
         <View style={styles.banner}>
           <Ionicons name="information-circle" size={18} color="#92400E" />
-          <Text style={styles.bannerText}>
-            이메일 인증이 완료되지 않았습니다.{' '}
-            <Text style={styles.bannerLink} onPress={() => void resendVerification()}>
-              인증 메일 재전송
-            </Text>
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bannerText}>이메일 인증이 완료되지 않았습니다.</Text>
+            <TouchableOpacity testID="home-resend" accessibilityRole="button"
+              accessibilityLabel="인증 메일 재전송" accessibilityState={{ disabled: resending, busy: resending }}
+              disabled={resending} onPress={resendVerification} style={{ minHeight: 48, justifyContent: 'center' }}>
+              <Text style={styles.bannerLink}>{resending ? '보내는 중…' : '인증 메일 재전송'}</Text>
+            </TouchableOpacity>
+            {resendResult && <Text testID={`home-resend-${resendResult}`} accessibilityLiveRegion="polite"
+              accessibilityRole={resendResult === 'error' ? 'alert' : 'text'} style={styles.bannerText}>
+              {resendResult === 'success' ? '인증 메일을 보냈습니다.' : '메일을 보내지 못했습니다. 다시 시도해 주세요.'}
+            </Text>}
+          </View>
           <TouchableOpacity onPress={() => setBannerDismissed(true)} hitSlop={8}>
             <Ionicons name="close" size={18} color="#92400E" />
           </TouchableOpacity>
         </View>
       )}
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarInset }]}
+      >
         {/* 헤더 */}
         <View style={styles.header}>
           <Image
@@ -359,9 +420,19 @@ export default function HomeScreen() {
         </View>
 
         {/* 메인 카드 */}
-        {signedIn ? (
+        {status === 'loading' || (signedIn && loading) ? (
+          <View testID="home-loading"><NativeStateView kind="loading" message="읽기 기록을 불러오는 중…" /></View>
+        ) : signedIn && error ? (
+          <View testID="home-error">
+            <NativeStateView kind="error" message={error} />
+            <TouchableOpacity testID="home-retry" accessibilityRole="button" style={styles.secondaryButton}
+              onPress={() => setRetry(r => r + 1)}>
+              <Text style={styles.secondaryButtonText}>다시 시도</Text>
+            </TouchableOpacity>
+          </View>
+        ) : signedIn ? (
           data?.planCards.length ? (
-            data.planCards.map((card) => (
+            data.planCards.slice(0, 3).map((card) => (
               <View key={card.subscriptionId} style={styles.card}>
                 <View style={styles.cardRow}>
                   <ProgressRing progress={card.progress} />
@@ -376,10 +447,12 @@ export default function HomeScreen() {
                   </View>
                 </View>
                 <TouchableOpacity
+                  testID={`home-read-${card.planId}`}
+                  accessibilityRole="button"
                   style={styles.primaryButton}
                   onPress={() => {
                     if (card.route) {
-                      openBibleChapter(card.route.book, card.route.chapter);
+                      openBibleChapter(card.route);
                     } else {
                       openTab('Schedule');
                     }
@@ -393,7 +466,7 @@ export default function HomeScreen() {
               </View>
             ))
           ) : (
-            <View style={[styles.card, styles.planSuggestion]}>
+            <View testID="home-empty" style={[styles.card, styles.planSuggestion]}>
               <Text style={styles.suggestionText}>아직 통독 플랜이 없어요</Text>
               {data?.availablePlans.length ? (
                 <>
@@ -401,8 +474,11 @@ export default function HomeScreen() {
                     {(data.availablePlans.find((p) => p.is_default) ?? data.availablePlans[0]).name}
                   </Text>
                   <TouchableOpacity
+                    testID="home-subscribe"
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: subscribing, busy: subscribing }}
                     style={styles.secondaryButton}
-                    onPress={() => void subscribeToDefault()}
+                    onPress={subscribeToDefault}
                     disabled={subscribing}
                   >
                     <Text style={styles.secondaryButtonText}>
@@ -438,12 +514,17 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         )}
+        {subscribeResult && <Text testID={`home-subscribe-${subscribeResult}`}
+          accessibilityLiveRegion="polite" accessibilityRole={subscribeResult === 'error' ? 'alert' : 'text'}
+          style={styles.cardDesc}>
+          {subscribeResult === 'success' ? '통독 플랜을 시작했습니다.' : '플랜을 시작하지 못했습니다. 다시 시도해 주세요.'}
+        </Text>}
 
         {/* 통계 + 이번 주 (로그인만) */}
-        {signedIn && (
+        {signedIn && data && !loading && !error && (
           <>
-            <View style={styles.statsRow}>
-              <StatCard icon="flame-outline" label="연속" value={`${data?.streak ?? 0}`} unit="일" />
+            <View testID="home-stats" accessibilityValue={{ text: `${weeklyCompleted}/7` }} style={styles.statsRow}>
+              <StatCard icon="flame-outline" label="연속" value={`${data.streak ?? '-'}`} unit="일" />
               <StatCard icon="calendar-outline" label="이번 주" value={`${weeklyCompleted}`} unit="/7" />
               <StatCard
                 icon="book-outline"
@@ -451,6 +532,21 @@ export default function HomeScreen() {
                 value={primaryCard?.remainingDays != null ? `${primaryCard.remainingDays}` : '-'}
                 unit="일"
               />
+            </View>
+            <View style={styles.weekCard}>
+              <Text style={styles.weekTitle}>최근 기록</Text>
+              {recentRecords.length ? recentRecords.map(record => (
+                <TouchableOpacity key={record.schedule_id} testID={`home-recent-${record.schedule_id}`}
+                  accessibilityRole="button" onPress={() => openTab('Schedule')}
+                  style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="checkmark" size={16} color={ACCENT} />
+                  <Text style={[styles.cardDesc, { flex: 1 }]}>
+                    {record.book} {record.start_chapter === record.end_chapter ? record.start_chapter
+                      : `${record.start_chapter}-${record.end_chapter}`}{record.book === '시편' ? '편' : '장'}
+                  </Text>
+                  <Text style={styles.cardDesc}>{record.date.slice(5).replace('-', '.')}</Text>
+                </TouchableOpacity>
+              )) : <Text style={styles.cardDesc}>최근 완료한 통독 기록이 없어요.</Text>}
             </View>
             <View style={styles.weekCard}>
               <Text style={styles.weekTitle}>이번 주</Text>
@@ -489,6 +585,9 @@ export default function HomeScreen() {
             </View>
           </>
         )}
+
+        <HomeAside apiFetch={apiFetch} signedIn={signedIn} identity={accessToken}
+          webBase={stack.web} />
 
         {/* 바로가기 */}
         <Text style={styles.sectionTitle}>바로가기</Text>
@@ -583,6 +682,89 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+function HomeAside({ apiFetch, signedIn, identity, webBase }: {
+  readonly apiFetch: ApiFetch;
+  readonly signedIn: boolean;
+  readonly identity: string | null;
+  readonly webBase: string;
+}) {
+  const [hasena, setHasena] = useState<HomeHasena | null>(null);
+  const [group, setGroup] = useState<ReturnType<typeof parseFirstHomeGroup>>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasenaError, setHasenaError] = useState(false);
+  const [groupError, setGroupError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setLoading(true);
+    setHasena(null);
+    setGroup(null);
+    setProgress(null);
+    setHasenaError(false);
+    setGroupError(false);
+    const today = todayKey();
+    const query = `year=${today.slice(0, 4)}&month=${Number(today.slice(5, 7))}`;
+    const video = async () => {
+      try {
+        const entry = parseHomeHasena(await readHomeResponse(
+          await apiFetch(`/api/v1/todos/hasena/calendar/?${query}`)), today);
+        if (active) setHasena(entry);
+      } catch {
+        if (active) setHasenaError(true);
+      }
+    };
+    const members = async () => {
+      if (!signedIn) return;
+      try {
+        const first = parseFirstHomeGroup(await readHomeResponse(await apiFetch('/api/v1/todos/groups/?only_mine=true')));
+        const percent = first?.planId == null ? null : parseHomeGroupProgress(await readHomeResponse(
+          await apiFetch(`/api/v1/todos/groups/${first.id}/member-progress/?${query}&plan_id=${first.planId}`)), today);
+        if (active) { setGroup(first); setProgress(percent); }
+      } catch {
+        if (active) setGroupError(true);
+      }
+    };
+    void Promise.all([video(), members()]).then(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [apiFetch, signedIn, identity, webBase, retry]));
+  return (
+    <>
+      <View style={styles.weekCard}>
+        <Text style={styles.weekTitle}>하세나하시조</Text>
+        {loading ? <NativeStateView kind="loading" message="읽기 소식을 불러오는 중…" />
+          : hasenaError ? <NativeStateView kind="error" message="하세나를 불러오지 못했습니다." />
+            : <TouchableOpacity accessibilityRole="button" accessibilityLabel="하세나 페이지로 이동"
+                onPress={() => openWebPath(webBase, '/hasena')}>
+                {hasena?.videoId ? <Image testID="home-hasena-image"
+                  source={{ uri: `https://i.ytimg.com/vi/${encodeURIComponent(hasena.videoId)}/hqdefault.jpg` }}
+                  accessibilityLabel={hasena.title} style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 12 }} />
+                  : null}
+                <Text style={styles.weekTitle}>{hasena?.title || '오늘의 하세나 보기'}</Text>
+                {hasena && <Text style={styles.cardDesc}>{hasena.passage}</Text>}
+              </TouchableOpacity>}
+      </View>
+      <View style={styles.weekCard}>
+        <Text style={styles.weekTitle}>그룹 진도</Text>
+        {loading ? <NativeStateView kind="loading" message="그룹 진도를 불러오는 중…" />
+          : groupError ? <NativeStateView kind="error" message="그룹 진도를 불러오지 못했습니다." />
+            : group ? <>
+              <NativeButton label={group.name} onPress={() => openWebPath(webBase, `/groups/${group.id}`)} />
+              {progress === null ? <Text style={styles.cardDesc}>오늘 예정된 그룹 통독이 없어요.</Text>
+                : <View testID="home-group-progress" accessibilityRole="progressbar"
+                    accessibilityLabel="오늘 그룹 멤버 완료율" accessibilityValue={{ min: 0, max: 100, now: progress }}>
+                    <Text style={styles.cardDesc}>오늘 멤버 완료율 {progress}%</Text>
+                    <View style={{ height: 8, borderRadius: 4, backgroundColor: BORDER }}>
+                      <View style={{ width: `${progress}%`, height: 8, borderRadius: 4, backgroundColor: ACCENT }} />
+                    </View>
+                  </View>}
+            </> : <NativeButton label="함께 읽을 그룹 찾아보기" onPress={() => openTab('Together')} />}
+      </View>
+      {(hasenaError || groupError) && <NativeButton label="읽기 소식 다시 불러오기" onPress={() => setRetry(r => r + 1)} />}
+    </>
   );
 }
 

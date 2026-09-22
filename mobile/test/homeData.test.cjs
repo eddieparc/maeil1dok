@@ -134,6 +134,13 @@ test('pickEffectivePlanId returns null with no usable subscription', () => {
   );
 });
 
+test('inactive default never overrides an active plan', () => {
+  assert.equal(pickEffectivePlanId([
+    { id: 1, plan_id: 3, is_default: true, is_active: false },
+    { id: 2, plan_id: 4, is_default: false, is_active: true },
+  ]), 4);
+});
+
 // --- summarizeToday --------------------------------------------------------
 
 test('summarizeToday handles an empty schedule list', () => {

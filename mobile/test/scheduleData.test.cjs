@@ -53,6 +53,7 @@ const {
   readingStatus,
   monthSummary,
   sortSchedules,
+  scheduleReaderUrl,
 } = loadTsModule('api/scheduleData.ts');
 
 const entry = (overrides = {}) => ({
@@ -372,4 +373,13 @@ test('sortSchedules orders by date then canonical book order then id', () => {
     entry({ id: 4, date: '2026-09-01', book: '창세기' }),
   ]);
   assert.deepEqual(out.map((s) => s.id), [4, 1, 2, 3]);
+});
+
+test('scheduleReaderUrl preserves the selected schedule and plan context', () => {
+  const url = scheduleReaderUrl(entry({ id: 12, book: '출애굽기', start_chapter: 4 }), 3);
+  assert.deepEqual(Object.fromEntries(new URL(url, 'https://example.test').searchParams), {
+    book: 'exo', chapter: '4', schedule: '12', plan: '3',
+    date: '2026-09-19', tongdok: 'true', from: 'plan',
+  });
+  assert.equal(scheduleReaderUrl(entry({ book: 'unknown' }), 3), null);
 });

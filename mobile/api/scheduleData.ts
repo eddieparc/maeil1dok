@@ -13,7 +13,7 @@
  * node --test 로 전부 검증한다.
  */
 
-import { BIBLE_BOOKS, bookName } from './bibleBooks';
+import { BIBLE_BOOKS, bookName, resolveBibleBookCode } from './bibleBooks';
 
 export interface ScheduleEntry {
   readonly id: number;
@@ -28,6 +28,22 @@ export interface ScheduleEntry {
   readonly guide_link: string | null;
   readonly is_completed: boolean;
 }
+
+/** Keep the selected row's identity when entering the native Reader. */
+export const scheduleReaderUrl = (schedule: ScheduleEntry, planId: number): string | null => {
+  const book = resolveBibleBookCode(schedule.book);
+  if (!book) return null;
+  const query = new URLSearchParams({
+    book,
+    chapter: String(schedule.start_chapter),
+    schedule: String(schedule.id),
+    plan: String(planId),
+    date: schedule.date,
+    tongdok: 'true',
+    from: 'plan',
+  });
+  return `/bible?${query}`;
+};
 
 export interface PlanSubscription {
   readonly id: number;

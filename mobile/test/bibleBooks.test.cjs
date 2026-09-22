@@ -23,7 +23,7 @@ function loadTsModule(fileName) {
   return moduleInstance.exports;
 }
 
-const { parseBibleReaderLocation } = loadTsModule('api/bibleBooks.ts');
+const { parseBibleReaderLocation, parseBibleReaderRoute } = loadTsModule('api/bibleBooks.ts');
 
 test('parses schedule Korean book names and query parameters in either order', () => {
   assert.deepEqual(
@@ -43,4 +43,19 @@ test('parses reader URLs and rejects invalid book chapter pairs', () => {
   );
   assert.equal(parseBibleReaderLocation('/bible?book=gen&chapter=51'), null);
   assert.equal(parseBibleReaderLocation('/bible?book=unknown&chapter=1'), null);
+});
+
+test('retains Home/Schedule/Profile identity and explicit tongdok false', () => {
+  assert.deepEqual(parseBibleReaderRoute('/bible?book=시편&chapter=7&plan=4&schedule=42&date=2026-09-22&version=KNT&tongdok=true'), {
+    location: { book: 'psa', chapter: 7 }, version: 'KNT',
+    context: { enabled: true, planId: 4, scheduleId: 42, date: '2026-09-22' },
+  });
+  assert.equal(parseBibleReaderRoute('/bible?plan=4&tongdok=false').context.enabled, false);
+});
+
+test('invalid identity values do not crash or become schedule identities', () => {
+  for (const date of ['2026-99-01', '2026-02-30', 'bad']) {
+    const result = parseBibleReaderRoute(`/bible?plan=-3&schedule=x&date=${date}`);
+    assert.deepEqual(result.context, { enabled: false, planId: null, scheduleId: null, date: null });
+  }
 });

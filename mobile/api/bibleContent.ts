@@ -15,10 +15,19 @@
  * 프론트엔드 참조 구현: frontend/app/composables/bible/useBibleContent.ts
  */
 
+export interface BibleInline {
+  readonly text: string;
+  readonly kind?: 'name' | 'place';
+}
+interface BibleAnnotations {
+  readonly footnotes?: readonly string[];
+}
 export type BibleBlock =
-  | { readonly type: 'verse'; readonly num: number; readonly text: string }
-  | { readonly type: 'heading'; readonly text: string }
-  | { readonly type: 'note'; readonly text: string };
+  | ({ readonly type: 'verse'; readonly num: number; readonly text: string;
+      readonly inline?: readonly BibleInline[] } & BibleAnnotations)
+  | ({ readonly type: 'heading'; readonly text: string } & BibleAnnotations)
+  | ({ readonly type: 'note'; readonly text: string;
+      readonly kind?: 'description' | 'crossref' } & BibleAnnotations);
 
 export interface BibleVersion {
   readonly code: string;
@@ -113,6 +122,39 @@ const VERSE_NUM_RE = /<span\s+class="number"[^>]*>\s*(\d+)/gi;
 const FOOTNOTE_DIV_RE = /<div\s+id='D_\d+_\d+'\s+class=D2\b/i;
 const COMMENT_ANCHOR_RE = /<a\s+class=comment\b/i;
 
+/** Keep annotations outside plain verse text; never infer entities from words. */
+const footnotesIn = (html: string, knt: boolean): string[] => {
+  const pattern = knt ? /<span\b[^>]*class="ft"[^>]*>/gi : /<div\s+id='D_\d+_\d+'\s+class=D2\b[^>]*>/gi;
+  const tag = knt ? 'span' : 'div';
+  const notes: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html)) !== null) {
+    const range = elementRange(html, match.index, tag);
+    const text = cleanText(html.slice(match.index + match[0].length, range.end));
+    if (text) notes.push(text);
+    pattern.lastIndex = range.end;
+  }
+  return notes;
+};
+
+const namedInline = (html: string): readonly BibleInline[] | undefined => {
+  const pattern = /<font\s+class="(name|area)"[^>]*>([\s\S]*?)<\/font>/gi;
+  const inline: BibleInline[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html)) !== null) {
+    inline.push({ text: decodeEntities(stripTags(html.slice(cursor, match.index))).replace(/\s+/g, ' ') });
+    inline.push({ text: cleanText(match[2]), kind: match[1] === 'name' ? 'name' : 'place' });
+    cursor = pattern.lastIndex;
+  }
+  if (!cursor) return undefined;
+  inline.push({ text: decodeEntities(stripTags(html.slice(cursor))).replace(/\s+/g, ' ') });
+  return inline.map((part, index) => ({
+    ...part,
+    text: index === 0 ? part.text.trimStart() : index === inline.length - 1 ? part.text.trimEnd() : part.text,
+  })).filter(part => part.text);
+};
+
 const parseStandardHtml = (html: string): BibleBlock[] => {
   // 본문 컨테이너로 범위를 좁힌다. 없으면 문서 전체를 스캔한다.
   let scope = html;
@@ -152,12 +194,15 @@ const parseStandardHtml = (html: string): BibleBlock[] => {
     if (nextToken) tokenRe.lastIndex = nextToken.index;
 
     let body = scope.slice(bodyStart, bodyEnd);
+    const footnotes = footnotesIn(body, false);
     // 각주 팝업 div (절 span 안에 중첩돼 들어옴) 통째로 제거
     body = removeElements(body, 'div', FOOTNOTE_DIV_RE);
     // 각주 앵커 (<a class=comment>…</a>) 통째로 제거
     body = removeElements(body, 'a', COMMENT_ANCHOR_RE);
     const text = cleanText(body);
-    if (text) blocks.push({ type: 'verse', num, text });
+    const inline = namedInline(body);
+    if (text) blocks.push({ type: 'verse', num, text,
+      ...(inline ? { inline } : {}), ...(footnotes.length ? { footnotes } : {}) });
   }
   return blocks;
 };
@@ -195,14 +240,17 @@ const parseKntJson = (raw: string): BibleBlock[] => {
 
   let currentNum: number | null = null;
   let currentLines: string[] = [];
+  let currentFootnotes: string[] = [];
   const seen = new Set<number>();
 
   const flush = () => {
     if (currentNum === null) return;
     const text = currentLines.join('\n').trim();
-    if (text) blocks.push({ type: 'verse', num: currentNum, text });
+    if (text) blocks.push({ type: 'verse', num: currentNum, text,
+      ...(currentFootnotes.length ? { footnotes: currentFootnotes } : {}) });
     currentNum = null;
     currentLines = [];
+    currentFootnotes = [];
   };
 
   const startVerse = (num: number) => {
@@ -216,7 +264,10 @@ const parseKntJson = (raw: string): BibleBlock[] => {
 
   const appendLine = (htmlFragment: string) => {
     const text = cleanText(stripKntFootnotes(htmlFragment));
-    if (text && currentNum !== null) currentLines.push(text);
+    if (currentNum !== null) {
+      currentFootnotes.push(...footnotesIn(htmlFragment, true));
+      if (text) currentLines.push(text);
+    }
   };
 
   while ((match = elementRe.exec(html)) !== null) {
@@ -229,13 +280,16 @@ const parseKntJson = (raw: string): BibleBlock[] => {
     if (cls === 's' || cls === 'sp') {
       flush();
       const text = cleanKntInline(inner);
-      if (text) blocks.push({ type: 'heading', text });
+      const footnotes = footnotesIn(inner, true);
+      if (text) blocks.push({ type: 'heading', text, ...(footnotes.length ? { footnotes } : {}) });
       continue;
     }
     if (cls === 'd' || cls === 'r') {
       flush();
       const text = cleanKntInline(inner);
-      if (text) blocks.push({ type: 'note', text });
+      const footnotes = footnotesIn(inner, true);
+      if (text) blocks.push({ type: 'note', text, kind: cls === 'd' ? 'description' : 'crossref',
+        ...(footnotes.length ? { footnotes } : {}) });
       continue;
     }
 
