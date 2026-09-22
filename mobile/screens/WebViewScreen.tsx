@@ -862,6 +862,13 @@ export default function WebViewScreen() {
         onNavigationStateChange={handleNavigationStateChange}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onMessage={handleMessage}
+        injectedJavaScriptBeforeContentLoaded={`
+          window.isReactNativeWebView = true;
+          window.nativePushManaged = true;
+          window.__shellBetaMode = true;
+          window.isAndroidApp = ${Platform.OS === 'android'};
+          true;
+        `}
         javaScriptEnabled={true}
         // Debug/dev builds only: lets Safari Web Inspector attach to the
         // WKWebView for QA. No effect in release builds.
