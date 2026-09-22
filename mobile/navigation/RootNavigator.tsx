@@ -91,12 +91,15 @@ function ProfileTab() {
         >
           <Text style={styles.primaryButtonText}>로그인</Text>
         </TouchableOpacity>
-        <Text style={styles.emptyText}>베타 모드</Text>
-        <Switch
-          accessibilityLabel="베타 모드"
-          value={betaMode === true}
-          onValueChange={handleBetaToggle}
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={styles.emptyText}>베타 모드</Text>
+          <Switch
+            style={{ width: 51, height: 31 }}
+            accessibilityLabel="베타 모드"
+            value={betaMode === true}
+            onValueChange={handleBetaToggle}
+          />
+        </View>
       </View>
     );
   }
