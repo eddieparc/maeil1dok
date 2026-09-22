@@ -40,8 +40,11 @@ def _remove(request, data):
         NativePushOptOut.objects.get_or_create(
             user=request.user, installation_id=data['installation_id'],
         )
+    # Revoke by user + installation_id only: a stale or missing cached token
+    # must not keep the binding alive. The user filter preserves ownership
+    # isolation — a caller can never touch another account's row.
     count = NativePushSubscription.objects.filter(
-        user=request.user, token=data['token'],
+        user=request.user,
         installation_id=data['installation_id'],
     ).update(enabled=False)
     return Response({'success': True, 'updated_count': count})

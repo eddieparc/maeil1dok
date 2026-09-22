@@ -53,14 +53,15 @@ export function createNativePushRuntime({ readState, apiFetch }: Dependencies) {
       ensureCurrent();
       if (state.error) throw new NativePushOperationError(state.error);
       const managed = { ...state, requestId, managed: true, subscribed: false };
-      if (!state.token || action === 'push:identity') return managed;
-      const identity = { token: state.token, installation_id: state.installationId };
+      if (action === 'push:identity') return managed;
       if (action === 'push:disable' || (automatic && state.permission !== 'granted')) {
         await post('/api/v1/todos/notifications/push/native/remove/', {
-          ...identity, opt_out: action === 'push:disable',
+          installation_id: state.installationId, opt_out: action === 'push:disable',
         });
         return managed;
       }
+      if (!state.token) return managed;
+      const identity = { token: state.token, installation_id: state.installationId };
       if (state.permission !== 'granted') return managed;
       if (action === 'push:enable' || automatic) {
         const result = await post('/api/v1/todos/notifications/push/native/', {
@@ -86,9 +87,8 @@ export function createNativePushRuntime({ readState, apiFetch }: Dependencies) {
         await tail;
         const state = await readState('push:disable', 'push:suspend');
         if (state.error) throw new NativePushOperationError(state.error);
-        if (!state.token) return;
         await post('/api/v1/todos/notifications/push/native/remove/', {
-          token: state.token, installation_id: state.installationId, opt_out: false,
+          installation_id: state.installationId, opt_out: false,
         });
       })().catch((error: unknown) => {
         suspension = null;

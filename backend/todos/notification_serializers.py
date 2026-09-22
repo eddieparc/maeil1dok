@@ -253,6 +253,10 @@ class NativePushSubscriptionSerializer(serializers.Serializer):
 
 
 class NativePushSubscriptionRemoveSerializer(NativePushSubscriptionSerializer):
+    # Removal revokes by user + installation_id, so the token is optional: a
+    # shell whose cached token is stale or missing must still be able to
+    # revoke. When supplied it is still validated by validate_token.
+    token = serializers.CharField(max_length=255, required=False)
     opt_out = serializers.BooleanField(default=True)
 
 

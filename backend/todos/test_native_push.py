@@ -439,6 +439,68 @@ class NativePushRemoveTest(TestCase):
         self.assertEqual(response.data['updated_count'], 0)
         self.assertTrue(NativePushSubscription.objects.get(user=self.user).enabled)
 
+    def test_remove_with_stale_token_still_disables_owned_binding(self):
+        # The shell caches the Expo token; a stale cached value must not keep
+        # the binding alive. Removal revokes by user + installation_id.
+        response = self.client.post(
+            REMOVE_URL,
+            {'token': TOKEN_B, 'installation_id': INSTALL_A},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['updated_count'], 1)
+        self.assertFalse(NativePushSubscription.objects.get(user=self.user).enabled)
+
+    def test_remove_without_token_disables_owned_binding(self):
+        # A shell that lost its cached token must still be able to revoke.
+        response = self.client.post(
+            REMOVE_URL,
+            {'installation_id': INSTALL_A},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['updated_count'], 1)
+        self.assertFalse(NativePushSubscription.objects.get(user=self.user).enabled)
+
+    def test_remove_without_token_cannot_touch_other_users_installation(self):
+        other = _user('remove-foreign')
+        response = _client(other).post(
+            REMOVE_URL,
+            {'installation_id': INSTALL_A},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['updated_count'], 0)
+        self.assertTrue(NativePushSubscription.objects.get(user=self.user).enabled)
+
+    def test_remove_rejects_malformed_token_when_supplied(self):
+        response = self.client.post(
+            REMOVE_URL,
+            {'token': 'not-an-expo-token', 'installation_id': INSTALL_A},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertTrue(NativePushSubscription.objects.get(user=self.user).enabled)
+
+    def test_suspension_without_token_preserves_existing_opt_out(self):
+        # Temporary suspension (opt_out=False) must not erase a prior manual
+        # opt-out, even when the caller cannot supply a token.
+        self.client.post(REMOVE_URL, _payload(), format='json')
+
+        response = self.client.post(
+            REMOVE_URL,
+            {'installation_id': INSTALL_A, 'opt_out': False},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(NativePushOptOut.objects.filter(user=self.user).exists())
+        self.assertFalse(NativePushSubscription.objects.get(user=self.user).enabled)
+
     def test_anonymous_remove_is_rejected(self):
         for method in ('delete', 'post'):
             url = NATIVE_URL if method == 'delete' else REMOVE_URL

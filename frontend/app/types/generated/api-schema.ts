@@ -5256,7 +5256,7 @@ export interface components {
          *     token 과 installation_id 는 응답·로그에 다시 노출하지 않는다.
          */
         NativePushSubscriptionRemove: {
-            token: string;
+            token?: string;
             installation_id: string;
             /** @default true */
             opt_out: boolean;

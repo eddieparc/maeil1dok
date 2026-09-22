@@ -29,6 +29,30 @@ const device = {
 };
 const response = value => ({ ok: true, status: 200, json: async () => value });
 
+for (const scenario of ['suspend', 'disable', 'permission-revoked']) {
+  test(`${scenario} revokes a registered installation without a cached token`, async () => {
+    let enabled = true;
+    let optedOut = false;
+    const runtime = loadRuntime()({
+      readState: async () => ({ ...device, token: null, permission: 'denied' }),
+      apiFetch: async (url, init) => {
+        assert.equal(url, '/api/v1/todos/notifications/push/native/remove/');
+        const body = JSON.parse(init.body);
+        assert.equal(body.installation_id, device.installationId);
+        assert.equal('token' in body, false);
+        enabled = false;
+        optedOut = body.opt_out;
+        return response({ success: true, updated_count: 1 });
+      },
+    });
+    if (scenario === 'suspend') await runtime.suspend();
+    else if (scenario === 'disable') await runtime.request('push:disable', 'disable');
+    else await runtime.sync();
+    assert.equal(enabled, false, 'server transport must not survive missing token cache');
+    assert.equal(optedOut, scenario === 'disable');
+  });
+}
+
 test('suspension drains an accepted registration before disabling transport', { timeout: 5000 }, async () => {
   const entered = deferred();
   const release = deferred();
@@ -131,7 +155,7 @@ test('web logout preparation fences native writes without recording an opt-out',
   assert.equal(state.installationId, device.installationId);
   assert.deepEqual(calls, [{
     url: '/api/v1/todos/notifications/push/native/remove/',
-    body: { token: device.token, installation_id: device.installationId, opt_out: false },
+    body: { installation_id: device.installationId, opt_out: false },
   }]);
   await assert.rejects(runtime.sync());
 });

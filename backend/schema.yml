@@ -9279,7 +9279,6 @@ components:
           default: true
       required:
       - installation_id
-      - token
     NextReadingPositionResponse:
       type: object
       properties:
