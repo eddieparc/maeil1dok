@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowUp, CalendarDays, ChevronDown } from '@lucide/vue';
+import { ArrowUp, CalendarDays, ChevronDown, ChevronRight } from '@lucide/vue';
 import { useAuthService } from '~/composables/useAuthService';
 import { useAuthGuard } from '~/composables/useAuthGuard';
 import { useSelectedPlanStore } from '~/stores/selectedPlan';
@@ -98,6 +98,16 @@ const cachedMonthProgress = computed(() => {
     if (cached) result[month] = { done: cached.filter(schedule => schedule.is_completed).length, total: cached.length };
   }
   return result;
+});
+// 같은 해 연간 요약에서 선택 월 다음으로 일정이 있는 첫 달 (LAB-82).
+// 요약이 아직 없으면 판단을 보류해 '일정 없음'을 섣불리 보여주지 않는다.
+const nextScheduleMonth = computed<number | null | undefined>(() => {
+  const summary = yearSummary.value;
+  if (!summary || summary.planId !== selectedPlanId.value || summary.year !== selectedYear.value) return undefined;
+  for (let month = selectedMonth.value + 1; month <= 12; month++) {
+    if ((cachedMonthProgress.value[month]?.total ?? 0) > 0) return month;
+  }
+  return null;
 });
 const rangeDates = computed<[string, string] | null>(() => {
   const { firstSchedule, secondSchedule } = bulkEditState.value;
@@ -394,6 +404,12 @@ onBeforeUnmount(() => { mounted.value = false; epoch++; navigationId++; });
             :is-bulk-edit-mode="props.isBulkEditMode" :is-in-selected-range="inRange(String(date))" :disabled="saving"
             @group-click="handleGroupClick" @group-checkbox="handleCheckbox"
             @item-click="handleScheduleClick" @item-checkbox="handleCheckbox([$event])" />
+          <div v-if="nextScheduleMonth !== undefined" class="schedule-continuation" aria-live="polite">
+            <AppButton v-if="nextScheduleMonth" variant="secondary" :data-next-month="nextScheduleMonth" :disabled="saving" @click="selectMonth(nextScheduleMonth)">
+              다음 통독 일정으로<ChevronRight :size="16" aria-hidden="true" />
+            </AppButton>
+            <p v-else class="schedule-end-message">이 시점 이후로는 더 이상 일정이 없어요</p>
+          </div>
         </div>
       </template>
     </div>
@@ -421,6 +437,8 @@ progress::-webkit-progress-bar { background: var(--color-border-default); border
 progress::-webkit-progress-value { background: var(--color-accent-primary); border-radius: var(--radius-pill); }
 progress::-moz-progress-bar { background: var(--color-accent-primary); }
 .schedule-list { display: grid; gap: 14px; }
+.schedule-continuation { display: flex; justify-content: center; padding: 4px 0; }
+.schedule-end-message { margin: 0; color: var(--color-text-secondary); font-size: 13px; text-align: center; }
 .no-plan-selected, .no-schedules, .schedule-error { display: grid; justify-items: center; gap: 12px; padding: 40px 12px; color: var(--color-text-secondary); text-align: center; font-size: 14px; }
 .scroll-top-button { position: absolute; bottom: 20px; right: 20px; display: grid; place-items: center; width: var(--hit-min); height: var(--hit-min); border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-accent-primary); box-shadow: var(--shadow-card); }
 button { cursor: pointer; transition: background-color .15s, color .15s, transform .15s; }

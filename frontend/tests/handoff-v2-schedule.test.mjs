@@ -180,6 +180,29 @@ test('one year summary fills month dots and opened months override it live', { t
   await updated;
 });
 
+test('the loaded month offers the next scheduled month from the year summary, or says none remain', { timeout: 5000 }, async t => {
+  const view = await calendar(t);
+  await view.settle([row(1)]);
+  // Given the continuation stays hidden until the year summary settles.
+  assert.equal(view.root.find('.schedule-continuation'), undefined);
+  const summaryRequested = signal(() => requests.some(r => r.path === statsPath));
+  await summaryRequested;
+  const shown = signal(() => !!view.root.find('[data-next-month="11"]'));
+  requests.find(r => r.path === statsPath).resolve({ data: { success: true, monthly_progress: [
+    { month: 9, done: 0, total: 1 }, { month: 10, done: 0, total: 0 }, { month: 11, done: 0, total: 4 },
+  ] } });
+  await shown;
+  // When the reader follows it, the empty October is skipped for November.
+  const requested = signal(() => requests.filter(r => r.path === monthPath).length === 2);
+  await click(view.root.find('[data-next-month="11"]'));
+  await requested;
+  assert.deepEqual(requests.filter(r => r.path === monthPath).at(-1).options.params, { plan_id: 1, month: 11, year: 2026 });
+  await view.settle([row(4, '2026-11-02')]);
+  // Then the last scheduled month ends with the no-more-schedules message.
+  assert.equal(view.root.find('.schedule-continuation').find('button'), undefined);
+  assert.match(view.root.find('.schedule-end-message').textContent, /더 이상 일정이 없어요/);
+});
+
 test('a failed year summary leaves dots absent without breaking the loaded month', { timeout: 5000 }, async t => {
   const view = await calendar(t);
   await view.settle([row(1)]);
