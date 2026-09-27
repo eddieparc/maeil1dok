@@ -31,6 +31,13 @@ export const usePersonalRecord = () => {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
+  // 서버에서 전체 목록을 받아온 책만 기록한다 — markAsRead가 만드는 부분 캐시를
+  // '조회 완료'로 오인하지 않기 위해 readChapters와 분리한다.
+  const fetchedBooks = new Set<string>();
+  const pendingFetches = new Map<string, Promise<void>>();
+  // clearCache(사용자 전환) 이후에 완료되는 요청이 새 캐시를 오염하지 않게 한다.
+  let cacheGeneration = 0;
+
   /**
    * 특정 책의 읽은 장 목록 조회
    */
@@ -44,14 +51,31 @@ export const usePersonalRecord = () => {
       }
       if (!auth.isAuthenticated.value) return;
 
-      const response = await api.GET('/api/v1/todos/bible/personal-records/by-book/', {
-        params: { book }
-      });
-
-      if (response.data.success) {
-        const chapters = new Set<number>(response.data.read_chapters || []);
-        readChapters.value.set(book, chapters);
+      if (fetchedBooks.has(book)) return;
+      const pending = pendingFetches.get(book);
+      if (pending) {
+        await pending;
+        if (fetchedBooks.has(book)) return;
       }
+
+      const generation = cacheGeneration;
+      const request = (async () => {
+        try {
+          const response = await api.GET('/api/v1/todos/bible/personal-records/by-book/', {
+            params: { book }
+          });
+
+          if (response.data.success && generation === cacheGeneration) {
+            const chapters = new Set<number>(response.data.read_chapters || []);
+            readChapters.value.set(book, chapters);
+            fetchedBooks.add(book);
+          }
+        } finally {
+          if (generation === cacheGeneration) pendingFetches.delete(book);
+        }
+      })();
+      pendingFetches.set(book, request);
+      await request;
     } catch (err: any) {
       console.error('읽기 기록 조회 실패:', err);
       error.value = err.message || '읽기 기록을 불러오는데 실패했습니다';
@@ -127,6 +151,9 @@ export const usePersonalRecord = () => {
    */
   const clearCache = () => {
     readChapters.value.clear();
+    fetchedBooks.clear();
+    cacheGeneration += 1;
+    pendingFetches.clear();
   };
 
   return {

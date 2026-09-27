@@ -60,8 +60,11 @@ const subscriptions = ref<SubscriptionSummary[]>([]);
 const schedules = ref<Schedule[]>([]);
 const bulkEditState = ref<BulkEditState>({ ...DEFAULT_BULK_EDIT_STATE });
 // This instance's cache is cleared synchronously on every auth identity change.
-// The selected plan's whole year is prefetched so month dots render without a click.
+// Month dots come from one year summary request plus live month caches.
 const monthCache = reactive(new Map<string, Schedule[]>());
+// Year summary from stats/progress?year= — keyed by plan+year so a stale
+// summary can never render dots for a different selection.
+const yearSummary = ref<{ planId: number; year: number; months: Record<number, { done: number; total: number }> } | null>(null);
 const inFlight = new Map<string, Promise<Schedule[]>>();
 let epoch = 0;
 let navigationId = 0;
@@ -85,6 +88,11 @@ const percent = computed(() => totalDays.value ? Math.round(completedDays.value 
 const cachedMonthProgress = computed(() => {
   const result: Record<number, { done: number; total: number }> = {};
   if (selectedPlanId.value === null) return result;
+  const summary = yearSummary.value;
+  if (summary && summary.planId === selectedPlanId.value && summary.year === selectedYear.value) {
+    Object.assign(result, summary.months);
+  }
+  // Opened months override the summary so complete/cancel updates dots live.
   for (let month = 1; month <= 12; month++) {
     const cached = monthCache.get(monthKey(selectedPlanId.value, selectedYear.value, month));
     if (cached) result[month] = { done: cached.filter(schedule => schedule.is_completed).length, total: cached.length };
@@ -148,7 +156,9 @@ async function initialize() {
   schedules.value = [];
   subscriptions.value = [];
   monthCache.clear();
+  yearSummary.value = null;
   inFlight.clear();
+  summaryInFlight.clear();
   resetBulk();
   if (!mounted.value || !identity.value) {
     if (mounted.value && auth.isSessionUnknown.value) {
@@ -176,7 +186,8 @@ async function initialize() {
     if (epoch !== requestEpoch) return;
     initialized.value = true;
     const loaded = await fetchSchedules();
-    if (loaded && epoch === requestEpoch && selectedPlanId.value !== null && import.meta.client) schedulePrefetch(selectedPlanId.value);
+    // mounted is only true client-side, so no extra environment guard is needed.
+    if (loaded && epoch === requestEpoch && selectedPlanId.value !== null) schedulePrefetch(selectedPlanId.value);
     if (loaded && epoch === requestEpoch) {
       await handleScrollTo(props.initialScrollTarget ?? (props.isModal && props.currentBook && props.currentChapter ? 'currentLocation' : 'today'));
     }
@@ -202,31 +213,38 @@ function selectPlan(subscription: SubscriptionSummary) {
   navigating.value = false;
   showPlanModal.value = false;
   planStore.setSelectedPlanId(subscription.plan_id);
-  if (import.meta.client) schedulePrefetch(subscription.plan_id);
+  schedulePrefetch(subscription.plan_id);
 }
 
-// Populate the month-dot cache for the whole year so dots appear without a
-// month click. Deferred to idle so it never competes with the visible month's
-// load; each month fills in as its request resolves and failures are ignored
-// (the dot simply stays absent until the month is opened).
+// Populate month dots for the whole year with one summary request instead of
+// twelve monthly schedule fetches. The visible month loads independently;
+// failed summaries leave opened months available from their live caches.
 let prefetchTimer: ReturnType<typeof setTimeout> | null = null;
+const summaryInFlight = new Set<string>();
 function schedulePrefetch(planId: number) {
   if (prefetchTimer) clearTimeout(prefetchTimer);
   prefetchTimer = setTimeout(() => {
     prefetchTimer = null;
-    prefetchYear(planId);
+    // A timer queued before unmount must not issue requests for a dead view.
+    if (mounted.value) void prefetchYearSummary(planId);
   }, 0);
 }
-function prefetchYear(planId: number) {
+async function prefetchYearSummary(planId: number) {
   const requestEpoch = epoch;
-  for (let month = 1; month <= 12; month++) {
-    const key = monthKey(planId, selectedYear.value, month);
-    if (monthCache.has(key) || inFlight.has(key)) continue;
-    const request = scheduleApi.fetchMonthlySchedules(planId, month, selectedYear.value, { throwOnError: true })
-      .then(data => { if (epoch === requestEpoch && mounted.value) monthCache.set(key, data); return data; })
-      .catch(() => [] as Schedule[])
-      .finally(() => { if (inFlight.get(key) === request) inFlight.delete(key); });
-    inFlight.set(key, request);
+  const year = selectedYear.value;
+  const summaryKey = `${requestEpoch}:${planId}:${year}`;
+  if (summaryInFlight.has(summaryKey)) return;
+  summaryInFlight.add(summaryKey);
+  try {
+    const rows = await scheduleApi.fetchYearProgress(planId, year, { throwOnError: true });
+    if (epoch !== requestEpoch || !mounted.value || selectedPlanId.value !== planId || selectedYear.value !== year) return;
+    const months: Record<number, { done: number; total: number }> = {};
+    for (const row of rows) months[row.month] = { done: row.done, total: row.total };
+    yearSummary.value = { planId, year, months };
+  } catch {
+    // Plan/year selection retries; opened months still fill from their cache.
+  } finally {
+    summaryInFlight.delete(summaryKey);
   }
 }
 function selectRange(schedule: Schedule) {
@@ -334,6 +352,9 @@ function handleScroll(event: Event) { showScrollTop.value = (event.target as HTM
 
 watch([mounted, identity], () => { void initialize(); }, { flush: 'sync' });
 watch(currentKey, () => { resetBulk(); if (initialized.value) void fetchSchedules(); });
+watch(selectedYear, () => {
+  if (initialized.value && selectedPlanId.value !== null) schedulePrefetch(selectedPlanId.value);
+});
 watch(() => props.isBulkEditMode, resetBulk);
 watch(scheduleBodyRef, value => setScrollContainer(value));
 onMounted(() => { planStore.initializeFromStorage(); mounted.value = true; });

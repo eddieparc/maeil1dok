@@ -80,6 +80,7 @@ async function mount(relative, props = {}, realTransport = false) { const compon
 const monthPath = '/api/v1/todos/schedules/month/';
 const nextPath = '/api/v1/todos/next-position/';
 const updatePath = '/api/v1/todos/reading/update/';
+const statsPath = '/api/v1/todos/stats/progress/';
 function request(method, path, options) { const pending = deferred(); const entry = { method, path, options, ...pending }; requests.push(entry); changed(); if (transport) transport(entry); return pending.promise; }
 function fixture(t, authenticated = true) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 7, 12).getTime() });
@@ -130,6 +131,107 @@ test('calendar requests only selected year/month and shows cached-month dots plu
   trigger(view.root.find('[data-month="10"]')); await requested; await view.settle([]);
   await click(view.root.find('[data-month="9"]'));
   assert.equal(requests.filter(r => r.path === monthPath).length, 2); assert.equal(view.root.all('.month-dot').length, 2);
+});
+
+test('year progress summary reads stats once and degrades to empty on failure', { timeout: 5000 }, async t => {
+  fixture(t); const { useScheduleApi } = await load('composables/useScheduleApi.ts'); const api = useScheduleApi();
+  const pending = api.fetchYearProgress(1, 2026, { throwOnError: true });
+  assert.equal(requests[0].path, statsPath);
+  assert.deepEqual(requests[0].options.params, { plan_id: 1, year: 2026 });
+  requests[0].resolve({ data: { success: true, monthly_progress: [{ month: 9, done: 1, total: 2 }] } });
+  assert.deepEqual(await pending, [{ month: 9, done: 1, total: 2 }]);
+  const missing = api.fetchYearProgress(1, 2026);
+  requests[1].resolve({ data: { success: true } });
+  assert.deepEqual(await missing, []);
+  const rejected = assert.rejects(api.fetchYearProgress(1, 2026, { throwOnError: true }), /offline/);
+  requests[2].reject(new Error('offline')); await rejected;
+  const silent = api.fetchYearProgress(1, 2026);
+  requests[3].reject(new Error('offline'));
+  assert.deepEqual(await silent, []);
+  assert.equal(api.isFetchingSchedules.value, false);
+});
+
+test('one year summary fills month dots and opened months override it live', { timeout: 5000 }, async t => {
+  const view = await calendar(t);
+  await view.settle([row(1), row(2, '2026-09-07', true)]);
+  const summaryRequested = signal(() => requests.some(r => r.path === statsPath));
+  await summaryRequested;
+  const summary = requests.find(r => r.path === statsPath);
+  assert.deepEqual(summary.options.params, { plan_id: 1, year: 2026 });
+  assert.equal(requests.filter(r => r.path === monthPath).length, 1, 'summary replaces the 12 monthly prefetch requests');
+  const dots = signal(() => view.root.all('.month-dot').length >= 4);
+  summary.resolve({ data: { success: true, monthly_progress: [
+    { month: 8, done: 5, total: 10 },
+    { month: 9, done: 0, total: 2 },
+    { month: 10, done: 3, total: 3 },
+    { month: 11, done: 0, total: 0 },
+  ] } });
+  await dots;
+  assert.equal(view.root.find('[data-month="8"]').find('.month-dot').props['data-progress'], 'partial');
+  assert.equal(view.root.find('[data-month="10"]').find('.month-dot').props['data-progress'], 'completed');
+  // The opened month keeps its live cache (1/2 done) over the summary's 0/2.
+  assert.equal(view.root.find('[data-month="9"]').find('.month-dot').props['data-progress'], 'partial');
+  // A live completion on the cached month updates the dot without a refetch.
+  const posted = signal(() => requests.some(r => r.method === 'POST'));
+  trigger(view.root.find('[data-checkbox="1"]'));
+  await posted;
+  const updated = signal(() => view.root.find('[data-month="9"]').find('.month-dot').props['data-progress'] === 'completed');
+  requests.at(-1).resolve({ success: true });
+  await updated;
+});
+
+test('a failed year summary leaves dots absent without breaking the loaded month', { timeout: 5000 }, async t => {
+  const view = await calendar(t);
+  await view.settle([row(1)]);
+  const summaryRequested = signal(() => requests.some(r => r.path === statsPath));
+  await summaryRequested;
+  requests.find(r => r.path === statsPath).reject(new Error('offline'));
+  await Vue.nextTick(); await Vue.nextTick();
+  assert.equal(view.root.find('[role="alert"]'), undefined);
+  assert.ok(view.root.find('.schedule-list'));
+  assert.equal(view.root.all('.month-dot').length, 1, 'only the opened month keeps its dot');
+});
+
+test('year navigation refetches the summary keyed to the new year', { timeout: 5000 }, async t => {
+  const view = await calendar(t);
+  await view.settle([row(1)]);
+  const firstSummary = signal(() => requests.some(r => r.path === statsPath));
+  await firstSummary;
+  requests.find(r => r.path === statsPath).resolve({ data: { success: true, monthly_progress: [{ month: 1, done: 9, total: 9 }] } });
+  await signal(() => view.root.all('.month-dot').length >= 2);
+  const position = signal(() => requests.some(r => r.path === nextPath));
+  trigger(view.root.find('[data-target="lastIncomplete"]')); await position;
+  const requested = signal(() => requests.some(r => r.path === monthPath && r.options.params.year === 2027));
+  requests.at(-1).resolve({ data: { success: true, status: 'next_incomplete', date: '2027-01-03', month: 1 } });
+  await requested;
+  await view.settle([row(4, '2027-01-03')]);
+  // The 2026 summary must not paint 2027 dots; only the opened January is dotted.
+  assert.equal(view.root.all('.month-dot').length, 1);
+  const secondSummary = signal(() => requests.filter(r => r.path === statsPath).length === 2);
+  await secondSummary;
+  assert.deepEqual(requests.filter(r => r.path === statsPath).at(-1).options.params, { plan_id: 1, year: 2027 });
+});
+
+test('a late previous-plan summary cannot erase the current plan dots', { timeout: 5000 }, async t => {
+  const view = await calendar(t);
+  await view.settle([row(1)]);
+  await signal(() => requests.some(r => r.path === statsPath));
+  const oldSummary = requests.find(r => r.path === statsPath);
+  await click(view.root.find('.plan-select-button'));
+  const switched = signal(() => requests.some(r => r.path === monthPath && r.options.params.plan_id === 2));
+  trigger(view.root.find('[data-plan="2"]'));
+  await switched;
+  await view.settle([row(2)]);
+  await signal(() => requests.some(r => r.path === statsPath && r.options.params.plan_id === 2));
+  const newSummary = requests.find(r => r.path === statsPath && r.options.params.plan_id === 2);
+  const dotted = signal(() => !!view.root.find('[data-month="8"]').find('.month-dot'));
+  newSummary.resolve({ data: { success: true, monthly_progress: [{ month: 8, done: 1, total: 1 }] } });
+  await dotted;
+  oldSummary.resolve({ data: { success: true, monthly_progress: [{ month: 8, done: 0, total: 2 }] } });
+  await oldSummary.promise;
+  await Vue.nextTick();
+  await Vue.nextTick();
+  assert.equal(view.root.find('[data-month="8"]').find('.month-dot')?.props['data-progress'], 'completed');
 });
 
 test('mixed group optimistic failure restores each snapshot and blocks duplicate writes', { timeout: 5000 }, async t => {

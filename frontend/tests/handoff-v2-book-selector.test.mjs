@@ -200,6 +200,7 @@ async function selector(props = {}) {
     modelValue: false, currentBook: 'jhn', currentChapter: 3, currentVersion: 'GAE', ...props,
     onSelect: (...args) => events.push(['select', ...args]),
     onVersionSelect: version => events.push(['version-select', version]),
+    onCompareToggle: () => events.push(['compare-toggle']),
     'onUpdate:modelValue': value => { events.push(['update:modelValue', value]); view.state.modelValue = value; },
   });
   document.body.scrollTop = 17;
@@ -291,6 +292,10 @@ test('version chips preserve supported codes and emit without closing', { timeou
   assert.equal(view.state.modelValue, true);
   await view.update({ currentVersion: 'KNT' });
   assert.ok(chips()[1].matches('.active'));
+  assert.equal(view.all('.compare-toggle').length, 1);
+  await act(view.find('.compare-toggle'), 'Click');
+  assert.deepEqual(view.events, [['version-select', 'KNT'], ['compare-toggle']]);
+  assert.equal(view.state.modelValue, true);
 });
 
 for (const [query, expected, action] of [

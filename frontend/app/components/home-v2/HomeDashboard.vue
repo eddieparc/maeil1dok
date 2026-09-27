@@ -143,22 +143,20 @@ onMounted(() => {
       planId.value = primary.plan_id;
       planName.value = primary.plan_name;
 
-      // Fetch progress + schedules for up to 3 active plans
+      // Fetch progress for up to 3 active plans; the response carries the
+      // plan's end_date so no full schedule list download is needed.
       const cardSubs = activeSubs.slice(0, 3);
       const cardResults = await Promise.all(cardSubs.map(async sub => {
-        const [progressRes, schedulesRes] = await Promise.all([
-          api.GET('/api/v1/todos/stats/progress/', { params: { plan_id: sub.plan_id } }),
-          api.GET('/api/v1/todos/schedules/', { params: { plan_id: sub.plan_id } }),
-        ]);
-        return { sub, progressRes, schedulesRes };
+        const progressRes = await api.GET('/api/v1/todos/stats/progress/', { params: { plan_id: sub.plan_id } });
+        return { sub, progressRes };
       }));
       if (!active) return;
 
-      planCards.value = cardResults.map(({ sub, progressRes, schedulesRes }) => {
+      planCards.value = cardResults.map(({ sub, progressRes }) => {
         const planEntries = calendar.value.filter(e => e.plan_id === sub.plan_id);
         const todayEntry = planEntries.find(e => e.date === today.value);
         const prog = progressRes.data.success ? Math.round(progressRes.data.user_progress) : 0;
-        const finalDate = schedulesRes.data.map(s => s.date).sort().at(-1);
+        const finalDate = progressRes.data.success ? progressRes.data.end_date : null;
         const remaining = finalDate ? Math.max(0, Math.ceil((Date.parse(`${finalDate}T00:00:00Z`) - Date.parse(`${today.value}T00:00:00Z`)) / 86400000)) : null;
         const book = todayEntry && getBookCode(todayEntry.book);
         const route = todayEntry && book ? { path: '/bible', query: { book, chapter: String(todayEntry.start_chapter), schedule: String(todayEntry.schedule_id), plan: String(todayEntry.plan_id), date: todayEntry.date, tongdok: 'true' } } : null;

@@ -992,3 +992,156 @@ class ScoreboardRankingTest(TestCase):
         ranking = response.data['ranking']
         self.assertEqual(ranking['rank'], 2)
         self.assertEqual(ranking['completed_days'], 0)
+
+
+class ProgressStatsApiTest(TestCase):
+    URL = '/api/v1/todos/stats/progress/'
+
+    def setUp(self):
+        self.client = APIClient()
+        self.owner = User.objects.create_user(
+            username='stats-owner', nickname='통계소유자', password='pw-test-1234',
+        )
+        self.other = User.objects.create_user(
+            username='stats-other', nickname='통계타인', password='pw-test-1234',
+        )
+        self.plan = BibleReadingPlan.objects.create(
+            name='통계 플랜', is_active=True, is_default=True, created_by=self.owner,
+        )
+        self.subscription = PlanSubscription.objects.create(
+            user=self.owner, plan=self.plan, start_date=date(2026, 1, 1), is_active=True,
+        )
+        self.other_subscription = PlanSubscription.objects.create(
+            user=self.other, plan=self.plan, start_date=date(2026, 1, 1), is_active=True,
+        )
+        # Two rows share 2026-01-05: row-level counts differ from day counts.
+        self.jan_a = DailyBibleSchedule.objects.create(
+            plan=self.plan, date=date(2026, 1, 5), book='창세기',
+            start_chapter=1, end_chapter=1,
+        )
+        self.jan_b = DailyBibleSchedule.objects.create(
+            plan=self.plan, date=date(2026, 1, 5), book='시편',
+            start_chapter=1, end_chapter=1,
+        )
+        self.feb = DailyBibleSchedule.objects.create(
+            plan=self.plan, date=date(2026, 2, 10), book='출애굽기',
+            start_chapter=1, end_chapter=1,
+        )
+        self.next_year = DailyBibleSchedule.objects.create(
+            plan=self.plan, date=date(2027, 1, 3), book='마태복음',
+            start_chapter=1, end_chapter=1,
+        )
+
+    def _complete(self, subscription, schedule):
+        return UserBibleProgress.objects.create(
+            subscription=subscription,
+            schedule=schedule,
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+
+    def _months(self, payload):
+        return {entry['month']: entry for entry in payload['monthly_progress']}
+
+    def test_response_includes_plan_end_date(self):
+        response = self.client.get(self.URL, {'plan_id': self.plan.id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['end_date'], '2027-01-03')
+        self.assertNotIn('monthly_progress', response.data)
+
+    def test_year_summary_counts_rows_not_completed_days(self):
+        self._complete(self.subscription, self.jan_a)
+        self._complete(self.subscription, self.jan_b)
+        self.client.force_authenticate(user=self.owner)
+
+        response = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+
+        self.assertEqual(response.status_code, 200)
+        months = self._months(response.data)
+        self.assertEqual(len(response.data['monthly_progress']), 12)
+        # Two completed rows on one day must read done=2, not completed-days=1.
+        self.assertEqual(months[1], {'month': 1, 'done': 2, 'total': 2})
+        self.assertEqual(months[2], {'month': 2, 'done': 0, 'total': 1})
+        self.assertEqual(months[12], {'month': 12, 'done': 0, 'total': 0})
+
+    def test_year_summary_scopes_done_to_requesting_user(self):
+        self._complete(self.other_subscription, self.jan_a)
+        self.client.force_authenticate(user=self.owner)
+
+        response = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+
+        self.assertEqual(self._months(response.data)[1]['done'], 0)
+
+    def test_year_summary_total_does_not_multiply_with_other_subscribers(self):
+        self._complete(self.subscription, self.jan_a)
+        self._complete(self.other_subscription, self.jan_a)
+        self.client.force_authenticate(user=self.owner)
+
+        response = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+
+        self.assertEqual(self._months(response.data)[1], {'month': 1, 'done': 1, 'total': 2})
+
+    def test_year_summary_guest_and_unsubscribed_report_zero_done(self):
+        self._complete(self.other_subscription, self.jan_a)
+
+        guest = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+        self.assertEqual(guest.status_code, 200)
+        self.assertEqual(self._months(guest.data)[1], {'month': 1, 'done': 0, 'total': 2})
+
+        stranger = User.objects.create_user(
+            username='stats-stranger', nickname='무구독자', password='pw-test-1234',
+        )
+        self.client.force_authenticate(user=stranger)
+        response = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._months(response.data)[1]['done'], 0)
+
+    def test_year_summary_excludes_other_years(self):
+        self._complete(self.subscription, self.next_year)
+        self.client.force_authenticate(user=self.owner)
+
+        response = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+
+        months = self._months(response.data)
+        self.assertEqual(months[1], {'month': 1, 'done': 0, 'total': 2})
+        totals = sum(entry['total'] for entry in response.data['monthly_progress'])
+        self.assertEqual(totals, 3)
+
+    def test_year_summary_done_tracks_complete_and_cancel(self):
+        progress = self._complete(self.subscription, self.feb)
+        self.client.force_authenticate(user=self.owner)
+
+        completed = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+        self.assertEqual(self._months(completed.data)[2]['done'], 1)
+
+        progress.is_completed = False
+        progress.save(update_fields=['is_completed'])
+        cancelled = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+        self.assertEqual(self._months(cancelled.data)[2]['done'], 0)
+
+    def test_year_summary_uses_constant_queries_not_per_month(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        self.client.force_authenticate(user=self.owner)
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+
+        self.assertEqual(response.status_code, 200)
+        # plan + aggregate + today count + subscription + completed count +
+        # monthly GROUP BY: fixed cost regardless of how many months have rows.
+        self.assertLessEqual(len(queries), 6)
+
+    def test_year_summary_rejects_invalid_year(self):
+        for bad_year in ('abc', '0', '10000'):
+            response = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': bad_year})
+            self.assertEqual(response.status_code, 400, bad_year)
+
+    def test_progress_stats_still_hides_inactive_plan(self):
+        self.plan.is_active = False
+        self.plan.save(update_fields=['is_active'])
+
+        response = self.client.get(self.URL, {'plan_id': self.plan.id, 'year': 2026})
+
+        self.assertEqual(response.status_code, 404)

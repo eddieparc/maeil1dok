@@ -21,7 +21,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import mixins, viewsets, permissions, status
 from rest_framework.decorators import action
 from django.db import IntegrityError, OperationalError, transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Max
+from django.db.models.functions import ExtractMonth
 from django.utils.dateparse import parse_date
 import re
 from io import BytesIO
@@ -2710,6 +2711,12 @@ def get_plan_stats(request):
             required=False,
             description='Active public reading plan ID; defaults to the active default plan.',
         ),
+        OpenApiParameter(
+            'year',
+            int,
+            required=False,
+            description='When set (1-9999), the response also includes monthly_progress: per-month schedule row totals and completed-row counts for that year.',
+        ),
     ],
     responses={200: openapi.ProgressStatsResponseSerializer},
 )
@@ -2753,13 +2760,22 @@ def get_progress_stats(request):
                 'success': False,
                 'error': '존재하지 않는 플랜입니다.'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
+        year, year_error = _parse_optional_year(request.query_params.get('year'))
+        if year_error:
+            return year_error
+
         # 오늘 날짜 가져오기
         today = timezone.now().date()
-        
-        # 1. 전체 일정 개수 계산
-        total_schedules = DailyBibleSchedule.objects.filter(plan=plan).count()
-        
+
+        # 1. 전체 일정 개수와 마지막 일정 날짜를 한 번의 집계로 계산
+        schedule_stats = DailyBibleSchedule.objects.filter(plan=plan).aggregate(
+            total=Count('id'),
+            end_date=Max('date'),
+        )
+        total_schedules = schedule_stats['total']
+        end_date = schedule_stats['end_date']
+
         if total_schedules == 0:
             return Response({
                 'success': False,
@@ -2777,6 +2793,7 @@ def get_progress_stats(request):
         
         # 4. 사용자가 로그인 상태인지 확인
         user_progress = 0
+        subscription = None
         if request.user.is_authenticated:
             # 사용자의 구독 확인
             subscription = PlanSubscription.objects.filter(
@@ -2784,23 +2801,53 @@ def get_progress_stats(request):
                 plan=plan,
                 is_active=True
             ).first()
-            
+
             if subscription:
                 # 사용자가 완료한 일정 개수 계산
                 completed_schedules = UserBibleProgress.objects.filter(
                     subscription=subscription,
                     is_completed=True
                 ).count()
-                
+
                 # 사용자 진행률 계산
                 user_progress = (completed_schedules / total_schedules) * 100
-        
-        return Response({
+
+        payload = {
             'success': True,
             'plan_name': plan.name,
             'theoretical_progress': round(theoretical_progress, 2),
-            'user_progress': round(user_progress, 2)
-        })
+            'user_progress': round(user_progress, 2),
+            'end_date': end_date.isoformat() if end_date else None,
+        }
+
+        if year is not None:
+            # 월별 일정 행 수와 완료 행 수를 한 번의 GROUP BY로 집계한다.
+            # schedules/month/ 의 is_completed 와 동일하게 구독이 없으면 done=0이다.
+            done_filter = Q(progress_records__is_completed=True) & (
+                Q(progress_records__subscription=subscription)
+                if subscription is not None
+                else Q(progress_records__subscription__isnull=True)
+            )
+            monthly_rows = (
+                DailyBibleSchedule.objects.filter(plan=plan, date__year=year)
+                .annotate(month=ExtractMonth('date'))
+                .values('month')
+                .annotate(
+                    total=Count('id', distinct=True),
+                    done=Count('progress_records', filter=done_filter),
+                )
+            )
+            by_month = {row['month']: row for row in monthly_rows}
+            payload['monthly_progress'] = [
+                {
+                    'month': month,
+                    'done': by_month.get(month, {}).get('done', 0),
+                    'total': by_month.get(month, {}).get('total', 0),
+                }
+                for month in range(1, 13)
+            ]
+
+        return Response(payload)
         
     except Exception as e:
         logger.error(f"Error in get_progress_stats: {str(e)}", exc_info=True)

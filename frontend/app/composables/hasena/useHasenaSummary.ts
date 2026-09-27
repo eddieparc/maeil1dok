@@ -36,20 +36,24 @@ export const useHasenaSummary = (latestVideoId: Ref<string>) => {
 
   // AI 요약 조회 (생성 없이)
   const loadAISummary = async () => {
-    if (!latestVideoId.value) return
+    const videoId = latestVideoId.value
 
-    summaryLoading.value = true
+    // 본문 표시를 막지 않도록 페이지는 이 조회를 기다리지 않는다 (LAB-133).
+    // 늦게 도착한 이전 영상 응답이 현재 요약을 덮지 않게 video_id로 가른다.
+    summaryLoading.value = Boolean(videoId)
     resetSummary()
+    if (!videoId) return
 
     try {
       const { data } = await api.GET('/api/v1/todos/hasena/summary/', {
-        params: { video_id: latestVideoId.value }
+        params: { video_id: videoId }
       })
 
-      if (data.success) {
+      if (videoId === latestVideoId.value && data.success) {
         summaryContent.value = data.summary
       }
     } catch (err: any) {
+      if (videoId !== latestVideoId.value) return
       const status = err?.response?.status || err?.status
       const apiError = err?.response?.data?.error || err?.data?.error
 
@@ -57,7 +61,7 @@ export const useHasenaSummary = (latestVideoId: Ref<string>) => {
         ? (apiError || '오늘 AI 요약은 아직 준비 중입니다.')
         : (apiError || 'AI 요약을 불러오지 못했습니다.')
     } finally {
-      summaryLoading.value = false
+      if (videoId === latestVideoId.value) summaryLoading.value = false
     }
   }
 

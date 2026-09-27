@@ -316,7 +316,7 @@ const fetchHasenaContent = async () => {
     parsedContent.value = renderHasenaVerses(entry.verses || [])
     latestVideoId.value = entry.video_id || ''
     hasenaStore.setCompletionStatus(Boolean(data.is_completed))
-    await loadAISummary()
+    void loadAISummary()
   } catch (err: any) {
     error.value = err?.message || '본문을 불러오는데 실패했습니다'
     latestVideoId.value = ''

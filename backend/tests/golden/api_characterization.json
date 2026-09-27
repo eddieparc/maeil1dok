@@ -7878,6 +7878,7 @@
       "personas": {
         "anonymous": {
           "shape": {
+            "end_date": "<date>",
             "plan_name": "<string>",
             "success": "<boolean>",
             "theoretical_progress": "<number>",
@@ -7887,6 +7888,7 @@
         },
         "non_owner": {
           "shape": {
+            "end_date": "<date>",
             "plan_name": "<string>",
             "success": "<boolean>",
             "theoretical_progress": "<number>",
@@ -7896,6 +7898,7 @@
         },
         "owner": {
           "shape": {
+            "end_date": "<date>",
             "plan_name": "<string>",
             "success": "<boolean>",
             "theoretical_progress": "<number>",
