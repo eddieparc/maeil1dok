@@ -28,8 +28,7 @@
         <template #trailing><button type="button" class="icon-btn delete-btn" @click="handleDelete(bookmark)" aria-label="북마크 삭제" title="삭제"><Trash2 :size="18" aria-hidden="true" /></button></template>
       </BibleRecordRow>
     </ul>
-    <Toast />
-  </BibleSubpageLayout>
+</BibleSubpageLayout>
 </template>
 
 <script setup lang="ts">
@@ -41,7 +40,6 @@ import { useAuthService } from '~/composables/useAuthService';
 import { useErrorHandler } from '~/composables/useErrorHandler';
 import { useModal } from '~/composables/useModal';
 import { useApi } from '~/composables/useApi';
-import Toast from '~/components/Toast.vue';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import BibleRecordControls from '~/components/bible/BibleRecordControls.vue';
 import BibleRecordRow from '~/components/bible/BibleRecordRow.vue';

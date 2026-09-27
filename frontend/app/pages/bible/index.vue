@@ -178,9 +178,6 @@
         />
       </BaseModal>
 
-      <!-- 토스트 -->
-      <Toast />
-
     </template>
     <BookSelector
       v-model="showBookSelector"
@@ -214,7 +211,10 @@ import { useHighlight } from '~/composables/useHighlight';
 import { useScheduleApi } from '~/composables/useScheduleApi';
 import { useBibleModals } from '~/composables/bible/useBibleModals';
 import { useBibleContent } from '~/composables/bible/useBibleContent';
-import { VERSION_NAMES, VERSION_META, VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';
+import { useCompareMode } from '~/composables/bible-page/useCompareMode';
+import { useShareSheet } from '~/composables/bible-page/useShareSheet';
+import { useBiblePageTabs } from '~/composables/bible-page/useBiblePageTabs';
+import { VERSION_NAMES, VERSION_META } from '~/composables/useBibleData';
 import {
   parseVerseRangeParam,
   useBiblePageState,
@@ -233,7 +233,6 @@ import { useAuthService } from '~/composables/useAuthService';
 import { useReadingSettingsStore } from '~/stores/readingSettings';
 import { useSelectedPlanStore } from '~/stores/selectedPlan';
 import { useSubscriptionStore } from '~/stores/subscription';
-import { useBibleTabsStore } from '~/stores/bibleTabs';
 import { useToast } from '~/composables/useToast';
 import { useModal } from '~/composables/useModal';
 import { useApi } from '~/composables/useApi';
@@ -243,8 +242,7 @@ import BibleHome from '~/components/bible/BibleHome.vue';
 import BibleTOC from '~/components/bible/BibleTOC.vue';
 import BibleReaderView from '~/components/bible/BibleReaderView.vue';
 import BibleTabBar from '~/components/bible/BibleTabBar.vue';
-import type { BibleTab, BibleTabSnapshot } from '~/utils/bibleTabs';
-import type { SelectionSharePayload, SelectionHighlightPayload } from '~/components/bible/BibleViewer.vue';
+import type { SelectionHighlightPayload } from '~/components/bible/BibleViewer.vue';
 
 // 모달 컴포넌트
 import BookSelector from '~/components/bible/BookSelector.vue';
@@ -252,7 +250,7 @@ import ReaderCompletionContent, { type ReaderCompletionHighlight } from '~/compo
 import ReaderGuideSheet from '~/components/bible/ReaderGuideSheet.vue';
 import ShareSheet from '~/components/bible/share/ShareSheet.vue';
 import type { AudioEndedSource } from '~/components/bible/TongdokAudioPlayer.vue';
-import type { BibleShareMetadata, BibleShareVerse } from '~/composables/bible/bibleShare';
+import type { BibleShareMetadata } from '~/composables/bible/bibleShare';
 import type { Schedule } from '~/types/plan';
 import NoteQuickModal from '~/components/bible/NoteQuickModal.vue';
 import HighlightModal from '~/components/bible/HighlightModal.vue';
@@ -260,9 +258,6 @@ import ReadingSettingsSheet from '~/components/ReadingSettingsSheet.vue';
 import BibleScheduleContent from '~/components/BibleScheduleContent.vue';
 import PlanSelectorModal from '~/components/schedule/PlanSelectorModal.vue';
 import BaseModal from '~/components/ui/modal/BaseModal.vue';
-
-// 기타
-import Toast from '~/components/Toast.vue';
 
 // 유틸리티
 import { getBookCode } from '~/constants/bible';
@@ -392,163 +387,52 @@ const {
 
 const versionNames: Record<string, string> = VERSION_NAMES;
 const versionMeta: Record<string, { direction: string; language: string; testament: string }> = VERSION_META;
-const compareEnabled = ref(false);
-const secondaryVersion = ref('KNT');
-const secondaryContent = ref('');
-const isSecondaryLoading = ref(false);
-let secondaryGeneration = 0;
-// Reuse already parsed chapters when exchanging columns; primary remains route-owned.
-const compareChapters = new Map<string, string>();
-const chapterKey = (book: string, chapter: number, version: string) => `${book}:${chapter}:${version}`;
-const persistCompare = () => {
-  try { localStorage.setItem('bibleCompare', JSON.stringify({ enabled: compareEnabled.value, secondaryVersion: secondaryVersion.value })); }
-  catch (error) { console.warn('Failed to save compare preferences:', error); }
-};
-
-const showAlreadyCompleteModal = ref(false);
-const showNextScheduleModal = ref(false);
-const showCertificationModal = ref(false);
-const certificationCloseHandler = ref<(() => Promise<void> | void) | null>(null);
-
-// 탭 바 (성경 본문 탭)
-const bibleTabsStore = useBibleTabsStore();
-const tabBarVisible = computed(() => bibleTabsStore.barVisible);
-const bibleTabs = computed(() => bibleTabsStore.tabs);
-const activeBibleTabId = computed(() => bibleTabsStore.activeTabId);
-const currentTabLabel = computed(
-  () => `${currentBookName.value} ${currentChapter.value}${chapterSuffix.value}`
-);
-
-const buildTabSnapshot = (): BibleTabSnapshot => ({
-  book: currentBook.value,
-  chapter: currentChapter.value,
-  version: currentVersion.value,
-  scrollPosition: scrollPosition.value,
+// 역본 비교 모드 (composables/bible-page/useCompareMode)
+const {
+  compareEnabled,
+  secondaryVersion,
+  secondaryContent,
+  isSecondaryLoading,
+  compareChapters,
+  chapterKey,
+  restoreComparePrefs,
+  toggleCompare,
+  handleCompareVersionSelect,
+  handleCompareColumnSelect,
+  swapCompareVersions,
+  loadSecondaryContent,
+} = useCompareMode({
+  currentBook,
+  currentChapter,
+  currentVersion,
+  viewMode,
+  onPrimaryVersionSelect: version => handleVersionSelect(version),
 });
 
-const syncActiveBibleTab = () => {
-  bibleTabsStore.syncActiveTab(buildTabSnapshot(), currentTabLabel.value);
-};
-
-/** 탭 스냅샷을 리더에 복원한다 (책·장·역본·스크롤). */
-const applyTabSnapshot = async (tab: BibleTab) => {
-  const snap = tab.snapshot;
-  currentBook.value = snap.book;
-  currentChapter.value = snap.chapter;
-  currentVersion.value = snap.version;
-  viewMode.value = 'reader';
-
-  resetReaderScrollPosition();
-  await loadBibleContent(snap.book, snap.chapter);
-  if (snap.scrollPosition > 0) {
-    await restoreSavedScrollPosition(snap.scrollPosition);
-  }
-  // 복원 과정에서 바뀐 값들을 활성 탭에 다시 동기화
-  syncActiveBibleTab();
-};
-
-const handleToggleTabBar = () => {
-  const opening = !bibleTabsStore.barVisible;
-  bibleTabsStore.toggleBar();
-  // 처음 여는 경우 현재 본문으로 첫 탭을 만든다
-  if (opening && bibleTabsStore.tabs.length === 0) {
-    bibleTabsStore.addTab(buildTabSnapshot(), currentTabLabel.value);
-  }
-};
-
-const handleTabAdd = () => {
-  bibleTabsStore.addTab(buildTabSnapshot(), currentTabLabel.value);
-};
-
-const handleTabSwitch = async (tabId: string) => {
-  if (tabId === bibleTabsStore.activeTabId) return;
-  syncActiveBibleTab();
-  const tab = bibleTabsStore.switchTab(tabId);
-  if (tab) {
-    await applyTabSnapshot(tab);
-  }
-};
-
-const handleTabClose = async (tabId: string) => {
-  const activated = bibleTabsStore.closeTab(tabId);
-  if (activated) {
-    await applyTabSnapshot(activated);
-  }
-};
-
-interface CertificationContext {
-  planId: number | null;
-  scheduleId: number | null;
-}
-
-const certificationContext = ref<CertificationContext>({
-  planId: null,
-  scheduleId: null,
+// 공유 시트 (composables/bible-page/useShareSheet)
+const {
+  showShareSheet,
+  shareMode,
+  shareMetadata,
+  shareVerses,
+  shareUrl,
+  shareContext,
+  handleShareAction,
+  handleChapterShare,
+  handleShareError,
+  handleShareResult,
+} = useShareSheet({
+  currentBookName,
+  currentChapter,
+  currentVersionName,
+  chapterSuffix,
+  generateShareUrl,
 });
 
-const getCertificationContext = (): CertificationContext => ({
-  planId: tongdokPlanId.value ?? selectedPlanStore.effectivePlanId ?? null,
-  scheduleId: tongdokScheduleId.value ?? null,
-});
-
-const openCertificationModal = (
-  context: CertificationContext,
-  onClose?: () => Promise<void> | void,
-): void => {
-  certificationContext.value = context;
-  certificationCloseHandler.value = onClose ?? null;
-  showCertificationModal.value = true;
-};
-const toggleCompare = () => {
-  compareEnabled.value = !compareEnabled.value;
-  if (compareEnabled.value && secondaryVersion.value === currentVersion.value) secondaryVersion.value = currentVersion.value === 'GAE' ? 'KNT' : 'GAE';
-  persistCompare();
-};
-const handleCompareVersionSelect = (version: string) => {
-  secondaryVersion.value = version;
-  persistCompare();
-};
-// 비교 뷰어 헤더 드롭다운에서 바로 역본을 바꾼다.
-const handleCompareColumnSelect = (column: 'primary' | 'secondary', version: string) => {
-  if (column === 'primary') handleVersionSelect(version);
-  else handleCompareVersionSelect(version);
-};
-const swapCompareVersions = async () => {
-  const primary = currentVersion.value;
-  const secondary = secondaryVersion.value;
-  secondaryVersion.value = primary;
-  persistCompare();
-  await handleVersionSelect(secondary);
-};
-const loadSecondaryContent = async () => {
-  const generation = ++secondaryGeneration;
-  if (!compareEnabled.value || viewMode.value !== 'reader') { isSecondaryLoading.value = false; return; }
-  const book = currentBook.value;
-  const chapter = currentChapter.value;
-  const version = secondaryVersion.value;
-  const key = chapterKey(book, chapter, version);
-  isSecondaryLoading.value = true;
-  secondaryContent.value = '';
-  const cached = compareChapters.get(key);
-  if (cached !== undefined) { secondaryContent.value = cached; isSecondaryLoading.value = false; return; }
-  const loader = await nuxtApp.runWithContext(() => useBibleContent());
-  await loader.loadContent(book, chapter, version);
-  if (!pageActive || generation !== secondaryGeneration) return;
-  secondaryContent.value = loader.content.value;
-  if (!loader.error?.value) compareChapters.set(key, loader.content.value);
-  isSecondaryLoading.value = false;
-};
-watch([compareEnabled, secondaryVersion, currentBook, currentChapter, viewMode], loadSecondaryContent);
-
-const showShareSheet = ref(false);
 const showGuideSheet = ref(false);
 const showFullScheduleModal = ref(false);
-const shareMode = ref<'verse' | 'complete'>('verse');
-const shareMetadata = ref<BibleShareMetadata>({});
-const shareVerses = ref<BibleShareVerse[]>([]);
-const shareUrl = ref('');
-const shareContext = ref<{ planId: number | null; scheduleId: number | null }>({ planId: null, scheduleId: null });
 const completionPreparing = ref(false);
+// 본문 탭 바 상태는 useBiblePageTabs로 분리 (스크롤 헬퍼 이후에 인스턴스화)
 const completionModalId = 'bible-reader-completion';
 const nextSchedule = ref<Schedule | null>(null);
 const progressRevision = ref(0);
@@ -734,6 +618,31 @@ const restoreSavedScrollPosition = async (position: number | undefined) => {
   // BibleViewer owns the reading scroller; never scroll the hub/document here.
 };
 
+// 본문 탭 바 (composables/bible-page/useBiblePageTabs)
+const {
+  tabBarVisible,
+  bibleTabs,
+  activeBibleTabId,
+  syncActiveBibleTab,
+  handleToggleTabBar,
+  handleTabAdd,
+  handleTabSwitch,
+  handleTabClose,
+  hydrateTabs,
+  updateActiveScroll,
+} = useBiblePageTabs({
+  viewMode,
+  currentBook,
+  currentChapter,
+  currentVersion,
+  currentBookName,
+  chapterSuffix,
+  scrollPosition,
+  resetReaderScrollPosition,
+  loadBibleContent,
+  restoreSavedScrollPosition,
+});
+
 const getExplicitReaderScrollPosition = () => selectExplicitReaderScrollPosition({
   scrollPosition: scrollPosition.value,
   hasReaderScrollPosition: hasReaderScrollPosition.value,
@@ -822,7 +731,7 @@ const scrollToTop = () => {
 // BibleViewer 이벤트 핸들러
 const handleScrollPosition = (position: number) => {
   setReaderScrollPosition(position, true);
-  bibleTabsStore.updateActiveScroll(position);
+  updateActiveScroll(position);
   saveCurrentReadingPosition(false, position);
 };
 
@@ -913,12 +822,6 @@ const handleCopyAction = (_text: string) => {
 };
 
 const handleCopyError = (error: unknown) => handleApiError(error, '복사');
-const handleShareError = (error: Error) => handleApiError(error, '공유');
-const handleShareResult = (payload: { action: string; result: string }) => {
-  if (payload.result === 'copied') toast.success('링크가 복사되었습니다');
-  else if (payload.result === 'downloaded') toast.success('이미지를 저장했어요');
-  else toast.success('공유 시트를 열었어요');
-};
 const handleDirectHighlightSave = async (selection: SelectionHighlightPayload) => {
   if (!(await requireAuthWithPrompt())) return;
   if (selection.book !== currentBookName.value || selection.chapter !== currentChapter.value ||
@@ -933,38 +836,6 @@ const handleDirectHighlightSave = async (selection: SelectionHighlightPayload) =
   if (result) toast.success('하이라이트 저장');
   else toast.error('하이라이트 저장에 실패했습니다');
 };
-// [매일일독] <참조>\n<풀 링크> 형식으로 공유. Web Share → 클립보드 폴백.
-const shareBibleLink = async (reference: string, url: string) => {
-  const text = `[매일일독] ${reference}\n${url}`;
-  if (typeof navigator !== 'undefined' && navigator.share) {
-    try {
-      await navigator.share({ text });
-      return;
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-    }
-  }
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success('링크를 복사했습니다');
-  } catch (error) {
-    handleApiError(error, '공유');
-  }
-};
-
-const handleShareAction = (selection: SelectionSharePayload) => {
-  if ((selection.book && selection.book !== currentBookName.value) ||
-      (selection.chapter && selection.chapter !== currentChapter.value) ||
-      (selection.version && selection.version !== currentVersionName.value)) return;
-  const range = { start: selection.startVerse, end: selection.endVerse };
-  const reference = `${selection.book || currentBookName.value} ${selection.chapter || currentChapter.value}:${range.start}${range.end === range.start ? '' : `-${range.end}`}`;
-  void shareBibleLink(reference, generateShareUrl(range));
-};
-
-const handleChapterShare = () => {
-  void shareBibleLink(`${currentBookName.value} ${currentChapter.value}${chapterSuffix.value}`, generateShareUrl());
-};
-
 // 읽기모드: 읽음 표시 핸들러
 const handleMarkAsRead = async () => {
   if (!(await requireAuthWithPrompt())) return;
@@ -1381,13 +1252,8 @@ const applyReaderRoute = async (restorePosition = false) => {
   enablePositionSaving();
 };
 onMounted(async () => {
-  bibleTabsStore.hydrate();
-  try {
-    const saved = JSON.parse(localStorage.getItem('bibleCompare') || '{}');
-    if (typeof saved.secondaryVersion === 'string' && saved.secondaryVersion in VISIBLE_VERSION_NAMES) secondaryVersion.value = saved.secondaryVersion;
-    else secondaryVersion.value = currentVersion.value === 'GAE' ? 'KNT' : 'GAE';
-    compareEnabled.value = saved.enabled === true;
-  } catch (error) { console.warn('Failed to load compare preferences:', error); }
+  hydrateTabs();
+  restoreComparePrefs();
   routeLoad = applyReaderRoute(true);
   await routeLoad;
   // 마운트 시점의 본문으로 활성 탭을 동기화한다 (watcher는 변경에만 반응)
@@ -1399,7 +1265,6 @@ onBeforeUnmount(() => {
   pageActive = false;
   ++routeGeneration;
   ++contentGeneration;
-  ++secondaryGeneration;
   cleanupReadingPosition();
   void modal.close(completionModalId);
   window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -1420,19 +1285,6 @@ watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.s
   compareChapters.clear();
   if (viewMode.value === 'reader') await Promise.all([loadBibleContent(currentBook.value, currentChapter.value), loadSecondaryContent()]);
 });
-
-// 리더 상태가 바뀌면 활성 탭의 스냅샷·라벨을 갱신한다
-watch(
-  [
-    () => currentBook.value,
-    () => currentChapter.value,
-    () => currentVersion.value,
-  ],
-  () => {
-    syncActiveBibleTab();
-  },
-  { flush: 'post' }
-);
 </script>
 
 <style scoped>

@@ -26,6 +26,10 @@ const settingsSource = await readFile(
   new URL('../app/pages/account/settings.vue', import.meta.url),
   'utf8',
 );
+const accountLinkingSource = await readFile(
+  new URL('../app/composables/account-settings/useAccountLinking.ts', import.meta.url),
+  'utf8',
+);
 const profileSource = await readFile(
   new URL('../app/pages/profile/[id].vue', import.meta.url),
   'utf8',
@@ -50,6 +54,9 @@ const parsedSettings = parseSfc(settingsSource, { filename: 'settings.vue' }).de
 const parsedProfile = parseSfc(profileSource, { filename: 'profile.vue' }).descriptor;
 const templateAst = parsedSettings.template?.ast;
 const scriptSetupSource = parsedSettings.scriptSetup?.content ?? '';
+// 계정 연결/병합 로직은 composables/account-settings/useAccountLinking.ts 로 추출됐다.
+// 그 코드를 핀하는 단언은 페이지+컴포저블 합본 소스에 대해 검사한다.
+const accountSettingsSource = `${scriptSetupSource}\n${accountLinkingSource}`;
 const profileScriptSetupSource = parsedProfile.scriptSetup?.content ?? '';
 const callbackScriptSource = parseSfc(callbackSource, { filename: 'callback.vue' }).descriptor.scriptSetup?.content ?? '';
 
@@ -213,7 +220,6 @@ async function renderAccountSettings(overrides = {}) {
         emailCooldown: 0,
         emailButtonText: '인증 메일 발송',
         showMergeModal: overrides.showMergeModal ?? false,
-        showMergeConfirmModal: false,
         mergeInfo: overrides.mergeInfo ?? mergeInfoFixture,
         // Diagnostic shell-bundle line. Hidden in a browser, which is what this
         // harness renders as.
@@ -236,8 +242,7 @@ async function renderAccountSettings(overrides = {}) {
         handleLogoutAllDevices: noOp,
         handleDeleteAccount: noOp,
         resetDeletePanel: noOp,
-        handleMerge: noOp,
-        closeMergeModal: noOp,
+        openMergePicker: noOp,
         navigateTo: noOp,
       };
     },
@@ -331,7 +336,7 @@ async function renderProfile({ isOwnProfile }) {
 }
 
 test('account settings uses typed account-management contracts instead of any-shaped data', () => {
-  assert.doesNotMatch(scriptSetupSource, /ref<any>|:\s*any\b|catch\s*\([^)]*:\s*any\)/);
+  assert.doesNotMatch(accountSettingsSource, /ref<any>|:\s*any\b|catch\s*\([^)]*:\s*any\)/);
 });
 
 test('password-backed account deletion form binds password before posting explicit confirmation', async () => {
@@ -392,14 +397,14 @@ test('provider labels cover every linked provider in rendered actions', async ()
     assert.equal(getProviderDisplayName(provider), label);
     assert.match(rendered, new RegExp(`>${label}<`));
   }
-  assert.doesNotMatch(scriptSetupSource, /provider === 'kakao' \? '카카오' : '구글'/);
+  assert.doesNotMatch(accountSettingsSource, /provider === 'kakao' \? '카카오' : '구글'/);
 });
 
 test('social linking uses server-issued state and sends it back to the API', async () => {
   // 검사 대상은 "이 엔드포인트를 부른다"이지 호출 헬퍼의 이름 표기가 아니다.
   // OpenAPI 계약 도입으로 `api.post` -> `api.POST`(생성 타입 기반)로 옮겨갔으므로
   // 두 표기를 모두 허용한다. 경로는 계약이므로 그대로 고정한다.
-  assert.match(scriptSetupSource, /api\.(post|POST)\('\/api\/v1\/auth\/oauth\/link-state\/'\)/);
+  assert.match(accountSettingsSource, /api\.(post|POST)\('\/api\/v1\/auth\/oauth\/link-state\/'\)/);
   assert.doesNotMatch(scriptSetupSource, /JSON\.stringify\(\{\s*action:\s*'link'\s*\}\)/);
   assert.doesNotMatch(callbackScriptSource, /state\.includes\([^)]*':'[^)]*\)/);
 
@@ -520,10 +525,10 @@ test('Apple form_post forwards credentials to the same web host or an allowliste
 });
 
 test('Google account linking has a guarded loading state and configuration error path', () => {
-  assert.match(scriptSetupSource, /if \(!clientId \|\| !redirectUri\)/);
-  assert.match(scriptSetupSource, /linkingProvider\.value = provider/);
-  assert.match(scriptSetupSource, /window\.location\.assign\(authUrl\)/);
-  assert.doesNotMatch(scriptSetupSource, /window\.location\.href = googleAuthUrl/);
+  assert.match(accountSettingsSource, /if \(!clientId \|\| !redirectUri\)/);
+  assert.match(accountSettingsSource, /linkingProvider\.value = provider/);
+  assert.match(accountSettingsSource, /window\.location\.assign\(authUrl\)/);
+  assert.doesNotMatch(accountSettingsSource, /window\.location\.href = googleAuthUrl/);
 });
 
 test('account settings builds behavioral payloads for email, password merge, and notifications', async () => {

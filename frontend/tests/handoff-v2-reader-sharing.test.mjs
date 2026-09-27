@@ -178,33 +178,6 @@ test('prepared file reaches native share synchronously and cancellation never do
   assert.deepEqual(revoked, ['blob:unit-transport', 'blob:unit-transport'])
 })
 
-test('legacy modal delegates real metadata and ignores superseded certification responses', async t => {
-  const requests = []
-  const Sheet = Vue.defineComponent({ props: ['modelValue', 'mode', 'metadata', 'loading', 'planId', 'scheduleId'], setup: p => () => Vue.h('div', { 'data-testid': 'adapter-sheet', metadata: p.metadata, loading: p.loading }) })
-  const load = loader({
-    '~/components/bible/share/ShareSheet.vue': { default: Sheet },
-    '~/components/ui/modal/BaseModal.vue': { default: Vue.defineComponent({ setup: () => () => null }) },
-    '~/composables/useApi': { useApi: () => ({ GET: (path, options) => { const d = deferred(); requests.push({ ...d, options }); return d.promise } }) },
-  })
-  const component = load('~/components/bible/TongdokCertificationModal.vue').default
-  const host = platform(), props = Vue.reactive({ modelValue: true, planId: 7, scheduleId: 13 })
-  const app = host.renderer.createApp({ render: () => Vue.h(component, props) }); app.mount(host.root); t.after(() => app.unmount())
-  assert.ok(host.find('adapter-sheet'), 'legacy surface delegates to the shared sheet')
-  props.planId = 8; props.scheduleId = 14; await Vue.nextTick()
-  assert.equal(requests.length, 2)
-  const response = name => ({ data: { success: true, user: { id: 1, nickname: name }, plan: { id: 8, name: '진짜 플랜' }, card: { readingRange: '실제 범위', dateLabel: '2032-03-04' }, progress: { totalSchedules: 20, completedSchedules: 3, completionRate: 15, currentStreak: 2, totalCompletedDays: 3, latestCompletedAt: null, status: 'in_progress' } } })
-  requests[1].resolve(response('현재')); await requests[1].promise; await Vue.nextTick()
-  assert.equal(host.find('adapter-sheet').props.metadata.nickname, '현재')
-  assert.deepEqual(host.find('adapter-sheet').props.metadata.progress, { completed: 3, total: 20, percent: 15 })
-  requests[0].resolve(response('이전')); await requests[0].promise; await Vue.nextTick()
-  assert.equal(host.find('adapter-sheet').props.metadata.nickname, '현재')
-  props.planId = 9; await Vue.nextTick()
-  requests[2].resolve(response('잘못된 플랜')); await requests[2].promise; await Vue.nextTick()
-  assert.deepEqual(host.find('adapter-sheet').props.metadata, {})
-  props.modelValue = false; await Vue.nextTick()
-  assert.deepEqual(host.find('adapter-sheet').props.metadata, {})
-})
-
 test('mounted sheet rebuilds category slides, updates dots on scroll, and rejects stale preparations', async t => {
   const api = loader()('~/composables/bible/bibleShare')
   const jobs = [], starts = [], ready = [], shares = [], results = []

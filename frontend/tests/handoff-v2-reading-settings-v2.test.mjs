@@ -30,6 +30,9 @@ const services = {
   '#imports': 'export const useHead = () => {};',
   '~/composables/useNavigation': 'export const useNavigation = () => ({ goBack() {} });',
   '~/composables/useSanitize': 'export const useSanitize = () => ({ sanitize: value => value });',
+  '~/composables/useYouTubePlayer': 'export const useYouTubePlayer = () => ({ loadYouTubeIframeApi: async () => {}, createYouTubePlayer: () => null, destroyYouTubePlayer: () => {} });',
+  '~/composables/hasena/useHasenaSummary': 'export const useHasenaSummary = () => ({ summaryLoading: { value: false }, summaryError: { value: null }, summaryContent: { value: "" }, formattedSummary: { value: "" }, resetSummary: () => {}, loadAISummary: async () => {}, generateAISummary: async () => {} });',
+  '~/composables/hasena/hasenaVerses': 'export const renderHasenaVerses = () => "";',
   '~/stores/hasena': 'export const useHasenaStore = () => ({ isLoading: false, isCompleted: false, stats: {}, setCompletionStatus() {}, fetchStats: async () => {} });',
   '~/stores/notifications': 'export const useNotificationsStore = () => ({ settings: null, fetchSettings: async () => {} });',
   '~/stores/profile': 'export const useProfileStore = () => ({ currentProfile: null });',
@@ -42,7 +45,6 @@ const services = {
 };
 const result = await build({
   stdin: { contents: `export { default as Shared } from '${sharedEntry}';
-    export { default as Legacy } from '~/components/ReadingSettingsModal.vue';
     export { default as Hasena } from '~/pages/hasena.vue';
     export { default as Account } from '~/pages/account/settings.vue';
     export { default as Route } from '~/pages/bible/settings.vue';
@@ -73,7 +75,7 @@ const result = await build({
     });
   } }],
 });
-const { Shared, Legacy, Route, Hasena, Account, useReadingSettingsStore } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const { Shared, Route, Hasena, Account, useReadingSettingsStore } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const node = (type, text = '') => Vue.markRaw({ type, text, props: {}, children: [], parent: null });
 const notifyRender = () => { for (const listener of runtime.renderListeners ?? []) listener(); };
 const renderer = Vue.createRenderer({
@@ -224,35 +226,6 @@ test('separate Pinia instances cannot cancel each other\'s debounce', { timeout:
   const first = actionSignal(store, 'syncToServer'); const second = actionSignal(other, 'syncToServer');
   t.mock.timers.tick(500); assert.equal(patches().length, 2); await Promise.all([first, second]);
   assert.deepEqual(patches().map(call => call.payload.font_size), [18, 22]);
-});
-
-test('legacy modal delegates to the shared sheet and keeps isOpen/currentVersion/close', { timeout: 3000 }, async t => {
-  const { store, pinia } = setup(t); await store.initialize(); let closed = 0;
-  const view = await mount(t, Legacy, pinia, { isOpen: true, currentVersion: 'KNT', onClose: () => { closed++; } });
-  assert.equal(view.app._instance.subTree.component.subTree.type, Shared);
-  byId(view.host, 'reading-font-size').props.onInput({ target: { value: '21' } });
-  assert.equal(store.settings.fontSize, 21);
-  for (const key of ['showDescription', 'showCrossRef', 'showFootnotes', 'showVerseNumbers', 'verseJoining', 'tongdokAutoComplete']) {
-    // Given the real keyed preference component, not its former inline label id.
-    const pending = [view.app._instance.subTree];
-    let control;
-    while (pending.length) {
-      const vnode = pending.pop();
-      if (vnode.key === key && vnode.component) {
-        control = findAll(vnode.component.subTree.el, node => node.props.role === 'switch')[0];
-        break;
-      }
-      if (vnode.component) pending.push(vnode.component.subTree);
-      if (Array.isArray(vnode.children)) pending.push(...vnode.children.filter(Vue.isVNode));
-    }
-    const previous = store.settings[key];
-    // When the actual native switch is activated.
-    click(control);
-    // Then the corresponding saved preference changes immediately.
-    assert.equal(store.settings[key], !previous, `${key} remains controllable`);
-  }
-  click(byClass(view.host, 'done-btn')[0]); assert.equal(closed, 1);
-  assert.equal(patches().length, 0, 'done does not bypass the pending debounce');
 });
 
 for (const back of [null, '/hasena']) test(`legacy settings route returns via ${back ? 'history' : 'bible fallback'} through the same sheet`, { timeout: 3000 }, async t => {

@@ -68,8 +68,7 @@
         </div>
       </template>
     </div>
-    <Toast />
-  </PageLayout>
+</PageLayout>
 </template>
 
 <script setup lang="ts">
@@ -85,7 +84,6 @@ import PageLayout from '~/components/common/PageLayout.vue';
 import AppButton from '~/components/ui/AppButton.vue';
 import Skeleton from '~/components/ui/Skeleton.vue';
 import SkeletonPlanRow from '~/components/ui/skeleton/SkeletonPlanRow.vue';
-import Toast from '~/components/Toast.vue';
 import type { Plan, Subscription } from '~/types/plan';
 
 const router = useRouter();

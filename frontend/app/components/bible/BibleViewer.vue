@@ -32,51 +32,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/readingSettings';
-import { TIMING } from '~/constants/bible';
 import { useSwipe } from '~/composables/useSwipe';
-import { useSanitize } from '~/composables/useSanitize';
 import BibleViewerSkeleton from '~/components/bible/BibleViewerSkeleton.vue';
+import { useRenderedContent } from '~/composables/bible-viewer/useRenderedContent';
+import { useVerseSelection } from '~/composables/bible-viewer/useVerseSelection';
+import { useVerseActions } from '~/composables/bible-viewer/useVerseActions';
+import { useViewerScroll } from '~/composables/bible-viewer/useViewerScroll';
+import type {
+  Highlight,
+  VerseSelectionPayload,
+  SelectionHighlightPayload,
+  SelectionMenuState,
+  SelectionSharePayload,
+  ViewerEmit,
+} from '~/composables/bible-viewer/types';
 
-interface Highlight {
-  id: number;
-  start_verse: number;
-  end_verse: number;
-  color: string;
-  memo?: string;
-}
+// 기존 호출부(BibleReaderView.vue, pages/bible/index.vue)가 이 파일에서 타입을 가져간다.
+export type {
+  VerseSelectionPayload,
+  SelectionHighlightPayload,
+  SelectionMenuState,
+  SelectionSharePayload,
+} from '~/composables/bible-viewer/types';
 
-export interface VerseSelectionPayload {
-  book: string;
-  chapter: number;
-  version: string;
-  start: number;
-  end: number;
-  text: string;
-  verses: Array<{ number: number; text: string }>;
-}
-
-export interface SelectionHighlightPayload extends VerseSelectionPayload {
-  color: string;
-  highlightId?: number;
-}
-
-export interface SelectionMenuState {
-  visible: boolean;
-  mode: 'action' | 'copy' | null;
-  isHighlighted: boolean;
-  isSingleVerse: boolean;
-  highlightColor?: string | null;
-  selection?: VerseSelectionPayload | null;
-}
-
-export interface SelectionSharePayload extends Partial<VerseSelectionPayload> {
-  text: string;
-  startVerse: number;
-  endVerse: number;
-}
-
+// 로컬 선언을 유지한다 — 테스트 하네스의 compileScript는 fs 없이 실행되어
+// import된 타입을 defineProps에 쓸 수 없다. ResolvedViewerProps(types.ts)와의
+// 일치는 props를 컴포저블에 넘기는 호출부가 타입체크한다.
 interface Props {
   content: string;
   book: string;
@@ -95,10 +78,9 @@ const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   initialScrollPosition: 0,
   highlights: () => [],
-
 });
 
-const emit = defineEmits<{
+const emit: ViewerEmit = defineEmits<{
   scroll: [position: number];
   'scroll-pixels': [position: number];
   'verse-select': [verses: VerseSelectionPayload];
@@ -128,54 +110,45 @@ useSwipe(viewerRef, {
   onSwipeRight: () => emit('swipe-right'),
 }, { threshold: 80, horizontalRatio: 2 });
 
-// ====== 선택 시스템 상태 ======
-// 선택 모드: 'click' (절 클릭) | 'drag' (텍스트 드래그) | null
-const selectionMode = ref<'click' | 'drag' | null>(null);
+// 본문 렌더 파이프라인 — renderedContent는 props.content의 순수 computed로 유지한다.
+// 부모가 exit 애니메이션 동안 content를 고정하면 v-html이 재생성되지 않는다.
+const { renderedContent, hasErrorContent } = useRenderedContent(props);
 
-const { sanitize } = useSanitize();
+// 절 클릭/드래그 선택 상태 머신 (문서 리스너는 컴포저블이 등록·해제한다)
+const selection = useVerseSelection(viewerRef, props, emit);
 
-// 절 클릭 선택 상태 (복사 메뉴용 데이터)
-const showCopyMenu = ref(false);
-const clickSelectedStart = ref<number | null>(null);
-const clickSelectedEnd = ref<number | null>(null);
-const clickSelectedVerses = ref<Array<{ number: number; text: string }>>([]);
+// 복사 텍스트 생성 — typecheck-baseline.json이 이 본문의 인덱싱 오류를
+// 파일 경로별로 고정하므로 이 함수는 컴포넌트에 남긴다 (이동 시 래칫 실패).
+const getCopyText = (type: string): string => {
+  if (!selection.clickSelectedVerses.value.length) return '';
+  const bookName = props.book;
+  const chapter = props.chapter;
 
-// 텍스트 드래그/클릭 선택 상태 (플로팅 액션 메뉴용)
-const showActionMenu = ref(false);
-const selectedVerses = ref({ start: 0, end: 0 });
-const selectedText = ref('');
-
-// Read the complete verse, including KNT continuation lines, from sanitized content.
-const getVerseText = (el: Element): string => Array.from(el.querySelectorAll('.verse-text'))
-  .map(line => line.textContent?.trim() || '').filter(Boolean).join(' ');
-
-const getSelectionPayload = (): VerseSelectionPayload | null => {
-  const { start, end } = selectedVerses.value;
-  if (start <= 0 || end < start || !viewerRef.value) return null;
-  const verses: VerseSelectionPayload['verses'] = [];
-  viewerRef.value.querySelectorAll('.verse').forEach(el => {
-    const number = Number(el.querySelector('.verse-number')?.textContent?.trim());
-    if (number >= start && number <= end) verses.push({ number, text: getVerseText(el) });
-  });
-  if (!verses.length) return null;
-  return { book: props.book, chapter: props.chapter, version: props.version,
-    start, end, text: verses.map(verse => verse.text).join(' '), verses };
+  if (selection.clickSelectedVerses.value.length === 1) {
+    const { number, text } = selection.clickSelectedVerses.value[0];
+    if (type === 'includeLocation') {
+      return `[${bookName}${chapter}:${number}] ${text}`;
+    } else if (type === 'numOnly') {
+      return `${number} ${text}`;
+    } else if (type === 'textOnly') {
+      return text;
+    }
+  } else {
+    const start = selection.clickSelectedVerses.value[0].number;
+    const end = selection.clickSelectedVerses.value[selection.clickSelectedVerses.value.length - 1].number;
+    const versesTexts = selection.clickSelectedVerses.value.map(v => `${v.number} ${v.text}`);
+    if (type === 'includeLocationRange') {
+      return `[${bookName}${chapter}:${start}-${end}]\n${versesTexts.join('\n')}`;
+    } else if (type === 'excludeLocationRange') {
+      return versesTexts.join('\n');
+    }
+  }
+  return '';
 };
 
-const emitSelectionMenuChange = () => {
-  const visible = showActionMenu.value || showCopyMenu.value;
-  const selection = visible ? getSelectionPayload() : null;
-  // Consumers receive a detached snapshot before any action can open a sheet.
-  if (selection) emit('verse-select', selection);
-  emit('selection-menu-change', {
-    visible,
-    mode: showActionMenu.value ? 'action' : showCopyMenu.value ? 'copy' : null,
-    isHighlighted: isSelectedVerseHighlighted.value,
-    isSingleVerse: selectedVerses.value.start === selectedVerses.value.end,
-    highlightColor: getSelectedVerseHighlight()?.color ?? null,
-    selection,
-  });
-};
+// 선택 액션(복사/공유/하이라이트)과 스크롤/검색 포커스
+const actions = useVerseActions(viewerRef, props, emit, selection, getCopyText);
+const scroll = useViewerScroll(viewerRef, props, emit, selection);
 
 // 스타일 계산
 const viewerStyle = computed(() => ({
@@ -186,599 +159,16 @@ const viewerStyle = computed(() => ({
   '--reading-text-align': settings.value.textAlign,
 }));
 
-// 특정 절의 하이라이트 찾기
-const getHighlightForVerse = (verseNum: number): Highlight | undefined => {
-  return props.highlights.find(
-    h => verseNum >= h.start_verse && verseNum <= h.end_verse
-  );
-};
-
-// 현재 선택된 절이 하이라이트되어 있는지 확인
-const isSelectedVerseHighlighted = computed(() => {
-  if (!selectedVerses.value.start) return false;
-  return props.highlights.some(
-    h => h.start_verse === selectedVerses.value.start &&
-         h.end_verse === selectedVerses.value.end
-  );
-});
-
-// 현재 선택된 절의 하이라이트 정보 가져오기
-const getSelectedVerseHighlight = (): Highlight | undefined => {
-  if (!selectedVerses.value.start) return undefined;
-  return props.highlights.find(
-    h => h.start_verse === selectedVerses.value.start &&
-         h.end_verse === selectedVerses.value.end
-  );
-};
-
-// 본문 렌더링 (절 번호에 data-verse 속성 추가 + 하이라이트 적용)
-const hasErrorContent = computed(() => props.content.includes('class="error-message"'));
-
-const renderedContent = computed(() => {
-  if (!props.content) return '';
-
-  // sup 태그에 클릭 가능한 클래스와 data-verse 추가
-  let content = props.content.replace(
-    /<sup>(\d+)<\/sup>/g,
-    '<sup class="verse-num" data-verse="$1">$1</sup>'
-  );
-
-  // 기존 절 번호 스타일 개선
-  content = content.replace(
-    /<sup class="verse-num"/g,
-    '<sup class="verse-num clickable"'
-  );
-
-  // 하이라이트가 있으면 절에 배경색 적용
-  if (props.highlights.length > 0) {
-    // .verse 요소에 하이라이트 적용 (verse-number에서 절 번호 추출)
-    content = content.replace(
-      /<div class="(verse(?: [^"]*)?)">(\s*(?:<div class="verse-line[^"]*">\s*)?<span class="verse-number">(\d+)<\/span>)/g,
-      (match, classes, prefix, verseNum) => {
-        const highlight = getHighlightForVerse(parseInt(verseNum));
-        if (highlight) {
-          // 배경색을 직접 지정하지 않고 CSS 변수로 전달하여 투명도 조절 가능하게 함
-          return `<div class="${classes} highlighted" data-highlight-id="${highlight.id}" style="--highlight-bg: ${highlight.color}">${prefix}`;
-        }
-        return match;
-      }
-    );
-  }
-
-  return sanitize(content);
-});
-
-// 스크롤 핸들러 — 진행바는 프레임마다 갱신(rAF), 위치 저장은下游에서 debounce.
-let scrollRaf = 0;
-const handleScroll = () => {
-  if (viewerRef.value) emit('scroll-pixels', viewerRef.value.scrollTop);
-  if (scrollRaf) return;
-  scrollRaf = requestAnimationFrame(() => {
-    scrollRaf = 0;
-    if (viewerRef.value) {
-      const { scrollTop, scrollHeight, clientHeight } = viewerRef.value;
-      const maxScroll = scrollHeight - clientHeight;
-      const position = maxScroll > 0 ? scrollTop / maxScroll : 0;
-      emit('scroll', position);
-    }
-  });
-};
-
-// ====== 절 클릭 선택 기능 (reading.vue 방식) ======
-
-// 절 하이라이트 해제
-const clearVerseHighlight = () => {
-  if (!viewerRef.value) return;
-  viewerRef.value.querySelectorAll('.verse.selected-verse')
-    .forEach((el) => {
-      el.classList.remove('selected-verse', 'selected-first', 'selected-middle', 'selected-last');
-    });
-};
-
-// 절 클릭 선택 초기화
-const clearClickSelection = () => {
-  showCopyMenu.value = false;
-  clearVerseHighlight();
-  clickSelectedVerses.value = [];
-  clickSelectedStart.value = null;
-  clickSelectedEnd.value = null;
-  if (selectionMode.value === 'click') {
-    selectionMode.value = null;
-  }
-  emitSelectionMenuChange();
-};
-
-// 텍스트 드래그 선택 초기화
-const clearDragSelection = () => {
-  showActionMenu.value = false;
-  selectedVerses.value = { start: 0, end: 0 };
-  selectedText.value = '';
-  window.getSelection()?.removeAllRanges();
-  if (selectionMode.value === 'drag') {
-    selectionMode.value = null;
-  }
-  emitSelectionMenuChange();
-};
-
-// 모든 선택 초기화
-const clearAllSelections = () => {
-  clearDragSelection();
-  clearClickSelection();
-};
-
-// 절 하이라이트 적용
-const highlightVerses = (start: number, end: number) => {
-  if (!viewerRef.value) return;
-  viewerRef.value.querySelectorAll('.verse').forEach((el) => {
-    const numEl = el.querySelector('.verse-number');
-    if (!numEl) return;
-    const n = parseInt(numEl.textContent?.trim() || '0', 10);
-    if (n >= start && n <= end) {
-      el.classList.add('selected-verse');
-      // 위치 클래스 초기화
-      el.classList.remove('selected-first', 'selected-middle', 'selected-last');
-      // 범위 선택인 경우 위치에 따른 클래스 추가
-      if (start !== end) {
-        if (n === start) {
-          el.classList.add('selected-first');
-        } else if (n === end) {
-          el.classList.add('selected-last');
-        } else {
-          el.classList.add('selected-middle');
-        }
-      }
-    } else {
-      el.classList.remove('selected-verse', 'selected-first', 'selected-middle', 'selected-last');
-    }
-  });
-};
-
-// 복사 텍스트 생성
-const getCopyText = (type: string): string => {
-  if (!clickSelectedVerses.value.length) return '';
-  const bookName = props.book;
-  const chapter = props.chapter;
-
-  if (clickSelectedVerses.value.length === 1) {
-    const { number, text } = clickSelectedVerses.value[0];
-    if (type === 'includeLocation') {
-      return `[${bookName}${chapter}:${number}] ${text}`;
-    } else if (type === 'numOnly') {
-      return `${number} ${text}`;
-    } else if (type === 'textOnly') {
-      return text;
-    }
-  } else {
-    const start = clickSelectedVerses.value[0].number;
-    const end = clickSelectedVerses.value[clickSelectedVerses.value.length - 1].number;
-    const versesTexts = clickSelectedVerses.value.map(v => `${v.number} ${v.text}`);
-    if (type === 'includeLocationRange') {
-      return `[${bookName}${chapter}:${start}-${end}]\n${versesTexts.join('\n')}`;
-    } else if (type === 'excludeLocationRange') {
-      return versesTexts.join('\n');
-    }
-  }
-  return '';
-};
-
-// 절 클릭 복사 핸들러
-const writeCopyText = async (text: string): Promise<boolean> => {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    // Keep the older-browser fallback, but never report a failed copy as success.
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    textarea.setAttribute('readonly', '');
-    document.body.appendChild(textarea);
-    try {
-      textarea.select();
-      if (!document.execCommand('copy')) throw new Error('Clipboard copy failed');
-    } catch (error) {
-      emit('copy-error', error);
-      return false;
-    } finally {
-      document.body.removeChild(textarea);
-    }
-  }
-  emit('copy', text);
-  return true;
-};
-
-const handleClickCopy = async (type: string) => {
-  const text = getCopyText(type);
-  if (!text) return;
-  const selection = selectedVerses.value;
-  const copied = await writeCopyText(text);
-  if (copied && selection === selectedVerses.value) clearAllSelections();
-};
-
-// 절 클릭 핸들러 - 액션 메뉴 표시
-const handleVerseClick = (event: MouseEvent | TouchEvent) => {
-  const target = event.target as HTMLElement;
-  const verseEl = target.closest('.verse');
-  if (!verseEl) return;
-
-  event.stopPropagation();
-
-  // 드래그 선택이 진행 중이면 무시 (텍스트 선택 후 클릭 시)
-  const browserSelection = window.getSelection();
-  if (browserSelection && !browserSelection.isCollapsed && browserSelection.toString().trim()) {
-    return;
-  }
-
-  const numEl = verseEl.querySelector('.verse-number');
-  const textEl = verseEl.querySelector('.verse-text');
-  if (!numEl || !textEl) return;
-
-  const num = parseInt(numEl.textContent?.trim() || '0', 10);
-  const txt = getVerseText(verseEl);
-
-  // 단일 절 선택 상태에서 같은 절을 다시 클릭하면 해제
-  if (
-    clickSelectedStart.value !== null &&
-    clickSelectedEnd.value === null &&
-    clickSelectedStart.value === num &&
-    clickSelectedVerses.value.length === 1
-  ) {
-    clearAllSelections();
-    return;
-  }
-
-  // 드래그 선택 해제 후 클릭 선택 시작
-  clearDragSelection();
-  selectionMode.value = 'click';
-
-  if (clickSelectedStart.value === null) {
-    // 시작점 설정
-    clearVerseHighlight();
-    clickSelectedVerses.value = [];
-    clickSelectedStart.value = num;
-    clickSelectedEnd.value = null;
-    clickSelectedVerses.value = [{ number: num, text: txt }];
-    highlightVerses(num, num);
-    
-    // 액션 메뉴용 데이터 설정
-    selectedVerses.value = { start: num, end: num };
-    selectedText.value = txt;
-    showActionMenu.value = true;
-    emitSelectionMenuChange();
-  } else if (clickSelectedEnd.value === null) {
-    // 끝점 설정 및 범위 선택
-    clickSelectedEnd.value = num;
-    const start = Math.min(clickSelectedStart.value, clickSelectedEnd.value);
-    const end = Math.max(clickSelectedStart.value, clickSelectedEnd.value);
-    highlightVerses(start, end);
-
-    // 선택 구간의 number/text 저장
-    const versesArray: Array<{ number: number; text: string }> = [];
-    let combinedText = '';
-    if (viewerRef.value) {
-      viewerRef.value.querySelectorAll('.verse').forEach((el) => {
-        const nEl = el.querySelector('.verse-number');
-        const tEl = el.querySelector('.verse-text');
-        if (!nEl || !tEl) return;
-        const n = parseInt(nEl.textContent?.trim() || '0', 10);
-        if (n >= start && n <= end) {
-          const verseText = getVerseText(el);
-          versesArray.push({ number: n, text: verseText });
-          combinedText += (combinedText ? ' ' : '') + verseText;
-        }
-      });
-    }
-    clickSelectedVerses.value = versesArray;
-    
-    // 액션 메뉴용 데이터 설정
-    selectedVerses.value = { start, end };
-    selectedText.value = combinedText;
-    
-    showActionMenu.value = true;
-    emitSelectionMenuChange();
-  } else {
-    clearAllSelections();
-    selectionMode.value = 'click';
-    clickSelectedStart.value = num;
-    clickSelectedVerses.value = [{ number: num, text: txt }];
-    highlightVerses(num, num);
-    selectedVerses.value = { start: num, end: num };
-    selectedText.value = txt;
-    showActionMenu.value = true;
-    emitSelectionMenuChange();
-  }
-};
-
-// ====== 텍스트 드래그 선택 기능 (플로팅 액션 메뉴) ======
-
-// 텍스트 선택 핸들러
-const handleTextSelection = () => {
-  const selection = window.getSelection();
-  if (!selection || selection.isCollapsed) {
-    // 선택이 해제되면 액션 메뉴 숨김
-    if (selectionMode.value === 'drag') {
-      hideActionMenu();
-    }
-    return;
-  }
-
-  const text = selection.toString().trim();
-  if (!text) {
-    if (selectionMode.value === 'drag') {
-      hideActionMenu();
-    }
-    return;
-  }
-
-  // 선택 범위가 bible-content 내부인지 확인
-  const range = selection.getRangeAt(0);
-  const container = range.commonAncestorContainer;
-  const isInBibleContent = container.parentElement?.closest('.bible-content') ||
-                           (container as Element).closest?.('.bible-content');
-  if (!isInBibleContent || !viewerRef.value?.contains(container)) {
-    return;
-  }
-
-  // 클릭 선택 해제 후 드래그 선택 시작
-  clearClickSelection();
-  selectionMode.value = 'drag';
-
-  // 선택된 텍스트에서 절 번호 추출
-  const verses = extractVerseNumbers(range);
-
-  if (verses.start > 0) {
-    selectedVerses.value = verses;
-    const payload = getSelectionPayload();
-    selectedText.value = payload?.text || text;
-    clickSelectedVerses.value = payload?.verses || [];
-    showActionMenu.value = true;
-    emitSelectionMenuChange();
-  }
-};
-
-// 절 번호 추출
-const extractVerseNumbers = (range: Range): { start: number; end: number } => {
-  let start = 0;
-  let end = 0;
-  // Intersect whole verse elements: a selection may begin after its verse number.
-  viewerRef.value?.querySelectorAll('.verse').forEach(el => {
-    if (!range.intersectsNode(el)) return;
-    const number = Number(el.querySelector('.verse-number')?.textContent?.trim());
-    if (!number) return;
-    if (!start) start = number;
-    end = number;
-  });
-  return { start, end };
-};
-
-// 액션 메뉴 숨기기
-const hideActionMenu = () => {
-  showActionMenu.value = false;
-  if (selectionMode.value === 'drag') {
-    selectionMode.value = null;
-  }
-  emitSelectionMenuChange();
-};
-
-// 액션 핸들러
-const handleHighlight = () => {
-  const payload = getSelectionPayload();
-  if (!payload) return;
-  emit('highlight', payload);
-  clearAllSelections();
-};
-
-// Saving remains with the authenticated page/service owner, not this text viewer.
-const handleHighlightColor = (color: string) => {
-  const payload = getSelectionPayload();
-  if (!payload) return;
-  const existing = getSelectedVerseHighlight();
-  emit('highlight-save', { ...payload, color, ...(existing ? { highlightId: existing.id } : {}) });
-  clearAllSelections();
-};
-
-// 하이라이트 추가 또는 제거 핸들러
-const handleHighlightOrRemove = () => {
-  const existingHighlight = getSelectedVerseHighlight();
-  if (existingHighlight) {
-    // 기존 하이라이트가 있으면 삭제 이벤트 발생
-    emit('highlight-delete', existingHighlight.id);
-    hideActionMenu();
-    clearAllSelections();
-  } else {
-    // 하이라이트 추가
-    handleHighlight();
-  }
-};
-
-const handleCopy = async () => {
-  // 복사 버튼은 즉시 복사하지 않고 형식 메뉴(위치 포함/절 번호만/내용만)를 연다.
-  hideActionMenu();
-  if (!clickSelectedVerses.value.length) {
-    // 드래그 선택을 클릭 선택 형식으로 변환해 형식 메뉴가 동작하게 한다.
-    const { start, end } = selectedVerses.value;
-    if (!start) return;
-    clickSelectedStart.value = start;
-    clickSelectedEnd.value = start === end ? null : end;
-    const versesArray: Array<{ number: number; text: string }> = [];
-    viewerRef.value?.querySelectorAll('.verse').forEach((el) => {
-      const nEl = el.querySelector('.verse-number');
-      const tEl = el.querySelector('.verse-text');
-      if (!nEl || !tEl) return;
-      const n = parseInt(nEl.textContent?.trim() || '0', 10);
-      if (n >= start && n <= end) versesArray.push({ number: n, text: tEl.textContent?.trim() || '' });
-    });
-    clickSelectedVerses.value = versesArray;
-    selectionMode.value = 'click';
-  }
-  showCopyMenu.value = true;
-  emitSelectionMenuChange();
-};
-
-const handleShare = () => {
-  const payload = getSelectionPayload();
-  if (!payload) return;
-  emit('share', { ...payload, startVerse: payload.start, endVerse: payload.end });
-  clearAllSelections();
-};
-
+const { handleVerseClick, clearAllSelections, clearClickSelection } = selection;
+const { handleScroll, restoreScrollPosition, scrollToVerse, focusVerseRange } = scroll;
+const { handleHighlightOrRemove, handleHighlightColor, handleCopy, handleShare, handleClickCopy } = actions;
 const clearSelection = clearAllSelections;
 
-// 스크롤 위치 복원
-const restoreScrollPosition = () => {
-  if (!viewerRef.value) return;
-
-  const { scrollHeight, clientHeight } = viewerRef.value;
-  const maxScroll = scrollHeight - clientHeight;
-  const scrollPosition = Math.min(1, Math.max(0, props.initialScrollPosition));
-  viewerRef.value.scrollTop = scrollPosition * maxScroll;
-};
-
-// 검색 결과 강조용 타이머
-let searchHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
-
-const clearFocusedSearchTerms = () => {
-  if (!viewerRef.value) return;
-
-  viewerRef.value.querySelectorAll('mark.focused-search-term')
-    .forEach((mark) => {
-      mark.replaceWith(document.createTextNode(mark.textContent || ''));
-    });
-};
-
-const findVerseElement = (verseNumber: number): Element | null => {
-  if (!viewerRef.value) return null;
-
-  const verseElements = viewerRef.value.querySelectorAll('.verse');
-  for (const el of verseElements) {
-    const numEl = el.querySelector('.verse-number');
-    const num = parseInt(numEl?.textContent?.trim() || '0', 10);
-    if (num === verseNumber) return el;
-  }
-
-  const supEl = viewerRef.value.querySelector(`[data-verse="${verseNumber}"]`);
-  return supEl?.closest('.verse') || supEl;
-};
-
-const focusSearchTermInVerse = (verseNumber: number, searchTerm?: string | null) => {
-  clearFocusedSearchTerms();
-  if (!searchTerm) return;
-
-  const targetVerse = findVerseElement(verseNumber);
-  if (!targetVerse) return;
-
-  const normalizedTerm = searchTerm.trim().toLowerCase();
-  if (!normalizedTerm) return;
-
-  const walker = document.createTreeWalker(targetVerse, NodeFilter.SHOW_TEXT);
-  let currentNode = walker.nextNode();
-  while (currentNode) {
-    const text = currentNode.textContent || '';
-    const index = text.toLowerCase().indexOf(normalizedTerm);
-    if (index >= 0) {
-      const range = document.createRange();
-      range.setStart(currentNode, index);
-      range.setEnd(currentNode, index + searchTerm.trim().length);
-      const mark = document.createElement('mark');
-      mark.className = 'focused-search-term';
-      range.surroundContents(mark);
-      mark.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-      return;
-    }
-
-    currentNode = walker.nextNode();
-  }
-};
-
-// 특정 절로 스크롤 및 강조
-const scrollToVerse = (verseNumber: number) => {
-  if (!viewerRef.value) return;
-
-  // 기존 강조 제거
-  if (searchHighlightTimeout) {
-    clearTimeout(searchHighlightTimeout);
-    searchHighlightTimeout = null;
-  }
-  clearFocusedSearchTerms();
-  viewerRef.value.querySelectorAll('.verse.search-highlight')
-    .forEach((el) => {
-      el.classList.remove('search-highlight');
-    });
-
-  const targetVerse = findVerseElement(verseNumber);
-
-  if (targetVerse) {
-    // 스크롤
-    targetVerse.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    
-    // 강조 스타일 적용
-    targetVerse.classList.add('search-highlight');
-    
-    // 3초 후 강조 제거
-    searchHighlightTimeout = setTimeout(() => {
-      targetVerse?.classList.remove('search-highlight');
-      searchHighlightTimeout = null;
-    }, 3000);
-  }
-};
-
-const focusVerseRange = (startVerse: number, endVerse: number, searchTerm?: string | null) => {
-  if (!viewerRef.value || startVerse <= 0 || endVerse < startVerse) return;
-
-  clearAllSelections();
-  selectedVerses.value = { start: startVerse, end: endVerse };
-  selectionMode.value = null;
-  highlightVerses(startVerse, endVerse);
-  scrollToVerse(startVerse);
-  nextTick(() => {
-    focusSearchTermInVerse(startVerse, searchTerm);
-  });
-};
-
-// 문서 클릭 시 메뉴 닫기
-const handleDocumentClick = (e: MouseEvent) => {
-  const target = e.target as HTMLElement;
-
-  // 액션 메뉴 외부 클릭 시 닫기
-  if (showActionMenu.value && !target.closest('.selection-action-menu') && !target.closest('.verse')) {
-    hideActionMenu();
-    clearClickSelection();
-  }
-
-  // 복사 메뉴 외부 클릭 시 닫기
-  if (showCopyMenu.value && !target.closest('.selection-copy-menu') && !target.closest('.verse')) {
-    clearClickSelection();
-  }
-};
-
-// 라이프사이클
+// 라이프사이클 — 초기 스크롤 위치 복원 (컨텐츠 로드 후)
 onMounted(() => {
-  document.addEventListener('click', handleDocumentClick);
-  // 텍스트 드래그 선택 감지 (mouseup)
-  document.addEventListener('mouseup', handleTextSelection);
-  // 터치 디바이스 지원
-  document.addEventListener('touchend', handleTextSelection);
-
-  // 초기 스크롤 위치 복원 (컨텐츠 로드 후)
   nextTick(() => {
     restoreScrollPosition();
   });
-});
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleDocumentClick);
-  document.removeEventListener('mouseup', handleTextSelection);
-  document.removeEventListener('touchend', handleTextSelection);
-  if (scrollRaf) {
-    cancelAnimationFrame(scrollRaf);
-    scrollRaf = 0;
-  }
-  // 검색 강조 타이머 정리
-  if (searchHighlightTimeout) {
-    clearTimeout(searchHighlightTimeout);
-  }
-  // 선택 상태 정리
-  clearAllSelections();
 });
 
 // 컨텐츠 변경 시 스크롤 위치 복원 및 선택 상태 초기화

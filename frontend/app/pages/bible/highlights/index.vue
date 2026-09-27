@@ -32,8 +32,7 @@
         <template #trailing><button type="button" class="icon-btn delete-btn" @click="handleDelete(highlight)" aria-label="하이라이트 삭제" title="삭제"><Trash2 :size="18" aria-hidden="true" /></button></template>
       </BibleRecordRow>
     </ul>
-    <Toast />
-  </BibleSubpageLayout>
+</BibleSubpageLayout>
 </template>
 
 <script setup lang="ts">
@@ -48,7 +47,6 @@ import { useErrorHandler } from '~/composables/useErrorHandler';
 import { useTextUtils } from '~/composables/useTextUtils';
 import { useApi } from '~/composables/useApi';
 import EmptyState from '~/components/common/EmptyState.vue';
-import Toast from '~/components/Toast.vue';
 import BibleSubpageLayout from '~/components/bible/BibleSubpageLayout.vue';
 import BibleRecordControls from '~/components/bible/BibleRecordControls.vue';
 import BibleRecordRow from '~/components/bible/BibleRecordRow.vue';

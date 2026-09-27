@@ -109,3 +109,104 @@ export function isToday(date: Date | string): boolean {
     d.getMonth() === today.getMonth() &&
     d.getDate() === today.getDate()
 }
+
+/**
+ * Date | string | null | undefined 입력을 유효한 Date로 정규화.
+ * 유효하지 않으면 null을 반환한다.
+ */
+function toDate(date: Date | string | null | undefined): Date | null {
+  if (!date) return null
+  const d = typeof date === 'string' ? new Date(date) : date
+  return isNaN(d.getTime()) ? null : d
+}
+
+/**
+ * 날짜를 M월 D일 형식으로 포맷 (예: 1월 5일)
+ *
+ * `toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })`와 동일한 출력.
+ * @param date Date 객체, ISO 문자열, 또는 null
+ * @returns 포맷된 날짜 문자열 또는 빈 문자열
+ */
+export function formatMonthDay(date: Date | string | null | undefined): string {
+  const d = toDate(date)
+  if (!d) return ''
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`
+}
+
+const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'] as const
+
+/**
+ * 날짜를 M월 D일 (요일) 형식으로 포맷 (예: 1월 5일 (월))
+ *
+ * `toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })`와
+ * 동일한 출력.
+ * @param date Date 객체, ISO 문자열, 또는 null
+ * @returns 포맷된 날짜 문자열 또는 빈 문자열
+ */
+export function formatMonthDayWeekday(date: Date | string | null | undefined): string {
+  const d = toDate(date)
+  if (!d) return ''
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY_NAMES[d.getDay()]})`
+}
+
+/**
+ * 날짜를 YYYY년 M월 형식으로 포맷 (예: 2026년 1월)
+ * @param date Date 객체, ISO 문자열, 또는 null
+ * @returns 포맷된 날짜 문자열 또는 빈 문자열
+ */
+export function formatYearMonth(date: Date | string | null | undefined): string {
+  const d = toDate(date)
+  if (!d) return ''
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월`
+}
+
+/**
+ * 날짜를 YYYY년 M월 D일 요일 형식으로 포맷 (예: 2026년 1월 5일 월)
+ *
+ * `toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })`와
+ * 동일한 출력.
+ * @param date Date 객체, ISO 문자열, 또는 null
+ * @returns 포맷된 날짜 문자열 또는 빈 문자열
+ */
+export function formatFullDateWeekday(date: Date | string | null | undefined): string {
+  const d = toDate(date)
+  if (!d) return ''
+  return d.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'short',
+  })
+}
+
+/**
+ * 시각을 오전/오후 HH:MM 형식으로 포맷 (예: 오후 02:30)
+ *
+ * 브라우저의 `Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' })`와
+ * 동일한 출력. 수동 구현인 이유: small-ICU Node(테스트 러너)에서는 ko-KR
+ * dayPeriod가 'PM'처럼 영어로 폴백되어 런타임마다 결과가 달라진다.
+ * @param date Date 객체, ISO 문자열, 또는 null
+ * @returns 포맷된 시각 문자열 또는 빈 문자열
+ */
+export function formatTime(date: Date | string | null | undefined): string {
+  const d = toDate(date)
+  if (!d) return ''
+  const period = d.getHours() < 12 ? '오전' : '오후'
+  const hour12 = d.getHours() % 12 || 12
+  const minute = String(d.getMinutes()).padStart(2, '0')
+  return `${period} ${String(hour12).padStart(2, '0')}:${minute}`
+}
+
+/**
+ * 날짜+시각을 M월 D일 오전/오후 HH:MM 형식으로 포맷 (예: 1월 5일 오후 02:30)
+ *
+ * 브라우저의 `toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })`와
+ * 동일한 출력.
+ * @param date Date 객체, ISO 문자열, 또는 null
+ * @returns 포맷된 날짜+시각 문자열 또는 빈 문자열
+ */
+export function formatMonthDayTime(date: Date | string | null | undefined): string {
+  const d = toDate(date)
+  if (!d) return ''
+  return `${formatMonthDay(d)} ${formatTime(d)}`
+}

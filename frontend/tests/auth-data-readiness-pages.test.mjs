@@ -109,6 +109,12 @@ const runtimeStub = path => {
       export const withJsApiEnabled = value => value;
     `;
   }
+  if (path.endsWith('/useYouTubePlayer')) {
+    return 'export const useYouTubePlayer = () => ({ loadYouTubeIframeApi: async () => {}, createYouTubePlayer: () => null });';
+  }
+  if (path.endsWith('/hasenaVerses')) {
+    return 'export const renderHasenaVerses = () => "";';
+  }
   if (path === 'lodash-es') {
     return `
       export const debounce = callback => {
@@ -119,7 +125,11 @@ const runtimeStub = path => {
     `;
   }
   if (path.endsWith('/dateFormat')) {
-    return 'export const formatKoreanDate = value => value;';
+    return `
+      export const formatKoreanDate = value => value;
+      export const getTodayString = () => '2026-09-20';
+      export const toLocalDateString = value => value;
+    `;
   }
   if (path === '@lucide/vue') {
     return Object.keys(Icons)
@@ -159,6 +169,9 @@ const loadPageSetup = async relativePath => {
         pluginBuild.onLoad({ filter: /.*/, namespace: 'page-runtime' }, async ({ path }) => {
           if (globalThis.__pageRealNote && path.endsWith('/useNote')) {
             return { contents: await readFile(new URL('../app/composables/useNote.ts', import.meta.url), 'utf8'), loader: 'ts' };
+          }
+          if (path.endsWith('/useHasenaSummary')) {
+            return { contents: await readFile(new URL('../app/composables/hasena/useHasenaSummary.ts', import.meta.url), 'utf8'), loader: 'ts' };
           }
           return { contents: runtimeStub(path) };
         });

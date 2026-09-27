@@ -192,64 +192,9 @@
           연결하려는 {{ getProviderDisplayName(mergeInfo.provider) }} 계정이 이미 다른 매일일독 계정에 연결되어 있습니다.
           유지할 계정을 선택해 병합을 진행하세요.
         </p>
-        <button class="wide-action primary" @click="showMergeConfirmModal = true">
+        <button class="wide-action primary" @click="openMergePicker">
           병합 계정 선택하기
         </button>
-      </section>
-
-      <section v-if="showMergeConfirmModal && mergeInfo" class="merge-overlay">
-        <div class="merge-modal-content">
-          <h3 class="modal-title">계정 병합</h3>
-          <p class="merge-description">
-            이 {{ getProviderDisplayName(mergeInfo.provider) }} 계정은 다른 매일일독 계정에 연결되어 있습니다.<br>
-            <strong>어느 계정을 유지하시겠습니까?</strong>
-          </p>
-
-          <div class="merge-accounts">
-            <div class="account-card">
-              <div class="account-badge">현재 로그인</div>
-              <div class="account-avatar">
-                <NuxtImg v-if="mergeInfo.current_account.profile_image" :src="mergeInfo.current_account.profile_image" alt="" loading="lazy" />
-                <div v-else class="avatar-placeholder">{{ mergeInfo.current_account.nickname?.charAt(0) || '?' }}</div>
-              </div>
-              <div class="account-info">
-                <p class="account-nickname">{{ mergeInfo.current_account.nickname }}</p>
-                <p class="account-email">{{ mergeInfo.current_account.email || '이메일 없음' }}</p>
-                <p class="account-providers">
-                  <span v-for="p in mergeInfo.current_account.providers" :key="p" class="provider-tag">{{ getProviderDisplayName(p) }}</span>
-                  <span v-if="mergeInfo.current_account.has_password" class="provider-tag password">비밀번호</span>
-                </p>
-                <p class="account-date">가입: {{ formatDate(mergeInfo.current_account.created_at) }}</p>
-              </div>
-              <button class="select-btn" :disabled="mergeLoading" @click.stop="handleMerge('current')">이 계정 유지</button>
-            </div>
-
-            <div class="account-card">
-              <div class="account-badge other">{{ getProviderDisplayName(mergeInfo.provider) }} 연결 계정</div>
-              <div class="account-avatar">
-                <NuxtImg v-if="mergeInfo.other_account.profile_image" :src="mergeInfo.other_account.profile_image" alt="" loading="lazy" />
-                <div v-else class="avatar-placeholder">{{ mergeInfo.other_account.nickname?.charAt(0) || '?' }}</div>
-              </div>
-              <div class="account-info">
-                <p class="account-nickname">{{ mergeInfo.other_account.nickname }}</p>
-                <p class="account-email">{{ mergeInfo.other_account.email || '이메일 없음' }}</p>
-                <p class="account-providers">
-                  <span v-for="p in mergeInfo.other_account.providers" :key="p" class="provider-tag">{{ getProviderDisplayName(p) }}</span>
-                  <span v-if="mergeInfo.other_account.has_password" class="provider-tag password">비밀번호</span>
-                </p>
-                <p class="account-date">가입: {{ formatDate(mergeInfo.other_account.created_at) }}</p>
-              </div>
-              <button class="select-btn" :disabled="mergeLoading" @click.stop="handleMerge('other')">이 계정 유지</button>
-            </div>
-          </div>
-
-          <p class="merge-warning">
-            선택하지 않은 계정은 30일 후 완전히 삭제됩니다.<br>
-            해당 계정의 소셜 연결만 유지 계정으로 이전됩니다.
-          </p>
-
-          <button class="btn-cancel-full" @click="closeMergeModal" :disabled="mergeLoading">취소</button>
-        </div>
       </section>
 
       <ReadingSettingsSheet v-model="isReadingSettingsOpen" />
@@ -268,8 +213,10 @@ import { useHead } from '#imports'
 import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
 import { useApi } from '~/composables/useApi'
-import { useRuntimeConfig } from 'nuxt/app'
 import { classifyShellIdentity } from '~/composables/shellBundleIdentity'
+import { useAccountLinking } from '~/composables/account-settings/useAccountLinking'
+import { normalizeMergeInfo, getErrorMessage } from '~/composables/account-settings/normalize'
+import { PROVIDERS, type NativeWindow } from '~/composables/account-settings/types'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import AppButton from '~/components/ui/AppButton.vue'
@@ -286,17 +233,11 @@ import { useProfileStore } from '~/stores/profile'
 import {
   betaModeTargetUrl,
   buildDeleteAccountPayload,
-  buildNativeAppleLinkRequest,
-  buildOAuthLinkUrl,
-  buildSocialMergePayload,
   canShellSwitchBeta,
   getProviderDisplayName,
   isBetaHost,
-  parseNativeAppleLinkResult,
-  shouldUseNativeAppleLink,
 } from '~/utils/accountSettingsRuntime.js'
 import { isNativeApp, sendToNative } from '~/types/native-bridge'
-import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
 
 useHead({
   title: '계정 설정 - 매일일독',
@@ -305,13 +246,27 @@ useHead({
 const auth = useAuthService()
 const modal = useModal()
 const api = useApi()
-const config = useRuntimeConfig()
 const { goBack } = useNavigation()
 const notificationsStore = useNotificationsStore()
 const readingSettings = useReadingSettingsStore()
 const isReadingSettingsOpen = ref(false)
 const isDataManagementOpen = ref(false)
 const profileStore = useProfileStore()
+
+const {
+  loading,
+  linkedAccounts,
+  linkingProvider,
+  mergeInfo,
+  showMergeModal,
+  isProviderLinked,
+  canUnlink,
+  fetchLinkedAccounts,
+  handleLinkProvider,
+  handleUnlink,
+  openMergePicker,
+  beginMerge,
+} = useAccountLinking()
 
 const themeOptions = [
   { value: 'light', label: '라이트' },
@@ -391,64 +346,6 @@ onMounted(() => {
   betaModeEnabled.value = isBetaHost(window.location.hostname)
 })
 
-type Provider = 'kakao' | 'google' | 'apple'
-type KeepAccount = 'current' | 'other'
-
-const PROVIDERS: Provider[] = ['kakao', 'google', 'apple']
-
-interface LinkedAccount {
-  provider: Provider
-  provider_display: string
-  email: string | null
-  profile_image: string | null
-  linked_at: string
-  can_unlink: boolean
-}
-
-interface AuthMethods {
-  total: number
-  password: boolean
-  social_count: number
-  providers: Provider[]
-  can_remove_login_method: boolean
-}
-
-interface LinkedAccountsResponse {
-  has_password: boolean
-  email: string | null
-  primary_email?: string | null
-  auth_methods?: AuthMethods
-  linked_accounts: LinkedAccount[]
-}
-
-interface MergeAccountSummary {
-  id: number
-  nickname: string
-  email: string | null
-  profile_image: string | null
-  providers: Provider[]
-  has_password: boolean
-  created_at: string
-}
-
-interface MergeInfo {
-  provider: Provider
-  code: string
-  merge_token?: string
-  id_token?: string
-  current_account: MergeAccountSummary
-  other_account: MergeAccountSummary
-}
-
-interface NativeWindow extends Window {
-  isReactNativeWebView?: boolean
-  ReactNativeWebView?: {
-    postMessage(message: string): void
-  }
-}
-
-const loading = ref(true)
-const linkedAccounts = ref<LinkedAccountsResponse | null>(null)
 const user = computed(() => auth.user.value)
 
 const showPasswordPanel = ref(false)
@@ -466,13 +363,6 @@ const resendingEmail = ref(false)
 const emailCooldown = ref(0)
 let emailCooldownTimer: ReturnType<typeof setInterval> | null = null
 
-const showMergeModal = ref(false)
-const showMergeConfirmModal = ref(false)
-const mergeInfo = ref<MergeInfo | null>(null)
-const mergeLoading = ref(false)
-const linkingProvider = ref<Provider | null>(null)
-let pendingNativeAppleState: string | null = null
-
 const emailButtonText = computed(() => {
   if (resendingEmail.value) return '전송 중...'
   if (emailCooldown.value > 0) return `${emailCooldown.value}초`
@@ -485,347 +375,6 @@ const handlePasswordAction = () => {
     return
   }
   showPasswordPanel.value = !showPasswordPanel.value
-}
-
-const isKakaoLinked = computed(() => isProviderLinked('kakao'))
-const isGoogleLinked = computed(() => isProviderLinked('google'))
-const isAppleLinked = computed(() => isProviderLinked('apple'))
-
-const isProviderLinked = (provider: Provider) =>
-  linkedAccounts.value?.linked_accounts.some(account => account.provider === provider) ?? false
-
-const getLinkedAccount = (provider: Provider) =>
-  linkedAccounts.value?.linked_accounts.find(account => account.provider === provider)
-
-const canUnlink = (provider: Provider) => {
-  const account = getLinkedAccount(provider)
-  return account?.can_unlink ?? false
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null
-}
-
-const getString = (record: Record<string, unknown>, key: string) => {
-  const value = record[key]
-  return typeof value === 'string' ? value : null
-}
-
-const getBoolean = (record: Record<string, unknown>, key: string) => {
-  return record[key] === true
-}
-
-const getNumber = (record: Record<string, unknown>, key: string) => {
-  const value = record[key]
-  return typeof value === 'number' ? value : 0
-}
-
-const parseProvider = (value: unknown): Provider | null => {
-  return typeof value === 'string' && isProvider(value) ? value : null
-}
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (error instanceof Error && error.message) return error.message
-  if (!isRecord(error)) return fallback
-  const data = error.data
-  if (isRecord(data)) {
-    return getString(data, 'error') || getString(data, 'detail') || getString(data, 'message') || fallback
-  }
-  return getString(error, 'message') || fallback
-}
-
-const getErrorPayload = (error: unknown): Record<string, unknown> | null => {
-  if (!isRecord(error)) return null
-  return isRecord(error.data) ? error.data : error
-}
-
-const normalizeLinkedAccounts = (payload: unknown): LinkedAccountsResponse => {
-  if (!isRecord(payload)) {
-    return {
-      has_password: false,
-      email: null,
-      primary_email: null,
-      linked_accounts: [],
-    }
-  }
-  const accountItems = Array.isArray(payload.linked_accounts) ? payload.linked_accounts : []
-  const authMethodsPayload = isRecord(payload.auth_methods) ? payload.auth_methods : null
-  const linked_accounts = accountItems.flatMap((item): LinkedAccount[] => {
-    if (!isRecord(item)) return []
-    const provider = parseProvider(item.provider)
-    if (!provider) return []
-    return [{
-      provider,
-      provider_display: getString(item, 'provider_display') || getProviderDisplayName(provider),
-      email: getString(item, 'email'),
-      profile_image: getString(item, 'profile_image'),
-      linked_at: getString(item, 'linked_at') || '',
-      can_unlink: getBoolean(item, 'can_unlink'),
-    }]
-  })
-
-  return {
-    has_password: getBoolean(payload, 'has_password'),
-    email: getString(payload, 'email') || getString(payload, 'primary_email'),
-    primary_email: getString(payload, 'primary_email') || getString(payload, 'email'),
-    auth_methods: authMethodsPayload
-      ? {
-          total: getNumber(authMethodsPayload, 'total'),
-          password: getBoolean(authMethodsPayload, 'password'),
-          social_count: getNumber(authMethodsPayload, 'social_count'),
-          providers: Array.isArray(authMethodsPayload.providers)
-            ? authMethodsPayload.providers.flatMap((provider): Provider[] => {
-                const parsedProvider = parseProvider(provider)
-                return parsedProvider ? [parsedProvider] : []
-              })
-            : [],
-          can_remove_login_method: getBoolean(authMethodsPayload, 'can_remove_login_method'),
-        }
-      : undefined,
-    linked_accounts,
-  }
-}
-
-const normalizeMergeAccountSummary = (payload: unknown): MergeAccountSummary | null => {
-  if (!isRecord(payload)) return null
-  const providerItems = Array.isArray(payload.providers) ? payload.providers : []
-  return {
-    id: getNumber(payload, 'id'),
-    nickname: getString(payload, 'nickname') || '',
-    email: getString(payload, 'email'),
-    profile_image: getString(payload, 'profile_image'),
-    providers: providerItems.flatMap((provider): Provider[] => {
-      const parsedProvider = parseProvider(provider)
-      return parsedProvider ? [parsedProvider] : []
-    }),
-    has_password: getBoolean(payload, 'has_password'),
-    created_at: getString(payload, 'created_at') || '',
-  }
-}
-
-const normalizeMergeInfo = (payload: unknown): MergeInfo | null => {
-  if (!isRecord(payload)) return null
-  const provider = parseProvider(payload.provider)
-  const code = getString(payload, 'code')
-  const idToken = getString(payload, 'id_token')
-  const currentAccount = normalizeMergeAccountSummary(payload.current_account)
-  const otherAccount = normalizeMergeAccountSummary(payload.other_account)
-  const hasCredential = Boolean(code) || (provider === 'apple' && Boolean(idToken))
-  if (!provider || !hasCredential || !currentAccount || !otherAccount) return null
-  return {
-    provider,
-    code: code || '',
-    merge_token: getString(payload, 'merge_token') || undefined,
-    id_token: idToken || undefined,
-    current_account: currentAccount,
-    other_account: otherAccount,
-  }
-}
-
-const fetchLinkedAccounts = async () => {
-  try {
-    const response = await api.GET('/api/v1/auth/linked-accounts/')
-    linkedAccounts.value = normalizeLinkedAccounts(response.data)
-  } catch (error) {
-    await modal.alert({
-      title: '계정 정보를 불러오지 못했습니다',
-      description: getErrorMessage(error, '잠시 후 다시 시도해주세요.'),
-      icon: 'error'
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
-const getOAuthLinkState = async () => {
-  const response = await api.POST('/api/v1/auth/oauth/link-state/')
-  const state = response.state
-  if (typeof state !== 'string' || !state) {
-    throw new Error('Invalid OAuth state')
-  }
-  const encodedState = encodeURIComponent(state)
-  return decodeURIComponent(encodedState)
-}
-
-const getOAuthProviderConfig = (provider: Provider) => {
-  const providerConfig = {
-    kakao: {
-      clientId: config.public.KAKAO_CLIENT_ID,
-      redirectUri: resolveSocialRedirectUri(
-        'kakao',
-        config.public.KAKAO_REDIRECT_URI,
-        window.location.origin,
-      ),
-      baseUrl: 'https://kauth.kakao.com/oauth/authorize',
-    },
-    google: {
-      clientId: config.public.GOOGLE_CLIENT_ID,
-      redirectUri: resolveSocialRedirectUri(
-        'google',
-        config.public.GOOGLE_REDIRECT_URI,
-        window.location.origin,
-      ),
-      baseUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-      scope: 'email profile',
-    },
-    apple: {
-      clientId: config.public.APPLE_CLIENT_ID,
-      redirectUri: resolveSocialRedirectUri(
-        'apple',
-        config.public.APPLE_REDIRECT_URI,
-        window.location.origin,
-      ),
-      baseUrl: 'https://appleid.apple.com/auth/authorize',
-      scope: 'name email',
-    },
-  }
-  return providerConfig[provider]
-}
-
-const handleLinkGoogle = () => handleLinkProvider('google')
-
-const handleLinkProvider = async (provider: Provider) => {
-  if (linkingProvider.value) return
-
-  const nativeWindow = window as NativeWindow
-  const useNativeAppleLink = shouldUseNativeAppleLink(
-    provider,
-    nativeWindow.isReactNativeWebView === true,
-  )
-  if (!useNativeAppleLink) {
-    const { clientId, redirectUri } = getOAuthProviderConfig(provider)
-    if (!clientId || !redirectUri) {
-      await modal.alert({
-        title: '연결 설정이 필요합니다',
-        description: `${getProviderDisplayName(provider)} 로그인 설정을 확인해주세요.`,
-        icon: 'error',
-      })
-      return
-    }
-  }
-
-  linkingProvider.value = provider
-  try {
-    const state = await getOAuthLinkState()
-    if (useNativeAppleLink) {
-      if (!nativeWindow.ReactNativeWebView) {
-        throw new Error('Native Apple authentication bridge is unavailable.')
-      }
-      pendingNativeAppleState = state
-      nativeWindow.ReactNativeWebView.postMessage(JSON.stringify(
-        buildNativeAppleLinkRequest(state),
-      ))
-      return
-    }
-    const providerConfig = getOAuthProviderConfig(provider)
-    const authUrl = buildOAuthLinkUrl(provider, providerConfig, state)
-    window.location.assign(authUrl)
-  } catch (error: unknown) {
-    pendingNativeAppleState = null
-    linkingProvider.value = null
-    await modal.alert({
-      title: '계정 연결 실패',
-      description: getErrorMessage(error, '소셜 계정 연결을 시작하지 못했습니다.'),
-      icon: 'error',
-    })
-  }
-}
-
-const completeNativeAppleLink = async (result: {
-  state: string
-  idToken: string
-  code: string
-}) => {
-  try {
-    await api.POST('/api/v1/auth/link-social/', {
-      provider: 'apple',
-      code: result.code,
-      state: result.state,
-      id_token: result.idToken,
-    })
-    await fetchLinkedAccounts()
-    await modal.alert({
-      title: '연결 완료',
-      description: 'Apple 계정이 연결되었습니다.',
-      icon: 'success'
-    })
-  } catch (error: unknown) {
-    const payload = getErrorPayload(error)
-    if (payload && getBoolean(payload, 'can_merge')) {
-      const normalized = normalizeMergeInfo({
-        ...payload,
-        provider: 'apple',
-        code: result.code,
-        id_token: result.idToken,
-      })
-      if (normalized) {
-        mergeInfo.value = normalized
-        showMergeModal.value = true
-        showMergeConfirmModal.value = false
-        return
-      }
-    }
-    await modal.alert({
-      title: '연결 실패',
-      description: getErrorMessage(error, 'Apple 계정 연결에 실패했습니다.'),
-      icon: 'error'
-    })
-  } finally {
-    linkingProvider.value = null
-  }
-}
-
-const handleNativeAppleLinkMessage = (event: MessageEvent<unknown>) => {
-  let payload = event.data
-  if (typeof payload === 'string') {
-    try {
-      payload = JSON.parse(payload)
-    } catch {
-      return
-    }
-  }
-  const result = parseNativeAppleLinkResult(payload)
-  if (!result || result.state !== pendingNativeAppleState) return
-  pendingNativeAppleState = null
-  if ('error' in result) {
-    linkingProvider.value = null
-    if (result.error !== 'cancelled') {
-      void modal.alert({
-        title: '연결 실패',
-        description: 'Apple 시스템 로그인을 시작하지 못했습니다.',
-        icon: 'error'
-      })
-    }
-    return
-  }
-  void completeNativeAppleLink(result)
-}
-
-const handleUnlink = async (provider: Provider) => {
-  const confirmed = await modal.confirm({
-    title: '계정 연결 해제',
-    description: `${getProviderDisplayName(provider)} 계정 연결을 해제하시겠습니까?`,
-    confirmText: '해제',
-    confirmVariant: 'danger'
-  })
-
-  if (!confirmed) return
-
-  try {
-    await api.POST('/api/v1/auth/unlink-social/', { provider })
-    await modal.alert({
-      title: '연결 해제 완료',
-      description: '소셜 계정 연결이 해제되었습니다.',
-      icon: 'success'
-    })
-    await fetchLinkedAccounts()
-  } catch (error: unknown) {
-    await modal.alert({
-      title: '연결 해제 실패',
-      description: getErrorMessage(error, '연결 해제에 실패했습니다.'),
-      icon: 'error'
-    })
-  }
 }
 
 const handleSetPassword = async () => {
@@ -855,13 +404,13 @@ const handleSetPassword = async () => {
       new_password: newPassword.value,
       new_password_confirm: newPasswordConfirm.value
     })
-    
+
     await modal.alert({
       title: '비밀번호 설정 완료',
       description: '비밀번호가 성공적으로 설정되었습니다.',
       icon: 'success'
     })
-    
+
     resetPasswordPanel()
     await fetchLinkedAccounts()
   } catch (error: unknown) {
@@ -881,7 +430,7 @@ const resetPasswordPanel = () => {
 
 const handleResendVerification = async () => {
   if (resendingEmail.value || emailCooldown.value > 0) return
-  
+
   resendingEmail.value = true
   try {
     await api.POST('/api/v1/auth/resend-verification/')
@@ -1029,66 +578,15 @@ const handleBetaToggle = async (enabled: boolean) => {
   }
 }
 
-const handleMerge = async (keepAccount: KeepAccount) => {
-  if (!mergeInfo.value) return
-  const payload = buildSocialMergePayload(mergeInfo.value, keepAccount)
-  
-  mergeLoading.value = true
-  try {
-    const response = await api.POST('/api/v1/auth/merge-accounts/', payload)
-    
-    const data = response
-    
-    if (keepAccount === 'other' && data.access) {
-      auth.setTokens(data.access, data.refresh)
-      auth.setUser(data.user as Parameters<typeof auth.setUser>[0])
-    }
-    
-    showMergeModal.value = false
-    showMergeConfirmModal.value = false
-    mergeInfo.value = null
-    
-    await modal.alert({
-      title: '계정 병합 완료',
-      description: '계정이 병합되었습니다. 삭제될 계정은 30일 후 완전히 삭제됩니다.',
-      icon: 'success'
-    })
-    
-    await fetchLinkedAccounts()
-  } catch (error: unknown) {
-    await modal.alert({
-      title: '병합 실패',
-      description: getErrorMessage(error, '계정 병합에 실패했습니다.'),
-      icon: 'error'
-    })
-  } finally {
-    mergeLoading.value = false
-  }
-}
-
-const closeMergeModal = () => {
-  showMergeConfirmModal.value = false
-}
-
-const isProvider = (provider: string): provider is Provider => {
-  return provider === 'kakao' || provider === 'google' || provider === 'apple'
-}
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
-}
-
 onMounted(async () => {
-  window.addEventListener('message', handleNativeAppleLinkMessage)
   await auth.initialize()
   if (!auth.isAuthenticated.value) {
     navigateTo('/login')
     return
   }
-  
+
   const route = useRoute()
-  
+
   if (route.query.linked === 'success') {
     const provider = typeof route.query.provider === 'string' ? route.query.provider : ''
     await modal.alert({
@@ -1108,18 +606,16 @@ onMounted(async () => {
     })
     navigateTo('/account/settings', { replace: true })
   }
-  
+
   if (route.query.action === 'merge') {
     const storedMergeInfo = sessionStorage.getItem('merge_info')
     if (storedMergeInfo) {
-      mergeInfo.value = normalizeMergeInfo(JSON.parse(storedMergeInfo))
-      showMergeModal.value = mergeInfo.value !== null
-      showMergeConfirmModal.value = false
+      beginMerge(normalizeMergeInfo(JSON.parse(storedMergeInfo)))
       sessionStorage.removeItem('merge_info')
     }
     navigateTo('/account/settings', { replace: true })
   }
-  
+
   await Promise.all([
     fetchLinkedAccounts(),
     notificationsStore.fetchSettings(),
@@ -1128,7 +624,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('message', handleNativeAppleLinkMessage)
   if (emailCooldownTimer) {
     clearInterval(emailCooldownTimer)
   }
@@ -1151,8 +646,8 @@ onUnmounted(() => {
   overflow-wrap: anywhere;
 }
 .profile-hero { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
-.profile-avatar, .account-avatar { width: 52px; height: 52px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: var(--color-accent-primary-light); }
-.profile-avatar img, .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-avatar { width: 52px; height: 52px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: var(--color-accent-primary-light); }
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .avatar-placeholder { width: 100%; height: 100%; display: grid; place-items: center; color: var(--color-accent-primary); background: var(--color-accent-primary-light); font-size: 20px; font-weight: 700; }
 .profile-summary { flex: 1; min-width: 0; }
 .profile-summary h2 { margin: 0; font-size: 17px; font-weight: 700; }
@@ -1194,24 +689,11 @@ onUnmounted(() => {
 .input-wrapper input { width: 100%; min-height: 44px; padding: 10px 20px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-text-primary); font: inherit; font-size: 15px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .error-text { margin: 0; color: var(--color-error); font-size: 12px; }
-.settings-card, .merge-modal-content { border: 1px solid var(--color-border-default); border-radius: var(--radius-card); padding: 20px; background: var(--color-bg-card); box-shadow: var(--shadow-card); }
-.section-heading h3, .modal-title { margin: 0 0 12px; font-size: 18px; font-weight: 700; }
+.settings-card { border: 1px solid var(--color-border-default); border-radius: var(--radius-card); padding: 20px; background: var(--color-bg-card); box-shadow: var(--shadow-card); }
+.section-heading h3 { margin: 0 0 12px; font-size: 18px; font-weight: 700; }
 .eyebrow { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--color-text-tertiary); }
-.wide-action, .select-btn, .btn-cancel-full { width: 100%; padding: 10px 16px; margin-top: 14px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); font: inherit; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); background: var(--color-bg-card); }
-.wide-action.primary, .select-btn { background: var(--color-accent-primary); color: var(--color-text-inverse); border-color: var(--color-accent-primary); }
-.merge-overlay { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--color-overlay); backdrop-filter: blur(2px); }
-.merge-modal-content { width: min(100%, 540px); max-height: 90dvh; overflow-y: auto; box-shadow: var(--shadow-sheet); }
-.merge-description { margin: 0 0 20px; color: var(--color-text-secondary); font-size: 14px; line-height: 1.6; }
-.merge-accounts { display: grid; gap: 14px; }
-.account-card { padding: 20px; border: 1px solid var(--color-border-default); border-radius: var(--radius-card); }
-.account-badge { display: inline-flex; margin-bottom: 12px; padding: 4px 8px; border-radius: var(--radius-pill); background: var(--color-accent-primary-light); color: var(--color-accent-primary); font-size: 11px; font-weight: 600; }
-.account-avatar { width: 48px; height: 48px; margin-bottom: 12px; }
-.account-nickname, .account-email, .account-providers, .account-date { margin: 0; }
-.account-nickname { font-weight: 700; }
-.account-email, .account-date { color: var(--color-text-secondary); font-size: 12px; }
-.account-providers { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
-.provider-tag { padding: 3px 8px; border-radius: var(--radius-pill); background: var(--color-bg-tertiary); color: var(--color-text-secondary); font-size: 11px; font-weight: 600; }
-.merge-warning { margin: 16px 0 0; padding: 12px; border-radius: var(--radius-control); color: var(--color-error); background: var(--color-error-bg); font-size: 12px; line-height: 1.5; }
+.wide-action { width: 100%; padding: 10px 16px; margin-top: 14px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); font: inherit; font-size: 13px; font-weight: 600; color: var(--color-text-secondary); background: var(--color-bg-card); }
+.wide-action.primary { background: var(--color-accent-primary); color: var(--color-text-inverse); border-color: var(--color-accent-primary); }
 /* Keep the signed-in shell bundle diagnostic available. */
 .shell-identity { margin: 4px 0; text-align: center; font-size: 11px; color: var(--color-text-tertiary); }
 button, a { min-width: 44px; min-height: 44px; cursor: pointer; transition: background var(--duration-micro) ease, color var(--duration-micro) ease, transform var(--duration-micro) ease; }

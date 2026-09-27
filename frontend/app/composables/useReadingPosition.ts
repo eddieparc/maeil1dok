@@ -32,8 +32,8 @@ const isValidScrollPosition = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
 
 const normalizeBookCode = (book: string): string => {
-  const normalizedBook = book.trim().toLowerCase();
-  return normalizedBook === 'jon' ? 'jnh' : normalizedBook;
+  const normalized = book.trim().toLowerCase();
+  return normalized === 'jon' ? 'jnh' : normalized;
 };
 
 const normalizeVersionCode = (version: string): string => version.trim().toUpperCase();
