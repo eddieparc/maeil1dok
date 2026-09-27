@@ -80,6 +80,28 @@
           @item-click="handleIndividualScheduleClick"
           @item-checkbox="handleCheckboxClick"
         />
+        <div v-if="hasCheckedNextMonth" class="schedule-continuation" aria-live="polite">
+          <button
+            v-if="nextMonthSchedules.length > 0"
+            type="button"
+            class="next-schedule-button"
+            @click="goToNextScheduleMonth"
+          >
+            다음 통독 일정으로
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="m9 18 6-6-6-6"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <p v-else class="schedule-end-message">
+            이 시점 이후로는 더 이상 일정이 없어요
+          </p>
+        </div>
       </div>
     </div>
 
@@ -212,6 +234,8 @@ const initialScrollDone = ref(false);
 // Data State
 const selectedMonth = ref(new Date().getMonth() + 1);
 const schedules = ref<Schedule[]>([]);
+const nextMonthSchedules = ref<Schedule[]>([]);
+const hasCheckedNextMonth = ref(false);
 const subscriptions = ref<SubscriptionSummary[]>([]);
 const selectedSchedule = ref<Schedule | null>(null);
 const defaultPlanName = ref('');
@@ -322,12 +346,19 @@ async function fetchSubscriptions() {
 async function fetchSchedules() {
   if (!selectedPlanId.value) return;
   isLoading.value = true;
+  hasCheckedNextMonth.value = false;
 
   const data = await scheduleApi.fetchMonthlySchedules(
     selectedPlanId.value,
     selectedMonth.value
   );
   schedules.value = data;
+  const nextMonth = selectedMonth.value === 12 ? 1 : selectedMonth.value + 1;
+  nextMonthSchedules.value = await scheduleApi.fetchMonthlySchedules(
+    selectedPlanId.value,
+    nextMonth
+  );
+  hasCheckedNextMonth.value = true;
   isLoading.value = false;
 }
 
@@ -490,6 +521,11 @@ async function selectPlan(subscription: SubscriptionSummary) {
 
   // 플랜 변경 시 스케줄 다시 로드
   await fetchSchedules();
+}
+
+function goToNextScheduleMonth() {
+  if (nextMonthSchedules.value.length === 0) return;
+  selectedMonth.value = selectedMonth.value === 12 ? 1 : selectedMonth.value + 1;
 }
 
 // ============================================
