@@ -77,6 +77,17 @@ const installStatefulPlanApi = async (
       return;
     }
 
+    const summaryMatch = url.pathname.match(/^\/api\/v1\/todos\/plan\/(\d+)\/summary\/$/);
+    if (request.method() === 'GET' && summaryMatch) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: jsonHeaders,
+        body: JSON.stringify({ completed_days: 3, total_days: 10, percent: 30 }),
+      });
+      return;
+    }
+
     if (request.method() === 'GET' && url.pathname === '/api/v1/todos/plan/') {
       await route.fulfill({
         status: 200,
@@ -187,11 +198,12 @@ test('authenticated reader sees subscription controls instead of the login promp
   await authRequestStarted;
 
   await expect(page).toHaveURL(/\/plans$/);
-  await expect(page.locator('.fade-in').first()).not.toContainText('플랜을 구독하려면 로그인이 필요합니다.');
+  await expect(page.locator('[data-state="loading"]').first()).toBeVisible();
+  await expect(page.locator('[data-state="guest"]')).toHaveCount(0);
 
   releaseAuthRequest();
 
-  await expect(page.getByText('플랜을 구독하려면 로그인이 필요합니다.')).toBeHidden();
+  await expect(page.getByText('플랜을 구독하려면 로그인이 필요해요.')).toBeHidden();
   await expect(page.getByRole('heading', { name: '2026 매일 통독' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '신약 90일 통독' })).toBeVisible();
   await expect(page.getByRole('button', { name: '구독하기' })).toBeVisible();
@@ -207,8 +219,8 @@ test('guest sees the login prompt and can navigate to login', async ({ page }) =
     }));
   await page.goto('/plans');
 
-  await expect(page.getByText('플랜을 구독하려면 로그인이 필요합니다.')).toBeVisible();
-  await page.getByRole('button', { name: '로그인하기' }).click();
+  await expect(page.getByText('플랜을 구독하려면 로그인이 필요해요.')).toBeVisible();
+  await page.getByRole('link', { name: '로그인하기' }).click();
   await expect(page).toHaveURL(/\/login$/);
 });
 
@@ -224,18 +236,18 @@ test('reader can subscribe, hide, restore, cancel deletion, and delete a plan', 
 
   const subscribedSection = page.locator('.plan-section').nth(0);
   const availableSection = page.locator('.plan-section').nth(1);
-  await expect(subscribedSection).toContainText('2개');
-  await expect(availableSection).toContainText('1개');
+  await expect(subscribedSection.locator('.count-badge')).toHaveText('2');
+  await expect(availableSection.locator('.count-badge')).toHaveText('1');
 
   const subscribeRequest = page.waitForRequest((request) =>
     request.method() === 'POST'
     && new URL(request.url()).pathname === '/api/v1/todos/plan/');
   await availableSection.getByRole('button', { name: '구독하기' }).click();
   await subscribeRequest;
-  await expect(page.getByText('신약 90일 통독 플랜을 구독했습니다.')).toBeVisible();
-  await expect(subscribedSection).toContainText('3개');
+  await expect(page.getByText('신약 90일 통독 플랜을 구독했어요')).toBeVisible();
+  await expect(subscribedSection.locator('.count-badge')).toHaveText('3');
   await expect(subscribedSection).toContainText('신약 90일 통독');
-  await expect(availableSection).toContainText('현재 구독 가능한 플랜이 없습니다.');
+  await expect(availableSection).toContainText('현재 구독 가능한 플랜이 없어요.');
 
   const customCard = subscribedSection.locator('.plan-card').filter({ hasText: '시편 묵상 플랜' });
   const hideRequest = page.waitForRequest((request) =>
@@ -243,7 +255,7 @@ test('reader can subscribe, hide, restore, cancel deletion, and delete a plan', 
     && new URL(request.url()).pathname === '/api/v1/todos/plan/22/toggle-active/');
   await customCard.getByRole('button', { name: '숨기기' }).click();
   await hideRequest;
-  await expect(page.getByText('시편 묵상 플랜을 숨겼습니다.')).toBeVisible();
+  await expect(page.getByText('시편 묵상 플랜을 숨겼어요')).toBeVisible();
   await expect(customCard).toContainText('숨김');
   await expect(customCard.getByRole('button', { name: '다시 보기' })).toBeVisible();
   await expect(customCard.getByRole('button', { name: '완전 삭제' })).toBeVisible();
@@ -253,7 +265,7 @@ test('reader can subscribe, hide, restore, cancel deletion, and delete a plan', 
     && new URL(request.url()).pathname === '/api/v1/todos/plan/22/toggle-active/');
   await customCard.getByRole('button', { name: '다시 보기' }).click();
   await restoreRequest;
-  await expect(page.getByText('시편 묵상 플랜을 다시 표시합니다.')).toBeVisible();
+  await expect(page.getByText('시편 묵상 플랜을 다시 표시해요')).toBeVisible();
   await expect(customCard.getByRole('button', { name: '성경통독표' })).toBeVisible();
   await expect(customCard.getByRole('button', { name: '숨기기' })).toBeVisible();
 
@@ -265,7 +277,7 @@ test('reader can subscribe, hide, restore, cancel deletion, and delete a plan', 
   await customCard.getByRole('button', { name: '완전 삭제' }).click();
 
   const firstDialog = page.getByRole('dialog', { name: '플랜을 완전히 삭제할까요?' });
-  await expect(firstDialog).toContainText('읽기 기록이 전부 삭제');
+  await expect(firstDialog).toContainText('읽기 기록이 모두 삭제');
   await firstDialog.getByRole('button', { name: '취소' }).click();
   await expect(customCard).toBeVisible();
 
@@ -276,11 +288,11 @@ test('reader can subscribe, hide, restore, cancel deletion, and delete a plan', 
     && new URL(request.url()).pathname === '/api/v1/todos/plan/22/');
   await Promise.all([
     deleteRequest,
-    expect(page.getByText('시편 묵상 플랜을 완전히 삭제했습니다.')).toBeVisible(),
+    expect(page.getByText('시편 묵상 플랜을 완전히 삭제했어요')).toBeVisible(),
     confirmDialog.getByRole('button', { name: '완전 삭제' }).click(),
   ]);
   await expect(customCard).toBeHidden();
-  await expect(subscribedSection).toContainText('2개');
+  await expect(subscribedSection.locator('.count-badge')).toHaveText('2');
 });
 
 test('active subscription opens its reading plan', async ({ api, page }) => {

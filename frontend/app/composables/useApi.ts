@@ -156,6 +156,15 @@ export const useApi = () => {
       throw new ApiError('Authentication required', 401)
     }
 
+    // 셸 브리지·쿠키 복원처럼 로그인 응답 없이 인증된 세션은 CSRF 토큰이 없다.
+    // 인증된 변경 요청만 보내기 전에 토큰을 받아 둔다 (LAB-74).
+    const method = (options.method ?? 'GET').toUpperCase()
+    const headers = options.headers as Record<string, string> | undefined
+    if (requiresAuth && method !== 'GET' && headers && !headers['X-CSRFToken']) {
+      const csrfToken = await ensureCsrfToken()
+      if (csrfToken) headers['X-CSRFToken'] = csrfToken
+    }
+
     let response = await fetchTransport(url, options)
 
     const csrfTokenFromHeader = response.headers.get('X-CSRFToken')
@@ -334,10 +343,6 @@ export const useApi = () => {
       // Only the exact support creation path is public, not nested support routes.
       const requiresAuth = url !== '/api/v1/support/inquiries/' &&
                            !publicEndpoints.some(endpoint => url.includes(endpoint));
-      if (requiresAuth && !headers['X-CSRFToken']) {
-        const csrfToken = await ensureCsrfToken()
-        if (csrfToken) headers['X-CSRFToken'] = csrfToken
-      }
 
       const response = await fetchWithRetry(fullUrl, {
         method: 'POST',
@@ -356,14 +361,9 @@ export const useApi = () => {
     const fullUrl = `${getBaseUrl()}${url}`
 
     try {
-      const headers = getHeaders(true)
-      if (!headers['X-CSRFToken']) {
-        const csrfToken = await ensureCsrfToken()
-        if (csrfToken) headers['X-CSRFToken'] = csrfToken
-      }
       const response = await fetchWithRetry(fullUrl, {
         method: 'PUT',
-        headers,
+        headers: getHeaders(true),
         body: JSON.stringify(data),
         credentials: 'include'
       })
@@ -378,14 +378,9 @@ export const useApi = () => {
     const fullUrl = `${getBaseUrl()}${url}`
 
     try {
-      const headers = getHeaders(true)
-      if (!headers['X-CSRFToken']) {
-        const csrfToken = await ensureCsrfToken()
-        if (csrfToken) headers['X-CSRFToken'] = csrfToken
-      }
       const response = await fetchWithRetry(fullUrl, {
         method: 'PATCH',
-        headers,
+        headers: getHeaders(true),
         body: JSON.stringify(data),
         credentials: 'include'
       })
@@ -413,14 +408,9 @@ export const useApi = () => {
 
   const remove = async (url: string) => {
     try {
-      const headers = getHeaders(true)
-      if (!headers['X-CSRFToken']) {
-        const csrfToken = await ensureCsrfToken()
-        if (csrfToken) headers['X-CSRFToken'] = csrfToken
-      }
       const response = await fetchWithRetry(`${getBaseUrl()}${url}`, {
         method: 'DELETE',
-        headers,
+        headers: getHeaders(true),
         credentials: 'include'
       })
       return readJsonBody(response)
@@ -447,7 +437,7 @@ export const useApi = () => {
     async upload(url: string, formData: FormData) {
       try {
         const headers: Record<string, string> = {}
-        const csrfToken = await ensureCsrfToken()
+        const csrfToken = getCsrfToken()
         if (csrfToken) {
           headers['X-CSRFToken'] = csrfToken
         }

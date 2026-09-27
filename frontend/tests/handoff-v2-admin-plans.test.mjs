@@ -59,7 +59,7 @@ async function environment(t, { cached = staff } = {}) {
   const root = new Element('body'), documentEvents = new Map();
   if (cached) storage.set('auth', JSON.stringify({ user: cached }));
   const globals = { adminApiPromises: [], useState(key, init) { if (!states.has(key)) states.set(key, Vue.ref(init())); return states.get(key); }, useRuntimeConfig: () => ({ public: { apiBase: 'https://api.example.test', csrfCookieName: 'csrftoken' } }), localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)), removeItem: k => storage.delete(k) }, window: { addEventListener() {} }, Document: class Document {}, ShadowRoot: class ShadowRoot {} };
-  globals.document = Object.assign(new globals.Document(), { cookie: '', hidden: false, body: root, activeElement: null, createElement: tag => new Element(tag),
+  globals.document = Object.assign(new globals.Document(), { cookie: 'csrftoken=csrf-fixture', hidden: false, body: root, activeElement: null, createElement: tag => new Element(tag),
     addEventListener(name, fn) { if (!documentEvents.has(name)) documentEvents.set(name, new Set()); documentEvents.get(name).add(fn); },
     removeEventListener(name, fn) { documentEvents.get(name)?.delete(fn); },
     dispatchEvent(event) { for (const fn of documentEvents.get(event.type) ?? []) { fn(event); if (event.stopped) break; } },
