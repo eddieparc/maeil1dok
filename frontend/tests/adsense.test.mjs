@@ -18,9 +18,21 @@ function setupNativePlugin(native) {
     ReactNativeWebView: native ? { postMessage: message => messages.push(JSON.parse(message)) } : undefined,
     addEventListener: (name, handler) => listeners.set(name, handler),
   };
+  // The plugin's runtime imports (auth, push sync) are irrelevant to ad loading;
+  // stub them so only the entry branching is exercised.
+  const auth = { user: { value: null }, isAuthenticated: { value: false } };
+  const stubs = {
+    vue: { watch: () => () => {} },
+    '~/composables/useAuthService': { useAuthService: () => auth },
+    '~/utils/nativePushRuntime': { syncNativePushRegistration: async () => {} },
+  };
   const context = {
     exports: {},
     module: { exports: {} },
+    require: specifier => {
+      if (!(specifier in stubs)) throw new Error(`unexpected import ${specifier}`);
+      return stubs[specifier];
+    },
     defineNuxtPlugin: plugin => plugin,
     window,
     document: {
@@ -31,7 +43,7 @@ function setupNativePlugin(native) {
     },
   };
   vm.runInNewContext(compiled.code, context);
-  context.module.exports.default.setup();
+  context.module.exports.default.setup({ vueApp: { onUnmount: () => {} }, runWithContext: fn => fn() });
   return { scripts, messages, listeners, window };
 }
 

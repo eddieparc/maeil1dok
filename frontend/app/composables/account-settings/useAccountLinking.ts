@@ -14,7 +14,7 @@ import {
   getProviderDisplayName,
   parseNativeAppleLinkResult,
   shouldUseNativeAppleLink,
-} from '~/utils/accountSettingsRuntime.js'
+} from '~/utils/accountSettingsRuntime'
 import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
 import MergeAccountPicker from './MergeAccountPicker.vue'
 import {

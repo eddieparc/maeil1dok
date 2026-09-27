@@ -4,7 +4,7 @@
  * (공용 utils/typeGuards.ts 는 isRecord 가 배열을 제외해 의미가 다르므로
  *  이 페이지의 원래 동작을 유지하는 로컬 구현을 유지한다.)
  */
-import { getProviderDisplayName } from '~/utils/accountSettingsRuntime.js'
+import { getProviderDisplayName } from '~/utils/accountSettingsRuntime'
 import type {
   AuthMethods,
   LinkedAccount,

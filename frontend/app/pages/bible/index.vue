@@ -1243,8 +1243,11 @@ const applyReaderRoute = async (restorePosition = false) => {
     await restoreSavedScrollPosition(resumeScroll);
   } else if (lastPosition?.book === book && lastPosition.chapter === chapter && lastPosition.version === currentVersion.value) {
     await restoreSavedScrollPosition(lastPosition.scroll_position);
-  } else {
+  } else if (pendingVerseFocus.value) {
     await focusPendingVerseRange();
+  } else {
+    // 장 전환은 새 본문이 로드된 뒤 본문 최상단에서 시작한다.
+    scrollToTop();
   }
   readerReady.value = true;
   // 오디오가 켜진 채로 장을 넘기면 새 장의 오디오를 이어서 연다.

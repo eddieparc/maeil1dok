@@ -236,7 +236,7 @@ import {
   canShellSwitchBeta,
   getProviderDisplayName,
   isBetaHost,
-} from '~/utils/accountSettingsRuntime.js'
+} from '~/utils/accountSettingsRuntime'
 import { isNativeApp, sendToNative } from '~/types/native-bridge'
 
 useHead({

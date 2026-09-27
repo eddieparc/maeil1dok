@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useModal } from '~/composables/useModal'
-import { getProviderDisplayName } from '~/utils/accountSettingsRuntime.js'
+import { getProviderDisplayName } from '~/utils/accountSettingsRuntime'
 import type { KeepAccount, MergeInfo } from './types'
 
 const props = defineProps<{
