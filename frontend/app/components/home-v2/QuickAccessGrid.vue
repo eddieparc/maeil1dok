@@ -16,6 +16,7 @@
         <NuxtLink to="/plans" class="plan-pill" data-testid="pill-plans">
           <SettingsIcon :size="14" aria-hidden="true" />
           플랜 관리
+          <span class="new-badge" aria-label="새 기능">N</span>
         </NuxtLink>
       </div>
 
@@ -132,6 +133,20 @@ const profileLink = computed(() => {
 .plan-pill:hover {
   opacity: 0.78;
   transform: translateY(-1px);
+}
+
+.new-badge {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 999px;
+  color: var(--color-text-inverse, #FFFFFF);
+  display: inline-flex;
+  font-size: 0.625rem;
+  font-weight: 800;
+  height: 1rem;
+  justify-content: center;
+  line-height: 1;
+  width: 1rem;
 }
 
 .sub-card:hover {

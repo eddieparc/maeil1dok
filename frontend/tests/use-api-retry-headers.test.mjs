@@ -248,3 +248,28 @@ test('successful JSON POST without a 401 sends exactly one request', async () =>
     },
   );
 });
+
+test('authenticated legacy session obtains CSRF before its first mutation', async () => {
+  const { useApi } = await importApiModule();
+
+  await withEnvironment(
+    {
+      responses: [
+        makeResponse({ status: 200, body: { csrfToken: 'csrf-issued' } }),
+        makeResponse({ status: 201, body: { id: 42 } }),
+      ],
+    },
+    async ({ calls, store }) => {
+      const api = useApi();
+
+      const result = await api.post('/api/v1/todos/plan/', { plan: 7 });
+
+      assert.deepEqual(result, { id: 42 });
+      assert.equal(calls.length, 2, 'missing CSRF must trigger one token request before POST');
+      assert.equal(new URL(calls[0].url).pathname, '/api/v1/auth/csrf/');
+      assert.equal(calls[1].method, 'POST');
+      assert.equal(calls[1].headers['X-CSRFToken'], 'csrf-issued');
+      assert.equal(store.get('csrfToken'), 'csrf-issued');
+    },
+  );
+});

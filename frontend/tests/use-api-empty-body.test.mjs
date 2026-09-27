@@ -67,6 +67,7 @@ const withEnvironment = async ({ responses }, run) => {
   }
 
   const store = new Map();
+  store.set('csrfToken', 'csrf-test');
   globalThis.window = {};
   globalThis.document = { cookie: '' };
   globalThis.localStorage = {
