@@ -265,6 +265,17 @@ test('landing quick access folds plan management into tongdok card', async () =>
   assert.match(html, /<a[^>]*href="\/plans"[^>]*>[\s\S]*?<svg[^>]*aria-hidden="true"[\s\S]*?플랜 관리[\s\S]*?<\/a>/, 'plan management should render as a labeled link with a decorative settings icon');
 });
 
+test('landing plan management link shows an accessible N badge', async () => {
+  useVisitorLandingState();
+  const html = await renderLandingComponent(QuickAccessGrid);
+
+  assert.match(
+    html,
+    /<a[^>]*href="\/plans"[^>]*>[\s\S]*?<span[^>]*class="new-badge"[^>]*aria-label="새 기능"[^>]*>N<\/span>[\s\S]*?<\/a>/,
+    'plan management should expose the new-feature N badge inside its link',
+  );
+});
+
 test('removes bible and search from landing quick access', async () => {
   useVisitorLandingState();
   const html = await renderLandingComponent(QuickAccessGrid);
