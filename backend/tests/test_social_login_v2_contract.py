@@ -273,6 +273,9 @@ class SocialLoginV2ContractTestCase(APITestCase):
         self.assertIsInstance(user["has_usable_password_flag"], bool)
 
         self.assert_auth_cookie_contract(response)
+        self.assertIn("X-CSRFToken", response)
+        self.assertTrue(response["X-CSRFToken"])
+        self.assertIn("csrftoken", response.cookies)
         return body
 
     def assert_auth_cookie_contract(self, response, expected_domain=""):

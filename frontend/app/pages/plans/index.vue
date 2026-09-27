@@ -132,6 +132,12 @@ async function loadSummary(subscriptionId: number) {
   if (data) state.data = data;
 }
 
+// 이름이 이미 '플랜'으로 끝나면 '… 플랜 플랜'으로 겹치지 않게 한다 (LAB-74).
+function formatPlanName(name: string): string {
+  const trimmedName = name.trim();
+  return trimmedName.endsWith('플랜') ? trimmedName : `${trimmedName} 플랜`;
+}
+
 function loadPlans(): Promise<void> {
   if (!auth.isAuthenticated.value || isLoading.value) return listQueue;
   const requestEpoch = epoch;
@@ -181,12 +187,12 @@ async function runAction(key: string, write: () => Promise<boolean>, message: st
 
 function handleSubscribe(plan: Plan) {
   if (!availablePlans.value.some(item => item.id === plan.id)) return;
-  return runAction(`subscribe:${plan.id}`, () => planApi.subscribeToPlan(plan.id), `${plan.name} 플랜을 구독했어요`);
+  return runAction(`subscribe:${plan.id}`, () => planApi.subscribeToPlan(plan.id), `${formatPlanName(plan.name)}을 구독했어요`);
 }
 function handleToggleHide(subscription: Subscription) {
   const current = subscriptions.value.find(sub => sub.id === subscription.id);
   if (!current || current.is_default) return;
-  return runAction(`toggle:${current.id}`, () => planApi.togglePlanActive(current.id), `${current.plan_name} 플랜을 ${current.is_active ? '숨겼어요' : '다시 표시해요'}`);
+  return runAction(`toggle:${current.id}`, () => planApi.togglePlanActive(current.id), `${formatPlanName(current.plan_name)}을 ${current.is_active ? '숨겼어요' : '다시 표시해요'}`);
 }
 function confirmDelete(subscription: Subscription, event: MouseEvent) {
   const current = subscriptions.value.find(sub => sub.id === subscription.id);
@@ -194,7 +200,7 @@ function confirmDelete(subscription: Subscription, event: MouseEvent) {
   // The write lock disables/blurs this button before the modal captures focus.
   const trigger = event.currentTarget as HTMLButtonElement;
   const actionEpoch = epoch;
-  return runAction(`delete:${current.id}`, () => planApi.deletePlanSubscription(current.id), `${current.plan_name} 플랜을 완전히 삭제했어요`, () => modal.confirm({
+  return runAction(`delete:${current.id}`, () => planApi.deletePlanSubscription(current.id), `${formatPlanName(current.plan_name)}을 완전히 삭제했어요`, () => modal.confirm({
     title: '플랜을 완전히 삭제할까요?',
     description: `${current.plan_name}의 읽기 기록이 모두 삭제되며 복구할 수 없어요.`,
     confirmText: '완전 삭제',

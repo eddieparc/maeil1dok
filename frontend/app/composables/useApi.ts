@@ -93,6 +93,26 @@ export const useApi = () => {
     return headers
   }
 
+  const ensureCsrfToken = async (): Promise<string | null> => {
+    const existingToken = getCsrfToken()
+    if (existingToken) return existingToken
+
+    const response = await fetch(`${getBaseUrl()}/api/v1/auth/csrf/`, {
+      headers: getHeaders(false),
+      credentials: 'include'
+    })
+    if (!response.ok) return null
+
+    const headerToken = response.headers.get('X-CSRFToken')
+    const body = await response.json()
+    const issuedToken = headerToken || body?.csrfToken
+    if (issuedToken) {
+      saveCsrfToken(issuedToken)
+      return issuedToken
+    }
+    return null
+  }
+
   // API 에러 클래스 - 상태 코드 + 응답 본문 포함
   class ApiError extends Error {
     status: number
@@ -314,6 +334,10 @@ export const useApi = () => {
       // Only the exact support creation path is public, not nested support routes.
       const requiresAuth = url !== '/api/v1/support/inquiries/' &&
                            !publicEndpoints.some(endpoint => url.includes(endpoint));
+      if (requiresAuth && !headers['X-CSRFToken']) {
+        const csrfToken = await ensureCsrfToken()
+        if (csrfToken) headers['X-CSRFToken'] = csrfToken
+      }
 
       const response = await fetchWithRetry(fullUrl, {
         method: 'POST',
@@ -332,9 +356,14 @@ export const useApi = () => {
     const fullUrl = `${getBaseUrl()}${url}`
 
     try {
+      const headers = getHeaders(true)
+      if (!headers['X-CSRFToken']) {
+        const csrfToken = await ensureCsrfToken()
+        if (csrfToken) headers['X-CSRFToken'] = csrfToken
+      }
       const response = await fetchWithRetry(fullUrl, {
         method: 'PUT',
-        headers: getHeaders(true),
+        headers,
         body: JSON.stringify(data),
         credentials: 'include'
       })
@@ -349,9 +378,14 @@ export const useApi = () => {
     const fullUrl = `${getBaseUrl()}${url}`
 
     try {
+      const headers = getHeaders(true)
+      if (!headers['X-CSRFToken']) {
+        const csrfToken = await ensureCsrfToken()
+        if (csrfToken) headers['X-CSRFToken'] = csrfToken
+      }
       const response = await fetchWithRetry(fullUrl, {
         method: 'PATCH',
-        headers: getHeaders(true),
+        headers,
         body: JSON.stringify(data),
         credentials: 'include'
       })
@@ -379,9 +413,14 @@ export const useApi = () => {
 
   const remove = async (url: string) => {
     try {
+      const headers = getHeaders(true)
+      if (!headers['X-CSRFToken']) {
+        const csrfToken = await ensureCsrfToken()
+        if (csrfToken) headers['X-CSRFToken'] = csrfToken
+      }
       const response = await fetchWithRetry(`${getBaseUrl()}${url}`, {
         method: 'DELETE',
-        headers: getHeaders(true),
+        headers,
         credentials: 'include'
       })
       return readJsonBody(response)
@@ -408,7 +447,7 @@ export const useApi = () => {
     async upload(url: string, formData: FormData) {
       try {
         const headers: Record<string, string> = {}
-        const csrfToken = getCsrfToken()
+        const csrfToken = await ensureCsrfToken()
         if (csrfToken) {
           headers['X-CSRFToken'] = csrfToken
         }
