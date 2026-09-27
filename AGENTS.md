@@ -60,6 +60,10 @@ python3 -m unittest \
   `const modal = useModal()` → `await modal.confirm({...})` / `await modal.alert({...})`
   (구현: `frontend/app/components/ui/modal/`, `composables/useModal.ts`).
 - 시크릿/키는 커밋 금지(.env.oci 계열은 gitignore).
+- **Sentry 자동화 토큰은 환경변수로만 주입한다.** 로컬 토큰은 macOS Keychain
+  `maeil1dok-sentry` 서비스의 `automation-token` 계정에 보관하고,
+  실행 시에만 `export SENTRY_AUTH_TOKEN="$(security find-generic-password -s maeil1dok-sentry -a automation-token -w)"`
+  로 주입한다. 토큰을 저장소·`.env`·로그·명령 출력에 쓰지 않는다.
 - **API 계약은 `backend/schema.yml`이 단일 원천이다.** 뷰·시리얼라이저를 바꾸면
   `manage.py spectacular --file schema.yml --validate`로 재생성해 **함께 커밋**한다 —
   안 하면 `tests.test_openapi_schema`가 바이트 비교로 CI를 떨어뜨린다.

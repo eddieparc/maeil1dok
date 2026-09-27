@@ -380,6 +380,21 @@ class HealthEndpointTest(TestCase):
         hasena = response.json()['checks']['generate_hasena_summary']
         self.assertEqual(hasena['status'], 'pending')
 
+    def test_hasena_readiness_pending_video_is_unknown_until_published(self):
+        now = datetime(2026, 7, 7, 0, 10, 0)
+        self._set_fresh_reminder(now)
+        self._set_fresh_hasena_heartbeat(
+            now,
+            status='pending',
+            reason='no_video_for_date',
+        )
+
+        response = self._readiness_at(now)
+
+        self.assertEqual(response.status_code, 200)
+        hasena = response.json()['checks']['generate_hasena_summary']
+        self.assertEqual(hasena['status'], 'unknown')
+
     def test_hasena_readiness_fresh_success_heartbeat_is_ready(self):
         now = datetime(2026, 7, 7, 0, 10, 0)
         self._set_fresh_reminder(now)

@@ -168,6 +168,7 @@ const renderReaderHeader = async () => {
     components: {
       BibleSearchButton: createSearchButtonComponent(),
       BibleToolPopover: emptyStub,
+      BibleFooterAd: emptyStub,
       BibleViewer: emptyStub,
       BookmarkFilledIcon: iconStub,
       BookmarkOutlineIcon: iconStub,

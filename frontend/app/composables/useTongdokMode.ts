@@ -9,6 +9,7 @@ import { computed, ref, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { BIBLE_BOOKS, useBibleData } from './useBibleData';
 import { useApi } from './useApi';
+import { useErrorHandler } from './useErrorHandler';
 import type { paths } from '~/types/generated/api-schema';
 import {
   selectTongdokAudioLink,
@@ -764,7 +765,14 @@ export const useTongdokMode = () => {
         response.is_completed === true &&
         acknowledgedIds.length === eligibleIds.length &&
         eligibleIds.every(id => acknowledgedIds.includes(id));
-      if (!exactAcknowledgement) return completeResult('failed', authoritative, book, chapter);
+      if (!exactAcknowledgement) {
+        // 200이어도 결과가 틀린 경우(과거 다중 스케줄 미완료 버그)를 Sentry에 남긴다.
+        useErrorHandler().handleSilentError(
+          new Error(`통독 완료 응답 불일치: sent=[${eligibleIds}] ack=[${acknowledgedIds}]`),
+          '통독 완료',
+        );
+        return completeResult('failed', authoritative, book, chapter);
+      }
 
       const contextUnchanged = activeTongdokContext.value?.planId === identitySnapshot.planId &&
         activeTongdokContext.value?.scheduleId === identitySnapshot.scheduleId &&
@@ -810,7 +818,7 @@ export const useTongdokMode = () => {
         true,
       );
     } catch (error) {
-      console.error('통독 완료 처리 실패:', error);
+      useErrorHandler().handleSilentError(error, '통독 완료');
       return completeResult('failed', authoritative, book, chapter);
     } finally {
       isCompleting.value = false;
@@ -869,7 +877,13 @@ export const useTongdokMode = () => {
         response.is_completed === false &&
         acknowledgedIds.length === completedIds.length &&
         completedIds.every(id => acknowledgedIds.includes(id));
-      if (!exactAcknowledgement) return completeResult('failed', authoritative, book, chapter);
+      if (!exactAcknowledgement) {
+        useErrorHandler().handleSilentError(
+          new Error(`통독 완료 취소 응답 불일치: sent=[${completedIds}] ack=[${acknowledgedIds}]`),
+          '통독 완료 취소',
+        );
+        return completeResult('failed', authoritative, book, chapter);
+      }
 
       const contextUnchanged = activeTongdokContext.value?.planId === identitySnapshot.planId &&
         activeTongdokContext.value?.scheduleId === identitySnapshot.scheduleId &&
@@ -910,7 +924,7 @@ export const useTongdokMode = () => {
       });
       return completeResult('cancelled', authoritative, book, chapter, acknowledgedIds, true);
     } catch (error) {
-      console.error('통독 완료 취소 실패:', error);
+      useErrorHandler().handleSilentError(error, '통독 완료 취소');
       return completeResult('failed', authoritative, book, chapter);
     } finally {
       isCompleting.value = false;

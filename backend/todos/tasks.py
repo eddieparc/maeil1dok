@@ -75,12 +75,7 @@ def generate_hasena_summary_task(self):
     try:
         video_info = get_hasena_video_for_date(target_date)
         if not video_info or not video_info.get('video_id'):
-            logger.warning(f"Could not find Hasena video for {target_date_str}")
-            capture_hasena_summary_issue(
-                "Hasena summary task could not find target-date video",
-                level="warning",
-                extra={"date": target_date_str},
-            )
+            logger.info("Hasena video is not published yet: %s", target_date_str)
             return record_hasena_summary_heartbeat({'status': 'pending', 'reason': 'no_video_for_date', 'date': target_date_str})
 
         

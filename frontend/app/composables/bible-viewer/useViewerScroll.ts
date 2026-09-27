@@ -35,6 +35,12 @@ export function useViewerScroll(
     viewerRef.value.scrollTop = scrollPosition * maxScroll;
   };
 
+  // 장 전환 시 본문 최상단에서 시작한다
+  const scrollToTop = () => {
+    if (!viewerRef.value) return;
+    viewerRef.value.scrollTop = 0;
+  };
+
   // 검색 결과 강조용 타이머
   let searchHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -150,6 +156,7 @@ export function useViewerScroll(
   return {
     handleScroll,
     restoreScrollPosition,
+    scrollToTop,
     scrollToVerse,
     focusVerseRange,
   };

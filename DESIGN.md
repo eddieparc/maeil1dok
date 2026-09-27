@@ -138,6 +138,21 @@ Buttons, chips, segments, badges and inputs use `--radius-pill: 999px`; small co
 - A loading region exposes one meaningful `role="status"` or `aria-busy="true"` boundary. Every placeholder shape inside it is decorative and `aria-hidden`.
 - Initial unresolved data renders its matching family before empty/error content. Settled empty/error removes the skeleton; refreshes retain useful current content whenever possible.
 - The dev-only `/__dev__/skeletons-preview` harness exposes every family plus pending, empty, error, dark, and forced reduced-motion states.
+### Reader Footer Advertisement
+
+- One manual ad after the Bible content and chapter actions; no landing, navigation,
+  login, error, loading, native WebView, overlay, or sticky placements.
+- Preserve the reader's existing scrolling; observe visibility against the browser
+  viewport (the content container can be taller than the screen). The slot uses the
+  [center pattern](https://github.com/changeroa/StyleGallery/blob/main/patterns/centering/center.md):
+  fluid width up to 320px, centered, with no internal scrolling.
+- Creative height is fixed at 50px in a 50px parent; do not crop or scale creatives.
+  This restricted parent opts the slot out of Google's mobile size optimization.
+- Separate from chapter actions by 32px. Use a 12px sans-serif `광고` label,
+  tertiary text, 8px label gap, and no decorative card or animation.
+- Request only when the slot enters the reader viewport. Collapse on script failure
+  or Google's `unfilled` result; never hide a filled ad.
+- Legal copy links remain underlined so the ad privacy controls are discoverable.
 
 ## 6. Motion & Interaction
 

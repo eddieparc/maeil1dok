@@ -111,6 +111,7 @@ const renderTongdokReader = async () => {
     components: {
       BibleSearchButton: emptyStub,
       BibleToolPopover: emptyStub,
+      BibleFooterAd: emptyStub,
       BibleViewer: emptyStub,
       BookmarkFilledIcon: iconStub,
       BookmarkOutlineIcon: iconStub,

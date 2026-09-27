@@ -24,20 +24,6 @@ declare global {
 let authCallback: AuthCallback | null = null
 let logoutCallback: LogoutCallback | null = null
 
-const ADSENSE_CLIENT_ID = 'ca-pub-8742107706365412'
-
-function loadAdSense() {
-  if (document.querySelector('script[src*="adsbygoogle"]')) {
-    return
-  }
-  
-  const script = document.createElement('script')
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`
-  script.async = true
-  script.crossOrigin = 'anonymous'
-  document.head.appendChild(script)
-}
-
 function isExternalUrl(url: string): boolean {
   try {
     const urlObj = new URL(url, window.location.origin)
@@ -134,23 +120,6 @@ export default defineNuxtPlugin({
       })
       
       sendToNative({ type: 'auth:request' })
-    } else {
-      // 광고 스크립트는 초기 로드가 완전히 끝난 뒤에 로드해 networkidle을 막지 않는다.
-      // load 이벤트 후에도 일정 시간을 두어 광고 요청이 초기 로드 측정을 오염시키지 않게 한다.
-      const deferAdSense = () => {
-        setTimeout(() => {
-          if ('requestIdleCallback' in window) {
-            window.requestIdleCallback(() => loadAdSense(), { timeout: 5000 })
-          } else {
-            loadAdSense()
-          }
-        }, 3000)
-      }
-      if (document.readyState === 'complete') {
-        deferAdSense()
-      } else {
-        window.addEventListener('load', deferAdSense, { once: true })
-      }
     }
   }
 })

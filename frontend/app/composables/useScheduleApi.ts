@@ -75,6 +75,13 @@ export function useScheduleApi() {
         is_completed: schedule.is_completed ?? false,
       }));
     } catch (error) {
+      const status = typeof error === 'object' && error !== null
+        && typeof (error as { status?: unknown }).status === 'number'
+        ? (error as { status: number }).status
+        : undefined;
+      if (status === 404) {
+        return [];
+      }
       handleApiError(error, '일정 조회', { silent: true });
       if (options.throwOnError) throw error;
       return [];

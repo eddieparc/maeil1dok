@@ -91,6 +91,8 @@ def _hasena_recorded_status(heartbeat, age_seconds):
     if status == 'skipped':
         reason = heartbeat.get('reason')
         return 'ok' if reason in {'already_generated', 'summary_exists'} else None
+    if status == 'pending' and heartbeat.get('reason') == 'no_video_for_date':
+        return 'unknown'
     if status in {'failed', 'error', 'pending'}:
         return status
     return None

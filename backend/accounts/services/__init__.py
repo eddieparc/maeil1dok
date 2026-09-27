@@ -1,3 +1,1 @@
-from .achievement_service import AchievementService
-
-__all__ = ['AchievementService']
+"""Account service modules are imported directly by their callers."""

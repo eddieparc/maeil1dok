@@ -49,5 +49,6 @@ defineProps<{
 .legal-section :deep(ol) { list-style: decimal; }
 .legal-section :deep(li) { margin-bottom: 8px; }
 .legal-section :deep(strong) { font-weight: 600; }
+.legal-section :deep(a) { color: var(--color-text-primary); text-decoration: underline; }
 .legal-section :deep(.effective-date) { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-border-default); }
 </style>

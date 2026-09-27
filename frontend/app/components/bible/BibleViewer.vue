@@ -160,7 +160,7 @@ const viewerStyle = computed(() => ({
 }));
 
 const { handleVerseClick, clearAllSelections, clearClickSelection } = selection;
-const { handleScroll, restoreScrollPosition, scrollToVerse, focusVerseRange } = scroll;
+const { handleScroll, restoreScrollPosition, scrollToTop, scrollToVerse, focusVerseRange } = scroll;
 const { handleHighlightOrRemove, handleHighlightColor, handleCopy, handleShare, handleClickCopy } = actions;
 const clearSelection = clearAllSelections;
 
@@ -184,6 +184,7 @@ watch(() => [props.content, props.book, props.chapter, props.version], () => {
 defineExpose({
   scrollToVerse,
   restoreScrollPosition,
+  scrollToTop,
   focusVerseRange,
   handleHighlightOrRemove,
   handleHighlightColor,
