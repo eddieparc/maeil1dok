@@ -454,7 +454,7 @@ test('signed-out profile can await a durable beta switch without a WebView', asy
   const toggle = appClosure('handleBetaToggle', {
     setBetaMode: async enabled => { changes.push(enabled); },
     Alert: { alert() {} },
-  }, 'navigation/RootNavigator.tsx');
+  }, 'screens/ProfileScreen.tsx');
   await toggle(true);
   await toggle(false);
   assert.deepEqual(changes, [true, false]);

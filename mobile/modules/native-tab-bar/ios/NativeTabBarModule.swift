@@ -13,9 +13,6 @@ public final class NativeTabBarModule: Module {
       Prop("selectedIndex") { (view: NativeTabBarView, selectedIndex: Int) in
         view.selectedIndex = selectedIndex
       }
-      Prop("bottomInset") { (view: NativeTabBarView, bottomInset: Double) in
-        view.bottomInset = CGFloat(bottomInset)
-      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import type { NativeSyntheticEvent, ViewProps } from 'react-native';
 import { requireNativeViewManager } from 'expo-modules-core';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -13,13 +13,17 @@ type NativeTabBarItem = {
 type NativeTabBarProps = ViewProps & {
   readonly items: readonly NativeTabBarItem[];
   readonly selectedIndex: number;
-  readonly bottomInset: number;
   readonly onTabSelect: (event: NativeSyntheticEvent<{ index: number }>) => void;
 };
 
-const NativeTabBarView = Platform.OS === 'ios'
-  ? requireNativeViewManager<NativeTabBarProps>('NativeTabBar', 'NativeTabBarView')
-  : null;
+let NativeTabBarView: React.ComponentType<NativeTabBarProps> | null = null;
+if (Platform.OS === 'ios') {
+  try {
+    NativeTabBarView = requireNativeViewManager<NativeTabBarProps>('NativeTabBar', 'NativeTabBarView');
+  } catch {
+    NativeTabBarView = null;
+  }
+}
 
 const items: Record<string, NativeTabBarItem> = {
   Home: { label: '홈', symbol: 'house', selectedSymbol: 'house.fill' },
@@ -39,16 +43,37 @@ export const hasNativeTabBar = shouldUseNativeTabBar(
   NativeTabBarView !== null,
 );
 
+// Floating capsule metrics. The bar is an absolute overlay, so screens that
+// host scrollable content must pad by useNativeTabBarInset() to keep the last
+// row reachable. On Android (WebTabBar stays in-flow) the inset is 0.
+export const NATIVE_TAB_BAR_HEIGHT = 55;
+export const NATIVE_TAB_BAR_GAP = 8;
+const NATIVE_TAB_BAR_MAX_WIDTH = 480;
+
+export function useNativeTabBarInset(): number {
+  const insets = useSafeAreaInsets();
+  return hasNativeTabBar
+    ? NATIVE_TAB_BAR_HEIGHT + NATIVE_TAB_BAR_GAP + insets.bottom
+    : 0;
+}
+
 export function NativeTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   if (!NativeTabBarView) return null;
 
   return (
     <NativeTabBarView
-      style={[styles.bar, { height: 55 + insets.bottom }]}
+      style={[
+        styles.bar,
+        {
+          bottom: insets.bottom + NATIVE_TAB_BAR_GAP,
+          height: NATIVE_TAB_BAR_HEIGHT,
+          width: Math.min(width - 32, NATIVE_TAB_BAR_MAX_WIDTH),
+        },
+      ]}
       items={state.routes.map((route) => items[route.name])}
       selectedIndex={state.index}
-      bottomInset={insets.bottom}
       onTabSelect={({ nativeEvent }) => {
         const route = state.routes[nativeEvent.index];
         if (!route || state.index === nativeEvent.index) return;
@@ -65,6 +90,8 @@ export function NativeTabBar({ state, navigation }: BottomTabBarProps) {
 
 const styles = StyleSheet.create({
   bar: {
+    position: 'absolute',
+    alignSelf: 'center',
     backgroundColor: 'transparent',
   },
 });

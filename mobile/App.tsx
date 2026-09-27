@@ -8,7 +8,7 @@ import {
   StatusBar,
   AppState,
 } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
 
 function App() {
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <AppStackProvider>
         <AppContent />
       </AppStackProvider>

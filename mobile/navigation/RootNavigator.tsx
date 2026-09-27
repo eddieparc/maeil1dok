@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -8,12 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { navigationRef, type RootStackParamList, type TabParamList } from './navigationRef';
 import { useAuth } from '../auth/AuthSession';
 import { useAppStack } from './AppStackContext';
-import { parseUser } from '../api/moreData';
+import { ReadingSettingsProvider } from '../components/bible/ReadingSettingsProvider';
 import HomeScreen from '../screens/HomeScreen';
 import BibleScreen from '../screens/BibleScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import WebViewScreen from '../screens/WebViewScreen';
-import WebViewTabScreen from '../screens/WebViewTabScreen';
+import TogetherScreen from '../screens/TogetherScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import LoginScreen from '../screens/LoginScreen';
 import { hasNativeTabBar, NativeTabBar } from './NativeTabBar';
 
@@ -27,85 +27,6 @@ const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
   Together: 'people-outline',
   Profile: 'person-circle-outline',
 };
-
-function TogetherTab() {
-  return <WebViewTabScreen path="/groups" />;
-}
-
-/**
- * 내 정보 탭 — 웹의 /profile/:id. 로그인 상태면 사용자 id를 조회해 WebView로
- * 열고, 게스트면 로그인 유도 화면을 보여준다(웹은 /login으로 리다이렉트한다 —
- * 네이티브는 모달을 띄우는 대신 탭 안에서 유도해 뒤로가기 상태를 망가뜨리지
- * 않는다).
- */
-function ProfileTab() {
-  const { status, apiFetch } = useAuth();
-  const { betaMode, setBetaMode } = useAppStack();
-  const [userId, setUserId] = useState<number | null>(null);
-  const [failed, setFailed] = useState(false);
-  const handleBetaToggle = useCallback(async (enabled: boolean) => {
-    try {
-      await setBetaMode(enabled);
-    } catch (error: unknown) {
-      Alert.alert('베타 전환 실패', error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.');
-    }
-  }, [setBetaMode]);
-
-  useEffect(() => {
-    if (status !== 'signedIn') return;
-    let cancelled = false;
-    apiFetch('/api/v1/auth/user/')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (cancelled) return;
-        const user = parseUser(json);
-        if (user) setUserId(user.id);
-        else setFailed(true);
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [status, apiFetch]);
-
-  if (status === 'loading' || (status === 'signedIn' && !userId && !failed)) {
-    return (
-      <View style={styles.centerBox}>
-        <ActivityIndicator size="large" color="#2A1111" />
-      </View>
-    );
-  }
-
-  if (status !== 'signedIn' || failed || !userId) {
-    return (
-      <View style={styles.centerBox}>
-        <Text style={styles.emptyText}>로그인이 필요합니다</Text>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => {
-            if (navigationRef.isReady()) navigationRef.navigate('Login');
-          }}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.primaryButtonText}>로그인</Text>
-        </TouchableOpacity>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Text style={styles.emptyText}>베타 모드</Text>
-          <Switch
-            style={{ width: 51, height: 31 }}
-            accessibilityLabel="베타 모드"
-            value={betaMode === true}
-            onValueChange={handleBetaToggle}
-          />
-        </View>
-      </View>
-    );
-  }
-
-  return <WebViewTabScreen path={`/profile/${userId}`} />;
-}
 
 /**
  * 웹 BottomNavigation과 동일한 탭 바: 84px 콘텐츠 + safe-area inset,
@@ -168,14 +89,39 @@ function MainTabs() {
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: '홈' }} />
       <Tab.Screen name="Bible" component={BibleScreen} options={{ title: '성경' }} />
       <Tab.Screen name="Schedule" component={ScheduleScreen} options={{ title: '통독표' }} />
-      <Tab.Screen name="Together" component={TogetherTab} options={{ title: '함께' }} />
-      <Tab.Screen name="Profile" component={ProfileTab} options={{ title: '내 정보' }} />
+      <Tab.Screen name="Together" component={TogetherScreen} options={{ title: '함께' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: '내 정보' }} />
     </Tab.Navigator>
   );
 }
 
-export default function RootNavigator({ onReady }: { readonly onReady?: () => void }) {
-  const { status } = useAuth();
+export default function RootNavigator({ onReady }: { readonly onReady?: () => void } = {}) {
+  const { status, accessToken, apiFetch } = useAuth();
+  const { stack } = useAppStack();
+  // This is a cache identity, not token validation. AuthSession owns authentication;
+  // the backend's SIMPLE_JWT.USER_ID_CLAIM is user_id. Never retain/log credentials.
+  let accountId: string | null = null;
+  if (status === 'signedIn' && accessToken) {
+    try {
+      const payload = accessToken.split('.')[1];
+      if (payload) {
+        const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const claims: unknown = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+        if (typeof claims === 'object' && claims !== null && 'user_id' in claims) {
+          const id = claims.user_id;
+          if ((typeof id === 'number' && Number.isSafeInteger(id) && id > 0)
+            || (typeof id === 'string' && /^[1-9]\d*$/.test(id))) accountId = String(id);
+        }
+      }
+    } catch (error) {
+      // An unreadable identity must not reuse another account or become a guest.
+      if (!(error instanceof Error)) throw error;
+      accountId = null;
+    }
+  }
+  const session = status === 'signedOut'
+    ? { key: `guest:${stack.api}`, apiFetch: null }
+    : accountId === null ? null : { key: `account:${stack.api}:${accountId}`, apiFetch };
 
   if (status === 'loading') {
     return (
@@ -186,6 +132,10 @@ export default function RootNavigator({ onReady }: { readonly onReady?: () => vo
   }
 
   return (
+    <ReadingSettingsProvider session={session}>
+      {status === 'signedIn' && accountId === null && (
+        <Text accessibilityRole="alert">읽기 설정 계정을 확인할 수 없습니다. 다시 로그인해 주세요.</Text>
+      )}
     <NavigationContainer ref={navigationRef} onReady={onReady}>
       <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={MainTabs} />
@@ -197,6 +147,7 @@ export default function RootNavigator({ onReady }: { readonly onReady?: () => vo
         />
       </Stack.Navigator>
     </NavigationContainer>
+    </ReadingSettingsProvider>
   );
 }
 
@@ -228,31 +179,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: -0.4,
     lineHeight: 11,
-  },
-  centerBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 16,
-    backgroundColor: '#FAF8F5',
-  },
-  emptyText: {
-    fontFamily: 'Pretendard-Regular',
-    fontSize: 15,
-    color: '#6B625B',
-    letterSpacing: -0.4,
-  },
-  primaryButton: {
-    backgroundColor: '#2A1111',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 10,
-  },
-  primaryButtonText: {
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 14,
-    color: '#fff',
-    letterSpacing: -0.4,
   },
 });

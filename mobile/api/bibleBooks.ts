@@ -111,6 +111,44 @@ export const parseBibleReaderLocation = (url: string): ChapterRef | null => {
   return { book, chapter };
 };
 
+export interface ReaderTongdokContext {
+  readonly enabled: boolean;
+  readonly planId: number | null;
+  readonly scheduleId: number | null;
+  readonly date: string | null;
+}
+
+export interface BibleReaderRoute {
+  readonly location: ChapterRef | null;
+  readonly version: string | null;
+  readonly context: ReaderTongdokContext;
+}
+
+/** Route identity is separate from a tab's saved passage and from Home's default plan. */
+export const parseBibleReaderRoute = (url: string): BibleReaderRoute => {
+  const query = new URL(url, 'https://maeil1dok.app').searchParams;
+  const id = (key: string) => {
+    const value = query.get(key);
+    return value && /^\d+$/.test(value) && Number.isSafeInteger(Number(value)) && Number(value) > 0
+      ? Number(value) : null;
+  };
+  const planId = id('plan');
+  const date = query.get('date');
+  const version = query.get('version');
+  return {
+    location: parseBibleReaderLocation(url),
+    version: version && /^[A-Z0-9]+$/.test(version) ? version : null,
+    context: {
+      enabled: query.get('tongdok') !== 'false' && (query.get('tongdok') === 'true' || planId !== null),
+      planId,
+      scheduleId: id('schedule'),
+      date: date && /^\d{4}-\d{2}-\d{2}$/.test(date)
+        && Number.isFinite(Date.parse(`${date}T00:00:00Z`))
+        && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date ? date : null,
+    },
+  };
+};
+
 /** 다음 장 위치. 책 끝이면 다음 책 1장, 마지막이면 null. */
 export const nextChapter = (ref: ChapterRef): ChapterRef | null => {
   const book = BY_ID.get(ref.book);

@@ -15,7 +15,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../auth/AuthSession';
 import { useAppStack } from '../navigation/AppStackContext';
 import { navigationRef } from '../navigation/navigationRef';
-import { resolveBibleBookCode } from '../api/bibleBooks';
+import { useNativeTabBarInset } from '../navigation/NativeTabBar';
+import { NativeButton } from '../components/ui/NativeButton';
 import {
   formatScheduleDate,
   groupByDate,
@@ -26,6 +27,7 @@ import {
   pickDefaultPlan,
   readingStatus,
   scheduleTitle,
+  scheduleReaderUrl,
   sortSchedules,
   type PlanSubscription,
   type ReadingStatus,
@@ -68,13 +70,11 @@ const openWebPath = (webBase: string, path: string) => {
   }
 };
 
-const openBibleChapter = (book: string, chapter: number) => {
-  const code = resolveBibleBookCode(book);
-  if (!code) return;
+const openBibleChapter = (url: string) => {
   if (navigationRef.isReady()) {
     navigationRef.navigate('Main', {
       screen: 'Bible',
-      params: { url: `/bible?book=${code}&chapter=${chapter}` },
+      params: { url },
     });
   }
 };
@@ -85,7 +85,7 @@ interface DayGroup {
 }
 
 export default function ScheduleScreen() {
-  const { status, apiFetch } = useAuth();
+  const { status, accessToken, apiFetch } = useAuth();
   const { stack } = useAppStack();
 
   const [subscriptions, setSubscriptions] = useState<PlanSubscription[] | null>(null);
@@ -95,7 +95,7 @@ export default function ScheduleScreen() {
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
   const [schedules, setSchedules] = useState<ScheduleEntry[] | null>(null);
-  const [monthProgress, setMonthProgress] = useState<Record<number, { done: number; total: number }>>({});
+  const [monthProgress, setMonthProgress] = useState<Record<string, { done: number; total: number }>>({});
   const [plansError, setPlansError] = useState(false);
   const [schedulesError, setSchedulesError] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -103,16 +103,66 @@ export default function ScheduleScreen() {
   const [rangeStart, setRangeStart] = useState<string | null>(null);
   const [rangeEnd, setRangeEnd] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showTop, setShowTop] = useState(false);
+  const topVisible = useRef(false);
+  const savingRef = useRef(false);
   const listRef = useRef<ScrollView>(null);
   const cardOffsets = useRef<Record<string, number>>({});
+  const tabBarInset = useNativeTabBarInset();
+  const identity = useMemo(() => ({}), [status, accessToken, apiFetch, stack.api, stack.web]);
+  const context = useMemo(() => ({ identity, plan: selectedPlanId, ...cursor }),
+    [identity, selectedPlanId, cursor.year, cursor.month]);
+  const liveContext = useRef(context);
+  liveContext.current = context;
+  const mounted = useRef(true);
+  const plansGeneration = useRef(0);
+  const monthGeneration = useRef(0);
+  const navigationGeneration = useRef(0);
+  const loadedContext = useRef<typeof context | null>(null);
+  const pendingDate = useRef<{ identity: object; plan: number | null; date: string } | null>(null);
+  const progressKey = (month: number) => `${selectedPlanId}:${cursor.year}:${month}`;
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    setSubscriptions(null);
+    setSelectedPlanId(null);
+    setMonthProgress({});
+    setShowPlanModal(false);
+  }, [identity]);
+
+  useEffect(() => {
+    cardOffsets.current = {};
+    setSchedules(null);
+    setSchedulesError(false);
+    setBulkMode(false);
+    setRangeStart(null);
+    setRangeEnd(null);
+    savingRef.current = false;
+    setSaving(false);
+    topVisible.current = false;
+    setShowTop(false);
+    const pending = pendingDate.current;
+    if (pending && (pending.identity !== identity || pending.plan !== selectedPlanId
+      || pending.date.slice(0, 7) !== `${cursor.year}-${String(cursor.month).padStart(2, '0')}`)) {
+      pendingDate.current = null;
+    }
+  }, [context]);
 
   const loadPlans = useCallback(async () => {
+    const generation = ++plansGeneration.current;
+    const live = () => mounted.current && liveContext.current.identity === identity
+      && generation === plansGeneration.current;
     setPlansError(false);
     try {
       // 웹과 동일: 게스트도 /todos/plan/ (AllowAny — 공개 플랜 반환).
       const res = await apiFetch('/api/v1/todos/plan/');
       if (!res.ok) throw new Error(`plans ${res.status}`);
       const subs = normalizeSubscriptions(await res.json());
+      if (!live()) return;
       setSubscriptions(subs);
       setSelectedPlanId((current) => {
         if (current !== null && subs.some((s) => s.plan_id === current)) {
@@ -121,43 +171,63 @@ export default function ScheduleScreen() {
         return pickDefaultPlan(subs)?.plan_id ?? subs[0]?.plan_id ?? null;
       });
     } catch (error) {
+      if (!live()) return;
       console.error('[Schedule] plans load failed:', error);
       setPlansError(true);
     }
-  }, [apiFetch]);
+  }, [apiFetch, identity]);
 
   useFocusEffect(
     useCallback(() => {
       if (status !== 'loading') {
         void loadPlans();
       }
+      return () => { plansGeneration.current++; };
     }, [status, loadPlans]),
   );
 
   const loadSchedules = useCallback(async () => {
-    if (selectedPlanId === null) return;
+    if (selectedPlanId === null || status === 'loading' || savingRef.current) return;
+    const generation = ++monthGeneration.current;
+    const live = () => mounted.current && liveContext.current === context
+      && generation === monthGeneration.current;
     setSchedulesError(false);
     try {
       const res = await apiFetch(
         `/api/v1/todos/schedules/month/?plan_id=${selectedPlanId}&month=${cursor.month}&year=${cursor.year}`,
       );
       if (!res.ok) throw new Error(`schedules ${res.status}`);
-      setSchedules(normalizeMonthSchedules(await res.json()));
+      const list = normalizeMonthSchedules(await res.json());
+      if (!live()) return;
+      loadedContext.current = context;
+      setSchedules(list);
+      const pending = pendingDate.current;
+      if (pending && !list.some(s => s.date === pending.date)) {
+        pendingDate.current = null;
+        Alert.alert('일정 안내', '해당 날짜에 등록된 일정이 없어요.');
+      }
     } catch (error) {
+      if (!live()) return;
       console.error('[Schedule] month load failed:', error);
       setSchedulesError(true);
     }
-  }, [apiFetch, selectedPlanId, cursor]);
+  }, [apiFetch, context, status]);
 
-  useEffect(() => {
-    if (selectedPlanId === null) return;
-    setSchedules(null);
+  useFocusEffect(useCallback(() => {
     void loadSchedules();
-  }, [selectedPlanId, cursor, loadSchedules]);
+    return () => {
+      monthGeneration.current++;
+      navigationGeneration.current++;
+    };
+  }, [loadSchedules]));
+
+  useFocusEffect(useCallback(() => () => {
+    pendingDate.current = null;
+  }, []));
 
   // 웹처럼 연간 일정을 백그라운드 프리페치해 월 칩의 진행 점을 채운다.
   useEffect(() => {
-    if (selectedPlanId === null) return;
+    if (selectedPlanId === null || status === 'loading') return;
     let cancelled = false;
     const planId = selectedPlanId;
     const year = cursor.year;
@@ -171,11 +241,15 @@ export default function ScheduleScreen() {
           );
           if (!res.ok || cancelled) continue;
           const list = normalizeMonthSchedules(await res.json());
+          if (cancelled || !mounted.current || liveContext.current.identity !== identity) return;
+          // A foreground load (or optimistic write) owns the visible month's dot.
+          if (liveContext.current.plan === planId && liveContext.current.year === year
+            && liveContext.current.month === month) continue;
           const byDate = groupByDate(list);
           const summary = monthSummary(byDate);
           setMonthProgress((prev) => ({
             ...prev,
-            [month]: { done: summary.completedDays, total: summary.totalDays },
+            [`${planId}:${year}:${month}`]: { done: summary.completedDays, total: summary.totalDays },
           }));
         } catch {
           // 프리페치 실패는 조용히 무시 — 점만 안 찍힌다.
@@ -186,8 +260,7 @@ export default function ScheduleScreen() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPlanId, cursor.year]);
+  }, [selectedPlanId, cursor.year, identity]);
 
   const byDate = useMemo(() => groupByDate(schedules ?? []), [schedules]);
   const dayGroups = useMemo<DayGroup[]>(() => {
@@ -208,12 +281,12 @@ export default function ScheduleScreen() {
 
   // 현재 월의 진행 점도 갱신한다.
   useEffect(() => {
-    if (schedules === null) return;
+    if (schedules === null || loadedContext.current !== context) return;
     setMonthProgress((prev) => ({
       ...prev,
-      [cursor.month]: { done: summary.completedDays, total: summary.totalDays },
+      [progressKey(cursor.month)]: { done: summary.completedDays, total: summary.totalDays },
     }));
-  }, [schedules, cursor.month, summary]);
+  }, [schedules, context, summary]);
 
   const selectedPlan = subscriptions?.find((s) => s.plan_id === selectedPlanId) ?? null;
   const defaultPlanName = subscriptions?.find((s) => s.is_default)?.plan_name
@@ -223,41 +296,61 @@ export default function ScheduleScreen() {
   const scrollToDate = (date: string) => {
     const y = cardOffsets.current[date];
     if (y !== undefined) {
-      listRef.current?.scrollTo({ y: Math.max(y - 8, 0), animated: true });
+      listRef.current?.scrollTo({ y: Math.max(y - 8, 0), animated: false });
+      pendingDate.current = null;
+    }
+  };
+
+  const jumpToDate = (date: string) => {
+    pendingDate.current = { identity, plan: selectedPlanId, date };
+    const [year, month] = date.split('-').map(Number);
+    if (year !== cursor.year || month !== cursor.month) {
+      setCursor({ year, month });
+      return;
+    }
+    if (loadedContext.current === context) {
+      if (schedules?.some(s => s.date === date)) scrollToDate(date);
+      else {
+        pendingDate.current = null;
+        Alert.alert('일정 안내', '해당 날짜에 등록된 일정이 없어요.');
+      }
     }
   };
 
   const scrollToToday = () => {
-    const now = new Date();
-    if (now.getFullYear() !== cursor.year || now.getMonth() + 1 !== cursor.month) {
-      setCursor({ year: now.getFullYear(), month: now.getMonth() + 1 });
-      return;
-    }
-    scrollToDate(todayKey());
+    if (savingRef.current || selectedPlanId === null) return;
+    navigationGeneration.current++;
+    jumpToDate(todayKey());
   };
 
   const scrollToLastIncomplete = async () => {
-    if (selectedPlanId === null) return;
+    if (selectedPlanId === null || savingRef.current) return;
+    const generation = ++navigationGeneration.current;
+    const live = () => mounted.current && liveContext.current === context
+      && generation === navigationGeneration.current;
     try {
       const res = await apiFetch(`/api/v1/todos/next-position/?plan_id=${selectedPlanId}`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(`next-position ${res.status}`);
       const pos = normalizeNextPosition(await res.json());
-      if (!pos?.date) return;
-      const [y, m] = pos.date.split('-').map(Number);
-      if (y !== cursor.year || m !== cursor.month) {
-        setCursor({ year: y, month: m });
-        // 월 전환 후 스크롤은 데이터 로드 뒤에 — 간단히 지연 없이 offsets가 채워지면 사용자가 재탭.
+      if (!live()) return;
+      if (!pos?.date || pos.status === 'no_schedule') {
+        Alert.alert('일정 안내', pos?.message ?? (pos?.status === 'all_completed'
+          ? '모든 일정을 완료했어요.' : '이동할 일정이 없어요.'));
         return;
       }
-      scrollToDate(pos.date);
+      if (pos.status === 'all_completed') Alert.alert('일정 안내', pos.message ?? '모든 일정을 완료했어요.');
+      jumpToDate(pos.date);
     } catch {
-      // 무시
+      if (live()) Alert.alert('오류', '이동할 일정을 불러오지 못했어요. 다시 시도해 주세요.');
     }
   };
 
   const applyUpdate = async (ids: number[], complete: boolean) => {
-    if (selectedPlanId === null || ids.length === 0) return;
+    if (selectedPlanId === null || ids.length === 0 || savingRef.current) return false;
+    const live = () => mounted.current && liveContext.current === context;
     const previous = schedules;
+    savingRef.current = true;
+    monthGeneration.current++;
     setSaving(true);
     setSchedules(
       (schedules ?? []).map((s) => (ids.includes(s.id) ? { ...s, is_completed: complete } : s)),
@@ -273,16 +366,31 @@ export default function ScheduleScreen() {
         }),
       });
       if (!res.ok) throw new Error(`update ${res.status}`);
+      const result: unknown = await res.json();
+      if (typeof result !== 'object' || result === null
+        || !('success' in result) || result.success !== true) {
+        throw new Error('update rejected');
+      }
+      return live();
     } catch (error) {
+      if (!live()) return false;
       console.error('[Schedule] progress update failed:', error);
       setSchedules(previous);
       Alert.alert('오류', '읽기 상태를 저장하지 못했습니다. 다시 시도해 주세요.');
+      return false;
     } finally {
-      setSaving(false);
+      if (live()) {
+        savingRef.current = false;
+        setSaving(false);
+      }
     }
   };
 
   const toggleSchedule = (schedule: ScheduleEntry) => {
+    if (bulkMode) {
+      handleCardPress({ date: schedule.date, schedules: [schedule] });
+      return;
+    }
     if (status !== 'signedIn') {
       openLogin();
       return;
@@ -291,6 +399,7 @@ export default function ScheduleScreen() {
   };
 
   const handleCardPress = (group: DayGroup) => {
+    if (savingRef.current) return;
     if (bulkMode) {
       if (!rangeStart || (rangeStart && rangeEnd)) {
         setRangeStart(group.date);
@@ -303,7 +412,17 @@ export default function ScheduleScreen() {
       return;
     }
     const first = group.schedules[0];
-    if (first) openBibleChapter(first.book, first.start_chapter);
+    if (first && selectedPlanId !== null) {
+      const url = scheduleReaderUrl(first, selectedPlanId);
+      if (!url) return;
+      Alert.alert('본문 페이지로 이동할까요?',
+        `${formatScheduleDate(first.date)} · ${scheduleTitle(first)}`, [
+          { text: '취소', style: 'cancel' },
+          { text: '이동', onPress: () => {
+            if (mounted.current && liveContext.current === context) openBibleChapter(url);
+          } },
+        ]);
+    }
   };
 
   const inRange = (date: string) =>
@@ -317,10 +436,11 @@ export default function ScheduleScreen() {
   }, [schedules, rangeStart, rangeEnd]);
 
   const applyRange = async (complete: boolean) => {
-    await applyUpdate(rangeIds, complete);
-    setBulkMode(false);
-    setRangeStart(null);
-    setRangeEnd(null);
+    if (await applyUpdate(rangeIds, complete)) {
+      setBulkMode(false);
+      setRangeStart(null);
+      setRangeEnd(null);
+    }
   };
 
   const exitBulk = () => {
@@ -400,7 +520,7 @@ export default function ScheduleScreen() {
         >
           {MONTHS.map((month) => {
             const active = month === cursor.month;
-            const progress = monthProgress[month];
+            const progress = monthProgress[progressKey(month)];
             const dotColor = !progress
               ? BORDER
               : progress.total > 0 && progress.done === progress.total
@@ -412,7 +532,11 @@ export default function ScheduleScreen() {
               <TouchableOpacity
                 key={month}
                 style={[styles.monthChip, active && styles.monthChipActive]}
-                onPress={() => setCursor((c) => ({ year: c.year, month }))}
+                onPress={() => {
+                  navigationGeneration.current++;
+                  pendingDate.current = null;
+                  setCursor((c) => ({ year: c.year, month }));
+                }}
                 disabled={saving}
               >
                 <Text style={[styles.monthChipText, active && styles.monthChipTextActive]}>
@@ -472,7 +596,15 @@ export default function ScheduleScreen() {
         <ScrollView
           ref={listRef}
           style={styles.list}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: tabBarInset }]}
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            const visible = event.nativeEvent.contentOffset.y > 300;
+            if (visible !== topVisible.current) {
+              topVisible.current = visible;
+              setShowTop(visible);
+            }
+          }}
         >
           {/* 월 요약 */}
           <View style={styles.monthSummary}>
@@ -506,23 +638,25 @@ export default function ScheduleScreen() {
               const selected = inRange(group.date);
               const isRangeEdge = group.date === rangeStart;
               return (
-                <TouchableOpacity
+                <View
                   key={group.date}
                   style={[
                     styles.card,
                     statusOf === 'current' && styles.cardCurrent,
                     (selected || isRangeEdge) && styles.cardSelected,
                   ]}
-                  activeOpacity={0.85}
-                  onPress={() => handleCardPress(group)}
                   onLayout={(e) => {
+                    if (liveContext.current !== context || loadedContext.current !== context) return;
                     cardOffsets.current[group.date] = e.nativeEvent.layout.y;
+                    if (pendingDate.current?.date === group.date) scrollToDate(group.date);
                   }}
-                  disabled={saving}
                 >
                   <View style={styles.cardRow}>
                     <TouchableOpacity
                       style={styles.checkbox}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={`${formatScheduleDate(group.date)} ${bulkMode ? '범위 선택' : '읽음 표시'}`}
+                      accessibilityState={{ checked: mixed ? 'mixed' : allDone, disabled: saving }}
                       onPress={() => {
                         if (bulkMode) {
                           handleCardPress(group);
@@ -555,19 +689,31 @@ export default function ScheduleScreen() {
                       </View>
                     </TouchableOpacity>
                     <View style={styles.cardInfo}>
-                      <Text
-                        style={[
-                          styles.cardDate,
-                          statusOf === 'current' && styles.cardDateCurrent,
-                        ]}
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel={`${formatScheduleDate(group.date)} ${bulkMode ? '범위 선택' : '본문 읽기'}`}
+                        accessibilityState={{ selected: selected || isRangeEdge, disabled: saving }}
+                        onPress={() => handleCardPress(group)}
+                        disabled={saving}
+                        hitSlop={6}
                       >
-                        {formatScheduleDate(group.date)}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.cardDate,
+                            statusOf === 'current' && styles.cardDateCurrent,
+                          ]}
+                        >
+                          {formatScheduleDate(group.date)}
+                        </Text>
+                      </TouchableOpacity>
                       {group.schedules.map((s) => (
                         <View key={s.id} style={styles.cardReadingRow}>
                           {group.schedules.length > 1 && (
                             <TouchableOpacity
                               onPress={() => toggleSchedule(s)}
+                              accessibilityRole="checkbox"
+                              accessibilityLabel={`${scheduleTitle(s)} ${bulkMode ? '범위 선택' : '읽음 표시'}`}
+                              accessibilityState={{ checked: s.is_completed, disabled: saving }}
                               hitSlop={6}
                               disabled={saving}
                             >
@@ -583,7 +729,17 @@ export default function ScheduleScreen() {
                               </View>
                             </TouchableOpacity>
                           )}
-                          <Text style={styles.cardTitle}>{scheduleTitle(s)}</Text>
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel={`${scheduleTitle(s)} ${bulkMode ? '범위 선택' : '본문 읽기'}`}
+                            accessibilityState={{ disabled: saving }}
+                            style={{ flex: 1, minHeight: 32, justifyContent: 'center' }}
+                            hitSlop={6}
+                            disabled={saving}
+                            onPress={() => handleCardPress({ date: s.date, schedules: [s] })}
+                          >
+                            <Text style={styles.cardTitle}>{scheduleTitle(s)}</Text>
+                          </TouchableOpacity>
                           {group.schedules.length > 1 && (
                             <StatusBadgeView status={readingStatus(group.date, s.is_completed, todayKey())} />
                           )}
@@ -592,7 +748,7 @@ export default function ScheduleScreen() {
                     </View>
                     {group.schedules.length === 1 && <StatusBadgeView status={statusOf} />}
                   </View>
-                </TouchableOpacity>
+                </View>
               );
             })
           )}
@@ -600,9 +756,18 @@ export default function ScheduleScreen() {
         </ScrollView>
       )}
 
+      {showTop && (
+        <View style={[styles.topButton, { bottom: tabBarInset + (bulkMode ? 80 : 16) }]}>
+          <NativeButton
+            label="맨 위로"
+            onPress={() => listRef.current?.scrollTo({ y: 0, animated: false })}
+          />
+        </View>
+      )}
+
       {/* 일괄수정 액션 바 */}
       {bulkMode && (
-        <View style={styles.bulkBar}>
+        <View style={[styles.bulkBar, { paddingBottom: 10 + tabBarInset }]}>
           <Text style={styles.bulkBarText}>
             {rangeStart && rangeEnd
               ? `${formatScheduleDate(rangeStart)} ~ ${formatScheduleDate(rangeEnd)} · ${rangeIds.length}개`
@@ -649,6 +814,9 @@ export default function ScheduleScreen() {
                   sub.plan_id === selectedPlanId && styles.modalRowActive,
                 ]}
                 onPress={() => {
+                  if (savingRef.current) return;
+                  navigationGeneration.current++;
+                  pendingDate.current = null;
                   setSelectedPlanId(sub.plan_id);
                   setShowPlanModal(false);
                 }}
@@ -709,6 +877,7 @@ function StatusBadgeView({ status }: { readonly status: ReadingStatus }) {
 }
 
 const styles = StyleSheet.create({
+  topButton: { position: 'absolute', right: 20 },
   container: { flex: 1, backgroundColor: BG },
   header: {
     flexDirection: 'row',

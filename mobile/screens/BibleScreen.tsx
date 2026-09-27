@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -11,13 +12,37 @@ import {
   View,
 } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../auth/AuthSession';
 import { useAppStack } from '../navigation/AppStackContext';
 import { navigationRef, type TabParamList } from '../navigation/navigationRef';
+import { useNativeTabBarInset } from '../navigation/NativeTabBar';
+import ReaderTabs from '../components/bible/ReaderTabs';
+import ReaderTongdokControls from '../components/bible/ReaderTongdokControls';
+import ReaderTongdokSchedule from '../components/bible/ReaderTongdokSchedule';
+import { createReaderTongdok } from '../api/readerTongdok';
+import ReadingSettingsSheet from '../components/bible/ReadingSettingsSheet';
+import ReaderBody from '../components/bible/ReaderBody';
+import { useReadingSettings } from '../components/bible/ReadingSettingsProvider';
+import ReaderAudioPlayer from '../components/bible/ReaderAudioPlayer';
+import { parseReaderAudioResponse, selectReaderAudioLink, PLAYBACK_RATES } from '../api/readerAudio';
+import {
+  activateTab,
+  addTab,
+  cloneTabsState,
+  createTabsState,
+  loadReaderTabs,
+  removeTab,
+  saveReaderTabs,
+  setBarVisible,
+  updateTabSnapshot,
+  type ReaderTabsState,
+  type ReaderTabSnapshot,
+} from '../api/readerTabs';
 import {
   BIBLE_BOOKS,
   bookCode,
@@ -26,10 +51,11 @@ import {
   chapterUnit,
   isBibleBook,
   nextChapter,
-  parseBibleReaderLocation,
+  parseBibleReaderRoute,
   prevChapter,
   type BibleBook,
   type ChapterRef,
+  type BibleReaderRoute,
 } from '../api/bibleBooks';
 import {
   normalizeVersionList,
@@ -164,9 +190,51 @@ const openWebPath = (webBase: string, path: string) => {
 };
 
 export default function BibleScreen() {
-  const { status, apiFetch } = useAuth();
+  const { status, accessToken, apiFetch } = useAuth();
   const { stack } = useAppStack();
   const route = useRoute<RouteProp<TabParamList, 'Bible'>>();
+  const tabBarInset = useNativeTabBarInset();
+  const safeInsets = useSafeAreaInsets();
+  // Cache identity only; AuthSession/server still own token validation.
+  // Match the settings boundary without resetting on access-token rotation.
+  let accountId: string | null = null;
+  if (status === 'signedIn' && accessToken) {
+    try {
+      const payload = accessToken.split('.')[1];
+      if (payload) {
+        const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const claims: unknown = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+        if (isRecord(claims)) {
+          const id = claims.user_id;
+          if ((typeof id === 'number' && Number.isSafeInteger(id) && id > 0)
+            || (typeof id === 'string' && /^[1-9]\d*$/.test(id))) accountId = String(id);
+        }
+      }
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+      accountId = null;
+    }
+  }
+  const tongdok = useMemo(() => createReaderTongdok(apiFetch),
+    [apiFetch, stack.api, status, accountId]);
+  const tongdokRef = useRef(tongdok);
+  tongdokRef.current = tongdok;
+  const [contextSnapshot, setContextSnapshot] = useState(() => ({ controller: tongdok, state: tongdok.getState() }));
+  // Never paint the previous account's proof while the subscription is rebinding.
+  const readingContext = contextSnapshot.controller === tongdok
+    ? contextSnapshot.state : tongdok.getState();
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  // A route observed before storage settles must never lose to saved tab state.
+  const explicitEntry = useRef(false);
+  if (route.params?.url) {
+    const entry = parseBibleReaderRoute(route.params.url);
+    if (entry.location || entry.version || entry.context.enabled) explicitEntry.current = true;
+  }
+  useEffect(() => {
+    setContextSnapshot({ controller: tongdok, state: tongdok.getState() });
+    const unsubscribe = tongdok.subscribe(() => setContextSnapshot({ controller: tongdok, state: tongdok.getState() }));
+    return () => { unsubscribe(); tongdok.invalidate(); };
+  }, [tongdok]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('home');
   const [location, setLocation] = useState<ChapterRef>(DEFAULT_LOCATION);
@@ -179,7 +247,17 @@ export default function BibleScreen() {
   const [versions, setVersions] = useState<readonly BibleVersion[]>(FALLBACK_VERSIONS);
   const [readChapters, setReadChapters] = useState<ReadonlySet<number>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [audioOpen, setAudioOpen] = useState(false);
+  const [audioLink, setAudioLink] = useState<string | null>(null);
+  const audioGeneration = useRef(0);
+  const {
+    settings: readingSettings, update: updateReadingSetting, syncError, retry: retrySettings,
+  } = useReadingSettings();
   const [readerProgress, setReaderProgress] = useState(0);
+
+  // 리더 본문 탭 (저장된 본문 위치들, AsyncStorage 영속화)
+  const [readerTabs, setReaderTabs] = useState<ReaderTabsState>(createTabsState);
 
   // 홈 뷰 데이터
   const [homeLoading, setHomeLoading] = useState(true);
@@ -187,10 +265,45 @@ export default function BibleScreen() {
   const [stats, setStats] = useState<HomeStats | null>(null);
   const [todaySchedules, setTodaySchedules] = useState<TodaySchedule[]>([]);
   const [planName, setPlanName] = useState<string | null>(null);
-  const [planId, setPlanId] = useState<number | null>(null);
+  const [homePlan, setHomePlan] = useState<{ controller: typeof tongdok; id: number | null }>(
+    () => ({ controller: tongdok, id: null }),
+  );
+  const planId = homePlan.controller === tongdok ? homePlan.id : null;
 
   const signedIn = status === 'signedIn';
-  const listRef = useRef<FlatList<BibleBlock>>(null);
+  const audioSession = useMemo(() => ({
+    key: JSON.stringify([stack.api, accountId, status, readingContext.context,
+      location.book, location.chapter, version, ++audioGeneration.current]),
+    ended: false,
+  }), [tongdok, viewMode, route.params?.url, location.book, location.chapter, version,
+    readingContext.context.enabled, readingContext.context.planId, readingContext.context.date,
+    readingContext.context.scheduleId, audioOpen, audioLink]);
+  const activeAudio = useRef<typeof audioSession | null>(audioSession);
+  activeAudio.current = audioSession;
+  const autoCompleteRef = useRef(readingSettings.tongdokAutoComplete);
+  autoCompleteRef.current = readingSettings.tongdokAutoComplete;
+  useEffect(() => () => { activeAudio.current = null; }, []);
+  useEffect(() => {
+    setAudioOpen(false);
+    setAudioLink(null);
+    if (viewMode !== 'reader') return;
+    let cancelled = false;
+    const query = new URLSearchParams({ book: location.book, chapter: String(location.chapter) });
+    if (readingContext.context.enabled && readingContext.context.planId !== null)
+      query.set('plan_id', String(readingContext.context.planId));
+    apiFetch(`/api/v1/todos/detail/?${query}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Audio detail HTTP ${response.status}`);
+        const detail = parseReaderAudioResponse(await response.json());
+        if (!cancelled) setAudioLink(selectReaderAudioLink({
+          ...detail, book: location.book, chapter: location.chapter,
+        }));
+      })
+      .catch((error) => console.warn('[Bible] audio detail failed:', error));
+    return () => { cancelled = true; };
+  }, [viewMode, location.book, location.chapter, readingContext.context.enabled,
+    readingContext.context.planId, route.params?.url, tongdok, apiFetch]);
+  const listRef = useRef<ScrollView>(null);
   const pendingScrollFraction = useRef<number | null>(null);
   const scrollFraction = useRef(0);
   const contentHeight = useRef(0);
@@ -200,9 +313,12 @@ export default function BibleScreen() {
   const locationRef = useRef(location);
   const versionRef = useRef(version);
   const signedInRef = useRef(signedIn);
+  const readerTabsRef = useRef(readerTabs);
+  const tabsHydrated = useRef(false);
   locationRef.current = location;
   versionRef.current = version;
   signedInRef.current = signedIn;
+  readerTabsRef.current = readerTabs;
 
   const savePosition = useCallback(
     (loc: ChapterRef, ver: string, fraction: number) => {
@@ -220,25 +336,203 @@ export default function BibleScreen() {
     [apiFetch],
   );
 
+  // --- 리더 탭: 현재 리더 상태 → 스냅샷 ---
+  const currentTabSnapshot = useCallback(
+    (): ReaderTabSnapshot => ({
+      book: locationRef.current.book,
+      chapter: locationRef.current.chapter,
+      version: versionRef.current,
+      scrollPosition: scrollFraction.current,
+    }),
+    [],
+  );
+
+  const persistTabs = useCallback((state: ReaderTabsState) => {
+    void saveReaderTabs(AsyncStorage, state);
+  }, []);
+
+  // --- 리더 탭: 앱 재시작 시 AsyncStorage에서 복원 ---
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const restored = await loadReaderTabs(AsyncStorage);
+      if (cancelled) return;
+      tabsHydrated.current = true;
+      if (restored.tabs.length === 0) return;
+      const active =
+        restored.tabs.find((t) => t.id === restored.activeTabId) ?? restored.tabs[0];
+      if (explicitEntry.current && active) {
+        updateTabSnapshot(restored, active.id, currentTabSnapshot(),
+          chapterLabel(locationRef.current.book, locationRef.current.chapter));
+      }
+      setReaderTabs(restored);
+      if (!explicitEntry.current && restored.barVisible && active) {
+        pendingScrollFraction.current = active.snapshot.scrollPosition;
+        scrollFraction.current = active.snapshot.scrollPosition;
+        setLocation({ book: active.snapshot.book, chapter: active.snapshot.chapter });
+        setVersion(active.snapshot.version);
+        setViewMode('reader');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // --- 리더 탭: 상태 변경 시 영속화 (hydrate 전에는 쓰지 않는다) ---
+  useEffect(() => {
+    if (tabsHydrated.current) persistTabs(readerTabs);
+  }, [readerTabs, persistTabs]);
+
+  // --- 리더 탭: 리더가 이동하면 활성 탭의 스냅샷·라벨을 따라가게 한다 ---
+  useEffect(() => {
+    const state = readerTabsRef.current;
+    if (!state.activeTabId) return;
+    const next = cloneTabsState(state);
+    updateTabSnapshot(
+      next,
+      next.activeTabId as string,
+      currentTabSnapshot(),
+      chapterLabel(location.book, location.chapter),
+    );
+    setReaderTabs(next);
+  }, [location, version, currentTabSnapshot]);
+
+  const toggleTabsBar = useCallback(() => {
+    const next = cloneTabsState(readerTabsRef.current);
+    const showing = !next.barVisible;
+    setBarVisible(next, showing);
+    if (showing && next.tabs.length === 0) {
+      addTab(
+        next,
+        currentTabSnapshot(),
+        chapterLabel(locationRef.current.book, locationRef.current.chapter),
+      );
+    }
+    setReaderTabs(next);
+  }, [currentTabSnapshot]);
+
+  const addReaderTab = useCallback(() => {
+    const next = cloneTabsState(readerTabsRef.current);
+    addTab(
+      next,
+      currentTabSnapshot(),
+      chapterLabel(locationRef.current.book, locationRef.current.chapter),
+    );
+    setReaderTabs(next);
+  }, [currentTabSnapshot]);
+
+  /** 탭 스냅샷을 리더에 적용한다. 본문이 같으면 스크롤만 복원한다. */
+  const applyTabSnapshot = useCallback((snapshot: ReaderTabSnapshot) => {
+    activeAudio.current = null;
+    setAudioOpen(false);
+    const sameContent =
+      snapshot.book === locationRef.current.book &&
+      snapshot.chapter === locationRef.current.chapter &&
+      snapshot.version === versionRef.current;
+    pendingScrollFraction.current = snapshot.scrollPosition;
+    scrollFraction.current = snapshot.scrollPosition;
+    setReaderProgress(snapshot.scrollPosition);
+    if (sameContent) {
+      // 재로드가 없으므로 onContentSizeChange가 안 불린다 — 직접 스크롤.
+      pendingScrollFraction.current = null;
+      const max = contentHeight.current - viewHeight.current;
+      if (max > 0) {
+        listRef.current?.scrollTo({
+          y: snapshot.scrollPosition * max,
+          animated: false,
+        });
+      }
+      return;
+    }
+    setLocation({ book: snapshot.book, chapter: snapshot.chapter });
+    setVersion(snapshot.version);
+    setViewMode('reader');
+  }, []);
+
+  const selectReaderTab = useCallback(
+    (tabId: string) => {
+      const state = readerTabsRef.current;
+      if (tabId === state.activeTabId) return;
+      const target = state.tabs.find((t) => t.id === tabId);
+      if (!target) return;
+      const next = cloneTabsState(state);
+      if (next.activeTabId) {
+        updateTabSnapshot(
+          next,
+          next.activeTabId,
+          currentTabSnapshot(),
+          chapterLabel(locationRef.current.book, locationRef.current.chapter),
+        );
+      }
+      activateTab(next, tabId);
+      setReaderTabs(next);
+      applyTabSnapshot(target.snapshot);
+    },
+    [currentTabSnapshot, applyTabSnapshot],
+  );
+
+  const closeReaderTab = useCallback(
+    (tabId: string) => {
+      const state = readerTabsRef.current;
+      const next = cloneTabsState(state);
+      if (next.activeTabId && next.activeTabId !== tabId) {
+        updateTabSnapshot(
+          next,
+          next.activeTabId,
+          currentTabSnapshot(),
+          chapterLabel(locationRef.current.book, locationRef.current.chapter),
+        );
+      }
+      const { removed, activated } = removeTab(next, tabId);
+      if (!removed) return; // 마지막 탭은 닫을 수 없다
+      setReaderTabs(next);
+      if (activated) applyTabSnapshot(activated.snapshot);
+    },
+    [currentTabSnapshot, applyTabSnapshot],
+  );
+
   // --- 딥링크: /bible?book=..&chapter=.. 형태의 url 파라미터 → 리더로 ---
   useEffect(() => {
     const url = route.params?.url;
     if (!url) return;
-    const target = parseBibleReaderLocation(url);
-    if (target) {
+    const target = parseBibleReaderRoute(url);
+    tongdok.enter(target);
+    if (viewMode === 'reader' && (!target.location
+      || (target.location.book === locationRef.current.book
+        && target.location.chapter === locationRef.current.chapter))) void tongdok.load();
+    if (target.version) setVersion(target.version);
+    if (target.location || target.context.enabled) {
       pendingScrollFraction.current = null;
       scrollFraction.current = 0;
-      setLocation(target);
+      setReaderProgress(0);
+      if (target.location) setLocation(target.location);
       setViewMode('reader');
     }
-  }, [route.params?.url]);
+  }, [route.params?.url, tongdok]);
+
+  useEffect(() => {
+    tongdok.setDefaultPlan(planId);
+  }, [planId, readingContext.context.enabled, tongdok]);
+
+  useEffect(() => {
+    if (viewMode !== 'reader') { tongdok.invalidate(); return; }
+    tongdok.move(location);
+    void tongdok.load();
+  }, [viewMode, location.book, location.chapter, readingContext.context.enabled,
+    readingContext.context.planId, tongdok]);
 
   // --- 홈 뷰 데이터: 읽기 위치 + 활동 통계 + 오늘 일정 ---
   const loadHome = useCallback(async () => {
     setHomeLoading(true);
+    setLastPosition(null);
+    setStats(null);
+    setTodaySchedules([]);
+    setPlanName(null);
     try {
       const posRes = await apiFetch('/api/v1/todos/bible/reading-position/');
       const posJson: unknown = await posRes.json().catch(() => null);
+      if (tongdokRef.current !== tongdok) return;
       const position =
         posRes.ok && isRecord(posJson) && posJson.success === true
           ? parseSavedPosition(posJson.position)
@@ -249,7 +543,7 @@ export default function BibleScreen() {
         setStats(null);
         setTodaySchedules([]);
         setPlanName(null);
-        setPlanId(null);
+        setHomePlan({ controller: tongdok, id: null });
         return;
       }
 
@@ -257,30 +551,30 @@ export default function BibleScreen() {
         apiFetch('/api/v1/todos/bible/home-stats/'),
         apiFetch('/api/v1/todos/plan/'),
       ]);
-      if (statsRes.ok) {
-        setStats(parseHomeStats(await statsRes.json()));
-      }
+      const loadedStats = statsRes.ok ? parseHomeStats(await statsRes.json()) : null;
       const subs = subsRes.ok ? normalizeSubscriptions(await subsRes.json()) : [];
+      if (tongdokRef.current !== tongdok) return;
+      setStats(loadedStats);
       const active = subs.filter((s: PlanSubscription) => s.is_active);
       const primary = active.find((s) => s.is_default) ?? active[0] ?? null;
       setPlanName(primary?.plan_name ?? null);
-      setPlanId(primary?.plan_id ?? null);
+      setHomePlan({ controller: tongdok, id: primary?.plan_id ?? null });
       if (primary) {
         const todayRes = await apiFetch(
           `/api/v1/todos/schedules/today/?plan_id=${primary.plan_id}`,
         );
-        setTodaySchedules(
-          todayRes.ok ? parseTodaySchedules(await todayRes.json()) : [],
-        );
+        const schedules = todayRes.ok ? parseTodaySchedules(await todayRes.json()) : [];
+        if (tongdokRef.current !== tongdok) return;
+        setTodaySchedules(schedules);
       } else {
         setTodaySchedules([]);
       }
     } catch (error) {
       console.warn('[Bible] home load failed:', error);
     } finally {
-      setHomeLoading(false);
+      if (tongdokRef.current === tongdok) setHomeLoading(false);
     }
-  }, [apiFetch, signedIn]);
+  }, [apiFetch, signedIn, tongdok]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -291,6 +585,8 @@ export default function BibleScreen() {
   useEffect(() => {
     if (viewMode !== 'reader') return;
     const seq = ++requestSeq.current;
+    contentHeight.current = 0;
+    viewHeight.current = 0;
     setLoadState('loading');
     (async () => {
       try {
@@ -391,6 +687,8 @@ export default function BibleScreen() {
   const next = useMemo(() => nextChapter(location), [location]);
 
   const goTo = useCallback((ref: ChapterRef) => {
+    activeAudio.current = null;
+    setAudioOpen(false);
     pendingScrollFraction.current = null;
     scrollFraction.current = 0;
     setReaderProgress(0);
@@ -413,13 +711,32 @@ export default function BibleScreen() {
     [],
   );
 
+  const saveTabScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      handleScroll(event);
+      const state = readerTabsRef.current;
+      if (!state.activeTabId) return;
+      const next = cloneTabsState(state);
+      updateTabSnapshot(
+        next,
+        state.activeTabId,
+        currentTabSnapshot(),
+        chapterLabel(locationRef.current.book, locationRef.current.chapter),
+      );
+      readerTabsRef.current = next;
+      setReaderTabs(next);
+    },
+    [handleScroll, currentTabSnapshot],
+  );
+
   const restoreScroll = useCallback(() => {
     const fraction = pendingScrollFraction.current;
     if (fraction === null) return;
-    pendingScrollFraction.current = null;
     const max = contentHeight.current - viewHeight.current;
-    if (fraction > 0 && max > 0) {
-      listRef.current?.scrollToOffset({ offset: fraction * max, animated: false });
+    if (viewHeight.current <= 0 || max <= 0) return;
+    pendingScrollFraction.current = null;
+    if (fraction > 0) {
+      listRef.current?.scrollTo({ y: fraction * max, animated: false });
     }
   }, []);
 
@@ -445,9 +762,29 @@ export default function BibleScreen() {
     const nextSchedule = todaySchedules.find((s) => !s.is_completed);
     if (!nextSchedule) return;
     const book = nextSchedule.book_code || bookCode(nextSchedule.book) || '';
-    if (!isBibleBook(book)) return;
+    if (!isBibleBook(book) || planId === null) return;
+    explicitEntry.current = true;
+    tongdok.enter({
+      location: { book, chapter: nextSchedule.start_chapter }, version: null,
+      context: { enabled: true, planId, scheduleId: nextSchedule.id, date: null },
+    });
     goTo({ book, chapter: nextSchedule.start_chapter });
-  }, [todaySchedules, goTo]);
+  }, [todaySchedules, goTo, planId, tongdok]);
+
+  const enterSchedule = useCallback((target: BibleReaderRoute) => {
+    if (!target.location) return;
+    explicitEntry.current = true;
+    tongdok.enter(target);
+    setScheduleOpen(false);
+    goTo(target.location);
+    // Same passage can belong to a newly selected day; location alone is not a load trigger.
+    void tongdok.load();
+  }, [tongdok, goTo]);
+
+  const nextSchedule = useCallback(async () => {
+    const target = await tongdok.next();
+    if (target) enterSchedule(target);
+  }, [tongdok, enterSchedule]);
 
   const todayCompleted = todaySchedules.filter((s) => s.is_completed).length;
   const tongdokState =
@@ -529,30 +866,15 @@ export default function BibleScreen() {
     [stats],
   );
 
-  const renderBlock = useCallback(({ item }: { item: BibleBlock }) => {
-    if (item.type === 'heading') {
-      return <Text style={styles.heading}>{item.text}</Text>;
-    }
-    if (item.type === 'note') {
-      return <Text style={styles.note}>{item.text}</Text>;
-    }
-    return (
-      <Text style={styles.verseParagraph}>
-        <Text style={styles.verseNum}>{item.num} </Text>
-        {item.text}
-      </Text>
-    );
-  }, []);
-
-  const keyExtractor = useCallback(
-    (item: BibleBlock, index: number) =>
-      item.type === 'verse' ? `v${item.num}` : `${item.type}-${index}`,
-    [],
-  );
-
   // --- 홈 뷰 ---
   const renderHome = () => (
-    <ScrollView style={styles.homeScroll} contentContainerStyle={styles.homeContent}>
+    <ScrollView
+      style={styles.homeScroll}
+      contentContainerStyle={[
+        styles.homeContent,
+        { paddingBottom: 24 + tabBarInset },
+      ]}
+    >
       <View style={styles.homeHeader}>
         <Text style={styles.homeTitle}>성경</Text>
         <View style={styles.homeHeaderActions}>
@@ -776,7 +1098,7 @@ export default function BibleScreen() {
         <View style={styles.readerActions}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => openWebPath(stack.web, '/bible')}
+            onPress={toggleTabsBar}
             hitSlop={8}
             accessibilityLabel="탭"
           >
@@ -790,19 +1112,14 @@ export default function BibleScreen() {
           >
             <Ionicons name="search" size={20} color={TEXT} />
           </TouchableOpacity>
-          <TouchableOpacity
+          {audioLink && <TouchableOpacity
             style={styles.iconButton}
-            onPress={() =>
-              openWebPath(
-                stack.web,
-                `/bible?book=${location.book}&chapter=${location.chapter}`,
-              )
-            }
+            onPress={() => setAudioOpen(true)}
             hitSlop={8}
             accessibilityLabel="오디오"
           >
             <Ionicons name="headset-outline" size={20} color={TEXT} />
-          </TouchableOpacity>
+          </TouchableOpacity>}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => setMoreOpen(true)}
@@ -816,6 +1133,30 @@ export default function BibleScreen() {
           <View style={[styles.readerProgressFill, { width: `${readerProgress * 100}%` }]} />
         </View>
       </View>
+
+      <ReaderTongdokControls
+        state={readingContext}
+        onToggle={() => tongdok.toggle(signedIn)}
+        onRetry={() => {
+          if (readingContext.error === 'update')
+            return tongdok.retryUpdate(signedIn, readingSettings.tongdokAutoComplete);
+          if (readingContext.error === 'next') return nextSchedule();
+          return tongdok.load();
+        }}
+        onNext={() => { void nextSchedule(); }}
+        onSchedule={() => setScheduleOpen(true)}
+        onExit={() => { tongdok.exit(); setScheduleOpen(false); }}
+        onLogin={() => openWebPath(stack.web, '/login')}
+      />
+      {readerTabs.barVisible && (
+        <ReaderTabs
+          tabs={readerTabs.tabs}
+          activeTabId={readerTabs.activeTabId}
+          onSelect={selectReaderTab}
+          onClose={closeReaderTab}
+          onAdd={addReaderTab}
+        />
+      )}
 
       {loadState === 'loading' && (
         <View style={styles.center}>
@@ -831,13 +1172,13 @@ export default function BibleScreen() {
         </View>
       )}
       {loadState === 'ready' && (
-        <FlatList
+        <ScrollView
           ref={listRef}
-          data={blocks as BibleBlock[]}
-          renderItem={renderBlock}
-          keyExtractor={keyExtractor}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.content}
           onScroll={handleScroll}
+          onScrollEndDrag={saveTabScroll}
+          onMomentumScrollEnd={saveTabScroll}
           scrollEventThrottle={100}
           onContentSizeChange={(w, h) => {
             contentHeight.current = h;
@@ -845,12 +1186,15 @@ export default function BibleScreen() {
           }}
           onLayout={(e) => {
             viewHeight.current = e.nativeEvent.layout.height;
+            restoreScroll();
           }}
-        />
+        >
+          <ReaderBody blocks={blocks} settings={readingSettings} />
+        </ScrollView>
       )}
 
       {/* 하단 장 이동 바 */}
-      <View style={styles.readerFooter}>
+      <View style={[styles.readerFooter, { paddingBottom: tabBarInset }]}>
         <TouchableOpacity
           accessibilityLabel="이전 장"
           disabled={!prev}
@@ -891,7 +1235,7 @@ export default function BibleScreen() {
         animationType="slide"
         onRequestClose={() => setPicker('none')}
       >
-        <SafeAreaView style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { paddingTop: safeInsets.top }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>책 선택</Text>
             <Pressable onPress={() => setPicker('none')} hitSlop={12}>
@@ -928,7 +1272,7 @@ export default function BibleScreen() {
               </View>
             ))}
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* 장 선택 모달 */}
@@ -937,7 +1281,7 @@ export default function BibleScreen() {
         animationType="slide"
         onRequestClose={() => setPicker('book')}
       >
-        <SafeAreaView style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { paddingTop: safeInsets.top }]}>
           <View style={styles.modalHeader}>
             <Pressable onPress={() => setPicker('book')} hitSlop={12}>
               <Text style={styles.modalBack}>‹ 책</Text>
@@ -979,7 +1323,7 @@ export default function BibleScreen() {
                 )}
             </View>
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* 역본 선택 모달 */}
@@ -1027,9 +1371,11 @@ export default function BibleScreen() {
         animationType="fade"
         onRequestClose={() => setMoreOpen(false)}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setMoreOpen(false)}>
+        <Pressable accessible={false} style={styles.sheetBackdrop} onPress={() => setMoreOpen(false)}>
           <View style={styles.sheet}>
             {[
+              { label: '읽기 설정', settings: true },
+              ...(readingContext.context.enabled ? [{ label: '성경 통독표', schedule: true }] : []),
               { label: '북마크', path: '/bible/bookmarks' },
               { label: '묵상노트', path: '/bible/notes' },
               { label: '하이라이트', path: '/bible/highlights' },
@@ -1039,9 +1385,13 @@ export default function BibleScreen() {
               <Pressable
                 key={item.label}
                 style={styles.sheetRow}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
                 onPress={() => {
                   setMoreOpen(false);
-                  if ('home' in item && item.home) setViewMode('home');
+                  if ('settings' in item && item.settings) setSettingsOpen(true);
+                  else if ('schedule' in item && item.schedule) setScheduleOpen(true);
+                  else if ('home' in item && item.home) setViewMode('home');
                   else if (item.path) openWebPath(stack.web, item.path);
                 }}
               >
@@ -1051,6 +1401,44 @@ export default function BibleScreen() {
           </View>
         </Pressable>
       </Modal>
+      {scheduleOpen && readingContext.context.enabled && <ReaderTongdokSchedule
+        key={`${readingContext.context.planId}-${readingContext.context.scheduleId}`}
+        controller={tongdok}
+        onSelect={enterSchedule}
+        onClose={() => setScheduleOpen(false)}
+      />}
+      <ReadingSettingsSheet
+        visible={settingsOpen}
+        settings={readingSettings}
+        onChange={updateReadingSetting}
+        syncError={syncError}
+        onRetry={retrySettings}
+        onClose={() => setSettingsOpen(false)}
+      />
+      {audioOpen && audioLink && <ReaderAudioPlayer
+        visible
+        audioLink={audioLink}
+        contextKey={audioSession.key}
+        onEnded={async source => {
+          if (activeAudio.current !== audioSession || audioSession.ended
+            || source.contextKey !== audioSession.key || source.link !== audioLink
+            || !Number.isSafeInteger(source.generation) || source.generation < 1) return;
+          audioSession.ended = true;
+          if (viewMode !== 'reader' || !signedIn || accountId === null
+            || !autoCompleteRef.current || !readingContext.context.enabled) return;
+          await tongdok.heardChapter(signedIn);
+        }}
+        onOpenExternal={async url => {
+          if (activeAudio.current !== audioSession || url !== audioLink) return;
+          const parsed = new URL(url);
+          if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return;
+          await Linking.openURL(url);
+        }}
+        title={chapterLabel(location.book, location.chapter)}
+        initialRate={PLAYBACK_RATES.find((rate) => rate === readingSettings.audioPlaybackRate) ?? 1}
+        onRateChange={(rate) => updateReadingSetting('audioPlaybackRate', rate)}
+        onClose={() => { activeAudio.current = null; setAudioOpen(false); }}
+      />}
     </SafeAreaView>
   );
 }
@@ -1426,9 +1814,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 24,
+    flexGrow: 1,
   },
   heading: {
     fontFamily: SERIF_BOLD,
@@ -1464,7 +1850,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 12,
-    height: 48,
+    minHeight: 48,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: BORDER,
     backgroundColor: BG,

@@ -6,7 +6,8 @@
  * 둘 다 `book_code`로 정규화한다.
  */
 
-import { rangeLabel } from './bibleBooks';
+import { bookCode, rangeLabel } from './bibleBooks';
+import type { ApiFetchResponse } from './nativeApi';
 
 export interface PlanSubscription {
   readonly id: number;
@@ -102,7 +103,7 @@ export const pickEffectivePlanId = (
   if (!Array.isArray(subscriptions)) return null;
   const subs = subscriptions.filter(isRecord) as unknown as PlanSubscription[];
 
-  const byDefault = subs.find((s) => s.is_default === true);
+  const byDefault = subs.find((s) => s.is_default === true && s.is_active === true);
   if (byDefault && typeof byDefault.plan_id === 'number') return byDefault.plan_id;
 
   const firstActive = subs.find((s) => s.is_active === true);
@@ -282,6 +283,84 @@ export interface WeekDay {
 }
 
 const WEEK_LABELS = ['월', '화', '수', '목', '금', '토', '일'] as const;
+
+/** HTTP and application failures must never become empty data or zero stats. */
+export async function readHomeResponse(response: ApiFetchResponse): Promise<unknown> {
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const json = await response.json();
+  if (isRecord(json) && json.success === false) throw new Error('Unsuccessful home response');
+  return json;
+}
+
+export function parseHomePlans(json: unknown) {
+  if (!isRecord(json) || !Array.isArray(json.subscriptions) || !Array.isArray(json.available_plans)) {
+    throw new Error('Invalid home plans');
+  }
+  const subscriptions: PlanSubscription[] = json.subscriptions.map(raw => {
+    if (!isRecord(raw) || typeof raw.id !== 'number' || typeof raw.plan_id !== 'number') {
+      throw new Error('Invalid subscription');
+    }
+    return { id: raw.id, plan_id: raw.plan_id, plan_name: asString(raw.plan_name) ?? '',
+      is_default: raw.is_default === true, is_active: raw.is_active === true };
+  });
+  const availablePlans = json.available_plans.map(raw => {
+    if (!isRecord(raw) || typeof raw.id !== 'number' || typeof raw.name !== 'string') {
+      throw new Error('Invalid available plan');
+    }
+    return { id: raw.id, name: raw.name, is_default: raw.is_default === true };
+  });
+  return { subscriptions, availablePlans };
+}
+
+export const assignmentUrl = (entry: CalendarEntry): string | null => {
+  const code = bookCode(entry.book);
+  if (!code) return null;
+  return `/bible?book=${code}&chapter=${entry.start_chapter}&schedule=${entry.schedule_id}&plan=${entry.plan_id}&date=${entry.date}&tongdok=true`;
+};
+
+export const recentCompleted = (entries: readonly CalendarEntry[], today: string) =>
+  entries.filter(e => e.is_completed && e.date <= today)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.schedule_id - a.schedule_id).slice(0, 3);
+
+export interface HomeHasena {
+  readonly date: string;
+  readonly title: string;
+  readonly passage: string;
+  readonly videoId: string;
+}
+
+export function parseHomeHasena(json: unknown, today: string): HomeHasena | null {
+  if (!isRecord(json) || !Array.isArray(json.entries)) throw new Error('Invalid hasena calendar');
+  const entries = json.entries.map(raw => {
+    if (!isRecord(raw) || typeof raw.date !== 'string' || typeof raw.title !== 'string'
+      || typeof raw.passage !== 'string' || typeof raw.video_id !== 'string') {
+      throw new Error('Invalid hasena entry');
+    }
+    return { date: raw.date, title: raw.title, passage: raw.passage, videoId: raw.video_id };
+  });
+  return entries.filter(e => e.date <= today).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+}
+
+export function parseFirstHomeGroup(json: unknown) {
+  if (!isRecord(json) || !Array.isArray(json.groups)) throw new Error('Invalid groups');
+  const group: unknown = json.groups[0];
+  if (group === undefined) return null;
+  if (!isRecord(group) || typeof group.id !== 'number' || typeof group.name !== 'string'
+    || !Array.isArray(group.plans)) throw new Error('Invalid group');
+  const plan: unknown = group.plans[0];
+  if (plan !== undefined && (!isRecord(plan) || typeof plan.id !== 'number')) throw new Error('Invalid group plan');
+  return { id: group.id, name: group.name, planId: isRecord(plan) && typeof plan.id === 'number' ? plan.id : null };
+}
+
+export function parseHomeGroupProgress(json: unknown, today: string): number | null {
+  if (!isRecord(json) || !isRecord(json.calendar)) throw new Error('Invalid group calendar');
+  const day = json.calendar[today];
+  if (day === undefined) return null;
+  if (!isRecord(day) || typeof day.total_members !== 'number' || typeof day.completed_count !== 'number') {
+    throw new Error('Invalid group progress');
+  }
+  return day.total_members > 0 ? Math.round(day.completed_count / day.total_members * 100) : null;
+}
 
 /**
  * 이번 주(월~일) 7일을 만든다. today 는 'YYYY-MM-DD'. entries 는 해당 플랜의
