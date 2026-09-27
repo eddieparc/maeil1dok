@@ -226,7 +226,9 @@ test('the same local position is persisted after signing in or switching users',
 
 test('clearing an in-flight book cache lets the new identity load independently', async () => {
   setAuth();
-  const old = Promise.withResolvers();
+  // CI는 Node 20이라 Promise.withResolvers가 없다.
+  let resolveOld;
+  const old = { promise: new Promise(resolve => { resolveOld = resolve; }), resolve: value => resolveOld(value) };
   const calls = [];
   globalThis.__testApi = { GET: () => {
     calls.push(1);

@@ -49,7 +49,12 @@ const compiled = await build({
   } }],
 });
 const { default: Hasena } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
-const deferred = () => Promise.withResolvers();
+// CI는 Node 20이라 Promise.withResolvers가 없다.
+const deferred = () => {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+};
 async function setup(api) {
   runtime.api = api;
   let state;
