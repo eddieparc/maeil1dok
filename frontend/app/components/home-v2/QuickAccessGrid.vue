@@ -10,6 +10,7 @@
         <NuxtLink to="/plans" class="plan-pill" data-testid="pill-plans">
           <SettingsIcon :size="14" aria-hidden="true" />
           플랜 관리
+          <span class="new-badge" aria-label="새 기능">N</span>
         </NuxtLink>
       </div>
       <NuxtLink v-else to="/plan" class="sub-card">
@@ -90,6 +91,7 @@ const profileLink = computed(() => {
 .card-main { display: flex; align-items: center; gap: 10px; min-height: var(--hit-min); color: inherit; text-decoration: none; }
 .plan-pill { display: inline-flex; align-items: center; gap: 4px; min-height: var(--hit-min); padding: 0 10px; border-radius: var(--radius-pill); background: var(--color-accent-primary-light); color: var(--color-accent-primary); font-size: 12px; font-weight: 600; text-decoration: none; transition: background var(--duration-micro) ease, transform var(--duration-micro) ease; }
 .plan-pill:hover { background: var(--color-bg-hover); }
+.new-badge { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--color-accent-primary); color: var(--color-text-inverse); font-size: 10px; font-weight: 800; line-height: 1; }
 @media (prefers-reduced-motion: reduce) {
   .sub-card, .plan-pill { transition: none; }
   .sub-card:hover, .sub-card:active, .plan-pill:active { transform: none; }
