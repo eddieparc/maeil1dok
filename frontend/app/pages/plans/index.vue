@@ -162,6 +162,11 @@ function formatDate(dateString: string): string {
   return formatKoreanDate(dateString);
 }
 
+function formatPlanName(name: string): string {
+  const trimmedName = name.trim();
+  return trimmedName.endsWith('플랜') ? trimmedName : `${trimmedName} 플랜`;
+}
+
 // 사용자 플랜 정보 조회
 async function fetchUserPlans() {
   if (!auth.isAuthenticated.value) return;
@@ -181,7 +186,7 @@ async function handleSubscribe(plan: Plan) {
   try {
     const success = await planApi.subscribeToPlan(plan.id);
     if (success) {
-      toast.success(`${plan.name} 플랜을 구독했습니다.`);
+      toast.success(`${formatPlanName(plan.name)}을 구독했습니다.`);
       await fetchUserPlans();
     }
   } finally {
@@ -196,8 +201,8 @@ async function handleToggleHide(subscription: Subscription) {
   const success = await planApi.togglePlanActive(subscription.id);
   if (success) {
     const message = subscription.is_active
-      ? `${subscription.plan_name} 플랜을 숨겼습니다.`
-      : `${subscription.plan_name} 플랜을 다시 표시합니다.`;
+      ? `${formatPlanName(subscription.plan_name)}을 숨겼습니다.`
+      : `${formatPlanName(subscription.plan_name)}을 다시 표시합니다.`;
     toast.success(message);
     await fetchUserPlans();
   }
@@ -216,7 +221,7 @@ async function confirmDelete(subscription: Subscription) {
 
   const success = await planApi.deletePlanSubscription(subscription.id);
   if (success) {
-    toast.success(`${subscription.plan_name} 플랜을 완전히 삭제했습니다.`);
+    toast.success(`${formatPlanName(subscription.plan_name)}을 완전히 삭제했습니다.`);
     await fetchUserPlans();
   }
 }
@@ -239,6 +244,7 @@ onMounted(async () => {
   isLoading.value = true;
 
   try {
+    await auth.initialize();
     if (auth.isAuthenticated.value) {
       await fetchUserPlans();
     }
