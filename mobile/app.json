@@ -107,6 +107,7 @@
       ],
       "expo-updates",
       "./plugins/withGradleMemory",
+      "./plugins/withPodsDeploymentTarget",
       [
         "@sentry/react-native/expo",
         {
