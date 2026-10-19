@@ -1,8 +1,25 @@
-# Isolated beta pair (LAB-127): configuration, not a deployment receipt
+# Isolated beta stack: configuration, not a deployment receipt
 
-This is the replacement design for `https://beta.maeil1dok.app` on the existing VM.
+This is the tracked isolated runtime for `https://beta.maeil1dok.app`.
 No provisioning, deployment, DNS change, image build, or live readiness is claimed
 by this change. The parent/operator owns those actions after validation.
+
+## Observed deployment history
+
+The read-only release investigation on **2026-10-19** (`web.md`, section 2,
+release evidence) recorded Vercel serving the public beta frontend and OCI serving
+the isolated API through Caddy on port 8443. Beta worker and beat were running,
+while tracked Compose lacked both and masked optional integration env values.
+The observed local/remote Compose hashes differed. OCI frontend and tunnel
+containers were still present; their presence did not prove public traffic used
+them. API `/ready/` returned 200, but AI was not scheduled and web push was inactive.
+These are prior observations, not a new remote inspection or deployment receipt.
+
+This configuration completes the worker/env contract described by
+`config.beta_settings` while retaining the existing API edge and tunnel fallback.
+It does not establish byte-for-byte parity with the uninspected remote Compose,
+Vercel project env, or Cloudflare Origin Rule. Reconcile those privately before
+any future deployment; do not blindly overwrite the VM configuration.
 
 `docker-compose.beta.yml`, `frontend/Dockerfile.beta`, and the historical account
 in [beta-deployment.md](beta-deployment.md) remain baseline evidence. They connect
@@ -14,16 +31,25 @@ Use `docker-compose.beta-isolated.yml` alone, project `maeil1dok-beta-isolated`,
 a new directory such as `/opt/maeil1dok-beta-isolated`. Do not merge it with an OCI,
 development, or legacy-beta Compose file. Do not change primary tunnel config,
 primary DNS records, containers, networks, env, users, or databases. Do not share
-urban-blanks resources. No host ports, nginx, external Docker networks, new VM,
-paid tunnel plan, or paid OCI resource is required.
+urban-blanks resources. Only `api-beta-edge` publishes host port **8443**; no other
+service publishes ports, and ports 80/443, shared nginx, and external Docker
+networks are not used. No new VM, paid tunnel plan, or paid OCI resource is required.
 
-The new, free Cloudflare tunnel has its own UUID and credentials, and runs only
-`cloudflared-beta`. Its networks are project-local `beta-app` (connector, frontend,
-web) and internal `beta-data` (web, MySQL, Redis). MySQL and Redis have new,
-project-local named volumes; neither mounts production storage. There is no
-worker, beat, cron service, AI schedule, or fabricated heartbeat.
+The free Cloudflare tunnel has its own UUID and credentials, and runs only
+`cloudflared-beta`. Project-local `beta-app` connects the connector, frontend,
+API edge, web, worker, and beat. Internal `beta-data` connects only web, worker,
+beat, MySQL, and Redis. MySQL and Redis use project-local named volumes; neither
+mounts production storage. Worker and beat share the reviewed beta backend image,
+`.env.backend.beta`, `config.beta_settings`, and beta DB/Redis/signing-key overrides.
+Both wait for healthy web, MySQL, and Redis; web alone runs migrations and
+collectstatic. Their empty entrypoint overrides start Celery directly.
 
-Ingress in `ops/beta/cloudflared.yml.example`, in order:
+The worker uses concurrency **1**, a 600 MiB memory limit, and 0.75 CPU. Beat uses
+one replica, a 300 MiB limit, and 0.5 CPU; do not scale it or run another scheduler
+against this broker. Existing Celery schedules run according to beta settings and
+configured integrations, without a separate cron container or fabricated heartbeat.
+
+Fallback tunnel ingress in `ops/beta/cloudflared.yml.example`, in order:
 
 | Request at beta hostname | Origin |
 | --- | --- |
@@ -34,13 +60,19 @@ Ingress in `ops/beta/cloudflared.yml.example`, in order:
 
 In particular `/admin/*`, `/auth/*` (including Apple POST callback), `/api/health`,
 `/api/hasena/*`, and all assets stay on Nuxt. This does NOT expose Django admin.
-`/ready/` is not a backend beta route and must not be used as a success gate:
-production readiness expects beat/AI heartbeats that beta deliberately lacks.
+`/ready/` remains a frontend route in this tunnel example, not a Django route.
+The separate API edge uses `.beta-edge/Caddyfile`: TLS on 8443 proxies to
+`web-beta:8000` with Host `beta.maeil1dok.app` and `X-Forwarded-Proto: https`.
+It mounts only beta Caddy configuration/certificates read-only and joins only
+`beta-app`. It can expose backend `/ready/`; inspect individual readiness fields
+instead of treating HTTP 200 as evidence that AI or push delivery is configured.
+Keep the web startup gate on `/health/`, not `/ready/`, to avoid a cycle where
+worker/beat wait on a heartbeat they have not yet been allowed to produce.
 MySQL health, Redis PING, Django `/health/`, and Nuxt `/api/health` are separate
 checks, not evidence that OAuth, data, email, or every product journey is ready.
 
-All five containers have CPU/memory bounds and json-file logs of 10 MB x 3.
-The runtime ceilings total 2,108 MiB and 3 CPUs; this is a cap, not a reservation
+All eight containers have CPU/memory bounds and json-file logs of 10 MB x 3.
+The runtime ceilings total 3,328 MiB and 4.5 CPUs; this is a cap, not a reservation
 or proof the shared VM has capacity. The operator must check free memory, disk,
 and CPU headroom including build/migration peaks without impacting primary.
 The connector uses the repository's existing pinned cloudflared version
@@ -54,8 +86,8 @@ copy, interpolate from, or pass `/opt/maeil1dok/.env.oci` or `.env.frontend.oci`
 | Template | Host-local file | Purpose |
 | --- | --- | --- |
 | `.env.beta-isolated.example` | `.env.beta-isolated` | Reviewed SHA; NEW signing key; NEW MySQL user/root passwords |
-| `.env.backend.beta.example` | `.env.backend.beta` | Explicitly reviewed beta OAuth clients and optional Bible key |
-| `.env.frontend.beta.example` | `.env.frontend.beta` | Public beta OAuth client IDs/JS key only |
+| `.env.backend.beta.example` | `.env.backend.beta` | Reviewed beta OAuth/Bible keys and optional server integration values |
+| `.env.frontend.beta.example` | `.env.frontend.beta` | Public beta OAuth IDs/JS key and optional private Nuxt integration values |
 
 Empty required values intentionally fail validation/startup. Do not put secrets
 in build arguments, source control, logs, or handoff evidence. Escape literal `$`
@@ -105,15 +137,29 @@ may contain explicitly reviewed existing provider client IDs if independently
 approved; sharing an OAuth registration does not share the database or signing
 key. It is NOT permission to inherit production env or secrets wholesale.
 
-Real email delivery, Resend, Sentry, cron, Gemini, YouTube API keys and web push
-are disabled in the shipped isolated profile/config. Beta mail now uses an
+Optional `GEMINI_API_KEY`, `YOUTUBE_API_KEY`, `CRON_SECRET`, `HASENA_CRON_SECRET`,
+and `WEB_PUSH_VAPID_*` values come from the reviewed beta backend env file.
+Frontend cron/Gemini/YouTube values, including their `NUXT_*` runtime equivalents,
+come from its beta env file. Compose does not redeclare these keys as empty
+strings: an empty `environment` entry overrides and disables `env_file` values.
+The templates are starting points, not proof these optional keys exist or that
+external integrations work. Add only reviewed beta-specific values; never copy
+production env wholesale or put private keys under `NUXT_PUBLIC_*`.
+
+Real email remains disabled: all three Django services force an empty
+`RESEND_API_KEY`, and `config.beta_settings` independently sets it to `None` and
+selects `ACCOUNT_MAIL_TRANSPORT=beta-spool`. Sentry's existing empty overrides
+remain unchanged. Beta account mail uses an
 operator-only private capture spool, not Django EMAIL_BACKEND or a recipient
 provider. Read [beta-test-mail.md](beta-test-mail.md) for required 0700 host
 preparation, secure token-link retrieval, quota, and beta-only receipt semantics.
 The UI labels it TEST MAIL; success means captured, not delivered. Do not inject a
-production mail key. No worker/beat means asynchronous work is not claimed
-operational. `/api/hasena/latest-video` remains the existing frontend public-source
-lookup, not a production API or paid AI job.
+production mail key. Only web and worker mount the same private beta spool,
+with host-path auto-creation disabled; beat schedules work and has no spool mount.
+Missing or unwritable spool storage fails mail capture without provider fallback.
+Worker/beat configuration alone does not prove asynchronous execution or external
+delivery. `/api/hasena/latest-video` remains the existing frontend public-source
+lookup, not a production API.
 
 ## Operator-owned preflight and cutover (NOT executed by this task)
 
@@ -125,7 +171,10 @@ lookup, not a production API or paid AI job.
    docker-compose.beta-isolated.yml --env-file .env.beta-isolated config --quiet`
    in the isolated directory. Inspect the rendered config privately for accidental
    primary paths, endpoints, tokens, or networks. Do not print secret values.
-3. Provision a separate **free** tunnel only after approval. Place its new
+3. For the API-edge path, prepare beta-only `.beta-edge/origin.pem` and `origin.key`
+   and the tracked Caddyfile. Confirm exclusive use of port 8443 and the reviewed
+   beta origin routing without changing shared ports or production DNS.
+   Provision a separate **free** fallback tunnel only when required. Place its
    credentials at `.beta-tunnel/credentials.json`; render the example to
    `.beta-tunnel/config.yml` with the matching NEW UUID. These files are ignored
    by git and mounted read-only. Restrict host access, while ensuring the
@@ -133,16 +182,18 @@ lookup, not a production API or paid AI job.
    image/version and config. Never point these mounts at primary credentials.
 4. Parent builds/starts only the new project and runs its normal migration
    entrypoint against the new MySQL volume. No production snapshot restore.
-   Validate new app/data network membership, zero published ports, beta cookie
+   Validate app/data network membership, only edge port 8443 published, beta cookie
    names/domains, genuine DB/Redis health, and synthetic-account auth flows.
+   Verify one beat instance, worker consumption on beta Redis, task effects only
+   in beta DB, optional integration settings, and private test-mail capture.
    If safe pre-cutover testing needs a temporary tunnel route, it must be
    separately approved: no implicit hostname or primary tunnel edits here.
-5. Keep the beta hostname in maintenance while the new pair is unverified. The
-   parent changes only the existing beta DNS record to the new tunnel UUID after
-   its isolated origin routing passes. No apex/www/api or primary-tunnel change
-   is required. A stale beta rule on the primary connector is not a rollback
-   target; leave primary configuration alone in this task.
-6. Validate externally through the new connector: `/health/`, `/api/health`,
+5. Keep the selected beta serving path in maintenance until verified. Preserve
+   Vercel/API-edge routing when that is the chosen path; enabling the fallback
+   tunnel is a separate beta-only cutover, not an automatic DNS rewrite.
+   No apex/www/api or primary-tunnel change is required. A stale beta rule on the
+   primary connector is not a rollback target.
+6. Validate externally through the selected path: `/health/`, `/api/health`,
    `/_build-marker.json`, versioned API, frontend admin routes, callbacks, assets,
    cookie coexistence, refresh/CSRF and synthetic-account sign-in/out. Check
    Secure/SameSite and HTTPS redirects with the real proxy, not only local HTTP.
@@ -159,8 +210,9 @@ operationally acceptable.
 
 ## Rollback
 
-Rollback is an atomic **isolated frontend/backend pair** with compatible beta
-migrations and the same beta-only signing key, networks, MySQL, Redis, and tunnel.
+Rollback is an atomic **isolated frontend/backend release**, including worker
+and beat images, with compatible beta migrations and the same beta-only signing
+key, networks, MySQL, Redis, API edge, and selected frontend/tunnel path.
 Retain reviewed isolated image digests; assess migration compatibility before
 reverting either image. If no known-good isolated pair exists or data migrations
 are incompatible, serve beta-only maintenance instead. Do not restore primary

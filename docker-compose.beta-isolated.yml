@@ -7,6 +7,28 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+x-beta-backend-environment: &beta-backend-environment
+  DJANGO_SETTINGS_MODULE: config.beta_settings
+  DEBUG: "False"
+  SECRET_KEY: ${BETA_SECRET_KEY:?Generate a new beta-only signing key}
+  BETA_SECRET_KEY: ${BETA_SECRET_KEY:?Generate a new beta-only signing key}
+  DB_HOST: mysql-beta
+  DB_PORT: "3306"
+  DB_NAME: maeil1dok_beta
+  DB_USER: maeil1dok_beta
+  DB_PASSWORD: ${BETA_DB_PASSWORD:?Set a new beta database password}
+  REDIS_URL: redis://redis-beta:6379/1
+  CELERY_BROKER_URL: redis://redis-beta:6379/0
+  CELERY_RESULT_BACKEND: redis://redis-beta:6379/0
+  FRONTEND_URL: https://beta.maeil1dok.app
+  KAKAO_REDIRECT_URI: https://beta.maeil1dok.app/auth/kakao/callback
+  GOOGLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/google/callback
+  APPLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/apple/callback
+  SENTRY_DSN: ""
+  SENTRY_ENVIRONMENT: beta
+  # Optional integrations come from .env.backend.beta; real mail never does.
+  RESEND_API_KEY: ""
+
 services:
   mysql-beta:
     image: mysql:8.0
@@ -48,39 +70,15 @@ services:
 
   web-beta:
     image: maeil1dok-web-beta-isolated:${COMMIT_SHA:?Set the reviewed source SHA}
-    build:
+    build: &beta-backend-build
       context: ./backend
       dockerfile: Dockerfile
     env_file: [.env.backend.beta]
     environment:
-      DJANGO_SETTINGS_MODULE: config.beta_settings
-      DEBUG: "False"
-      SECRET_KEY: ${BETA_SECRET_KEY:?Generate a new beta-only signing key}
-      BETA_SECRET_KEY: ${BETA_SECRET_KEY:?Generate a new beta-only signing key}
-      DB_HOST: mysql-beta
-      DB_PORT: "3306"
-      DB_NAME: maeil1dok_beta
-      DB_USER: maeil1dok_beta
-      DB_PASSWORD: ${BETA_DB_PASSWORD:?Set a new beta database password}
-      REDIS_URL: redis://redis-beta:6379/1
-      CELERY_BROKER_URL: redis://redis-beta:6379/0
-      CELERY_RESULT_BACKEND: redis://redis-beta:6379/0
-      FRONTEND_URL: https://beta.maeil1dok.app
-      KAKAO_REDIRECT_URI: https://beta.maeil1dok.app/auth/kakao/callback
-      GOOGLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/google/callback
-      APPLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/apple/callback
+      <<: *beta-backend-environment
       PORT: "8000"
       GUNICORN_WORKERS: "3"
-      SENTRY_DSN: ""
-      SENTRY_ENVIRONMENT: beta
-      RESEND_API_KEY: ""
-      CRON_SECRET: ""
-      HASENA_CRON_SECRET: ""
-      GEMINI_API_KEY: ""
-      YOUTUBE_API_KEY: ""
-      WEB_PUSH_VAPID_PRIVATE_KEY: ""
-      WEB_PUSH_VAPID_PUBLIC_KEY: ""
-    volumes:
+    volumes: &beta-test-mail
       - type: bind
         source: ./.beta-test-mail
         target: /var/lib/maeil1dok-beta/test-mail
@@ -99,6 +97,45 @@ services:
       start_period: 90s
     mem_limit: 768m
     cpus: 0.75
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-app, beta-data]
+
+  celery-worker-beta:
+    image: maeil1dok-web-beta-isolated:${COMMIT_SHA:?Set the reviewed source SHA}
+    build: *beta-backend-build
+    env_file: [.env.backend.beta]
+    environment: *beta-backend-environment
+    volumes: *beta-test-mail
+    depends_on: &beta-celery-dependencies
+      web-beta:
+        condition: service_healthy
+      mysql-beta:
+        condition: service_healthy
+      redis-beta:
+        condition: service_healthy
+    # Only web runs migrations/collectstatic; consume tasks after it is healthy.
+    entrypoint: []
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=1"]
+    mem_limit: 600m
+    cpus: 0.75
+    logging: *logging
+    restart: unless-stopped
+    networks: [beta-app, beta-data]
+
+  celery-beat-beta:
+    image: maeil1dok-web-beta-isolated:${COMMIT_SHA:?Set the reviewed source SHA}
+    build: *beta-backend-build
+    env_file: [.env.backend.beta]
+    environment: *beta-backend-environment
+    depends_on: *beta-celery-dependencies
+    entrypoint: []
+    command: ["celery", "-A", "config", "beat", "-l", "info"]
+    # One scheduler per beta broker; scaling it duplicates periodic jobs.
+    deploy:
+      replicas: 1
+    mem_limit: 300m
+    cpus: 0.5
     logging: *logging
     restart: unless-stopped
     networks: [beta-app, beta-data]
@@ -126,14 +163,6 @@ services:
       NUXT_PUBLIC_SENTRY_DSN: ""
       NUXT_PUBLIC_SENTRY_ENVIRONMENT: beta
       NUXT_PUBLIC_SENTRY_RELEASE: ${COMMIT_SHA}
-      CRON_SECRET: ""
-      HASENA_CRON_SECRET: ""
-      GEMINI_API_KEY: ""
-      YOUTUBE_API_KEY: ""
-      NUXT_CRON_SECRET: ""
-      NUXT_HASENA_CRON_SECRET: ""
-      NUXT_GEMINI_API_KEY: ""
-      NUXT_YOUTUBE_API_KEY: ""
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
