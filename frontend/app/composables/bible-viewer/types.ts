@@ -14,6 +14,7 @@ export interface VerseSelectionPayload {
   book: string;
   chapter: number;
   version: string;
+  pane?: 'primary' | 'secondary';
   start: number;
   end: number;
   text: string;
@@ -48,6 +49,7 @@ export interface ResolvedViewerProps {
   book: string;
   chapter: number;
   version: string;
+  secondaryVersion?: string;
   isLoading: boolean;
   initialScrollPosition: number;
   highlights: Highlight[];

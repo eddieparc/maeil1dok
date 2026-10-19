@@ -49,6 +49,10 @@ export function useVerseSelection(
   const showActionMenu = ref(false);
   const selectedVerses = ref({ start: 0, end: 0 });
   const selectedText = ref('');
+  const selectedPane = ref<'primary' | 'secondary'>('primary');
+  const getVersePane = (el: Element) => el.closest('.pair-secondary') ? 'secondary' : 'primary';
+  const getSelectedPaneVerses = () => Array.from(viewerRef.value?.querySelectorAll('.verse') ?? [])
+    .filter(el => getVersePane(el) === selectedPane.value);
 
   // Read the complete verse, including KNT continuation lines, from sanitized content.
   const getVerseText = (el: Element): string => Array.from(el.querySelectorAll('.verse-text'))
@@ -58,12 +62,14 @@ export function useVerseSelection(
     const { start, end } = selectedVerses.value;
     if (start <= 0 || end < start || !viewerRef.value) return null;
     const verses: VerseSelectionPayload['verses'] = [];
-    viewerRef.value.querySelectorAll('.verse').forEach(el => {
+    getSelectedPaneVerses().forEach(el => {
       const number = Number(el.querySelector('.verse-number')?.textContent?.trim());
       if (number >= start && number <= end) verses.push({ number, text: getVerseText(el) });
     });
     if (!verses.length) return null;
-    return { book: props.book, chapter: props.chapter, version: props.version,
+    const version = selectedPane.value === 'secondary' ? props.secondaryVersion ?? '' : props.version;
+    return { book: props.book, chapter: props.chapter, version,
+      ...(viewerRef.value.querySelector('.pair-primary') ? { pane: selectedPane.value } : {}),
       start, end, text: verses.map(verse => verse.text).join(' '), verses };
   };
 
@@ -140,6 +146,7 @@ export function useVerseSelection(
   const clearAllSelections = () => {
     clearDragSelection();
     clearClickSelection();
+    selectedPane.value = 'primary';
   };
 
   // 절 하이라이트 적용
@@ -149,7 +156,7 @@ export function useVerseSelection(
       const numEl = el.querySelector('.verse-number');
       if (!numEl) return;
       const n = parseInt(numEl.textContent?.trim() || '0', 10);
-      if (n >= start && n <= end) {
+      if (getVersePane(el) === selectedPane.value && n >= start && n <= end) {
         el.classList.add('selected-verse');
         // 위치 클래스 초기화
         el.classList.remove('selected-first', 'selected-middle', 'selected-last');
@@ -189,6 +196,10 @@ export function useVerseSelection(
 
     const num = parseInt(numEl.textContent?.trim() || '0', 10);
     const txt = getVerseText(verseEl);
+    const pane = getVersePane(verseEl);
+    // A verse number identifies a range only within the pane where it began.
+    if (pane !== selectedPane.value) clearAllSelections();
+    selectedPane.value = pane;
 
     // 단일 절 선택 상태에서 같은 절을 다시 클릭하면 해제
     if (
@@ -230,7 +241,7 @@ export function useVerseSelection(
       const versesArray: Array<{ number: number; text: string }> = [];
       let combinedText = '';
       if (viewerRef.value) {
-        viewerRef.value.querySelectorAll('.verse').forEach((el) => {
+        getSelectedPaneVerses().forEach((el) => {
           const nEl = el.querySelector('.verse-number');
           const tEl = el.querySelector('.verse-text');
           if (!nEl || !tEl) return;
@@ -252,6 +263,7 @@ export function useVerseSelection(
       emitSelectionMenuChange();
     } else {
       clearAllSelections();
+      selectedPane.value = pane;
       selectionMode.value = 'click';
       clickSelectedStart.value = num;
       clickSelectedVerses.value = [{ number: num, text: txt }];
@@ -295,6 +307,9 @@ export function useVerseSelection(
 
     // 클릭 선택 해제 후 드래그 선택 시작
     clearClickSelection();
+    const anchor = selection.anchorNode ?? range.startContainer;
+    const anchorElement = anchor?.nodeType === 1 ? anchor as Element : anchor?.parentElement;
+    selectedPane.value = anchorElement ? getVersePane(anchorElement) : 'primary';
     selectionMode.value = 'drag';
 
     // 선택된 텍스트에서 절 번호 추출
@@ -315,7 +330,7 @@ export function useVerseSelection(
     let start = 0;
     let end = 0;
     // Intersect whole verse elements: a selection may begin after its verse number.
-    viewerRef.value?.querySelectorAll('.verse').forEach(el => {
+    getSelectedPaneVerses().forEach(el => {
       if (!range.intersectsNode(el)) return;
       const number = Number(el.querySelector('.verse-number')?.textContent?.trim());
       if (!number) return;

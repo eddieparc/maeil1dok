@@ -49,6 +49,11 @@ export const useBibleTabsStore = defineStore('bibleTabs', {
   },
 
   actions: {
+    /** 페이지 이탈 시 메모리에 남은 마지막 스크롤 위치를 저장한다. */
+    persistTabs(): void {
+      if (this.hydrated) persist(this);
+    },
+
     /** localStorage에서 복원한다. 클라이언트 마운트 시 한 번만 호출. */
     hydrate() {
       if (this.hydrated || typeof window === 'undefined') return;

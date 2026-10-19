@@ -19,8 +19,7 @@ export interface UseBiblePageTabsOptions {
   currentBookName: ComputedRef<string>;
   chapterSuffix: ComputedRef<string>;
   scrollPosition: Ref<number>;
-  resetReaderScrollPosition: () => void;
-  loadBibleContent: (book: string, chapter: number) => Promise<void>;
+  navigateReader: (book: string, chapter: number, version: string) => Promise<void>;
   restoreSavedScrollPosition: (position: number | undefined) => Promise<void>;
 }
 
@@ -28,7 +27,7 @@ export function useBiblePageTabs(options: UseBiblePageTabsOptions) {
   const {
     viewMode, currentBook, currentChapter, currentVersion,
     currentBookName, chapterSuffix, scrollPosition,
-    resetReaderScrollPosition, loadBibleContent, restoreSavedScrollPosition,
+    navigateReader, restoreSavedScrollPosition,
   } = options;
 
   const bibleTabsStore = useBibleTabsStore();
@@ -46,25 +45,26 @@ export function useBiblePageTabs(options: UseBiblePageTabsOptions) {
     scrollPosition: scrollPosition.value,
   });
 
+  let restoringTab = false;
+  let restoreGeneration = 0;
   const syncActiveBibleTab = () => {
+    if (restoringTab || viewMode.value !== 'reader') return;
     bibleTabsStore.syncActiveTab(buildTabSnapshot(), currentTabLabel.value);
   };
 
   /** 탭 스냅샷을 리더에 복원한다 (책·장·역본·스크롤). */
   const applyTabSnapshot = async (tab: BibleTab) => {
-    const snap = tab.snapshot;
-    // localStorage에 남은 legacy 'jon' 코드를 canonical 'jnh'로 정규화한다.
-    currentBook.value = snap.book === 'jon' ? 'jnh' : snap.book;
-    currentChapter.value = snap.chapter;
-    currentVersion.value = snap.version;
-    viewMode.value = 'reader';
-
-    resetReaderScrollPosition();
-    await loadBibleContent(currentBook.value, snap.chapter);
-    if (snap.scrollPosition > 0) {
+    const snap = { ...tab.snapshot };
+    const generation = ++restoreGeneration;
+    restoringTab = true;
+    try {
+      // 공통 경로가 URL과 본문·사용자 데이터·전역 통독 detail을 함께 갱신한다.
+      await navigateReader(snap.book === 'jon' ? 'jnh' : snap.book, snap.chapter, snap.version);
+      if (generation !== restoreGeneration) return;
       await restoreSavedScrollPosition(snap.scrollPosition);
+    } finally {
+      if (generation === restoreGeneration) restoringTab = false;
     }
-    // 복원 과정에서 바뀐 값들을 활성 탭에 다시 동기화
     syncActiveBibleTab();
   };
 
@@ -91,6 +91,7 @@ export function useBiblePageTabs(options: UseBiblePageTabsOptions) {
   };
 
   const handleTabClose = async (tabId: string) => {
+    syncActiveBibleTab();
     const activated = bibleTabsStore.closeTab(tabId);
     if (activated) {
       await applyTabSnapshot(activated);
@@ -122,7 +123,13 @@ export function useBiblePageTabs(options: UseBiblePageTabsOptions) {
     handleTabAdd,
     handleTabSwitch,
     handleTabClose,
-    hydrateTabs: () => bibleTabsStore.hydrate(),
-    updateActiveScroll: (position: number) => bibleTabsStore.updateActiveScroll(position),
+    hydrateTabs: () => {
+      bibleTabsStore.hydrate();
+      return bibleTabsStore.activeTab;
+    },
+    persistTabs: () => bibleTabsStore.persistTabs(),
+    updateActiveScroll: (position: number) => {
+      if (!restoringTab) bibleTabsStore.updateActiveScroll(position);
+    },
   };
 }

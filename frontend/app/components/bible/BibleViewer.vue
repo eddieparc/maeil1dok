@@ -65,6 +65,7 @@ interface Props {
   book: string;
   chapter: number;
   version?: string;
+  secondaryVersion?: string;
   isLoading?: boolean;
   initialScrollPosition?: number;
   highlights?: Highlight[];
@@ -172,7 +173,7 @@ onMounted(() => {
 });
 
 // 컨텐츠 변경 시 스크롤 위치 복원 및 선택 상태 초기화
-watch(() => [props.content, props.book, props.chapter, props.version], () => {
+watch(() => [props.content, props.book, props.chapter, props.version, props.secondaryVersion], () => {
   // 컨텐츠 변경 시 모든 선택 상태 초기화
   clearAllSelections();
   nextTick(() => {

@@ -35,6 +35,22 @@ test('역본이 없으면 원본 HTML을 그대로 돌려준다', () => {
   assert.equal(mergeCompareContent(PRIMARY, undefined), PRIMARY);
 });
 
+test('보조 역본에만 있는 선행 소제목도 첫 절 앞에 보존한다', () => {
+  const merged = mergeCompareContent(
+    verse(1, 'primary'),
+    `<h3>secondary heading</h3>${verse(1, 'secondary')}`,
+  );
+  assert.match(merged, /pair-heading"><div class="pair-primary"><\/div><div class="pair-secondary"><h3>secondary heading<\/h3>/);
+  assert.ok(merged.indexOf('secondary heading') < merged.indexOf('verse-number'));
+  assert.equal((merged.match(/secondary heading/g) ?? []).length, 1);
+});
+
+test('주 역본에만 있는 소제목은 빈 보조 셀과 함께 유지한다', () => {
+  const merged = mergeCompareContent(`<h3>primary heading</h3>${verse(1, 'primary')}`, verse(1, 'secondary'));
+  assert.match(merged, /<h3>primary heading<\/h3><\/div><div class="pair-secondary"><\/div>/);
+  assert.equal((merged.match(/primary heading/g) ?? []).length, 1);
+});
+
 test('한쪽에만 있는 절은 빈 셀로 둔다', () => {
   const merged = mergeCompareContent(
     `${verse(1, 'a')}${verse(2, 'b')}`,

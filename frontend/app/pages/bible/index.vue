@@ -74,7 +74,7 @@
         @highlight-save="handleDirectHighlightSave"
         @copy-error="handleCopyError"
         @copy="handleCopyAction"
-        @share="handleShareAction"
+        @share="handleSelectionShareAction"
         @exit-tongdok="handleExitTongdok"
         @tongdok-complete-click="handleTongdokComplete(undefined, undefined, true)"
         @audio-link-click="handleEmbeddedAudioLink"
@@ -242,7 +242,7 @@ import BibleHome from '~/components/bible/BibleHome.vue';
 import BibleTOC from '~/components/bible/BibleTOC.vue';
 import BibleReaderView from '~/components/bible/BibleReaderView.vue';
 import BibleTabBar from '~/components/bible/BibleTabBar.vue';
-import type { SelectionHighlightPayload } from '~/components/bible/BibleViewer.vue';
+import type { SelectionHighlightPayload, SelectionSharePayload } from '~/components/bible/BibleViewer.vue';
 
 // 모달 컴포넌트
 import BookSelector from '~/components/bible/BookSelector.vue';
@@ -417,6 +417,7 @@ const {
   shareVerses,
   shareUrl,
   shareContext,
+  shareBibleLink,
   handleShareAction,
   handleChapterShare,
   handleShareError,
@@ -428,6 +429,21 @@ const {
   chapterSuffix,
   generateShareUrl,
 });
+
+const handleSelectionShareAction = (selection: SelectionSharePayload) => {
+  if (selection.pane !== 'secondary') {
+    handleShareAction(selection);
+    return;
+  }
+  const versionName = versionNames[secondaryVersion.value] || secondaryVersion.value;
+  if (!compareEnabled.value || selection.book !== currentBookName.value ||
+      selection.chapter !== currentChapter.value || selection.version !== versionName) return;
+  const range = { start: selection.startVerse, end: selection.endVerse };
+  const url = new URL(generateShareUrl(range));
+  url.searchParams.set('version', secondaryVersion.value);
+  const reference = `${selection.book} ${selection.chapter}:${range.start}${range.end === range.start ? '' : `-${range.end}`}`;
+  void shareBibleLink(reference, url.toString());
+};
 
 const showGuideSheet = ref(false);
 const showFullScheduleModal = ref(false);
@@ -624,11 +640,13 @@ const {
   bibleTabs,
   activeBibleTabId,
   syncActiveBibleTab,
+  applyTabSnapshot,
   handleToggleTabBar,
   handleTabAdd,
   handleTabSwitch,
   handleTabClose,
   hydrateTabs,
+  persistTabs,
   updateActiveScroll,
 } = useBiblePageTabs({
   viewMode,
@@ -638,8 +656,7 @@ const {
   currentBookName,
   chapterSuffix,
   scrollPosition,
-  resetReaderScrollPosition,
-  loadBibleContent,
+  navigateReader: (book, chapter, version) => navigateReader(book, chapter, undefined, version),
   restoreSavedScrollPosition,
 });
 
@@ -824,8 +841,12 @@ const handleCopyAction = (_text: string) => {
 const handleCopyError = (error: unknown) => handleApiError(error, '복사');
 const handleDirectHighlightSave = async (selection: SelectionHighlightPayload) => {
   if (!(await requireAuthWithPrompt())) return;
+  if (selection.pane === 'secondary' && !compareEnabled.value) return;
+  const versionName = selection.pane === 'secondary'
+    ? versionNames[secondaryVersion.value] || secondaryVersion.value
+    : currentVersionName.value;
   if (selection.book !== currentBookName.value || selection.chapter !== currentChapter.value ||
-      selection.version !== currentVersionName.value) return;
+      selection.version !== versionName) return;
   const existing = selection.highlightId === undefined ? null : visibleChapterHighlights.value.find(h =>
     h.id === selection.highlightId && h.start_verse === selection.start && h.end_verse === selection.end);
   if (selection.highlightId !== undefined && !existing) return;
@@ -1259,15 +1280,24 @@ const applyReaderRoute = async (restorePosition = false) => {
   enablePositionSaving();
 };
 onMounted(async () => {
-  hydrateTabs();
+  const activeTab = hydrateTabs();
   restoreComparePrefs();
-  routeLoad = applyReaderRoute(true);
-  await routeLoad;
+  if (activeTab && !getBibleRouteQueryPolicy(route.query).shouldInitializeOnEntry) {
+    initTongdokMode();
+    await applyTabSnapshot(activeTab);
+  } else {
+    routeLoad = applyReaderRoute(true);
+    await routeLoad;
+  }
   // 마운트 시점의 본문으로 활성 탭을 동기화한다 (watcher는 변경에만 반응)
   syncActiveBibleTab();
-  if (pageActive) window.addEventListener('beforeunload', handleBeforeUnload);
+  if (pageActive) {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+  }
 });
 onBeforeUnmount(() => {
+  persistTabs();
   void saveCurrentReadingPosition(true);
   pageActive = false;
   ++routeGeneration;
@@ -1275,8 +1305,12 @@ onBeforeUnmount(() => {
   cleanupReadingPosition();
   void modal.close(completionModalId);
   window.removeEventListener('beforeunload', handleBeforeUnload);
+  window.removeEventListener('pagehide', handleBeforeUnload);
 });
-const handleBeforeUnload = () => { void saveCurrentReadingPosition(true); };
+const handleBeforeUnload = () => {
+  persistTabs();
+  void saveCurrentReadingPosition(true);
+};
 watch(() => route.query, () => {
   routeLoad = applyReaderRoute();
   return routeLoad;

@@ -95,6 +95,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'version-select': [column: 'primary' | 'secondary', version: string];
+  'pane-change': [];
   'swap': [];
 }>();
 
@@ -130,6 +131,7 @@ let swapSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
 // 세로 모바일 단일 창: 보여 줄 역본. 가로로 돌리면 CSS가 두 열을 다시 보여 준다.
 const mobilePane = ref<CompareColumn>('primary');
+watch(mobilePane, () => emit('pane-change'), { flush: 'sync' });
 const otherPane = computed<CompareColumn>(() =>
   mobilePane.value === 'primary' ? 'secondary' : 'primary');
 const activePaneName = computed(() =>

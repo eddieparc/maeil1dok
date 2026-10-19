@@ -6,12 +6,13 @@ import { build } from 'esbuild';
 import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc';
 import * as Vue from 'vue';
 import * as Router from 'vue-router';
+import * as Pinia from 'pinia';
 import * as Icons from '@lucide/vue';
 
 // Real page setup/template, router, shell, mode, position, highlight and personal
 // services. DOM selection/export and transport are producer-owned boundaries.
 const root = fileURLToPath(new URL('../', import.meta.url));
-const r = { Vue, Router, Icons, jobs: [], mounts: [], boundaries: {} };
+const r = { Vue, Router, Pinia, Icons, jobs: [], mounts: [], boundaries: {} };
 globalThis.__readerIntegration = r;
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 const bridgeVue = { ...Vue,
@@ -51,19 +52,18 @@ const serviceModules = {
   };`,
   readingSettings: 'export const useReadingSettingsStore = () => globalThis.__readerIntegration.settings;',
   selectedPlan: 'export const useSelectedPlanStore = () => globalThis.__readerIntegration.selectedPlan;',
-  bibleTabs: 'export const useBibleTabsStore = () => globalThis.__readerIntegration.bibleTabs;',
   subscription: 'export const useSubscriptionStore = () => globalThis.__readerIntegration.subscriptions;',
   notifications: 'export const useNotificationsStore = () => ({ unreadCount: 0 });',
 };
 let importSequence = 0;
 async function compilePage() {
-  const result = await build({ stdin: { contents: "export {default} from '~/pages/bible/index.vue';", resolveDir: root }, bundle: true, format: 'esm', platform: 'node', write: false, logLevel: 'silent',
+  const result = await build({ stdin: { contents: "export {default} from '~/pages/bible/index.vue'; export {useBibleTabsStore} from '~/stores/bibleTabs';", resolveDir: root }, bundle: true, format: 'esm', platform: 'node', write: false, logLevel: 'silent',
     plugins: [{ name: 'reader-integration', setup(b) {
       b.onResolve({ filter: /^#components$/ }, () => ({ path: '#components', namespace: 'nuxt' }));
       b.onLoad({ filter: /.*/, namespace: 'nuxt' }, () => ({ contents: 'export const NuxtLink = globalThis.__readerIntegration.Router.RouterLink;' }));
-      b.onResolve({ filter: /^(vue|vue-router|@lucide\/vue)$/ }, ({ path }) => ({ path, namespace: 'runtime' }));
+      b.onResolve({ filter: /^(vue|vue-router|pinia|@lucide\/vue)$/ }, ({ path }) => ({ path, namespace: 'runtime' }));
       b.onLoad({ filter: /.*/, namespace: 'runtime' }, ({ path }) => {
-        const name = path === 'vue' ? 'Vue' : path === 'vue-router' ? 'Router' : 'Icons';
+        const name = path === 'vue' ? 'Vue' : path === 'vue-router' ? 'Router' : path === 'pinia' ? 'Pinia' : 'Icons';
         return { contents: Object.keys(r[name]).filter(k => k !== 'default' && /^[\w$]+$/.test(k)).map(k => `export const ${k} = globalThis.__readerIntegration.${name}.${k};`).join('\n') };
       });
       b.onResolve({ filter: /.*/ }, ({ path }) => {
@@ -83,7 +83,7 @@ async function compilePage() {
       });
     } }],
   });
-  return (await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}#${++importSequence}`)).default;
+  return import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}#${++importSequence}`);
 }
 class Element {
   constructor(type, text = '') { Object.assign(this, { type, text, props: {}, children: [], parent: null }); }
@@ -114,7 +114,8 @@ async function mount(url = '/bible', options = {}) {
   globalThis.useNuxtApp = () => ({ runWithContext(callback) { r.inNuxtContext = true; try { const result = callback(); return options.promiseContext ? Promise.resolve(result) : result; } finally { r.inNuxtContext = false; } } });
   const values = new Map(Object.entries(options.storage ?? {}));
   globalThis.localStorage = { getItem: k => values.get(k) ?? null, setItem: (k, v) => values.set(k, v), removeItem: k => values.delete(k) };
-  globalThis.window = { location: { origin: 'https://reader.test' }, history: { length: 2 }, innerHeight: 800, scrollY: 0, scrollTo() {}, addEventListener() {}, removeEventListener() {}, open: url => r.external.push(url) };
+  const events = new EventTarget();
+  globalThis.window = { location: { origin: 'https://reader.test' }, history: { length: 2 }, innerHeight: 800, scrollY: 0, scrollTo() {}, addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events), open: url => r.external.push(url) };
   globalThis.document = { documentElement: { scrollHeight: 800 }, addEventListener() {}, removeEventListener() {}, querySelector: () => null };
   globalThis.HTMLElement = Element;
   // A deterministic formatted-content DOM boundary, not native HTML parsing proof.
@@ -132,21 +133,13 @@ async function mount(url = '/bible', options = {}) {
   };
   r.settings = Vue.reactive({ settings: { tongdokAutoComplete: false, audioPlaybackRate: 1, fontFamily: 'noto-serif', fontSize: 19, lineHeight: 1.8 }, updateSetting(k, v) { this.settings[k] = v; } });
   r.selectedPlan = Vue.reactive({ effectivePlanId: options.planId ?? null, selectedPlanId: options.planId ?? null, setSelectedPlanId(id) { this.effectivePlanId = id; this.selectedPlanId = id; } });
-  r.bibleTabs = Vue.reactive({
-    tabs: [], activeTabId: null, barVisible: false,
-    hydrate() {}, toggleBar() { this.barVisible = !this.barVisible; },
-    addTab(snapshot, label) { const tab = { id: `tab-${this.tabs.length + 1}`, label, snapshot }; this.tabs.push(tab); this.activeTabId = tab.id; return tab; },
-    switchTab(id) { const tab = this.tabs.find(t => t.id === id); if (tab) this.activeTabId = id; return tab ?? null; },
-    closeTab(id) { const i = this.tabs.findIndex(t => t.id === id); if (i < 0) return null; const wasActive = this.activeTabId === id; this.tabs.splice(i, 1); if (!wasActive) return null; const next = this.tabs[Math.min(i, this.tabs.length - 1)] ?? null; this.activeTabId = next?.id ?? null; return next; },
-    syncActiveTab(snapshot, label) { const tab = this.tabs.find(t => t.id === this.activeTabId); if (tab) { tab.snapshot = snapshot; tab.label = label; } },
-    updateActiveScroll(pos) { const tab = this.tabs.find(t => t.id === this.activeTabId); if (tab) tab.snapshot.scrollPosition = pos; },
-  });
   r.subscriptions = Vue.reactive({ activeSubscriptions: [{ plan_id: 7, plan_name: 'actual plan', is_default: true }], fetchSubscriptions: async () => {} });
   r.toast = Object.fromEntries(['success', 'error', 'info'].map(kind => [kind, message => r.messages.push({ kind, message })]));
   r.errors = { handleApiError: (error, context) => r.messages.push({ kind: 'error', error, context }), handleUserActionError: (error, context, fallback) => fallback?.() };
   globalThis.useErrorHandler = () => r.errors;
-  r.notes = { currentChapterNotes: Vue.ref([]), showNoteModal: Vue.ref(false), fetchChapterNotes: async () => {}, saveQuickNote: async () => true, getChapterNoteCount: () => 0 };
-  r.bookmarks = { loadBookmarks: async () => {}, isChapterBookmarked: () => false, toggleChapterBookmark: async () => ({ success: true, added: true }) };
+  r.notes = { currentChapterNotes: Vue.ref([]), showNoteModal: Vue.ref(false), fetchChapterNotes: async (book, chapter) => { r.notes.currentChapterNotes.value = options.notes?.filter(n => n.book === book && n.chapter === chapter) ?? []; }, saveQuickNote: async () => true, getChapterNoteCount: () => r.notes.currentChapterNotes.value.length };
+  const bookmarks = Vue.ref([]);
+  r.bookmarks = { loadBookmarks: async (book, chapter) => { bookmarks.value = options.bookmarks?.filter(b => b.book === book && b.chapter === chapter) ?? []; }, isChapterBookmarked: (book, chapter) => bookmarks.value.some(b => b.book === book && b.chapter === chapter), toggleChapterBookmark: async () => ({ success: true, added: true }) };
   r.rows = options.rows ?? [{ book: 'gen', start_chapter: 49, end_chapter: 50, is_complete: false, schedule_id: 1, date: '2026-09-06' }];
   r.highlights = options.highlights ?? [];
   r.content = options.content ?? (async (book, chapter, version) => { r.contentCalls.push([book, chapter, version]); return `<div class="verse" data-fixture-verse="3">${book} ${chapter} actual verse</div>`; });
@@ -177,12 +170,113 @@ async function mount(url = '/bible', options = {}) {
     PATCH: async (path, data) => { r.writes.push([path, data]); return { ...r.highlights.find(h => path.includes(`/${h.id}/`)), ...data }; },
     DELETE: async (path) => { r.writes.push([path]); },
   };
-  const Page = await compilePage();
+  const { default: Page, useBibleTabsStore } = await compilePage();
+  const pinia = Pinia.createPinia();
+  r.bibleTabs = useBibleTabsStore(pinia);
   const router = Router.createRouter({ history: Router.createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }] });
   r.router = router; await router.push(url); await router.isReady();
-  const host = node('root'); const app = renderer.createApp({ render: () => Vue.h(Page) }); app.use(router); app.component('NuxtLink', Router.RouterLink); app.component('ClientOnly', { setup: (_, { slots }) => () => slots.default?.() });
+  const host = node('root'); const app = renderer.createApp({ render: () => Vue.h(Page) }); app.use(pinia); app.use(router); app.component('NuxtLink', Router.RouterLink); app.component('ClientOnly', { setup: (_, { slots }) => () => slots.default?.() });
   app.mount(host);
-  return { host, router, values, state: r.state, ready: async () => { await Promise.all(r.mounts); await settled(); }, close: () => app.unmount(), route: async url => { await router.push(url); await settled(); } };
+  return { host, router, values, events, tabs: r.bibleTabs, state: r.state, ready: async () => { await Promise.all(r.mounts); await settled(); }, close: () => app.unmount(), route: async url => { await router.push(url); await settled(); } };
+}
+
+const savedTabs = () => JSON.stringify({
+  tabs: [
+    { id: 'first', label: 'gen 49', snapshot: { book: 'gen', chapter: 49, version: 'GAE', scrollPosition: .2 } },
+    { id: 'saved', label: 'exo 3', snapshot: { book: 'exo', chapter: 3, version: 'KNT', scrollPosition: .65 } },
+  ],
+  activeTabId: 'saved', barVisible: true,
+});
+
+test('saved active tab wins bare startup over last reading position and survives a fresh store restart', { timeout: 10000 }, async t => {
+  const view = await mount('/bible', { storage: {
+    bibleReaderTabs: savedTabs(),
+    lastReadingPosition: JSON.stringify({ book: 'gen', chapter: 1, version: 'GAE', scroll_position: .1 }),
+  } });
+  await view.ready();
+  assert.equal(view.router.currentRoute.value.query.book, 'exo');
+  assert.equal(view.state.currentChapter.value, 3);
+  assert.equal(view.state.currentVersion.value, 'KNT');
+  assert.equal(view.state.scrollPosition.value, .65);
+  assert.equal(view.tabs.activeTab.snapshot.book, 'exo');
+  view.close();
+  const restarted = await mount('/bible', { storage: Object.fromEntries(view.values) });
+  t.after(restarted.close); await restarted.ready();
+  assert.equal(restarted.tabs.activeTabId, 'saved');
+  assert.equal(restarted.state.currentBook.value, 'exo');
+  assert.equal(restarted.state.scrollPosition.value, .65);
+});
+
+test('explicit deep link wins over a saved active tab without restoring its scroll', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=psa&chapter=23&version=GAE&verse=4', { storage: { bibleReaderTabs: savedTabs() } });
+  t.after(view.close); await view.ready();
+  assert.equal(view.state.currentBook.value, 'psa');
+  assert.equal(view.state.currentChapter.value, 23);
+  assert.equal(view.state.scrollPosition.value, 0);
+  assert.deepEqual({ ...view.tabs.activeTab.snapshot }, { book: 'psa', chapter: 23, version: 'GAE', scrollPosition: 0 });
+  assert.ok(r.boundaries.BibleViewer.calls.some(([method, start]) => method === 'focusVerseRange' && start === 4));
+});
+
+for (const action of ['switch', 'close']) {
+  test(`tab ${action} uses route loading for body, personal data, detail and audio while preserving global tongdok`, { timeout: 10000 }, async t => {
+    const storage = JSON.parse(savedTabs()); storage.activeTabId = 'first';
+    const view = await mount('/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true&date=2026-09-06', {
+      storage: { bibleReaderTabs: JSON.stringify(storage) },
+      notes: [{ book: 'gen', chapter: 49, id: 1 }, { book: 'exo', chapter: 3, id: 2 }],
+      bookmarks: [{ book: 'exo', chapter: 3 }],
+      highlights: [{ id: 11, book: 'gen', chapter: 49, start_verse: 3, end_verse: 3 }, { id: 22, book: 'exo', chapter: 3, start_verse: 3, end_verse: 3 }],
+      GET: async (path, { params = {} }) => path.endsWith('/detail/') ? { data: {
+        plan_id: params.plan_id, plan_name: 'actual plan', book: params.book, chapter: params.chapter,
+        plan_date: params.book === 'exo' ? '2026-09-07' : '2026-09-06',
+        plan_detail: [{ book: params.book, start_chapter: params.chapter, end_chapter: params.chapter, schedule_id: params.book === 'exo' ? 3 : 1, is_complete: false, date: params.book === 'exo' ? '2026-09-07' : '2026-09-06' }],
+        audio_link: `https://audio.test/${params.book}/${params.chapter}`,
+      } } : undefined,
+    });
+    t.after(view.close); await view.ready();
+    await emit('BibleViewer', 'scroll', .4);
+    if (action === 'switch') await view.state.handleTabSwitch('saved');
+    else await view.state.handleTabClose('first');
+    await settled();
+    assert.equal(view.router.currentRoute.value.query.book, 'exo');
+    assert.equal(view.router.currentRoute.value.query.chapter, '3');
+    assert.equal(view.router.currentRoute.value.query.version, 'KNT');
+    assert.match(view.state.bibleContent.value, /exo 3 actual verse/);
+    assert.equal(view.state.currentChapterNote.value.id, 2);
+    assert.equal(view.state.isCurrentChapterBookmarked.value, true);
+    assert.deepEqual(view.state.visibleChapterHighlights.value.map(h => h.id), [22]);
+    assert.equal(view.state.readingDetailResponse.value.data.book, 'exo');
+    assert.equal(view.state.tongdokScheduleDateDisplay.value, '2026-09-07');
+    assert.equal(view.state.tongdokScheduleId.value, 3);
+    assert.equal(view.state.tongdokAudioLink.value, 'https://audio.test/exo/3');
+    assert.equal(view.state.isTongdokMode.value, true);
+    assert.equal(view.state.tongdokPlanId.value, 7);
+    assert.equal(view.state.scrollPosition.value, .65);
+    if (action === 'switch') assert.equal(JSON.parse(view.values.get('bibleReaderTabs')).tabs[0].snapshot.scrollPosition, .4);
+    assert.deepEqual(Object.keys(view.tabs.activeTab.snapshot).sort(), ['book', 'chapter', 'scrollPosition', 'version']);
+  });
+}
+
+test('pagehide after beforeunload persists tabs without a duplicate position write', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=gen&chapter=49'); t.after(view.close); await view.ready();
+  const positionWrites = () => r.writes.filter(([path]) => path.endsWith('/reading-position/')).length;
+  const before = positionWrites();
+  view.events.dispatchEvent(new Event('beforeunload')); await settled();
+  assert.equal(positionWrites(), before + 1);
+  view.events.dispatchEvent(new Event('pagehide')); await settled();
+  assert.equal(positionWrites(), before + 1);
+});
+
+for (const exit of ['beforeunload', 'pagehide', 'unmount']) {
+  test(`final tab scroll persists on ${exit} without writes during scrolling`, { timeout: 10000 }, async t => {
+    const view = await mount('/bible?book=exo&chapter=3&version=KNT', { storage: { bibleReaderTabs: savedTabs() } });
+    t.after(() => { if (exit !== 'unmount') view.close(); }); await view.ready();
+    const before = view.values.get('bibleReaderTabs');
+    await emit('BibleViewer', 'scroll', .73);
+    assert.equal(view.tabs.activeTab.snapshot.scrollPosition, .73);
+    assert.equal(view.values.get('bibleReaderTabs'), before);
+    if (exit === 'unmount') view.close(); else view.events.dispatchEvent(new Event(exit));
+    assert.equal(JSON.parse(view.values.get('bibleReaderTabs')).tabs.find(tab => tab.id === 'saved').snapshot.scrollPosition, .73);
+  });
 }
 
 test('bare URL resumes the last reading position; in-app hub nav, back and reload keep explicit reader intent', { timeout: 10000 }, async t => {
@@ -473,6 +567,46 @@ test('compare control toggles, scopes version loads, follows chapters and persis
   assert.deepEqual(r.contentCalls.slice(beforePrimary), [['exo', 2, 'SAE']]);
   await emit('BookSelector', 'compare-toggle'); await settled();
   assert.equal(view.state.compareEnabled.value, false);
+});
+
+test('compare selections save their own range and share their own version; stale panes cannot act', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=gen&chapter=49&version=GAE'); t.after(view.close); await view.ready();
+  await emit('BookSelector', 'compare-toggle');
+  const primary = { book: '창세기', chapter: 49, version: '개역개정', pane: 'primary',
+    start: 3, end: 3, startVerse: 3, endVerse: 3, text: 'primary', color: '#BBDDFB' };
+  const secondary = { ...primary, version: '새한글', pane: 'secondary',
+    start: 4, end: 5, startVerse: 4, endVerse: 5, text: 'secondary' };
+  await emit('BibleViewer', 'highlight-save', primary);
+  await emit('BibleViewer', 'highlight-save', secondary);
+  assert.deepEqual(r.writes.at(-1)[1], { book: 'gen', chapter: 49, start_verse: 4, end_verse: 5, color: '#BBDDFB' });
+
+  const shared = []; const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { value: { share: async data => { shared.push(data); } }, configurable: true, writable: true });
+  try {
+    await emit('BibleViewer', 'share', primary);
+    await emit('BibleViewer', 'share', secondary);
+    assert.equal(shared.length, 2);
+    assert.equal(new URL(shared[0].text.split('\n').at(-1)).searchParams.get('version'), null);
+    assert.equal(new URL(shared[1].text.split('\n').at(-1)).searchParams.get('version'), 'KNT');
+
+    const writes = r.writes.length;
+    await emit('BookSelector', 'compare-version-select', 'HAN');
+    await emit('BibleViewer', 'highlight-save', secondary);
+    await emit('BibleViewer', 'share', secondary);
+    assert.equal(r.writes.length, writes); assert.equal(shared.length, 2);
+    await emit('BookSelector', 'compare-toggle');
+    await emit('BibleViewer', 'highlight-save', secondary);
+    await emit('BibleViewer', 'share', secondary);
+    assert.equal(r.writes.length, writes); assert.equal(shared.length, 2);
+    await view.state.handleBookSelect('exo', 2); await settled();
+    await emit('BibleViewer', 'highlight-save', primary);
+    await emit('BibleViewer', 'share', primary);
+    assert.equal(r.writes.filter(([path]) => path.includes('/highlights/')).length, 2);
+    assert.equal(shared.length, 2);
+  } finally {
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
+    else delete globalThis.navigator;
+  }
 });
 
 test('chapter navigation persists the old position exactly once and revisiting a book reuses its read records', { timeout: 10000 }, async t => {

@@ -106,6 +106,7 @@
       :primary-version-code="primaryVersionCode" :secondary-version-code="secondaryVersionCode"
       :is-secondary-loading="isSecondaryLoading"
       @version-select="(column, version) => $emit('compare-version-select', column, version)"
+      @pane-change="bibleViewerRef?.clearAllSelections()"
       @swap="handleCompareSwap">
     <template #primary>
     <BibleViewer
@@ -114,6 +115,7 @@
       :book="currentBookName"
       :chapter="currentChapter"
       :version="currentVersionName"
+      :secondary-version="compareEnabled ? secondaryVersionName : undefined"
       :is-loading="isLoading"
       :initial-scroll-position="scrollPosition"
       :highlights="highlights"

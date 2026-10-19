@@ -58,6 +58,13 @@ export const mergeCompareContent = (
 
   let sOtherIdx = 0
   const out: string[] = []
+  if (pChunks[0]?.verse !== null && sOthers.length > 0) {
+    out.push(
+      `<div class="verse-pair pair-heading"><div class="pair-primary"></div>` +
+      cell(sOthers[sOtherIdx++] ?? '') +
+      `</div>`,
+    )
+  }
   for (const c of pChunks) {
     if (c.verse !== null) {
       out.push(
