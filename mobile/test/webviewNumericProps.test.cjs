@@ -15,7 +15,7 @@ const test = require('node:test');
  */
 const NUMERIC_WEBVIEW_PROPS = ['decelerationRate'];
 
-const source = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx'), 'utf8');
 
 for (const prop of NUMERIC_WEBVIEW_PROPS) {
   test(`${prop} is passed as a number, not a string`, () => {

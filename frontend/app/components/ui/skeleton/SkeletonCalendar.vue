@@ -23,8 +23,8 @@ const props = withDefaults(defineProps<Props>(), {
     </div>
     
     <div class="grid grid-cols-7 gap-1 sm:gap-2">
-      <div v-for="i in weeks * 7" :key="`day-${i}`" class="aspect-square w-full">
-        <Skeleton width="100%" height="100%" rounded="md" />
+      <div v-for="i in weeks * 7" :key="`day-${i}`" class="relative aspect-square w-full">
+        <Skeleton class="absolute inset-0" width="100%" height="100%" rounded="md" />
       </div>
     </div>
   </div>

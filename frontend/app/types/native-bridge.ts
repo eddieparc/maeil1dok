@@ -48,6 +48,7 @@ export type NativeToWebViewEvent =
 declare global {
   interface Window {
     isReactNativeWebView?: boolean
+    nativePushManaged?: boolean
     __shellBetaMode?: boolean
     ReactNativeWebView?: {
       postMessage: (message: string) => void

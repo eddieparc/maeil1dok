@@ -17,6 +17,7 @@ import { reportInvoluntaryReauthIfMarked, useAuthService } from '~/composables/u
 import { useNavigationStore } from '~/stores/navigation';
 import { useRouter, useRoute } from 'vue-router';
 import { useToast } from '~/composables/useToast';
+import { useModal } from '~/composables/useModal';
 
 export function useAuthGuard() {
   const auth = useAuthService();
@@ -24,34 +25,65 @@ export function useAuthGuard() {
   const router = useRouter();
   const route = useRoute();
   const toast = useToast();
+  const modal = useModal();
+
+  const blockUnknownSession = (): boolean => {
+    if (!auth.isSessionUnknown.value) return false;
+    toast.warning('네트워크 연결을 확인한 후 다시 시도해주세요');
+    return true;
+  };
+
+  const redirectToLogin = (returnUrl: string): void => {
+    navigationStore.setRedirectUrl(returnUrl);
+    // A browser that was authenticated before and is being sent to the login
+    // screen without having asked to sign out is the shape the migration is
+    // trying to eliminate. Secondary signal only (see reauthMarker.ts).
+    reportInvoluntaryReauthIfMarked(true);
+    void router.push('/login');
+  };
 
   /**
    * 인증이 필요한 작업 전에 호출
    * @param message - 커스텀 메시지 (기본값: '로그인이 필요합니다')
-  * @returns true if authenticated, false if redirected to login
-  */
+   * @returns true if authenticated, false if redirected to login
+   */
   const requireAuth = (message: string = '로그인이 필요합니다'): boolean => {
-    if (auth.isSessionUnknown.value) {
-      toast.warning('네트워크 연결을 확인한 후 다시 시도해주세요');
-      return false;
-    }
+    if (blockUnknownSession()) return false;
+    if (auth.isAuthenticated.value) return true;
 
-    if (!auth.isAuthenticated.value) {
-      toast.info(message);
-      // 현재 페이지를 리다이렉트 URL로 저장 (로그인 후 복귀용)
-      navigationStore.setRedirectUrl(route.fullPath);
-      // A browser that was authenticated before and is being sent to the login
-      // screen without having asked to sign out is the shape the migration is
-      // trying to eliminate. Secondary signal only (see reauthMarker.ts).
-      reportInvoluntaryReauthIfMarked(true);
-      router.push('/login');
-      return false;
-    }
-    return true;
+    toast.info(message);
+    redirectToLogin(route.fullPath);
+    return false;
+  };
+
+  /**
+   * Keeps the protected action blocked while an opt-in consumer offers login.
+   * Confirmation navigates only after preserving the route captured at click time.
+   */
+  const requireAuthWithPrompt = async (message: string = '로그인이 필요합니다'): Promise<boolean> => {
+    if (blockUnknownSession()) return false;
+    if (auth.isAuthenticated.value) return true;
+
+    const returnUrl = route.fullPath;
+    const confirmed = await modal.confirm({
+      title: '로그인 필요',
+      description: message,
+      confirmText: '로그인',
+      cancelText: '취소',
+      icon: 'info',
+    });
+    if (!confirmed) return false;
+
+    // The originating guest action is never replayed after an async prompt.
+    // If another flow authenticated meanwhile, avoid redundant login navigation.
+    if (blockUnknownSession()) return false;
+    if (!auth.isAuthenticated.value) redirectToLogin(returnUrl);
+    return false;
   };
 
   return {
     requireAuth,
+    requireAuthWithPrompt,
     isAuthenticated: auth.isAuthenticated,
   };
 }

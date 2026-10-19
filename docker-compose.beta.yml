@@ -1,0 +1,47 @@
+# Separate project and image; only the Maeil1dok tunnel network is shared.
+name: maeil1dok-beta
+services:
+  frontend-beta:
+    image: maeil1dok-frontend-beta:${COMMIT_SHA:?COMMIT_SHA is required}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.beta
+      args:
+        COMMIT_SHA: ${COMMIT_SHA:?COMMIT_SHA is required}
+    env_file: /opt/maeil1dok/.env.frontend.oci
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      NUXT_PUBLIC_API_BASE: https://api.maeil1dok.app
+      NUXT_PUBLIC_BIBLE_CACHE_URL: https://api.maeil1dok.app
+      NUXT_INTERNAL_API_BASE: https://api.maeil1dok.app
+      NUXT_PUBLIC_SENTRY_DSN: ""
+      NUXT_PUBLIC_SENTRY_ENVIRONMENT: beta
+      NUXT_PUBLIC_SENTRY_RELEASE: ${COMMIT_SHA}
+      NUXT_PUBLIC_KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:?KAKAO_CLIENT_ID is required}
+      NUXT_PUBLIC_KAKAO_REDIRECT_URI: https://beta.maeil1dok.app/auth/kakao/callback
+      NUXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      NUXT_PUBLIC_GOOGLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/google/callback
+      NUXT_PUBLIC_APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:?APPLE_CLIENT_ID is required}
+      NUXT_PUBLIC_APPLE_REDIRECT_URI: https://beta.maeil1dok.app/auth/apple/callback
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    mem_limit: 700m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+    networks:
+      - maeil1dok
+networks:
+  maeil1dok:
+    external: true
+    name: maeil1dok_default

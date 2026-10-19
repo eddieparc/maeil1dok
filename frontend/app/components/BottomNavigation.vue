@@ -1,209 +1,190 @@
 <template>
-  <div class="bottom-nav-container">
-    <nav class="bottom-nav" aria-label="주요 메뉴">
-      <NuxtLink to="/" class="nav-item" :class="{ active: isActive('/') }">
-        <HomeIcon :size="24" />
-        <span>홈</span>
-      </NuxtLink>
-
-      <NuxtLink to="/bible" class="nav-item" :class="{ active: isActive('/bible') }">
-        <BookOpenIcon :size="24" />
-        <span>성경</span>
-      </NuxtLink>
-
-      <NuxtLink to="/scoreboard" class="nav-item" :class="{ active: isActive('/scoreboard') }">
-        <ListIcon :size="24" />
-        <span>랭킹</span>
-      </NuxtLink>
-
-      <NuxtLink to="/groups" class="nav-item" :class="{ active: isActive('/groups') }">
-        <UsersIcon :size="24" />
-        <span>그룹</span>
-      </NuxtLink>
-
-      <NuxtLink 
-        v-if="user" 
-        :to="`/profile/${user.id}`" 
-        class="nav-item" 
-        :class="{ active: isActive('/profile') }"
-      >
-        <UserIcon :size="24" />
-        <span>프로필</span>
-      </NuxtLink>
-
-      <button 
-        v-else 
-        @click="navigateTo('/login')"
-        class="nav-item"
-      >
-        <LogInIcon :size="24" />
-        <span>로그인</span>
-      </button>
-    </nav>
+  <div class="bottom-nav-container" :data-density="density" :class="{ 'tabs-hidden': hidden }">
+    <div v-if="$slots.above" class="bottom-nav-above">
+      <slot name="above" />
+    </div>
+    <div class="bottom-nav-tabs" :class="{ 'is-hidden': hidden }" :inert="hidden" :aria-hidden="hidden || undefined">
+      <nav class="bottom-nav" aria-label="주요 메뉴">
+        <NuxtLink to="/" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive('/') }" :aria-current="isActive('/') ? 'page' : undefined">
+          <HouseIcon :size="22" :stroke-width="isActive('/') ? 2.2 : 2" aria-hidden="true" />
+          <span>홈</span>
+        </NuxtLink>
+        <NuxtLink to="/bible" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive('/bible') }" :aria-current="isActive('/bible') ? 'page' : undefined">
+          <BookOpenIcon :size="22" :stroke-width="isActive('/bible') ? 2.2 : 2" aria-hidden="true" />
+          <span>성경</span>
+        </NuxtLink>
+        <NuxtLink v-slot="{ href, navigate }" to="/plan" custom>
+          <a :href="href" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive('/plan') }" :aria-current="isActive('/plan') ? 'page' : undefined" @click="onPlanClick($event, navigate)">
+            <CalendarIcon :size="22" :stroke-width="isActive('/plan') ? 2.2 : 2" aria-hidden="true" />
+            <span>통독표</span>
+          </a>
+        </NuxtLink>
+        <NuxtLink to="/groups" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive('/groups') }" :aria-current="isActive('/groups') ? 'page' : undefined">
+          <UsersIcon :size="22" :stroke-width="isActive('/groups') ? 2.2 : 2" aria-hidden="true" />
+          <span>함께</span>
+        </NuxtLink>
+        <NuxtLink :to="profileLink" class="nav-item" :tabindex="hidden ? -1 : undefined" :class="{ active: isActive(profileLink) }" :aria-current="isActive(profileLink) ? 'page' : undefined">
+          <UserIcon :size="22" :stroke-width="isActive(profileLink) ? 2.2 : 2" aria-hidden="true" />
+          <span>내 정보</span>
+        </NuxtLink>
+      </nav>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { useAuthService } from '~/composables/useAuthService'
 import { computed } from 'vue'
-import { BookOpenIcon, HomeIcon, ListIcon, LogInIcon, UserIcon, UsersIcon } from '@lucide/vue'
+import { BookOpenIcon, CalendarIcon, HouseIcon, UserIcon, UsersIcon } from '@lucide/vue'
+import { useAuthService } from '~/composables/useAuthService'
+
+const props = defineProps({
+  density: {
+    type: String,
+    default: 'standard',
+    validator: (value) => ['standard', 'reader'].includes(value)
+  },
+  hidden: { type: Boolean, default: false },
+  interceptPlan: { type: Boolean, default: false }
+})
+const emit = defineEmits(['plan'])
+
+const onPlanClick = (event, navigate) => {
+  if (props.interceptPlan && !event.defaultPrevented && event.button === 0 &&
+      !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+    event.preventDefault()
+    emit('plan')
+    return
+  }
+  return navigate(event)
+}
 
 const route = useRoute()
-const router = useRouter()
-const auth = useAuthService()
-const user = computed(() => auth.user.value)
+const { user } = useAuthService()
+const profileLink = computed(() => user.value ? `/profile/${user.value.id}` : '/login')
 
-const isActive = (path) => {
-  if (path === '/') {
-    return route.path === '/'
-  }
-  return route.path.startsWith(path)
-}
+const isActive = (path) => route.path === path || (path !== '/' && route.path.startsWith(`${path}/`))
 </script>
 
 <style scoped>
 .bottom-nav-container {
+  --mobile-nav-content-height: calc(var(--tabbar-height) - 24px);
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--color-bg-card);
-  border-top: 1px solid var(--color-slate-200);
+  inset: auto 0 0;
   z-index: 100;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  display: block;
+  pointer-events: none;
 }
 
-:global(.native-app) .bottom-nav-container {
-  padding-bottom: var(--native-bottom-inset, 0px);
+.bottom-nav-container[data-density="reader"] {
+  --mobile-nav-content-height: calc(var(--tabbar-reader-height, 80px) - 24px);
 }
 
-/* Desktop: Hide bottom navigation on very large screens */
-@media (min-width: 1367px) {
-  .bottom-nav-container {
-    display: none;
-  }
+.bottom-nav-container[data-density="reader"] .bottom-nav-tabs {
+  background: color-mix(in srgb, var(--color-bg-card) 96%, transparent);
+  backdrop-filter: blur(12px);
 }
 
-/* 하단 네비게이션이 있을 때 페이지 컨텐츠에 여백 추가 */
-@media (max-width: 1366px) {
-  body {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom));
-  }
+.bottom-nav-container[data-density="reader"].tabs-hidden:has(.bottom-nav-above) {
+  /* Tabs are gone — reserve only the real device inset, not the 24px design
+     floor, so the floating bar sits at the edge without dead space. */
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px));
+}
+
+.bottom-nav-above {
+  position: relative;
+  max-width: 768px;
+  margin: 0 auto;
+  pointer-events: auto;
+}
+
+.bottom-nav-tabs {
+  box-sizing: border-box;
+  height: calc(var(--mobile-nav-content-height) + var(--mobile-nav-safe-inset));
+  overflow: hidden;
+  background: var(--color-bg-card);
+  box-shadow: inset 0 1px var(--color-border-default);
+  padding-bottom: var(--mobile-nav-safe-inset);
+  pointer-events: auto;
+  transition: height var(--duration-standard, 250ms) ease, padding-bottom var(--duration-standard, 250ms) ease, opacity var(--duration-standard, 250ms) ease;
+}
+
+.bottom-nav-tabs.is-hidden {
+  height: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .bottom-nav {
   display: flex;
-  justify-content: space-around;
-  align-items: center;
-  height: 60px;
-  padding: 0 0.5rem;
-  max-width: 100%;
+  align-items: flex-start;
+  box-sizing: border-box;
+  height: var(--mobile-nav-content-height);
+  max-width: 768px;
   margin: 0 auto;
-}
-
-/* Tablet: Larger bottom nav with max-width */
-@media (min-width: 768px) {
-  .bottom-nav {
-    height: 70px;
-    padding: 0 1rem;
-    max-width: 900px;
-  }
-}
-
-/* Tablet Large: Even larger with increased max-width */
-@media (min-width: 1024px) {
-  .bottom-nav {
-    height: 80px;
-    padding: 0 1.5rem;
-    max-width: 1200px;
-  }
+  padding: 6px 8px 0;
 }
 
 .nav-item {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
-  flex: 1;
+  gap: 4px;
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
   height: 100%;
-  color: var(--text-secondary);
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-control);
   text-decoration: none;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  background: none;
-  border: none;
-  font-family: inherit;
-  -webkit-tap-highlight-color: transparent;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: var(--tracking-body);
+  transition: color var(--duration-micro) ease, background-color var(--duration-micro) ease, transform var(--duration-micro) ease;
 }
 
-.nav-item:active {
-  transform: scale(0.95);
+.nav-item:hover {
+  background: var(--color-bg-hover);
 }
 
 .nav-item.active {
-  color: var(--primary-color);
+  color: var(--color-accent-primary);
+  font-weight: 600;
 }
 
-.nav-item svg {
-  width: 24px;
-  height: 24px;
-  transition: all 0.2s ease;
+.nav-item:active {
+  transform: scale(.97);
 }
 
-.nav-item.active svg {
-  transform: scale(1.1);
+.nav-item:focus-visible {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--color-accent-primary);
 }
 
-.nav-item span {
-  font-size: 0.7rem;
-  font-weight: 500;
-}
-
-/* Tablet: Larger icons and text */
-@media (min-width: 768px) {
-  .nav-item svg {
-    width: 28px;
-    height: 28px;
-  }
-
-  .nav-item span {
-    font-size: 0.8125rem;
-  }
-
-  .nav-item {
-    gap: 0.375rem;
-  }
-
-  body {
-    padding-bottom: calc(70px + env(safe-area-inset-bottom)) !important;
-  }
-}
-
-/* Tablet Large: Even larger icons and text */
 @media (min-width: 1024px) {
-  .nav-item svg {
-    width: 32px;
-    height: 32px;
+  .bottom-nav-container {
+    left: var(--sidebar-width);
   }
 
-  .nav-item span {
-    font-size: 0.9375rem;
+  .bottom-nav-container[data-density="reader"].tabs-hidden:has(.bottom-nav-above) {
+    padding-bottom: 0;
   }
 
-  .nav-item {
-    gap: 0.5rem;
-  }
-
-  body {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+  .bottom-nav-tabs {
+    display: none;
   }
 }
 
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .bottom-nav-container {
-    padding-bottom: env(safe-area-inset-bottom);
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-tabs,
+  .nav-item {
+    transition: none;
+  }
+
+  .nav-item:active {
+    transform: none;
   }
 }
 </style>

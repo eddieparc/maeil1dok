@@ -1,5 +1,6 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -81,8 +82,7 @@ class AchievementFixtureMixin:
         )
 
     def _update_stats_with_fixed_today(self, user=None):
-        with patch("accounts.services.achievement_service.timezone") as mock_timezone:
-            mock_timezone.now.return_value.date.return_value = self.FIXED_DATE
+        with patch.object(AchievementService, "_local_today", return_value=self.FIXED_DATE):
             return AchievementService.update_user_stats(user or self.user)
 
 
@@ -140,8 +140,7 @@ class UpdateUserStatsStreakTest(AchievementFixtureMixin, TestCase):
         self.assertEqual(profile.longest_streak, 2)
 
     def _current_streak_with_fixed_today(self, user=None):
-        with patch("accounts.services.achievement_service.timezone") as mock_timezone:
-            mock_timezone.now.return_value.date.return_value = self.FIXED_DATE
+        with patch.object(AchievementService, "_local_today", return_value=self.FIXED_DATE):
             return AchievementService._calculate_current_streak(user or self.user)
 
     def test_current_streak_uses_constant_queries_regardless_of_streak_length(self):
@@ -153,6 +152,23 @@ class UpdateUserStatsStreakTest(AchievementFixtureMixin, TestCase):
             streak = self._current_streak_with_fixed_today()
 
         self.assertEqual(streak, 40)
+
+    def test_current_streak_uses_asia_seoul_date_when_utc_is_previous_day(self):
+        # Docker TZ=UTC + USE_TZ=False 이면 timezone.now().date() 가 KST 오전 9시 전에 하루가 된다.
+        # 서울 7/10 08:00 == UTC 7/09 23:00 이어도 연속 2일이어야 한다.
+        self._complete(0)
+        self._complete(-1)
+        utc = datetime(2026, 7, 9, 23, 0, tzinfo=ZoneInfo("UTC"))
+
+        class FrozenDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return utc.astimezone(tz) if tz is not None else utc.replace(tzinfo=None)
+
+        with patch("accounts.services.achievement_service.datetime", FrozenDateTime):
+            streak = AchievementService._calculate_current_streak(self.user)
+
+        self.assertEqual(streak, 2)
 
     def test_current_streak_query_count_matches_short_and_long_runs(self):
         # Scale invariance: a single-day streak and a 30-day streak both

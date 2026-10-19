@@ -45,6 +45,9 @@ class NotificationApiTest(TransactionTestCase):
     HASENA_URL = '/api/v1/todos/hasena/update/'
 
     def setUp(self):
+        self.today = date(2026, 3, 2)
+        self.enterContext(patch('django.utils.timezone.now', return_value=datetime(2026, 3, 2, 20)))
+        self.enterContext(patch('todos.tasks.deliver_notification_push_task.delay'))
         self.reader = User.objects.create_user(
             username='reader',
             nickname='말씀독자',
@@ -61,18 +64,18 @@ class NotificationApiTest(TransactionTestCase):
         self.subscription = PlanSubscription.objects.create(
             user=self.friend,
             plan=self.plan,
-            start_date=date.today() - timedelta(days=1),
+            start_date=self.today - timedelta(days=1),
             is_active=True,
         )
         PlanSubscription.objects.create(
             user=self.reader,
             plan=self.plan,
-            start_date=date.today() - timedelta(days=1),
+            start_date=self.today - timedelta(days=1),
             is_active=True,
         )
         self.schedule = DailyBibleSchedule.objects.create(
             plan=self.plan,
-            date=date.today(),
+            date=self.today,
             book='창세기',
             start_chapter=1,
             end_chapter=2,
@@ -88,11 +91,11 @@ class NotificationApiTest(TransactionTestCase):
                 'reading_reminders_enabled': True,
                 'hasena_reminders_enabled': True,
                 'friend_activity_enabled': True,
-                'reading_reminder_time': time(0, 0),
-                'hasena_reminder_time': time(0, 0),
+                'reading_reminder_time': time(20, 0),
+                'hasena_reminder_time': time(20, 0),
             },
         )
-        HasenaRecord.objects.create(user=self.reader, date=date.today(), is_completed=False)
+        HasenaRecord.objects.create(user=self.reader, date=self.today, is_completed=False)
 
         friend_client = APIClient()
         friend_client.force_authenticate(user=self.friend)
@@ -104,7 +107,7 @@ class NotificationApiTest(TransactionTestCase):
         self.assertEqual(reading_response.status_code, 200, reading_response.data)
 
         hasena_response = friend_client.post(self.HASENA_URL, {
-            'date': date.today().isoformat(),
+            'date': self.today.isoformat(),
             'is_completed': True,
         }, format='json')
         self.assertEqual(hasena_response.status_code, 200, hasena_response.data)
@@ -134,9 +137,9 @@ class NotificationApiTest(TransactionTestCase):
                 'timezone': 'Asia/Seoul',
             },
         )
-        HasenaRecord.objects.create(user=self.reader, date=date.today(), is_completed=False)
+        HasenaRecord.objects.create(user=self.reader, date=self.today, is_completed=False)
 
-        before_due = datetime.combine(date.today(), time(19, 59))
+        before_due = datetime.combine(self.today, time(19, 59))
         with patch('todos.services.notifications._local_now', return_value=before_due):
             early_response = self.client.get(self.INBOX_URL)
 
@@ -146,7 +149,7 @@ class NotificationApiTest(TransactionTestCase):
             for item in early_response.data['notifications']
         })
 
-        after_due = datetime.combine(date.today(), time(20, 0))
+        after_due = datetime.combine(self.today, time(20, 0))
         with patch('todos.services.notifications._local_now', return_value=after_due):
             due_response = self.client.get(self.INBOX_URL)
 
@@ -577,6 +580,8 @@ class NotificationPushApiTest(TestCase):
 )
 class NotificationPushDeliveryTest(TestCase):
     def setUp(self):
+        self.today = date(2026, 3, 2)
+        self.enterContext(patch('django.utils.timezone.now', return_value=datetime(2026, 3, 2, 20)))
         self.user = User.objects.create_user(
             username='delivery-reader',
             nickname='전송독자',
@@ -643,18 +648,18 @@ class NotificationPushDeliveryTest(TestCase):
         subscription = PlanSubscription.objects.create(
             user=self.user,
             plan=plan,
-            start_date=date.today(),
+            start_date=self.today,
             is_active=True,
         )
         DailyBibleSchedule.objects.create(
             plan=plan,
-            date=date.today(),
+            date=self.today,
             book='창세기',
             start_chapter=3,
             end_chapter=3,
         )
         settings = self.user.notification_settings
-        settings.reading_reminder_time = time(0, 0)
+        settings.reading_reminder_time = time(20, 0)
         settings.hasena_reminders_enabled = False
         settings.save()
 
@@ -665,7 +670,7 @@ class NotificationPushDeliveryTest(TestCase):
         self.assertTrue(Notification.objects.filter(
             recipient=self.user,
             type='reading_reminder',
-            dedupe_key=f'reading-reminder:{self.user.id}:{date.today().isoformat()}',
+            dedupe_key=f'reading-reminder:{self.user.id}:{self.today.isoformat()}',
         ).exists())
         self.assertEqual(subscription.progress.count(), 0)
 
@@ -677,12 +682,12 @@ class NotificationPushDeliveryTest(TestCase):
         PlanSubscription.objects.create(
             user=self.user,
             plan=plan,
-            start_date=date.today(),
+            start_date=self.today,
             is_active=True,
         )
         DailyBibleSchedule.objects.create(
             plan=plan,
-            date=date.today(),
+            date=self.today,
             book='창세기',
             start_chapter=1,
             end_chapter=1,
@@ -691,7 +696,7 @@ class NotificationPushDeliveryTest(TestCase):
         # Persist reminder config and an invalid IANA key together; ZoneInfo
         # raises ValueError for '..' rather than ZoneInfoNotFoundError.
         NotificationSettings.objects.filter(pk=settings.pk).update(
-            reading_reminder_time=time(0, 0),
+            reading_reminder_time=time(20, 0),
             hasena_reminders_enabled=False,
             timezone='..',
         )
@@ -705,7 +710,7 @@ class NotificationPushDeliveryTest(TestCase):
         self.assertTrue(Notification.objects.filter(
             recipient=self.user,
             type='reading_reminder',
-            dedupe_key=f'reading-reminder:{self.user.id}:{date.today().isoformat()}',
+            dedupe_key=f'reading-reminder:{self.user.id}:{self.today.isoformat()}',
         ).exists())
 
     def test_local_now_falls_back_for_invalid_timezone(self):
@@ -766,8 +771,8 @@ class NotificationReminderBatchQueryTest(TestCase):
             'notifications_enabled': True,
             'reading_reminders_enabled': True,
             'hasena_reminders_enabled': True,
-            'reading_reminder_time': time(0, 0),
-            'hasena_reminder_time': time(0, 0),
+            'reading_reminder_time': time(21, 0),
+            'hasena_reminder_time': time(21, 0),
             'timezone': 'Asia/Seoul',
         }
         defaults.update(overrides)
@@ -852,14 +857,16 @@ class NotificationReminderBatchQueryTest(TestCase):
         self.assertEqual(calls_many, 10)
 
     def test_second_tick_dedupes_without_eligibility_reads(self):
-        # Uses the real (naive) clock so real _create_notification can persist under USE_TZ=False.
         user = self._create_user('dedupe')
         settings = self._create_settings(user)
-        local_date = _local_now(settings).date()
+        local_date = self.SEOUL_LOCAL_DATE
         self._create_subscription_with_schedule(user, local_date, book='창세기', start_chapter=1)
         self._create_subscription_with_schedule(user, local_date, book='출애굽기', start_chapter=1)
 
-        with patch('todos.services.notifications._queue_push_delivery'):
+        with (
+            patch('todos.services.notifications._queue_push_delivery'),
+            patch('django.utils.timezone.now', return_value=datetime(2026, 7, 10, 21)),
+        ):
             first_created = send_due_reminder_notifications()
             self.assertEqual(first_created, 2)
             count_after_first = Notification.objects.count()
@@ -875,10 +882,12 @@ class NotificationReminderBatchQueryTest(TestCase):
         # UTC 16:00 → Seoul 2026-07-11 01:00 and Los Angeles 2026-07-10 09:00.
         fixed_now = datetime(2026, 7, 10, 16, 0, tzinfo=dt_timezone.utc)
         seoul_user = self._create_user('seoul')
-        self._create_settings(seoul_user, timezone='Asia/Seoul')
+        self._create_settings(seoul_user, timezone='Asia/Seoul',
+                              reading_reminder_time=time(1), hasena_reminder_time=time(1))
         self._create_subscription_with_schedule(seoul_user, date(2026, 7, 11))
         la_user = self._create_user('la')
-        self._create_settings(la_user, timezone='America/Los_Angeles')
+        self._create_settings(la_user, timezone='America/Los_Angeles',
+                              reading_reminder_time=time(9), hasena_reminder_time=time(9))
         self._create_subscription_with_schedule(la_user, date(2026, 7, 10))
 
         with (

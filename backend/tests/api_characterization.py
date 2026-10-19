@@ -108,6 +108,7 @@ def _parameter_value(route, parameter, fixture_ids):
             "bible-highlight-detail": "highlight",
             "schedule-detail": "daily_schedule",
             "plan-subscription-detail": "subscription",
+            "plan-subscription-summary": "subscription",
             "plan-subscription-toggle-active": "subscription",
             "video-intro-detail": "video_intro",
             "calendar-setting-detail": "calendar_setting",
@@ -188,6 +189,7 @@ def _queries(fixture_ids):
 def _payloads(fixture_ids):
     password = fixture_ids["password"]
     return {
+        "support-inquiry-create": {"kind": "other", "message": "Characterization support inquiry"},
         "token_obtain_pair": {"username": fixture_ids["owner_username"], "password": password},
         "login": {"username": fixture_ids["owner_username"], "password": password},
         "token_refresh": {"refresh": "invalid-characterization-refresh"},
@@ -209,6 +211,8 @@ def _payloads(fixture_ids):
             "nickname": "characterization-email-new",
         },
         "email_login": {"email": fixture_ids["owner_email"], "password": password},
+        "admin-member-actions": {"action": "revoke_sessions"},
+        "admin-member-bulk": {"ids": [fixture_ids["owner"]], "action": "revoke_sessions"},
         "unlink_social_account": {"provider": "kakao"},
         "set_password": {
             "current_password": password,

@@ -31,6 +31,9 @@ PASSWORD_HASHERS = [
 ]
 
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+# Enqueue at the real async boundary without reaching a shared Redis service.
+CELERY_BROKER_URL = 'memory://'
+CELERY_RESULT_BACKEND = 'cache+memory://'
 ROOT_URLCONF = 'config.test_urls'
 SECURE_SSL_REDIRECT = False
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']

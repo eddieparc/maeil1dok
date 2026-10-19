@@ -21,22 +21,16 @@
       <ToastHost />
     </ClientOnly>
 
-    <!-- Legacy Toast (마이그레이션 완료 후 제거 예정) -->
-    <Toast ref="legacyToast" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, provide } from 'vue'
-import Toast from '~/components/Toast.vue'
+import { ref } from 'vue'
 import ModalHost from '~/components/ui/modal/ModalHost.vue'
 import ToastHost from '~/components/ui/toast/ToastHost.vue'
 import EmailVerificationBanner from '~/components/auth/EmailVerificationBanner.vue'
 import SessionUnknownBanner from '~/components/auth/SessionUnknownBanner.vue'
 
-// Legacy toast 인스턴스 (마이그레이션 완료 후 제거 예정)
-const legacyToast = ref()
-provide('toast', legacyToast)
 
 // Auth initialization moved to plugins/auth-init.ts
 </script>

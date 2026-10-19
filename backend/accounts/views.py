@@ -13,7 +13,7 @@ from .serializers import (
     SocialLoginSerializer, EmailRegisterSerializer, LinkedAccountsSerializer,
     SetPasswordSerializer, PasswordResetConfirmSerializer,
     AccountEmailSerializer, CompleteSocialSignupSerializer,
-    NotificationSettingsSerializer
+    NotificationSettingsSerializer, LinkSocialAccountRequestSerializer
 )
 from .authentication import (
     SOCIAL_SIGNUP_COOKIE,
@@ -25,6 +25,7 @@ from .authentication import (
 )
 from .email_identity import normalize_email_identity
 from .models import SocialAccount, EmailVerificationToken, PasswordResetToken, UserReadingSettings
+from .oauth_redirects import InvalidOAuthRedirectURIError, resolve_oauth_redirect_uri
 from .visibility import is_live_user
 from . import handoff
 from .email_utils import send_verification_email, send_password_reset_email, send_welcome_email
@@ -238,7 +239,6 @@ def _create_email_user_with_default_subscription(email, password, nickname):
         )
         user.set_password(password)
         user.save(update_fields=['password'])
-        _create_default_subscription(user)
     return user
 
 
@@ -387,7 +387,6 @@ def register(request):
         try:
             with transaction.atomic():
                 user = serializer.save()
-                _create_default_subscription(user)
         except IntegrityError as exc:
             logger.warning(
                 "Legacy register failed during account creation: %s",
@@ -728,7 +727,6 @@ def complete_kakao_signup(request):
                 social_id=social_id,
                 profile_image=profile_image
             )
-            _create_default_subscription(user)
         
         tokens = get_tokens_for_user(user)
         logger.info("카카오 회원가입 및 토큰 발급 성공: user_id=%s", user.id)
@@ -872,8 +870,19 @@ def social_login_v2(request):
     provider = serializer.validated_data.get('provider')
     code = serializer.validated_data.get('code')
     access_token = serializer.validated_data.get('access_token')
-    # 앱에서 사용한 redirect_uri (웹과 다를 수 있음)
-    redirect_uri = serializer.validated_data.get('redirect_uri')
+    try:
+        redirect_uri = resolve_oauth_redirect_uri(
+            provider,
+            serializer.validated_data.get('redirect_uri'),
+        )
+    except InvalidOAuthRedirectURIError:
+        return _social_error(
+            '허용되지 않은 소셜 로그인 콜백 주소입니다.',
+            error_code='invalid_redirect_uri',
+            status_code=400,
+            field='redirect_uri',
+            action='restart_social_login',
+        )
     
     try:
         # 소셜 제공자별 사용자 정보 가져오기
@@ -1087,8 +1096,6 @@ def social_login_v2(request):
                     profile_image=profile_image,
                     extra_data=social_info if 'social_info' in dir() else {}
                 )
-
-                _create_default_subscription(user)
             
             tokens = get_tokens_for_user(user)
             response = Response({
@@ -1298,9 +1305,6 @@ def complete_social_signup(request):
                     email=email,
                     profile_image=profile_image
                 )
-                
-                # 기본 플랜 구독 생성
-                _create_default_subscription(user)
         except Exception:
             if signup_token:
                 release_signup_token(signup_token)
@@ -1486,7 +1490,10 @@ def issue_oauth_link_state(request):
     return Response({'state': generate_oauth_link_state(request.user)})
 
 
-@extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
+@extend_schema(
+    request=LinkSocialAccountRequestSerializer,
+    responses={200: openapi.AccountSuccessMessageResponseSerializer},
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def link_social_account(request):
@@ -1500,9 +1507,30 @@ def link_social_account(request):
     access_token = request.data.get('access_token')
     code = request.data.get('code')
     state = request.data.get('state')
+    requested_redirect_uri = request.data.get('redirect_uri')
     
     if not provider:
         return Response({'error': '소셜 제공자를 지정해주세요.'}, status=400)
+    if provider not in {'apple', 'google', 'kakao'}:
+        return Response({'error': '지원하지 않는 소셜 제공자입니다.'}, status=400)
+    if requested_redirect_uri is not None and not isinstance(requested_redirect_uri, str):
+        return _social_error(
+            '허용되지 않은 소셜 로그인 콜백 주소입니다.',
+            error_code='invalid_redirect_uri',
+            status_code=400,
+            field='redirect_uri',
+            action='restart_social_login',
+        )
+    try:
+        redirect_uri = resolve_oauth_redirect_uri(provider, requested_redirect_uri)
+    except InvalidOAuthRedirectURIError:
+        return _social_error(
+            '허용되지 않은 소셜 로그인 콜백 주소입니다.',
+            error_code='invalid_redirect_uri',
+            status_code=400,
+            field='redirect_uri',
+            action='restart_social_login',
+        )
     if not verify_oauth_link_state(state, user):
         return Response({'error': '유효하지 않은 계정 연결 요청입니다.'}, status=400)
     
@@ -1512,7 +1540,7 @@ def link_social_account(request):
             if access_token:
                 social_info = get_kakao_user_info_by_token(access_token)
             elif code:
-                social_info = get_kakao_user_info(code)
+                social_info = get_kakao_user_info(code, redirect_uri)
             else:
                 return Response({'error': 'access_token 또는 code가 필요합니다.'}, status=400)
             
@@ -1524,7 +1552,7 @@ def link_social_account(request):
             if access_token:
                 social_info = get_google_user_info_by_token(access_token)
             elif code:
-                social_info = get_google_user_info(code)
+                social_info = get_google_user_info(code, redirect_uri)
             else:
                 return Response({'error': 'access_token 또는 code가 필요합니다.'}, status=400)
             
@@ -1619,9 +1647,11 @@ def link_social_account(request):
 @extend_schema(responses={200: openapi.AccountSuccessMessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@transaction.atomic
 def unlink_social_account(request):
     """소셜 계정 연동 해제"""
-    user = request.user
+    # Share the staff unlink lock so concurrent requests cannot remove both methods.
+    user = User.objects.select_for_update().get(pk=request.user.pk)
     provider = request.data.get('provider')
     
     if not provider:
@@ -1690,6 +1720,9 @@ def logout_all_devices(request):
     user = request.user
     user.token_version += 1
     user.save(update_fields=['token_version'])
+    from todos.models import NativePushSubscription
+
+    NativePushSubscription.objects.filter(user=user, enabled=True).delete()
 
     # Bumping token_version revokes refresh tokens, but a handoff code already in
     # flight is stored in the cache and carries no token version, so it would
@@ -1927,19 +1960,7 @@ def get_google_user_info_by_token(access_token):
     return data
 
 
-def _create_default_subscription(user):
-    """기본 플랜 구독 생성"""
-    default_plan = BibleReadingPlan.objects.filter(is_default=True).first()
-    if default_plan:
-        PlanSubscription.objects.create(
-            user=user,
-            plan=default_plan,
-            start_date=timezone.now().date(),
-            is_active=True
-        )
-        logger.info("기본 플랜 구독 생성됨: user_id=%s", user.id)
-    else:
-        logger.warning("기본 플랜이 설정되어 있지 않음")
+
 
 
 def _first_serializer_error(errors):
@@ -2381,6 +2402,9 @@ def delete_account(request):
                 'scheduled_deletion_at', 
                 'token_version'
             ])
+            from todos.models import NativePushSubscription
+
+            NativePushSubscription.objects.filter(user=user, enabled=True).delete()
             
             logger.info(f"계정 삭제 요청: user_id={user.id}, scheduled_deletion_at={user.scheduled_deletion_at}")
         

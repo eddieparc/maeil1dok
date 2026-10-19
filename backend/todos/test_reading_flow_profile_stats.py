@@ -7,6 +7,7 @@ from django.urls import include, path
 from rest_framework.test import APIClient
 
 from accounts.models import UserAchievement
+from accounts.services.achievement_service import AchievementService
 from todos.models import BibleReadingPlan, DailyBibleSchedule, PlanSubscription, UserBibleProgress
 
 
@@ -54,8 +55,7 @@ class ReadingFlowProfileStatsTest(TestCase):
         )
 
     def _post(self, schedules, action):
-        with patch("accounts.services.achievement_service.timezone") as mock_timezone:
-            mock_timezone.now.return_value.date.return_value = self.FIXED_DATE
+        with patch.object(AchievementService, "_local_today", return_value=self.FIXED_DATE):
             return self.client.post(
                 self.READING_URL,
                 {

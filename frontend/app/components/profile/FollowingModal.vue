@@ -9,11 +9,12 @@
     @close="handleClose"
   >
     <template #action="{ user }">
-      <FollowButton
-        :is-following="true"
-        :is-loading="loadingIds[user.id]"
-        @click="handleUnfollow(user)"
-      />
+      <AppButton
+        variant="secondary"
+        size="sm"
+        :loading="loadingIds[user.id]"
+        @click.stop="handleUnfollow(user)"
+      >팔로잉</AppButton>
     </template>
   </UserListModal>
 </template>
@@ -21,7 +22,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import UserListModal from '../common/UserListModal.vue'
-import FollowButton from '../common/FollowButton.vue'
+import AppButton from '../ui/AppButton.vue'
 
 interface FollowingUser {
   id: number

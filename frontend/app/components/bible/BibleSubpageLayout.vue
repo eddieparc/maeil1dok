@@ -1,8 +1,8 @@
 <template>
   <div class="bible-page bible-subpage">
     <header class="bible-page-header">
-      <button class="bible-back-btn" @click="handleBack">
-        <ChevronLeftIcon :size="20" />
+      <button class="bible-back-btn" type="button" aria-label="뒤로 가기" @click="handleBack">
+        <ChevronLeftIcon :size="20" aria-hidden="true" />
       </button>
       <h1>{{ title }}</h1>
       <div class="bible-header-actions">

@@ -80,7 +80,8 @@ def notification_inbox(request):
 
 
 @extend_schema(methods=['GET'], responses={200: openapi.NotificationSettingsResponseSerializer})
-@extend_schema(methods=['PATCH'], responses={200: openapi.NotificationSettingsResponseSerializer})
+@extend_schema(methods=['PATCH'], request=NotificationSettingsSerializer,
+               responses={200: openapi.NotificationSettingsResponseSerializer})
 @api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def notification_settings(request):

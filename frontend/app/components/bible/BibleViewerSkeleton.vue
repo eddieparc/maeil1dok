@@ -1,6 +1,7 @@
 <template>
-  <div class="bible-skeleton-container">
-    <div v-for="i in verseCount" :key="i" class="skeleton-verse">
+  <div class="bible-skeleton-container" role="status" aria-busy="true">
+    <span class="sr-only">성경 본문을 불러오는 중</span>
+    <div v-for="i in verseCount" :key="i" class="skeleton-verse" aria-hidden="true">
       <Skeleton
         class="skeleton-number"
         width="var(--verse-number-size)"
@@ -58,7 +59,6 @@ const getLineWidth = (index: number, lineIndex: number): string => {
   flex-direction: column;
   gap: 1rem;
   width: 100%;
-  animation: fadeIn 0.5s ease-out;
 }
 
 .skeleton-verse {
@@ -87,11 +87,6 @@ const getLineWidth = (index: number, lineIndex: number): string => {
 
 .skeleton-line {
   border-radius: 4px;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 /* Responsive adjustments */

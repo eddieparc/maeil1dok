@@ -85,6 +85,15 @@ class SocialLoginSerializer(serializers.Serializer):
     user_name = serializers.CharField(required=False, allow_blank=True, max_length=200)
 
 
+class LinkSocialAccountRequestSerializer(serializers.Serializer):
+    provider = serializers.ChoiceField(choices=("apple", "google", "kakao"))
+    state = serializers.CharField()
+    code = serializers.CharField(required=False, allow_blank=True)
+    access_token = serializers.CharField(required=False, allow_blank=True)
+    id_token = serializers.CharField(required=False, allow_blank=True)
+    redirect_uri = serializers.URLField(required=False, allow_blank=True)
+
+
 class CompleteSocialSignupSerializer(serializers.Serializer):
     nickname = serializers.CharField(min_length=2, max_length=20)
     signup_token = serializers.CharField(required=False, allow_blank=True)
@@ -425,6 +434,7 @@ class NotificationSettingsSerializer(serializers.Serializer):
 class ReadingSettingsSerializer(serializers.ModelSerializer):
     font_size = serializers.IntegerField(min_value=14, max_value=24)
     line_height = serializers.FloatField(min_value=1.4, max_value=2.4)
+    audio_playback_rate = serializers.FloatField(min_value=0.5, max_value=2.0)
 
     class Meta:
         model = UserReadingSettings
@@ -442,4 +452,5 @@ class ReadingSettingsSerializer(serializers.ModelSerializer):
             'highlight_names',
             'show_footnotes',
             'tongdok_auto_complete',
+            'audio_playback_rate',
         ]

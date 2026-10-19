@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "covered_route_count": 195,
+    "covered_route_count": 207,
     "excluded_route_count": 23,
     "personas": [
       "anonymous",
       "owner",
       "non_owner"
     ],
-    "route_count": 218,
+    "route_count": 230,
     "schema_version": 1
   },
   "excluded": {
@@ -1090,6 +1090,7 @@
           "shape": {
             "data": {
               "settings": {
+                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -1114,6 +1115,7 @@
           "shape": {
             "data": {
               "settings": {
+                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -1147,6 +1149,7 @@
           "shape": {
             "data": {
               "settings": {
+                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -1171,6 +1174,7 @@
           "shape": {
             "data": {
               "settings": {
+                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -1526,6 +1530,111 @@
             "user": "<id>"
           },
           "status": 200
+        }
+      }
+    },
+    "api/v1/admin/members/": {
+      "method": "GET",
+      "name": "admin-member-list",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/<int:user_id>/": {
+      "method": "GET",
+      "name": "admin-member-detail",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/<int:user_id>/actions/": {
+      "method": "POST",
+      "name": "admin-member-actions",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/<int:user_id>/activity/": {
+      "method": "GET",
+      "name": "admin-member-activity",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/bulk/": {
+      "method": "POST",
+      "name": "admin-member-bulk",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/export.csv": {
+      "method": "GET",
+      "name": "admin-member-export",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
+        }
+      }
+    },
+    "api/v1/admin/members/stats/": {
+      "method": "GET",
+      "name": "admin-member-stats",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 403
+        },
+        "owner": {
+          "status": 403
         }
       }
     },
@@ -2514,6 +2623,7 @@
           "shape": {
             "data": {
               "settings": {
+                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -2538,6 +2648,7 @@
           "shape": {
             "data": {
               "settings": {
+                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -2571,6 +2682,7 @@
           "shape": {
             "data": {
               "settings": {
+                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -2595,6 +2707,7 @@
           "shape": {
             "data": {
               "settings": {
+                "audio_playback_rate": "<number>",
                 "font_family": "<string>",
                 "font_size": "<integer>",
                 "font_weight": "<string>",
@@ -3154,6 +3267,21 @@
             }
           },
           "status": 200
+        }
+      }
+    },
+    "api/v1/support/inquiries/": {
+      "method": "POST",
+      "name": "support-inquiry-create",
+      "personas": {
+        "anonymous": {
+          "status": 201
+        },
+        "non_owner": {
+          "status": 201
+        },
+        "owner": {
+          "status": 201
         }
       }
     },
@@ -6585,12 +6713,26 @@
               "type": "list"
             },
             "settings": {
+              "daily_push_limit": "<integer>",
               "friend_activity_enabled": "<boolean>",
               "hasena_reminder_time": "<string>",
               "hasena_reminders_enabled": "<boolean>",
               "notifications_enabled": "<boolean>",
+              "paused_until": "<null>",
+              "quiet_hours_enabled": "<boolean>",
+              "quiet_hours_end": "<string>",
+              "quiet_hours_start": "<string>",
               "reading_reminder_time": "<string>",
               "reading_reminders_enabled": "<boolean>",
+              "reminder_weekdays": {
+                "element_shapes": [
+                  "<integer>"
+                ],
+                "length": 7,
+                "type": "list"
+              },
+              "streak_reminder_time": "<string>",
+              "streak_reminders_enabled": "<boolean>",
               "timezone": "<string>"
             },
             "success": "<boolean>",
@@ -6621,12 +6763,26 @@
               "type": "list"
             },
             "settings": {
+              "daily_push_limit": "<integer>",
               "friend_activity_enabled": "<boolean>",
               "hasena_reminder_time": "<string>",
               "hasena_reminders_enabled": "<boolean>",
               "notifications_enabled": "<boolean>",
+              "paused_until": "<null>",
+              "quiet_hours_enabled": "<boolean>",
+              "quiet_hours_end": "<string>",
+              "quiet_hours_start": "<string>",
               "reading_reminder_time": "<string>",
               "reading_reminders_enabled": "<boolean>",
+              "reminder_weekdays": {
+                "element_shapes": [
+                  "<integer>"
+                ],
+                "length": 7,
+                "type": "list"
+              },
+              "streak_reminder_time": "<string>",
+              "streak_reminders_enabled": "<boolean>",
               "timezone": "<string>"
             },
             "success": "<boolean>",
@@ -6716,6 +6872,51 @@
         }
       }
     },
+    "api/v1/todos/notifications/push/native/": {
+      "method": "POST",
+      "name": "notification-native-register",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 400
+        },
+        "owner": {
+          "status": 400
+        }
+      }
+    },
+    "api/v1/todos/notifications/push/native/remove/": {
+      "method": "POST",
+      "name": "notification-native-remove",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 400
+        },
+        "owner": {
+          "status": 400
+        }
+      }
+    },
+    "api/v1/todos/notifications/push/native/status/": {
+      "method": "POST",
+      "name": "notification-native-status",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 400
+        },
+        "owner": {
+          "status": 400
+        }
+      }
+    },
     "api/v1/todos/notifications/push/subscriptions/": {
       "method": "POST",
       "name": "notification-push-register",
@@ -6774,12 +6975,26 @@
         "non_owner": {
           "shape": {
             "settings": {
+              "daily_push_limit": "<integer>",
               "friend_activity_enabled": "<boolean>",
               "hasena_reminder_time": "<string>",
               "hasena_reminders_enabled": "<boolean>",
               "notifications_enabled": "<boolean>",
+              "paused_until": "<null>",
+              "quiet_hours_enabled": "<boolean>",
+              "quiet_hours_end": "<string>",
+              "quiet_hours_start": "<string>",
               "reading_reminder_time": "<string>",
               "reading_reminders_enabled": "<boolean>",
+              "reminder_weekdays": {
+                "element_shapes": [
+                  "<integer>"
+                ],
+                "length": 7,
+                "type": "list"
+              },
+              "streak_reminder_time": "<string>",
+              "streak_reminders_enabled": "<boolean>",
               "timezone": "<string>"
             },
             "success": "<boolean>"
@@ -6789,12 +7004,26 @@
         "owner": {
           "shape": {
             "settings": {
+              "daily_push_limit": "<integer>",
               "friend_activity_enabled": "<boolean>",
               "hasena_reminder_time": "<string>",
               "hasena_reminders_enabled": "<boolean>",
               "notifications_enabled": "<boolean>",
+              "paused_until": "<null>",
+              "quiet_hours_enabled": "<boolean>",
+              "quiet_hours_end": "<string>",
+              "quiet_hours_start": "<string>",
               "reading_reminder_time": "<string>",
               "reading_reminders_enabled": "<boolean>",
+              "reminder_weekdays": {
+                "element_shapes": [
+                  "<integer>"
+                ],
+                "length": 7,
+                "type": "list"
+              },
+              "streak_reminder_time": "<string>",
+              "streak_reminders_enabled": "<boolean>",
               "timezone": "<string>"
             },
             "success": "<boolean>"
@@ -6875,6 +7104,26 @@
             "plan_id": "<id>",
             "plan_name": "<string>",
             "start_date": "<date>"
+          },
+          "status": 200
+        }
+      }
+    },
+    "api/v1/todos/plan/<int:pk>/summary/": {
+      "method": "GET",
+      "name": "plan-subscription-summary",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 404
+        },
+        "owner": {
+          "shape": {
+            "completed_days": "<integer>",
+            "percent": "<number>",
+            "total_days": "<integer>"
           },
           "status": 200
         }
@@ -7629,6 +7878,7 @@
       "personas": {
         "anonymous": {
           "shape": {
+            "end_date": "<date>",
             "plan_name": "<string>",
             "success": "<boolean>",
             "theoretical_progress": "<number>",
@@ -7638,6 +7888,7 @@
         },
         "non_owner": {
           "shape": {
+            "end_date": "<date>",
             "plan_name": "<string>",
             "success": "<boolean>",
             "theoretical_progress": "<number>",
@@ -7647,6 +7898,7 @@
         },
         "owner": {
           "shape": {
+            "end_date": "<date>",
             "plan_name": "<string>",
             "success": "<boolean>",
             "theoretical_progress": "<number>",

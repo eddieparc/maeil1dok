@@ -1,6 +1,6 @@
 <template>
   <PageLayout title="앱 설치 방법" fallback-path="/">
-    <div class="content-section fade-in" style="animation-delay: 0.2s">
+    <div class="install-content">
       <PWAInstallGuide />
     </div>
   </PageLayout>
@@ -9,6 +9,7 @@
 <script setup>
 import { useHead } from '#imports'
 import PageLayout from '~/components/common/PageLayout.vue'
+import PWAInstallGuide from '~/components/PWAInstallGuide.vue'
 
 useHead({
   title: '앱 설치 방법 - 매일일독',
@@ -29,26 +30,6 @@ useHead({
 </script>
 
 <style scoped>
-.content-section {
-  background: white;
-  margin: 1rem;
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.fade-in {
-  opacity: 0;
-  animation: fadeIn 0.4s ease-out forwards;
-}
+.install-content { padding: 20px var(--screen-gutter) 32px; }
+@media (min-width: 1024px) { .install-content { padding-block: 32px 40px; } }
 </style>

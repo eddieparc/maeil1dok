@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import BaseSkeleton from '~/components/ui/Skeleton.vue'
 
 interface Props {
-  width?: string
-  height?: string
+  width?: string | number
+  height?: string | number
+  radius?: string | number
+  circle?: boolean
   rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
   class?: string
 }
@@ -14,23 +16,15 @@ const props = withDefaults(defineProps<Props>(), {
   rounded: 'md',
   class: ''
 })
-
-const roundedClass = computed(() => {
-  const map: Record<string, string> = {
-    sm: 'rounded-[4px]',
-    md: 'rounded-[8px]',
-    lg: 'rounded-[12px]',
-    xl: 'rounded-[16px]',
-    full: 'rounded-full'
-  }
-  return map[props.rounded] || 'rounded-[8px]'
-})
 </script>
 
 <template>
-  <div
-    aria-hidden="true"
-    :class="['skeleton-shimmer', roundedClass, props.class]"
-    :style="{ width, height }"
-  ></div>
+  <BaseSkeleton
+    :width="width"
+    :height="height"
+    :radius="radius"
+    :circle="circle"
+    :rounded="rounded"
+    :class="props.class"
+  />
 </template>

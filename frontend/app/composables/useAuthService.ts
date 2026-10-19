@@ -5,6 +5,8 @@
  */
 
 import { computed, readonly } from 'vue'
+import { isNativePushDevice, requestNativePushState } from '../utils/nativePushBridge'
+import { readCsrfToken, storeCsrfToken } from './csrfCookie'
 import {
   fetchInitialAuthUser,
   fetchUserWithRefreshPolicy,
@@ -85,21 +87,14 @@ function getBaseUrl(): string {
   return config.public.apiBase as string
 }
 
-const CSRF_TOKEN_KEY = 'csrfToken'
-
 function getCsrfToken(): string | null {
   if (typeof window === 'undefined') return null
-  
-  const storedToken = localStorage.getItem(CSRF_TOKEN_KEY)
-  if (storedToken) return storedToken
-  
-  const match = document.cookie.match(/csrftoken=([^;]+)/)
-  return match?.[1] ?? null
+  return readCsrfToken(useRuntimeConfig().public.csrfCookieName)
 }
 
 function saveCsrfToken(token: string): void {
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(CSRF_TOKEN_KEY, token)
+    storeCsrfToken(token, useRuntimeConfig().public.csrfCookieName)
   }
 }
 
@@ -277,12 +272,26 @@ export function useAuthService() {
 
   async function performLogout(): Promise<void> {
     stopRefreshTimer()
+    // Stop pending device registration before awaiting native or server replies.
+    _authState.value = 'unauthenticated'
+    let logoutBody: { installation_id: string } | undefined
+    if (isNativePushDevice()) {
+      try {
+        const device = await requestNativePushState(
+          window.nativePushManaged === true ? 'push:logout' : 'push:disable',
+        )
+        logoutBody = { installation_id: device.installationId }
+      } catch (error) {
+        // A missing shell response must not prevent the user from signing out.
+        console.warn('[AuthService] Native push identity unavailable on logout',
+          error instanceof Error ? error.name : 'UnknownError')
+      }
+    }
     
     // 로그아웃 API 호출 (3초 타임아웃 - 실패해도 클라이언트 상태는 반드시 정리)
-    await apiRequest('POST', '/api/v1/auth/logout/', undefined, { timeout: 3000 })
+    await apiRequest('POST', '/api/v1/auth/logout/', logoutBody, { timeout: 3000 })
 
     _user.value = null
-    _authState.value = 'unauthenticated'
     saveUserToStorage(null)
 
     if (import.meta.client && typeof window !== 'undefined') {
@@ -482,7 +491,7 @@ export function useAuthService() {
 
   async function loginWithSocial(
     provider: 'kakao' | 'google',
-    payload: { code?: string; access_token?: string }
+    payload: { code?: string; access_token?: string; redirect_uri?: string }
   ): Promise<SocialLoginResult> {
     try {
       const result = await apiRequest<{
@@ -623,8 +632,11 @@ export function useAuthService() {
     }
   }
 
-  async function socialLogin(provider: string, code: string): Promise<any> {
-    const result = await loginWithSocial(provider as 'kakao' | 'google', { code })
+  async function socialLogin(provider: string, code: string, redirectUri?: string): Promise<any> {
+    const result = await loginWithSocial(provider as 'kakao' | 'google', {
+      code,
+      redirect_uri: redirectUri,
+    })
     
     if (result.success) {
       return {

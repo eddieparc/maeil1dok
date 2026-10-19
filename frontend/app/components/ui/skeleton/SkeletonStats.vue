@@ -3,23 +3,25 @@ import Skeleton from './Skeleton.vue'
 
 interface Props {
   count?: number
+  announce?: boolean
   class?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   count: 3,
+  announce: true,
   class: ''
 })
 </script>
 
 <template>
   <div
-    role="status"
-    aria-busy="true"
-    :class="['grid gap-4 w-full', props.class]"
+    :role="announce ? 'status' : undefined"
+    :aria-busy="announce ? 'true' : undefined"
+    :class="['skeleton-stats grid gap-4 w-full', props.class]"
     :style="{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }"
   >
-    <span class="sr-only">로딩 중…</span>
+    <span v-if="announce" class="sr-only">통계를 불러오는 중</span>
     <div
       v-for="i in count"
       :key="i"
@@ -30,3 +32,11 @@ const props = withDefaults(defineProps<Props>(), {
     </div>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 479px) {
+  .skeleton-stats {
+    grid-template-columns: 1fr !important;
+  }
+}
+</style>

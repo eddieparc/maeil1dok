@@ -4,8 +4,10 @@
 - 프로필 통계 업데이트 (total_completed_days, current_streak, longest_streak)
 """
 
-from datetime import timedelta
-from django.utils import timezone
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+from django.conf import settings
 from django.db.models import Count
 
 from accounts.models import UserAchievement, UserProfile
@@ -102,9 +104,14 @@ class AchievementService:
         return profile
 
     @staticmethod
+    def _local_today():
+        """TIME_ZONE 달력 기준 오늘. 컨테이너 TZ=UTC 여도 서울 날짜를 쓴다."""
+        return datetime.now(ZoneInfo(settings.TIME_ZONE)).date()
+
+    @staticmethod
     def _calculate_current_streak(user):
         """현재 연속 일수 계산"""
-        today = timezone.now().date()
+        today = AchievementService._local_today()
         streak = 0
         current_date = today
 

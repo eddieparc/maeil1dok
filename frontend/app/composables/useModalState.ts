@@ -94,7 +94,7 @@ export function useModalState() {
 
     // beforeClose 체크
     const canClose = await instance.options.beforeClose()
-    if (!canClose) return
+    if (!canClose || !modalStack.value.some(modal => modal === instance)) return
 
     // resolve로 결과 전달 (저장소에서 가져오기)
     const resolver = resolvers.get(targetId)

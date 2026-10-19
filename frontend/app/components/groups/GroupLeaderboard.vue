@@ -212,7 +212,7 @@ watch(() => props.groupId, () => {
   padding: 1rem 0.5rem;
   background: var(--color-bg-card, white);
   border-radius: 12px;
-  border: 1px solid var(--color-slate-200, #E2E8F0);
+  border: 1px solid var(--color-slate-200, var(--color-border-default));
   position: relative;
   transition: transform 0.2s ease;
 }
@@ -261,8 +261,8 @@ watch(() => props.groupId, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-slate-100, #F1F5F9);
-  color: var(--color-slate-600, #475569);
+  background: var(--color-slate-100, var(--color-bg-secondary));
+  color: var(--color-slate-600, var(--color-text-secondary));
   font-weight: 600;
   font-size: 1rem;
 }
@@ -285,13 +285,13 @@ watch(() => props.groupId, () => {
 }
 
 .rank-1 .rank-badge { background: #F59E0B; }
-.rank-2 .rank-badge { background: #94A3B8; }
+.rank-2 .rank-badge { background: var(--color-text-tertiary); }
 .rank-3 .rank-badge { background: #B45309; }
 
 .top-name {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--color-slate-800, #1E293B);
+  color: var(--color-slate-800, var(--color-text-primary));
   margin: 0 0 0.375rem 0;
   text-align: center;
   white-space: nowrap;
@@ -311,20 +311,20 @@ watch(() => props.groupId, () => {
 .top-days {
   font-size: 0.8125rem;
   font-weight: 700;
-  color: var(--color-slate-800, #1E293B);
+  color: var(--color-slate-800, var(--color-text-primary));
   font-family: 'Pretendard', sans-serif;
 }
 
 .top-rate {
   font-size: 0.6875rem;
-  color: var(--color-slate-500, #64748B);
+  color: var(--color-slate-500, var(--color-text-secondary));
   font-weight: 500;
 }
 
 .top-streak {
   margin-top: 0.25rem;
   font-size: 0.6875rem;
-  color: var(--primary-color, #3B82F6);
+  color: var(--primary-color, var(--color-accent-primary));
   font-weight: 500;
 }
 
@@ -332,7 +332,7 @@ watch(() => props.groupId, () => {
 .table-wrapper {
   overflow-x: auto;
   background: var(--color-bg-card, white);
-  border: 1px solid var(--color-slate-200, #E2E8F0);
+  border: 1px solid var(--color-slate-200, var(--color-border-default));
   border-radius: 12px;
 }
 
@@ -346,9 +346,9 @@ watch(() => props.groupId, () => {
   text-align: left;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-slate-500, #64748B);
-  background: var(--color-slate-50, #F8FAFC);
-  border-bottom: 1px solid var(--color-slate-200, #E2E8F0);
+  color: var(--color-slate-500, var(--color-text-secondary));
+  background: var(--color-slate-50, var(--color-bg-primary));
+  border-bottom: 1px solid var(--color-slate-200, var(--color-border-default));
   white-space: nowrap;
 }
 
@@ -357,15 +357,15 @@ watch(() => props.groupId, () => {
 }
 
 .leaderboard-table tbody tr:hover {
-  background: var(--color-slate-50, #F8FAFC);
+  background: var(--color-slate-50, var(--color-bg-primary));
 }
 
 .leaderboard-table tbody tr:not(:last-child) td {
-  border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
+  border-bottom: 1px solid var(--color-slate-100, var(--color-bg-secondary));
 }
 
 .highlight-row {
-  background: var(--primary-light, #EFF6FF) !important;
+  background: var(--primary-light, var(--color-accent-bg)) !important;
 }
 
 .th-rank { width: 56px; text-align: center; }
@@ -384,8 +384,8 @@ watch(() => props.groupId, () => {
   min-width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--color-slate-100, #F1F5F9);
-  color: var(--color-slate-600, #475569);
+  background: var(--color-slate-100, var(--color-bg-secondary));
+  color: var(--color-slate-600, var(--color-text-secondary));
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -397,8 +397,8 @@ watch(() => props.groupId, () => {
 }
 
 .rank-number.silver {
-  background: linear-gradient(135deg, #E8E8E8, #C0C0C0);
-  color: #4A5568;
+  background: linear-gradient(135deg, var(--color-border-light), #C0C0C0);
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 
@@ -423,7 +423,7 @@ watch(() => props.groupId, () => {
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid var(--color-slate-200, #E2E8F0);
+  border: 1px solid var(--color-slate-200, var(--color-border-default));
   flex-shrink: 0;
 }
 
@@ -431,12 +431,12 @@ watch(() => props.groupId, () => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1px solid var(--color-slate-200, #E2E8F0);
+  border: 1px solid var(--color-slate-200, var(--color-border-default));
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-slate-100, #F1F5F9);
-  color: var(--color-slate-600, #475569);
+  background: var(--color-slate-100, var(--color-bg-secondary));
+  color: var(--color-slate-600, var(--color-text-secondary));
   font-weight: 600;
   font-size: 0.875rem;
   flex-shrink: 0;
@@ -445,20 +445,20 @@ watch(() => props.groupId, () => {
 .user-name {
   font-weight: 600;
   font-size: 0.875rem;
-  color: var(--text-primary, #1E293B);
+  color: var(--text-primary, var(--color-text-primary));
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 .user-name:hover {
-  color: var(--primary-color, #3B82F6);
+  color: var(--primary-color, var(--color-accent-primary));
 }
 
 .me-badge {
   display: inline-block;
   margin-left: 0.375rem;
   padding: 0.0625rem 0.375rem;
-  background: var(--primary-color, #3B82F6);
+  background: var(--primary-color, var(--color-accent-primary));
   color: white;
   font-size: 0.6875rem;
   font-weight: 600;
@@ -468,13 +468,13 @@ watch(() => props.groupId, () => {
 .user-role {
   margin: 0.125rem 0 0;
   font-size: 0.6875rem;
-  color: var(--text-secondary, #64748B);
+  color: var(--text-secondary, var(--color-text-secondary));
 }
 
 .days-count {
   font-weight: 600;
   font-size: 0.875rem;
-  color: var(--text-primary, #1E293B);
+  color: var(--text-primary, var(--color-text-primary));
 }
 
 .progress-wrapper {
@@ -487,28 +487,28 @@ watch(() => props.groupId, () => {
 .progress-bar {
   width: 64px;
   height: 6px;
-  background: var(--color-slate-200, #E2E8F0);
+  background: var(--color-slate-200, var(--color-border-default));
   border-radius: 3px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary-color, #3B82F6), var(--primary-dark, #2563EB));
+  background: linear-gradient(90deg, var(--primary-color, var(--color-accent-primary)), var(--primary-dark, var(--color-accent-primary)));
   transition: width 0.3s ease;
 }
 
 .progress-text {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-primary, #1E293B);
+  color: var(--text-primary, var(--color-text-primary));
   min-width: 38px;
 }
 
 .streak {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--primary-color, #3B82F6);
+  color: var(--primary-color, var(--color-accent-primary));
   padding: 0.75rem;
 }
 

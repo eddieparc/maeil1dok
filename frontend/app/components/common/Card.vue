@@ -1,6 +1,7 @@
 <template>
   <component
     :is="clickable ? 'button' : 'div'"
+    :type="clickable ? 'button' : undefined"
     class="card"
     :class="[variantClass, { 'card-clickable': clickable, 'card-elevated': elevated }]"
     @click="handleClick"
@@ -43,19 +44,18 @@ const handleClick = (event) => {
 
 <style scoped>
 .card {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  transition: all var(--transition-normal);
-  border: none;
+  box-sizing: border-box;
   width: 100%;
-  text-align: left;
-  color: var(--color-text-primary);
-}
-
-.card-default {
+  padding: var(--card-padding);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
   background: var(--color-bg-card);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  letter-spacing: var(--tracking-body);
+  text-align: left;
+  transition: box-shadow var(--duration-micro) ease, transform var(--duration-micro) ease;
 }
 
 .card-elevated {
@@ -63,67 +63,51 @@ const handleClick = (event) => {
 }
 
 .card-clickable {
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
   cursor: pointer;
 }
 
 .card-clickable:hover {
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-card-hover);
   transform: translateY(-2px);
 }
 
 .card-clickable:active {
-  transform: translateY(0);
+  transform: scale(0.97);
+}
+
+.card:focus-visible {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 2px;
+  border-color: var(--color-accent-primary);
 }
 
 .card-gradient {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  background: var(--color-accent-primary);
   color: var(--color-text-inverse);
-  box-shadow: var(--shadow-md);
 }
 
-.card-primary {
-  background: linear-gradient(135deg, var(--color-accent-primary-light) 0%, var(--color-bg-tertiary) 100%);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
-}
-
+.card-primary,
 .card-gold {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-  color: #8B4513;
-  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+  background: var(--color-accent-primary-light);
+  color: var(--color-accent-primary);
 }
 
-.card-silver {
-  background: linear-gradient(135deg, #E8E8E8 0%, #C0C0C0 100%);
-  color: #4A5568;
-  box-shadow: 0 4px 12px rgba(192, 192, 192, 0.3);
-}
-
+.card-silver,
 .card-bronze {
-  background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(205, 127, 50, 0.3);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
 }
 
-@media (max-width: 640px) {
+@media (prefers-reduced-motion: reduce) {
   .card {
-    padding: 1rem;
+    transition: none;
   }
-}
 
-/* Tablet: Increased padding and border radius */
-@media (min-width: 768px) {
-  .card {
-    padding: 1.75rem;
-    border-radius: 1rem;
-  }
-}
-
-/* Tablet Large: Even more padding */
-@media (min-width: 1024px) {
-  .card {
-    padding: 2rem;
-    border-radius: 1.25rem;
+  .card-clickable:hover,
+  .card-clickable:active {
+    transform: none;
   }
 }
 </style>

@@ -1,91 +1,133 @@
 <template>
-  <div class="bible-reader-view">
+  <div class="bible-reader-view" :class="{ 'tabs-hidden': tabsHidden }" :style="{ '--reader-controls-height': `${bottomControlsHeight}px` }">
     <!-- 헤더 -->
-    <header class="bible-header">
-      <div class="header-left-actions">
-        <button
-          class="bookmark-toggle-button"
-          :class="{ 'is-bookmarked': isBookmarked }"
-          @click="$emit('bookmark-toggle')"
-          :title="isBookmarked ? '북마크 삭제' : '북마크 추가'"
-          :aria-label="isBookmarked ? '북마크 삭제' : '북마크 추가'"
-        >
-          <BookmarkFilledIcon v-if="isBookmarked" :size="20" />
-          <BookmarkOutlineIcon v-else :size="20" />
-        </button>
+    <header class="bible-header" :class="{ 'has-extra-action': (isTongdokMode && tongdokGuideLink) || (isAuthenticated && !isTongdokMode) }">
+      <div class="header-title-group">
+        <div class="header-title-stack">
+          <button class="book-selector-trigger" type="button" @click="$emit('open-book-selector')">
+            <span class="book-chapter-text">
+              <span class="header-range">{{ headerRange }}</span>
+            </span>
+            <ChevronDownIcon class="selector-icon" :size="13" />
+          </button>
+          <div class="header-title-lines">
+            <button
+              v-if="isTongdokMode && tongdokPlanName"
+              class="header-plan-name"
+              type="button"
+              @click="$emit('reading-plan-click')"
+            >{{ tongdokPlanName }}</button>
+            <div class="header-context-row">
+              <button
+                v-if="headerContext"
+                class="header-context book-name-full"
+                :class="{ 'is-complete': isTongdokMode && isTongdokComplete }"
+                type="button"
+                @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')"
+              ><span v-if="isTongdokMode && isTongdokComplete" class="header-check" aria-hidden="true">✓</span>{{ headerContext }}</button>
+              <button
+                v-if="headerContextShort"
+                class="header-context book-name-short"
+                :class="{ 'is-complete': isTongdokMode && isTongdokComplete }"
+                type="button"
+                @click="isTongdokMode ? $emit('reading-plan-click') : $emit('open-book-selector')"
+              >{{ headerContextShort }}</button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <!-- 가운데 현재 위치 -->
-      <div class="book-selector-group">
-        <button class="book-selector-trigger" @click="$emit('open-book-selector')">
-          <span class="book-chapter-text book-name-full">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
-          <span class="book-chapter-text book-name-short">{{ shortBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
-        </button>
-      </div>
+      <span class="reader-scroll-progress" aria-hidden="true">
+        <span class="reader-scroll-progress-fill" :style="{ transform: `scaleX(${scrollFraction})` }"></span>
+      </span>
 
       <div class="header-actions">
+        <button
+          class="tab-toggle-button"
+          :class="{ 'is-on': tabBarVisible }"
+          type="button"
+          @click="$emit('toggle-tab-bar')"
+          title="탭"
+          aria-label="탭"
+          :aria-pressed="tabBarVisible"
+        >
+          탭
+        </button>
         <BibleSearchButton />
         <button
           v-if="tongdokAudioLink"
           class="header-icon-action"
+          data-testid="reader-audio"
+          :class="{ active: isTongdokAudioPlayerOpen }"
+          :aria-pressed="isTongdokAudioPlayerOpen"
           type="button"
           @click="$emit('audio-link-click', tongdokAudioLink)"
           title="오디오 플레이어"
           aria-label="오디오 플레이어"
         >
-          <HeadphonesIcon :size="18" />
+          <HeadphonesIcon :size="17" />
         </button>
-        <a
+        <button
           v-if="isTongdokMode && tongdokGuideLink"
-          :href="tongdokGuideLink"
-          target="_blank"
-          rel="noopener noreferrer"
+          type="button"
+          data-testid="reader-guide"
+          @click="$emit('guide-click', tongdokGuideLink)"
           class="header-icon-action"
           title="가이드"
           aria-label="가이드"
         >
-          <BookOpenIcon :size="18" />
-        </a>
+          <BookOpenIcon :size="17" />
+        </button>
         <BibleToolPopover
           :note-count="noteCount"
-          :show-bookmark-toggle="false"
+          :show-bookmark-toggle="true"
           :is-bookmarked="isBookmarked"
           :audio-link="null"
           :guide-link="null"
           @note-click="$emit('note-click')"
+          @share-click="$emit('share-click')"
           @open-settings="$emit('open-settings')"
+          @open-change="toolsOpen = $event"
           @reading-plan-click="$emit('reading-plan-click')"
           @bookmark-toggle="$emit('bookmark-toggle')"
           @audio-link-click="$emit('audio-link-click', $event)"
-          @audio-external-click="$emit('audio-external-click', $event)"
+          :is-tongdok-mode="isTongdokMode"
+          @exit-tongdok="$emit('exit-tongdok')"
         />
-        <!-- 통독모드 버튼 (로그인 사용자, 비통독 모드일 때) -->
-        <button
-          v-if="isAuthenticated && !isTongdokMode"
-          class="tongdok-mode-btn"
-          @click="$emit('today-tongdok')"
-          title="통독모드"
-        >
-          <CalendarCheckIcon :size="14" />
-          <span>통독모드</span>
-        </button>
       </div>
     </header>
 
+    <!-- 탭 바 (헤더 아래) -->
+    <slot name="tab-bar" />
+
     <!-- 성경 본문 뷰어 -->
+    <BibleCompareViewer
+      :enabled="compareEnabled"
+      :primary-version-name="currentVersionName" :secondary-version-name="secondaryVersionName || ''"
+      :primary-version-code="primaryVersionCode" :secondary-version-code="secondaryVersionCode"
+      :is-secondary-loading="isSecondaryLoading"
+      @version-select="(column, version) => $emit('compare-version-select', column, version)"
+      @pane-change="bibleViewerRef?.clearAllSelections()"
+      @swap="handleCompareSwap">
+    <template #primary>
     <BibleViewer
       ref="bibleViewerRef"
-      :content="content"
+      :content="viewerContent"
       :book="currentBookName"
       :chapter="currentChapter"
+      :version="currentVersionName"
+      :secondary-version="compareEnabled ? secondaryVersionName : undefined"
       :is-loading="isLoading"
       :initial-scroll-position="scrollPosition"
       :highlights="highlights"
-      @scroll="$emit('scroll', $event)"
+      :style="{ paddingBottom: 'calc(var(--reader-tabs-height) + var(--reader-controls-height) + 12px)' }"
+      @scroll="handleScroll"
+      @scroll-pixels="handleScrollPixels"
       @bookmark="$emit('bookmark', $event)"
       @highlight="$emit('highlight', $event)"
+      @highlight-save="$emit('highlight-save', $event)"
       @highlight-delete="$emit('highlight-delete', $event)"
       @copy="$emit('copy', $event)"
+      @copy-error="$emit('copy-error', $event)"
       @share="$emit('share', $event)"
       @selection-menu-change="selectionMenuState = $event"
       @swipe-left="handleSwipeLeft"
@@ -158,58 +200,25 @@
         <BibleFooterAd v-if="!isLoading && content.trim()" />
       </template>
     </BibleViewer>
+    </template>
+    </BibleCompareViewer>
 
     <!-- 하단 플로팅 네비게이션 -->
-    <FloatingBottomBar>
+    <FloatingBottomBar :hidden="tabsHidden" :intercept-plan="isTongdokMode" @plan="$emit('reading-plan-click')">
       <template #above>
         <TongdokAudioPlayer
           v-if="tongdokAudioLink"
+          :key="boundAudioContextKey"
           :audio-link="tongdokAudioLink"
+          :audio-context-key="boundAudioContextKey"
           :is-open="isTongdokAudioPlayerOpen"
           :schedule-range="tongdokScheduleRange"
           :is-completing="isCompleting"
           @update:is-open="$emit('audio-player-open-change', $event)"
-          @ended="$emit('audio-ended')"
+          @ended="handleAudioEnded"
+          @overlay-open-change="audioMenuOpen = $event"
           @open-external="$emit('audio-external-click', $event)"
         />
-
-        <!-- 통독모드: 진행률 바 영역 -->
-        <div v-if="isTongdokMode && tongdokProgress" class="tongdok-progress-area">
-          <div class="story-progress-bar">
-            <div
-              v-for="i in tongdokProgress.total"
-              :key="i"
-              class="progress-segment"
-              :class="{
-                'filled': i < tongdokProgress.current,
-                'current': i === tongdokProgress.current
-              }"
-            ></div>
-          </div>
-          <div class="progress-text-indicator">
-            {{ tongdokProgress.current }}/{{ tongdokProgress.total }}
-          </div>
-          <button
-            class="tongdok-complete-status"
-            type="button"
-            :disabled="isCompleting"
-            @click="$emit('tongdok-complete-click')"
-            title="통독 완료"
-            aria-label="통독 완료"
-          >
-            <CheckIcon :size="15" :stroke-width="2.25" />
-            <span class="tongdok-complete-label">통독 완료</span>
-          </button>
-          <button
-            class="tongdok-exit-bottom-btn"
-            type="button"
-            @click="$emit('exit-tongdok')"
-            title="통독모드 종료"
-            aria-label="통독모드 종료"
-          >
-            <XMarkIcon :size="14" />
-          </button>
-        </div>
 
       </template>
 
@@ -217,6 +226,7 @@
         <SelectionFloatingControls
           :state="selectionMenuState"
           @highlight-or-remove="handleSelectionHighlightOrRemove"
+          @highlight-color="bibleViewerRef?.handleHighlightColor($event)"
           @copy="handleSelectionCopy"
           @share="handleSelectionShare"
           @close="handleSelectionClose"
@@ -226,54 +236,82 @@
       </template>
 
       <template #center>
-        <button
-          class="nav-button prev"
-          :disabled="!hasPrevChapter"
-          aria-label="이전 장"
-          @click="$emit('prev-chapter')"
-        >
-          <ChevronLeftIcon />
-        </button>
+        <div class="reader-controls-row">
+          <button
+            class="nav-button prev"
+            type="button"
+            :disabled="!hasPrevChapter"
+            aria-label="이전 장"
+            @click="$emit('prev-chapter')"
+          >
+            <ChevronLeftIcon :size="20" />
+          </button>
 
-        <button
-          class="chapter-info"
-          :class="{ 'is-tongdok': isTongdokMode && shortScheduleDate }"
-          @click="isTongdokMode && shortScheduleDate ? $emit('reading-plan-click') : $emit('open-book-selector')"
-        >
-          <template v-if="isTongdokMode && shortScheduleDate">
-            <span class="schedule-short-date">{{ shortScheduleDate }}</span>
-            <div class="tongdok-completion-group">
-              <span class="schedule-range">{{ tongdokScheduleRange }}</span>
+          <div v-if="isTongdokMode && tongdokProgress" class="reader-controls-progress">
+            <div class="story-progress-bar">
+              <div
+                v-for="i in tongdokProgress.total"
+                :key="i"
+                class="progress-segment"
+                :class="{
+                  'filled': tongdokProgress.completed?.[i - 1] === true,
+                  'current': i === tongdokProgress.current && !tongdokProgress.completed?.[i - 1]
+                }"
+              ></div>
             </div>
-          </template>
-          <template v-else>
-            <span class="chapter-info-text">{{ currentBookName }} {{ currentChapter }}{{ chapterSuffix }}</span>
-          </template>
-        </button>
+            <div class="progress-text-indicator">
+              {{ tongdokDone ?? '—' }}/{{ tongdokProgress.total }}
+            </div>
+            <button
+              class="tongdok-complete-status"
+              :class="{ 'is-complete': isTongdokComplete }"
+              role="checkbox"
+              :aria-checked="isTongdokComplete"
+              :aria-pressed="isTongdokComplete"
+              type="button"
+              :disabled="isCompleting"
+              @click="$emit('tongdok-complete-click')"
+              :title="isTongdokComplete ? '통독 완료 취소' : '통독 완료'"
+              :aria-label="isTongdokComplete ? '통독 완료 취소' : '통독 완료'"
+            >
+              <span class="tongdok-complete-box" aria-hidden="true">
+                <CheckIcon :size="11" :stroke-width="3" />
+              </span>
+              <span class="tongdok-complete-label">{{ isTongdokComplete ? '완료됨' : '통독 완료' }}</span>
+            </button>
+          </div>
+          <div v-else class="reader-controls-spacer" aria-hidden="true"></div>
 
-        <button
-          class="nav-button next"
-          :disabled="!hasNextChapter"
-          aria-label="다음 장"
-          @click="$emit('next-chapter')"
-        >
-          <ChevronRightIcon />
-        </button>
+          <button
+            class="nav-button next"
+            type="button"
+            :disabled="!hasNextChapter"
+            aria-label="다음 장"
+            @click="$emit('next-chapter')"
+          >
+            <ChevronRightIcon :size="20" />
+          </button>
+        </div>
       </template>
+
     </FloatingBottomBar>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { BookOpenIcon, CalendarCheckIcon, HeadphonesIcon } from '@lucide/vue';
+import { ref, computed, watch } from 'vue';
+import { useReaderHeader } from '~/composables/bible-reader/useReaderHeader';
+import { useReaderSelection } from '~/composables/bible-reader/useReaderSelection';
+import BibleCompareViewer from '~/components/bible/BibleCompareViewer.vue';
+import { mergeCompareContent } from '~/utils/mergeCompareContent';
+import { BookOpenIcon, HeadphonesIcon } from '@lucide/vue';
 import BibleViewer from '~/components/bible/BibleViewer.vue';
-import type { SelectionMenuState, SelectionSharePayload } from '~/components/bible/BibleViewer.vue';
+import type { SelectionMenuState, SelectionSharePayload, SelectionHighlightPayload } from '~/components/bible/BibleViewer.vue';
 import BibleSearchButton from '~/components/bible/BibleSearchButton.vue';
 import BibleToolPopover from '~/components/bible/BibleToolPopover.vue';
 import SelectionFloatingControls from '~/components/bible/SelectionFloatingControls.vue';
 import type { SelectionCopyFormat } from '~/components/bible/SelectionFloatingControls.vue';
-import TongdokAudioPlayer from '~/components/bible/TongdokAudioPlayer.vue';
+import TongdokAudioPlayer, { type AudioEndedSource } from '~/components/bible/TongdokAudioPlayer.vue';
 import BibleFooterAd from '~/components/bible/BibleFooterAd.vue';
 import FloatingBottomBar from '~/components/common/FloatingBottomBar.vue';
 import CheckIcon from '~/components/icons/CheckIcon.vue';
@@ -282,9 +320,6 @@ import ChevronRightIcon from '~/components/icons/ChevronRightIcon.vue';
 import ChevronDownIcon from '~/components/icons/ChevronDownIcon.vue';
 import CheckCircleIcon from '~/components/icons/CheckCircleIcon.vue';
 import CheckCircleOutlineIcon from '~/components/icons/CheckCircleOutlineIcon.vue';
-import XMarkIcon from '~/components/icons/XMarkIcon.vue';
-import BookmarkFilledIcon from '~/components/icons/BookmarkFilledIcon.vue';
-import BookmarkOutlineIcon from '~/components/icons/BookmarkOutlineIcon.vue';
 
 // Highlight 인터페이스
 interface Highlight {
@@ -299,6 +334,14 @@ interface Highlight {
 interface Props {
   // 콘텐츠
   content: string;
+  compareEnabled?: boolean;
+  secondaryContent?: string;
+  secondaryVersionName?: string;
+  primaryVersionCode?: string;
+  secondaryVersionCode?: string;
+  isSecondaryLoading?: boolean;
+  primaryMeta?: { direction: string; language: string; testament: string };
+  secondaryMeta?: { direction: string; language: string; testament: string };
   isLoading: boolean;
   scrollPosition?: number;
 
@@ -316,9 +359,18 @@ interface Props {
   isTongdokMode: boolean;
   tongdokScheduleRange?: string | null;
   tongdokScheduleDate?: string | null;
+  tongdokPlanName?: string | null;
+  tongdokSchedule?: Array<{ book: string; bookKor: string; startChapter: number; endChapter: number }>;
   tongdokAudioLink?: string | null;
   tongdokGuideLink?: string | null;
-  tongdokProgress?: { current: number; total: number } | null;
+  tongdokProgress?: {
+    current: number;
+    total: number;
+    done?: number;
+    completed?: readonly boolean[];
+  } | null;
+  overlayOpen?: boolean;
+  audioContextKey?: string;
   isTongdokAudioPlayerOpen?: boolean;
   isCompleting?: boolean;
 
@@ -334,71 +386,63 @@ interface Props {
 
   // 하이라이트
   highlights?: Highlight[];
+
+  // 탭 바
+  tabBarVisible?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   scrollPosition: 0,
+  overlayOpen: false,
   tongdokScheduleRange: null,
   tongdokScheduleDate: null,
+  tongdokSchedule: () => [],
   tongdokAudioLink: null,
   tongdokGuideLink: null,
   tongdokProgress: null,
   isTongdokAudioPlayerOpen: false,
   isCompleting: false,
   isMarkingRead: false,
+  tabBarVisible: false,
   highlights: () => [],
 });
 
-const formatScheduleDate = (dateString: string | null): string => {
-  if (!dateString) return '';
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
-  const date = new Date(dateString);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const dayOfWeek = days[date.getDay()];
-  return `${year}년 ${month}월 ${day}일(${dayOfWeek})`;
+// Integrator supplies plan/schedule/book/chapter/audio identity. Legacy callers
+// still rebind on location/mode changes, but cannot distinguish identical plans.
+// 비교 모드에서는 두 역본을 절 단위로 병합한 단일 HTML을 BibleViewer에 넘긴다.
+// 스크롤·절 선택·하이라이트가 하나의 DOM에서 그대로 동작한다.
+const viewerContent = computed(() => {
+  if (!props.compareEnabled || !props.secondaryContent) return props.content;
+  return mergeCompareContent(
+    props.content,
+    props.secondaryContent,
+    props.secondaryMeta?.direction === 'rtl',
+  );
+});
+
+const handleCompareSwap = () => {
+  emit('compare-swap');
 };
 
-const formattedScheduleDate = computed(() => formatScheduleDate(props.tongdokScheduleDate));
+const boundAudioContextKey = computed(() => props.audioContextKey ?? JSON.stringify([
+  props.isTongdokMode, props.tongdokScheduleDate, props.tongdokScheduleRange,
+  props.currentBookName, props.currentChapter, props.tongdokAudioLink,
+]));
+const tongdokDone = computed(() => props.tongdokProgress?.done
+  ?? props.tongdokProgress?.completed?.filter(Boolean).length);
+const isTongdokComplete = computed(() => !!props.tongdokProgress?.total
+  && tongdokDone.value === props.tongdokProgress.total);
+const bottomControlsHeight = computed(() =>
+  (props.tongdokAudioLink && props.isTongdokAudioPlayerOpen ? 36 : 0) + 40);
 
-const shortScheduleDate = computed(() => {
-  if (!props.tongdokScheduleDate) return '';
-  const date = new Date(props.tongdokScheduleDate);
-  if (isNaN(date.getTime())) return '';
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
-  const dayOfWeek = days[date.getDay()];
-  return `${month}/${day}(${dayOfWeek})`;
-});
-
-// 책 이름 축약 (좁은 화면용)
-const shortBookName = computed(() => {
-  const name = props.currentBookName;
-  if (!name) return '';
-  
-  // 축약어 매핑
-  const abbreviations: Record<string, string> = {
-    '창세기': '창', '출애굽기': '출', '레위기': '레', '민수기': '민', '신명기': '신',
-    '여호수아': '수', '사사기': '삿', '룻기': '룻', '사무엘상': '삼상', '사무엘하': '삼하',
-    '열왕기상': '왕상', '열왕기하': '왕하', '역대상': '대상', '역대하': '대하',
-    '에스라': '스', '느헤미야': '느', '에스더': '에', '욥기': '욥', '시편': '시',
-    '잠언': '잠', '전도서': '전', '아가': '아', '이사야': '사', '예레미야': '렘',
-    '예레미야애가': '애', '에스겔': '겔', '다니엘': '단', '호세아': '호', '요엘': '욜',
-    '아모스': '암', '오바댜': '옵', '요나': '욘', '미가': '미', '나훔': '나',
-    '하박국': '합', '스바냐': '습', '학개': '학', '스가랴': '슥', '말라기': '말',
-    '마태복음': '마', '마가복음': '막', '누가복음': '눅', '요한복음': '요',
-    '사도행전': '행', '로마서': '롬', '고린도전서': '고전', '고린도후서': '고후',
-    '갈라디아서': '갈', '에베소서': '엡', '빌립보서': '빌', '골로새서': '골',
-    '데살로니가전서': '살전', '데살로니가후서': '살후', '디모데전서': '딤전', '디모데후서': '딤후',
-    '디도서': '딛', '빌레몬서': '몬', '히브리서': '히', '야고보서': '약',
-    '베드로전서': '벧전', '베드로후서': '벧후', '요한일서': '요일', '요한이서': '요이',
-    '요한삼서': '요삼', '유다서': '유', '요한계시록': '계',
-  };
-  
-  return abbreviations[name] || name.charAt(0);
-});
+const {
+  headerScheduleDate,
+  headerScheduleSummary,
+  headerContext,
+  headerRange,
+  headerContextShort,
+  abbreviateBookName,
+} = useReaderHeader(props);
 
 // Emits
 const emit = defineEmits<{
@@ -411,6 +455,8 @@ const emit = defineEmits<{
   'open-book-selector': [];
   'open-version-selector': [];
   'open-settings': [];
+  'compare-version-select': [column: 'primary' | 'secondary', version: string];
+  'compare-swap': [];
 
   // 사용자 액션
   'bookmark-toggle': [];
@@ -419,21 +465,28 @@ const emit = defineEmits<{
 
   // BibleViewer 이벤트 전달
   scroll: [position: number];
+  'scroll-pixels': [position: number];
   bookmark: [verses: { start: number; end: number; text: string }];
   highlight: [verses: { start: number; end: number; text: string }];
+  'highlight-save': [payload: SelectionHighlightPayload];
   'highlight-delete': [highlightId: number];
   copy: [text: string];
+  'copy-error': [error: unknown];
   share: [payload: SelectionSharePayload];
 
   // 통독모드
   'exit-tongdok': [];
   'tongdok-complete-click': [];
-  'today-tongdok': [];
   'audio-link-click': [url: string];
   'audio-external-click': [url: string];
   'audio-player-open-change': [value: boolean];
-  'audio-ended': [];
+  'audio-ended': [source: AudioEndedSource];
+  'guide-click': [url: string];
   'reading-plan-click': [];
+  'share-click': [];
+
+  // 탭 바
+  'toggle-tab-bar': [];
 }>();
 
 // Swipe handlers
@@ -458,29 +511,60 @@ const selectionMenuState = ref<SelectionMenuState>({
   isSingleVerse: true,
 });
 
-const handleSelectionHighlightOrRemove = () => {
-  bibleViewerRef.value?.handleHighlightOrRemove();
+const tabsHidden = ref(false);
+const toolsOpen = ref(false);
+const audioMenuOpen = ref(false);
+const scrollFraction = ref(0);
+const hideSuspended = computed(() => props.overlayOpen || toolsOpen.value || audioMenuOpen.value);
+let lastScrollPixels = 0;
+let downwardPixels = 0;
+
+const handleScroll = (position: number) => {
+  scrollFraction.value = Math.min(1, Math.max(0, position));
+  emit('scroll', position);
 };
 
-const handleSelectionCopy = () => {
-  bibleViewerRef.value?.handleCopy();
+const handleScrollPixels = (position: number) => {
+  emit('scroll-pixels', position);
+  const next = Math.max(0, position);
+  const delta = next - lastScrollPixels;
+  lastScrollPixels = next;
+  if (hideSuspended.value || delta < 0 || next === 0) {
+    tabsHidden.value = false;
+    downwardPixels = 0;
+  } else {
+    downwardPixels += delta;
+    if (downwardPixels >= 60) tabsHidden.value = true;
+  }
 };
 
-const handleSelectionShare = () => {
-  bibleViewerRef.value?.handleShare();
+watch(hideSuspended, () => {
+  tabsHidden.value = false;
+  downwardPixels = 0;
+}, { flush: 'sync' });
+
+watch(() => [props.currentBookName, props.currentChapter, boundAudioContextKey.value], () => {
+  tabsHidden.value = false;
+  lastScrollPixels = 0;
+  downwardPixels = 0;
+  audioMenuOpen.value = false;
+  scrollFraction.value = 0;
+});
+
+const handleAudioEnded = (source: AudioEndedSource) => {
+  if (!props.isTongdokAudioPlayerOpen || source.audioContextKey !== boundAudioContextKey.value
+    || source.audioLink !== props.tongdokAudioLink) return;
+  emit('audio-ended', source);
 };
 
-const handleSelectionClose = () => {
-  bibleViewerRef.value?.clearAllSelections();
-};
-
-const handleSelectionCopyWithFormat = (format: SelectionCopyFormat) => {
-  bibleViewerRef.value?.handleClickCopy(format);
-};
-
-const handleSelectionCopyClose = () => {
-  bibleViewerRef.value?.clearClickSelection();
-};
+const {
+  handleSelectionHighlightOrRemove,
+  handleSelectionCopy,
+  handleSelectionShare,
+  handleSelectionClose,
+  handleSelectionCopyWithFormat,
+  handleSelectionCopyClose,
+} = useReaderSelection(bibleViewerRef);
 
 // Expose
 defineExpose({
@@ -519,19 +603,151 @@ defineExpose({
 
 /* 헤더 */
 .bible-header {
+  --reader-hit: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.25rem;
-  padding: 0.45rem 1rem;
+  padding: 0.25rem 0.5rem;
   background: color-mix(in srgb, var(--color-bg-primary, #f9fafb) 92%, #f3f0ea 8%);
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 45px;
+  min-height: 44px;
   border-bottom: 1px solid rgba(17, 24, 39, 0.045);
   box-shadow: none;
   transition: all 0.15s ease;
+}
+
+/* 좌측 한 줄 타이틀 그룹: < 날짜·플랜명 / 범위 > */
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 타이틀 스택: 좌=플랜명/컨텍스트 2줄, 우=범위 트리거(수직 중앙) */
+.header-title-stack {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.375rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.header-title-lines {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.header-context-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.header-plan-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+button.header-plan-name {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.book-chapter-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.header-context {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.75rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header-range {
+  display: block;
+  max-width: 100%;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-check {
+  display: inline-block;
+  margin-right: 0.25rem;
+  color: var(--color-accent-primary);
+  font-weight: 700;
+}
+
+.header-context.is-complete {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+[data-theme="dark"] .header-context {
+  color: var(--color-text-secondary);
+}
+
+.reader-scroll-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.reader-scroll-progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--color-accent-primary, #2A1111);
+  transition: transform 0.12s linear;
 }
 
 .back-button {
@@ -607,8 +823,8 @@ defineExpose({
 
 .book-chapter-text {
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(1rem, 4.4vw, 1.125rem);
-  font-weight: 700;
+  font-size: clamp(1.125rem, 5vw, 1.25rem);
+  font-weight: 800;
   color: #181818;
   white-space: nowrap;
   overflow: hidden;
@@ -629,28 +845,11 @@ defineExpose({
   color: var(--text-secondary, #6b7280);
 }
 
-/* 책/장 선택 그룹 */
-.book-selector-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
+/* 책/장 선택 트리거는 콘텐츠 너비만 차지하고(호버 영역 최소화), 좁으면 말줄임한다 */
+.header-title-stack > .book-selector-trigger {
+  flex: 0 1 auto;
   min-width: 0;
-}
-
-.book-selector-group {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  justify-content: center;
-  flex: none;
-  width: max-content;
-  max-width: calc(100% - 9rem);
-}
-
-.book-selector-group .book-selector-trigger {
-  justify-content: center;
-  max-width: 100%;
+  overflow: hidden;
 }
 
 /* 통독중 배지 - 플랫한 텍스트 스타일 (레거시) */
@@ -697,7 +896,7 @@ defineExpose({
   opacity: 0.85;
 }
 
-/* 상태 도트 (은은한 펄스 효과) */
+/* 상태 도트 */
 .status-dot {
   display: inline-block;
   width: 6px;
@@ -705,17 +904,10 @@ defineExpose({
   border-radius: 50%;
   background-color: var(--primary-color);
   margin-right: 2px;
-  animation: pulse-dot 2s infinite ease-in-out;
 }
 
 .tongdok-badge-inline:hover .status-dot {
   background-color: var(--primary-color);
-}
-
-@keyframes pulse-dot {
-  0% { opacity: 0.4; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.1); }
-  100% { opacity: 0.4; transform: scale(0.9); }
 }
 
 .header-left-actions,
@@ -757,29 +949,53 @@ defineExpose({
   transform: scale(0.94);
 }
 
-.tongdok-mode-btn {
-  display: flex;
+/* 탭 토글 버튼 */
+.tab-toggle-button {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
-  padding: 0.375rem 0.625rem;
-  color: var(--primary-color);
-  background: var(--primary-light);
-  border: 1px solid var(--primary-color);
-  border-radius: 6px;
-  font-size: 0.75rem;
+  height: 34px;
+  padding: 0 0.625rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.8125rem;
   font-weight: 600;
-  transition: all 0.2s;
-  white-space: nowrap;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
-.tongdok-mode-btn:hover {
-  background: var(--primary-color);
-  color: white;
+.tab-toggle-button:hover {
+  background: var(--color-bg-hover, #f3f4f6);
+  color: var(--text-primary, #1f2937);
 }
 
-.tongdok-mode-btn:active {
-  transform: scale(0.95);
+.tab-toggle-button:active {
+  transform: scale(0.94);
+}
+
+.tab-toggle-button.is-on {
+  color: var(--primary-color, #2A1111);
+  background: var(--primary-light, rgba(42, 17, 17, 0.1));
+  font-weight: 700;
+}
+
+[data-theme="dark"] .tab-toggle-button {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .tab-toggle-button:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .tab-toggle-button.is-on {
+  color: var(--color-accent-primary);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .version-button {
@@ -805,6 +1021,14 @@ defineExpose({
 
 /* 반응형 - 좁은 화면 */
 @media (max-width: 480px) {
+  .bible-header.has-extra-action .book-name-full {
+    display: none;
+  }
+
+  .bible-header.has-extra-action .book-name-short {
+    display: flex;
+  }
+
   .tongdok-badge-inline {
     font-size: 0.8125rem;
   }
@@ -817,7 +1041,7 @@ defineExpose({
   }
   
   .book-name-short {
-    display: inline;
+    display: flex;
   }
   
   .tongdok-badge-inline {
@@ -1227,7 +1451,6 @@ defineExpose({
   height: 6px;
   border-radius: 50%;
   background-color: var(--primary-color);
-  animation: pulse-dot 2s infinite ease-in-out;
 }
 
 .schedule-short-date {
@@ -1325,17 +1548,6 @@ defineExpose({
 [data-theme="dark"] .header-icon-action:hover {
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
-}
-
-/* 통독모드 버튼 다크모드 */
-[data-theme="dark"] .tongdok-mode-btn {
-  background: rgba(42, 17, 17, 0.15);
-  color: var(--color-accent-primary);
-}
-
-[data-theme="dark"] .tongdok-mode-btn:hover {
-  background: var(--color-accent-primary);
-  color: var(--color-text-inverse);
 }
 
 /* 네비게이션 버튼 다크모드 */
@@ -1533,35 +1745,55 @@ defineExpose({
 }
 
 /* 통독 하단 진행 정보 */
-.tongdok-progress-area {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 0.875rem 0.5rem;
-  background: rgba(255, 255, 255, 0.72);
-  border-bottom: 1px solid rgba(42, 17, 17, 0.12);
-}
+/* 통독 진행률은 reader-controls-row로 통합됨 */
 
+/* 통독 완료 체크박스 (하단, 진행도 옆) — 체크 상태로 완료/미완료를 직관 표시 */
 .tongdok-complete-status {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.375rem;
   justify-content: center;
-  width: auto;
-  min-width: 26px;
-  height: 26px;
-  padding: 0 0.45rem;
-  border-radius: 999px;
-  color: var(--color-accent-primary, #2A1111);
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(42, 17, 17, 0.14);
+  height: 1.75rem;
+  padding: 0 0.5rem;
+  border: none;
+  border-radius: var(--radius-control, 10px);
+  background: transparent;
+  color: var(--color-text-secondary, #6b7280);
   flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.tongdok-complete-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  border: 1.5px solid var(--color-text-secondary, #9ca3af);
+  border-radius: 4px;
+  background: transparent;
+  color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tongdok-complete-status.is-complete {
+  color: var(--color-accent-primary, #2A1111);
+}
+
+.tongdok-complete-status.is-complete .tongdok-complete-box {
+  background: var(--color-accent-primary, #2A1111);
+  border-color: var(--color-accent-primary, #2A1111);
+  color: var(--color-text-inverse, #fff);
 }
 
 .tongdok-complete-status:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--color-accent-primary, #2A1111);
+  color: var(--color-text-primary, #111827);
+}
+
+.tongdok-complete-status:hover:not(:disabled) .tongdok-complete-box {
+  border-color: var(--color-accent-primary, #2A1111);
 }
 
 .tongdok-complete-status:active:not(:disabled) {
@@ -1575,24 +1807,30 @@ defineExpose({
 
 .tongdok-complete-label {
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-[data-theme="dark"] .tongdok-progress-area {
-  background: rgba(31, 41, 55, 0.82);
-  border-bottom-color: rgba(42, 17, 17, 0.16);
+[data-theme="dark"] .tongdok-complete-status {
+  color: var(--color-text-secondary);
 }
 
-[data-theme="dark"] .tongdok-complete-status {
+[data-theme="dark"] .tongdok-complete-box {
+  border-color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .tongdok-complete-status.is-complete {
   color: var(--color-accent-primary);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .tongdok-complete-status.is-complete .tongdok-complete-box {
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  color: var(--color-text-inverse);
 }
 
 [data-theme="dark"] .tongdok-complete-status:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--color-accent-primary);
+  color: var(--color-text-primary);
 }
 
 .story-progress-bar {
@@ -1604,7 +1842,7 @@ defineExpose({
 
 .progress-segment {
   flex: 1;
-  height: 5px;
+  height: 4px;
   background: rgba(42, 17, 17, 0.16);
   border-radius: 999px;
   transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -1647,40 +1885,6 @@ defineExpose({
   box-shadow: 0 0 0 3px rgba(42, 17, 17, 0.14);
 }
 
-.tongdok-exit-bottom-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  color: var(--text-secondary, #6b7280);
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(42, 17, 17, 0.14);
-  flex-shrink: 0;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
-}
-
-.tongdok-exit-bottom-btn:hover {
-  color: var(--text-primary, #1f2937);
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.tongdok-exit-bottom-btn:active {
-  transform: scale(0.94);
-}
-
-[data-theme="dark"] .tongdok-exit-bottom-btn {
-  color: var(--color-text-secondary);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .tongdok-exit-bottom-btn:hover {
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.14);
-}
-
 @media (max-width: 768px) {
   .bible-header,
   .tongdok-indicator {
@@ -1689,4 +1893,128 @@ defineExpose({
   }
 }
 
+/* H02: header navigation and independently reserved bottom controls. */
+.bible-reader-view {
+  /* Keep scroll space when tabs hide: shrinking it clamps scrollTop and
+     misidentifies the resulting scroll event as an upward user scroll. */
+  --reader-tabs-height: var(--mobile-nav-height);
+}
+
+.bible-reader-view :deep(.floating-above-popover) {
+  bottom: calc(100% + 10px);
+}
+
+.bible-header {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  padding: 0.25rem 0.5rem;
+}
+
+.book-selector-trigger {
+  min-height: var(--reader-hit);
+  padding-inline: 2px;
+  border-radius: var(--radius-control);
+}
+
+.book-selector-trigger:hover {
+  background: var(--color-accent-primary-light);
+}
+
+.book-chapter-text,
+[data-theme="dark"] .book-chapter-text {
+  color: var(--color-accent-primary);
+}
+
+.bible-header .nav-button,
+.header-icon-action,
+.bible-reader-view :deep(.bible-search-button),
+.bible-reader-view :deep(.tool-trigger-button) {
+  width: var(--reader-hit);
+  min-width: var(--reader-hit);
+  height: var(--reader-hit);
+  flex-shrink: 0;
+}
+
+.bible-header .nav-button,
+.header-icon-action.active {
+  color: var(--color-accent-primary);
+}
+
+.header-icon-action.active {
+  background: var(--color-accent-primary-light);
+}
+
+.header-actions {
+  flex-shrink: 0;
+  gap: 0;
+}
+
+.bible-header button:focus-visible,
+.bible-reader-view :deep(.tool-trigger-button:focus-visible) {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 1px;
+}
+
+/* 하단 리더 컨트롤 행: 이전/다음 장 + 통독 진행 */
+.reader-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.reader-controls-row .nav-button {
+  width: 32px;
+  height: 32px;
+  color: var(--color-text-secondary);
+}
+
+.reader-controls-row .nav-button:hover:not(:disabled) {
+  color: var(--color-accent-primary);
+}
+
+.reader-controls-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.reader-controls-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.progress-segment,
+[data-theme="dark"] .progress-segment {
+  background: var(--color-border-default);
+}
+
+.progress-segment.filled,
+[data-theme="dark"] .progress-segment.filled {
+  background: var(--color-accent-primary);
+}
+
+.progress-segment.current,
+[data-theme="dark"] .progress-segment.current {
+  background: var(--color-reading-current);
+  box-shadow: none;
+}
+
+@media (min-width: 1024px) {
+  .bible-reader-view,
+  .bible-reader-view.tabs-hidden {
+    --reader-tabs-height: 0px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bible-header,
+  .bible-header button,
+  .progress-segment {
+    transition: none;
+  }
+}
 </style>

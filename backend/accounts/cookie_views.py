@@ -5,7 +5,7 @@ HttpOnly Cookie 기반 JWT 인증 뷰
 """
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -40,6 +40,7 @@ from .throttles import LoginThrottle
 from . import openapi_serializers as openapi
 
 import logging
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +255,11 @@ class CookieTokenRefreshView(TokenRefreshView):
             )
 
 
-@extend_schema(responses={200: openapi.MessageResponseSerializer})
+class LogoutRequestSerializer(serializers.Serializer):
+    installation_id = serializers.UUIDField(required=False)
+
+
+@extend_schema(request=LogoutRequestSerializer, responses={200: openapi.MessageResponseSerializer})
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def cookie_logout(request):
@@ -266,6 +271,7 @@ def cookie_logout(request):
     - 쿠키 삭제는 인증 상태와 관계없이 수행되어야 함
     """
     refresh_token = request.COOKIES.get(REFRESH_TOKEN_COOKIE)
+    native_logout_user_id = request.user.id if request.user.is_authenticated else None
     if refresh_token:
         csrf_rejection = CSRFCheck(lambda req: None).process_view(request, None, (), {})
         if csrf_rejection:
@@ -276,6 +282,8 @@ def cookie_logout(request):
 
         try:
             token = RefreshToken(refresh_token)
+            if native_logout_user_id is None:
+                native_logout_user_id = token.get('user_id')
             token.blacklist()
             logger.info("Refresh token blacklisted")
         except (TokenError, AttributeError) as e:
@@ -302,6 +310,19 @@ def cookie_logout(request):
         from django.core.cache import cache
 
         handoff.mark_logged_out(cache, logout_user_id)
+
+    installation_id = request.data.get('installation_id') or request.headers.get('X-Installation-Id')
+    if native_logout_user_id is not None and installation_id:
+        try:
+            installation_id = UUID(str(installation_id))
+        except ValueError:
+            installation_id = None
+        if installation_id is not None:
+            from todos.models import NativePushSubscription
+
+            NativePushSubscription.objects.filter(
+                user_id=native_logout_user_id, installation_id=installation_id, enabled=True,
+            ).delete()
 
     response = Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
 

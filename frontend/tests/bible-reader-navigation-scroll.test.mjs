@@ -19,10 +19,14 @@ test('resets the reader scroll owner to the top for chapter navigation', async (
   const viewerScript = await compileSfcScript('../app/components/bible/BibleViewer.vue');
   const readerScript = await compileSfcScript('../app/components/bible/BibleReaderView.vue');
 
+  const viewerScrollSource = await readFile(
+    new URL('../app/composables/bible-viewer/useViewerScroll.ts', import.meta.url),
+    'utf8',
+  );
   assert.match(
-    viewerScript,
+    viewerScrollSource,
     /const scrollToTop = \(\) => \{[\s\S]*?viewerRef\.value\.scrollTop = 0;[\s\S]*?\}/,
-    'BibleViewer should expose a direct reset for its scroll-owning element',
+    'BibleViewer scroll composable should provide a direct reset for its scroll-owning element',
   );
   assert.match(
     viewerScript,
@@ -37,15 +41,21 @@ test('resets the reader scroll owner to the top for chapter navigation', async (
 });
 
 test('waits for each chapter content load before resetting the page scroll', () => {
+  // 장 이동은 navigateReader -> route watcher -> applyReaderRoute 로 흐른다.
   assert.match(
     biblePageSource,
-    /const goToPrevChapter = async \(\) => \{[\s\S]*?await loadBibleContent\(currentBook\.value, currentChapter\.value\);[\s\S]*?scrollToTop\(\);/,
-    'previous navigation should reset after the new chapter has loaded',
+    /const goToPrevChapter = async \(\) => \{[\s\S]*?goToPrevChapterBase\(\);[\s\S]*?await navigateReader\(/,
+    'previous navigation should go through the reader route',
   );
   assert.match(
     biblePageSource,
-    /goToNextChapterBase\(\);[\s\S]*?await loadBibleContent\(currentBook\.value, currentChapter\.value\);[\s\S]*?scrollToTop\(\);/,
-    'next navigation should reset after the new chapter has loaded',
+    /goToNextChapterBase\(\);[\s\S]*?await navigateReader\(/,
+    'next navigation should go through the reader route',
+  );
+  assert.match(
+    biblePageSource,
+    /const applyReaderRoute = async[\s\S]*?loadBibleContent\(book, chapter\),[\s\S]*?\} else \{\s*\/\/[^\n]*\n\s*scrollToTop\(\);/,
+    'the reader route should reset to the top only after the new chapter has loaded',
   );
 });
 

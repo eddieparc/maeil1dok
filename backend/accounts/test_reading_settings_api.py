@@ -67,6 +67,41 @@ class ReadingSettingsValidationApiTests(TestCase):
         self.assertEqual(settings["line_height"], 1.8)
         self.assertTrue(settings["show_footnotes"])
 
+    def test_audio_playback_rate_round_trips(self):
+        response = self.client.patch(
+            "/api/v1/auth/reading-settings/update/",
+            {"audio_playback_rate": 1.5},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(response.data["success"])
+        self.assertEqual(response.data["data"]["settings"]["audio_playback_rate"], 1.5)
+
+        response = self.client.get("/api/v1/auth/reading-settings/")
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["data"]["settings"]["audio_playback_rate"], 1.5)
+
+    def test_out_of_range_audio_playback_rate_rejected_without_persisting(self):
+        settings = UserReadingSettings.objects.create(
+            user=self.user,
+            audio_playback_rate=1.0,
+        )
+
+        response = self.client.patch(
+            "/api/v1/auth/reading-settings/update/",
+            {"audio_playback_rate": 3.0},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.data["success"])
+        self.assertIn("audio_playback_rate", response.data["errors"])
+
+        settings.refresh_from_db()
+        self.assertEqual(settings.audio_playback_rate, 1.0)
+
 
 class ReadingSettingsConstraintTests(TestCase):
     def test_database_rejects_out_of_range_reading_settings(self):
@@ -81,4 +116,17 @@ class ReadingSettingsConstraintTests(TestCase):
                 user=user,
                 font_size=25,
                 line_height=1.6,
+            )
+
+    def test_database_rejects_out_of_range_audio_playback_rate(self):
+        user = User.objects.create_user(
+            username="audio-constraint-reader",
+            nickname="오디오제약독자",
+            password="pw-test-1234",
+        )
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            UserReadingSettings.objects.create(
+                user=user,
+                audio_playback_rate=3.0,
             )

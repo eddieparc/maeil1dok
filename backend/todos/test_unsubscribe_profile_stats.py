@@ -78,8 +78,7 @@ class UnsubscribeProfileStatsTest(TestCase):
         )
 
     def _recalculate_stats(self):
-        with patch("accounts.services.achievement_service.timezone") as mock_timezone:
-            mock_timezone.now.return_value.date.return_value = self.FIXED_DATE
+        with patch.object(AchievementService, "_local_today", return_value=self.FIXED_DATE):
             return AchievementService.update_user_stats(self.user)
 
     def _refresh_profile(self):
@@ -93,8 +92,7 @@ class UnsubscribeProfileStatsTest(TestCase):
         self.assertEqual(profile.longest_streak, longest_streak)
 
     def _delete_subscription(self, subscription):
-        with patch("accounts.services.achievement_service.timezone") as mock_timezone:
-            mock_timezone.now.return_value.date.return_value = self.FIXED_DATE
+        with patch.object(AchievementService, "_local_today", return_value=self.FIXED_DATE):
             return self.client.delete(f"/api/v1/todos/plan/{subscription.pk}/")
 
     def test_subscription_delete_preserves_earned_achievement(self):

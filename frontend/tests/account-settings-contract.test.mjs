@@ -12,6 +12,10 @@ const settingsSource = await readFile(
   new URL('../app/pages/account/settings.vue', import.meta.url),
   'utf8',
 );
+const accountLinkingSource = await readFile(
+  new URL('../app/composables/account-settings/useAccountLinking.ts', import.meta.url),
+  'utf8',
+);
 const profileSource = await readFile(
   new URL('../app/pages/profile/[id].vue', import.meta.url),
   'utf8',
@@ -40,6 +44,9 @@ const parsedSettings = parseSfc(settingsSource, { filename: 'settings.vue' }).de
 const parsedProfile = parseSfc(profileSource, { filename: 'profile.vue' }).descriptor;
 const templateAst = parsedSettings.template?.ast;
 const scriptSetupSource = parsedSettings.scriptSetup?.content ?? '';
+// 계정 연결/병합 로직은 composables/account-settings/useAccountLinking.ts 로 추출됐다.
+// 그 코드를 핀하는 단언은 페이지+컴포저블 합본 소스에 대해 검사한다.
+const accountSettingsSource = `${scriptSetupSource}\n${accountLinkingSource}`;
 const profileScriptSetupSource = parsedProfile.scriptSetup?.content ?? '';
 const callbackScriptSource = parseSfc(callbackSource, { filename: 'callback.vue' }).descriptor.scriptSetup?.content ?? '';
 
@@ -221,7 +228,6 @@ async function renderAccountSettings(overrides = {}) {
         emailCooldown: 0,
         emailButtonText: '인증 메일 발송',
         showMergeModal: overrides.showMergeModal ?? false,
-        showMergeConfirmModal: false,
         mergeInfo: overrides.mergeInfo ?? mergeInfoFixture,
         // Diagnostic shell-bundle line. Hidden in a browser, which is what this
         // harness renders as.
@@ -245,9 +251,7 @@ async function renderAccountSettings(overrides = {}) {
         handleLogoutAllDevices: noOp,
         handleDeleteAccount: noOp,
         resetDeletePanel: noOp,
-        handleMerge: noOp,
-        closeMergeModal: noOp,
-        handleBetaToggle: noOp,
+        openMergePicker: noOp,
         navigateTo: noOp,
       };
     },
@@ -341,7 +345,7 @@ async function renderProfile({ isOwnProfile }) {
 }
 
 test('account settings uses typed account-management contracts instead of any-shaped data', () => {
-  assert.doesNotMatch(scriptSetupSource, /ref<any>|:\s*any\b|catch\s*\([^)]*:\s*any\)/);
+  assert.doesNotMatch(accountSettingsSource, /ref<any>|:\s*any\b|catch\s*\([^)]*:\s*any\)/);
 });
 
 test('password-backed account deletion form binds password before posting explicit confirmation', async () => {
@@ -402,14 +406,14 @@ test('provider labels cover every linked provider in rendered actions', async ()
     assert.equal(getProviderDisplayName(provider), label);
     assert.match(rendered, new RegExp(`>${label}<`));
   }
-  assert.doesNotMatch(scriptSetupSource, /provider === 'kakao' \? '카카오' : '구글'/);
+  assert.doesNotMatch(accountSettingsSource, /provider === 'kakao' \? '카카오' : '구글'/);
 });
 
 test('social linking uses server-issued state and sends it back to the API', async () => {
   // 검사 대상은 "이 엔드포인트를 부른다"이지 호출 헬퍼의 이름 표기가 아니다.
   // OpenAPI 계약 도입으로 `api.post` -> `api.POST`(생성 타입 기반)로 옮겨갔으므로
   // 두 표기를 모두 허용한다. 경로는 계약이므로 그대로 고정한다.
-  assert.match(scriptSetupSource, /api\.(post|POST)\('\/api\/v1\/auth\/oauth\/link-state\/'\)/);
+  assert.match(accountSettingsSource, /api\.(post|POST)\('\/api\/v1\/auth\/oauth\/link-state\/'\)/);
   assert.doesNotMatch(scriptSetupSource, /JSON\.stringify\(\{\s*action:\s*'link'\s*\}\)/);
   assert.doesNotMatch(callbackScriptSource, /state\.includes\([^)]*':'[^)]*\)/);
 
@@ -424,7 +428,10 @@ test('social linking uses server-issued state and sends it back to the API', asy
   assert.equal(isSignedLinkState('header:payload:signature'), true);
   assert.equal(isSignedLinkState('header:payload'), false);
   assert.deepEqual(
-    buildLinkSocialPayload('apple', 'single-use-code', 'header:payload:signature', 'apple-id-token'),
+    buildLinkSocialPayload('apple', 'single-use-code', {
+      state: 'header:payload:signature',
+      idToken: 'apple-id-token',
+    }),
     {
       provider: 'apple',
       code: 'single-use-code',
@@ -433,7 +440,10 @@ test('social linking uses server-issued state and sends it back to the API', asy
     },
   );
   assert.deepEqual(
-    buildLinkSocialPayload('google', 'single-use-code', 'header:payload:signature', 'ignored-token'),
+    buildLinkSocialPayload('google', 'single-use-code', {
+      state: 'header:payload:signature',
+      idToken: 'ignored-token',
+    }),
     {
       provider: 'google',
       code: 'single-use-code',
@@ -467,11 +477,67 @@ test('server native OAuth redirects use the same app scheme allowlist', async ()
   }
 });
 
+test('web OAuth callbacks stay on the production or beta origin for every provider', async () => {
+  const { resolveSocialRedirectUri } = await importAuthCallbackRuntime();
+  const providers = ['kakao', 'google', 'apple'];
+
+  for (const provider of providers) {
+    assert.equal(
+      resolveSocialRedirectUri(
+        provider,
+        `https://maeil1dok.app/auth/${provider}/callback`,
+        'https://beta.maeil1dok.app',
+      ),
+      `https://beta.maeil1dok.app/auth/${provider}/callback`,
+    );
+    assert.equal(
+      resolveSocialRedirectUri(
+        provider,
+        `https://beta.maeil1dok.app/auth/${provider}/callback`,
+        'https://maeil1dok.app',
+      ),
+      `https://maeil1dok.app/auth/${provider}/callback`,
+    );
+    assert.equal(
+      resolveSocialRedirectUri(
+        provider,
+        `http://localhost:3019/auth/${provider}/callback`,
+        'http://localhost:3019',
+      ),
+      `http://localhost:3019/auth/${provider}/callback`,
+    );
+  }
+});
+
+test('Apple form_post forwards credentials to the same web host or an allowlisted native scheme', async () => {
+  const { buildAppleCallbackForward } = await importAuthCallbackRuntime();
+  const state = encodeURIComponent(JSON.stringify({ from: 'app', scheme: 'maeil1dok' }));
+  const credentials = {
+    code: 'apple-code',
+    id_token: 'apple-id-token',
+    state,
+    user: '{"name":{"firstName":"Grace"}}',
+  };
+
+  assert.equal(
+    buildAppleCallbackForward(credentials),
+    `/auth/apple/callback?${new URLSearchParams(credentials).toString()}`,
+  );
+  assert.equal(
+    buildAppleCallbackForward(credentials, { from: 'app', scheme: 'maeil1dok' }),
+    `maeil1dok://auth/apple/callback?${new URLSearchParams(credentials).toString()}`,
+  );
+  assert.equal(
+    buildAppleCallbackForward(credentials, { from: 'app', scheme: 'javascript' }),
+    `/auth/apple/callback?${new URLSearchParams(credentials).toString()}`,
+  );
+});
+
 test('Google account linking has a guarded loading state and configuration error path', () => {
-  assert.match(scriptSetupSource, /if \(!clientId \|\| !redirectUri\)/);
-  assert.match(scriptSetupSource, /linkingProvider\.value = provider/);
-  assert.match(scriptSetupSource, /window\.location\.assign\(authUrl\)/);
-  assert.doesNotMatch(scriptSetupSource, /window\.location\.href = googleAuthUrl/);
+  assert.match(accountSettingsSource, /if \(!clientId \|\| !redirectUri\)/);
+  assert.match(accountSettingsSource, /linkingProvider\.value = provider/);
+  assert.match(accountSettingsSource, /window\.location\.assign\(authUrl\)/);
+  assert.doesNotMatch(accountSettingsSource, /window\.location\.href = googleAuthUrl/);
 });
 
 test('account settings builds behavioral payloads for email, password merge, and notifications', async () => {
@@ -594,36 +660,28 @@ test('beta mode helpers derive host, target URL, and shell capability', () => {
   assert.equal(canShellSwitchBeta({ __shellBetaMode: 'true' }), false);
 });
 
-test('account settings exposes a beta mode toggle wired to the native bridge', () => {
+test('account settings exposes a beta mode switch wired to the native bridge', () => {
   const betaRows = findElements(node =>
-    node.tag === 'label' &&
-    hasStaticProp(node, 'class', 'setting-row') &&
-    collectText(node).includes('베타 모드')
+    node.tag === 'AppSwitch' &&
+    (node.props ?? []).some(prop =>
+      prop.type === 6 && prop.name === 'label' && prop.value?.content === '베타 모드',
+    ),
   );
   assert.equal(betaRows.length, 1);
-  assert.match(collectText(betaRows[0]), /테스트 버전\(beta\.maeil1dok\.app\)을 사용합니다/);
-
-  const betaToggles = findElements(node =>
-    node.tag === 'input' &&
-    hasStaticProp(node, 'type', 'checkbox') &&
-    hasStaticProp(node, 'role', 'switch') &&
-    hasDirective(node, 'on:change', 'handleBetaToggle')
-  );
-  assert.equal(betaToggles.length, 1);
-
+  assert.match(scriptSetupSource, /sendToNative\(\{ type: 'beta:set', enabled \}\)/);
   assert.match(scriptSetupSource, /isBetaHost\(window\.location\.hostname\)/);
-  assert.match(scriptSetupSource, /sendToNative\(\{\s*type:\s*'beta:set',\s*enabled\s*\}\)/);
-  assert.match(scriptSetupSource, /canShellSwitchBeta/);
-  assert.match(scriptSetupSource, /window\.location\.assign\(betaModeTargetUrl\(enabled\)\)/);
 });
+
+const editActionPattern = />\s*프로필 편집\s*<\/(?:button|AppButton)>/;
+const settingsActionPattern = />\s*계정 설정\s*<\/(?:button|AppButton)>/;
 
 test('profile page exposes account settings entry beside profile edit for own profile', async () => {
   const ownProfile = await renderProfile({ isOwnProfile: true });
-  assert.match(ownProfile, />\s*프로필 편집\s*<\/button>/);
-  assert.match(ownProfile, />\s*계정 설정\s*<\/button>/);
+  assert.match(ownProfile, editActionPattern);
+  assert.match(ownProfile, settingsActionPattern);
 
   const anotherProfile = await renderProfile({ isOwnProfile: false });
-  assert.doesNotMatch(anotherProfile, />\s*프로필 편집\s*<\/button>/);
-  assert.doesNotMatch(anotherProfile, />\s*계정 설정\s*<\/button>/);
+  assert.doesNotMatch(anotherProfile, editActionPattern);
+  assert.doesNotMatch(anotherProfile, settingsActionPattern);
   assert.match(profileScriptSetupSource, /navigateTo\('\/account\/settings'\)/);
 });

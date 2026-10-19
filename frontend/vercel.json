@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["icn1"],
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://beta.maeil1dok.app/api/v1/:path*"
+    }
+  ]
+}

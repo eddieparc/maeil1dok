@@ -40,7 +40,8 @@ export function useBibleFetch() {
 
   function getFallbackUrl(version: string, book: string, chapter: number): string {
     if (version === 'KNT') {
-      return `https://www.bskorea.or.kr/KNT/index.php?chapter=${book.toUpperCase()}.${chapter}`;
+      const upstreamBook = book === 'jnh' ? 'JON' : book.toUpperCase();
+      return `https://www.bskorea.or.kr/KNT/index.php?chapter=${upstreamBook}.${chapter}`;
     }
     return `https://www.bskorea.or.kr/bible/korbibReadpage.php?version=${version}&book=${book}&chap=${chapter}`;
   }

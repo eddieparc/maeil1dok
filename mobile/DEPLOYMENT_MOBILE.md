@@ -253,7 +253,7 @@ eas build:view
 
 1. **App Store Connect**에서 앱 생성
    - https://appstoreconnect.apple.com
-   - 번들 ID: `app.maeil1dok.mobile`
+   - 번들 ID: `com.maeil1dok.app`
    - 앱 이름, 설명, 스크린샷 등록
 
 2. **eas.json 설정 확인:**
@@ -281,6 +281,22 @@ eas submit --platform ios
 ```bash
 eas build --profile production --platform ios --auto-submit
 ```
+
+#### TestFlight만 업데이트하기
+
+기존 App Store Connect 앱 `6758072829`를 사용한다. 최신 TestFlight의 화면과
+네이티브 모듈을 보존하고, 이미 업로드한 번호보다 큰 `ios.buildNumber`로 빌드한다.
+
+```bash
+eas build --profile testflight --platform ios --non-interactive
+# 위 빌드의 정확한 ID를 지정한다. 다른 빌드를 고를 수 있는 --latest는 피한다.
+eas submit --profile production --platform ios --id <build-id> --non-interactive
+```
+
+`testflight` 빌드는 store 서명과 별도 `testflight` OTA 채널을 사용한다.
+시크릿은 EAS preview 환경에서 가져오며 앱의 베타 모드 토글은 그대로 유지된다.
+Apple 처리 완료와 기존 내부 테스트 그룹의 설치 가능 상태까지 확인한다.
+TestFlight 업로드는 App Store 공개 출시나 운영 OTA 게시가 아니다.
 
 ### 7.2 Google Play Store 제출
 
@@ -341,21 +357,43 @@ eas credentials
 
 ### Android (FCM)
 
-1. [Firebase Console](https://console.firebase.google.com)에서 프로젝트 생성
-2. Android 앱 추가 (패키지명: `app.maeil1dok.mobile`)
-3. `google-services.json` 다운로드
-4. `mobile/` 폴더에 저장
+기존 Firebase 프로젝트 `maeil1dok`(프로젝트 번호 `199679842064`)과
+Android 앱 `app.maeil1dok.mobile`을 사용한다. 베타 모드는 기존 앱의 설정으로
+전환하며 별도 Firebase 프로젝트나 베타 앱 등록은 필요하지 않다.
 
-```bash
-# app.json에 Firebase 설정 추가 필요시
-{
-  "expo": {
-    "android": {
-      "googleServicesFile": "./google-services.json"
-    }
-  }
-}
-```
+클라이언트 설정과 서버 발송 자격은 서로 다른 파일이다.
+
+- **앱 빌드 설정:** Firebase 앱의 `google-services.json`을 로컬에서는
+  `mobile/google-services.json`에 둔다(gitignore 대상). `app.config.js`가
+  `GOOGLE_SERVICES_JSON` 환경변수의 파일 경로를 우선 사용하고, 없으면 로컬
+  파일을 사용한다. EAS 프로젝트의 같은 이름인 secret/file 변수는
+  production, preview, development 환경에 등록되어 있다.
+- **FCM V1 발송 자격:** 전용 서비스 계정에
+  `roles/firebasecloudmessaging.admin`(Firebase Cloud Messaging API 관리자)을
+  부여하고 JSON 키를 발급한다. `eas credentials --platform android`에서
+  기존 앱의 Google Service Account / FCM V1 푸시 자격으로 등록한다.
+  이 개인 키는 앱의 `google-services.json`이나 Play 제출용
+  `google-service-account.json`을 대신하지 않으며, 저장소나 앱 번들에 넣지 않는다.
+
+Firebase 설정을 추가하거나 바꾸면 Android 네이티브 빌드가 필요하다.
+설정 파일 등록만으로 기존 바이너리나 OTA에 FCM 설정이 추가되지는 않는다.
+실제 수신 검증은 해당 설정으로 빌드된 기기에서 토큰을 등록한 뒤 수행한다.
+
+절차 상세: [Expo FCM V1 자격 설정](https://docs.expo.dev/push-notifications/fcm-credentials/),
+[EAS 파일 환경변수](https://docs.expo.dev/eas/environment-variables/).
+
+### 모바일 오류 수집과 소스맵
+
+모바일은 매일일독 Sentry 조직 `c919d9f9be39`의 기존
+`maeil1dok-mobile` 프로젝트(ID `4512081872093264`)를 사용한다.
+`app.json`의 Sentry 플러그인은 소스맵 업로드 대상을 지정하고,
+`EXPO_PUBLIC_SENTRY_DSN`은 같은 프로젝트의 오류 수집 주소를 지정한다.
+
+EAS의 production, preview, development 환경에 DSN과 secret
+`SENTRY_AUTH_TOKEN`이 연결되어 있다. 로컬 빌드 토큰은 저장소나 `.env`가 아닌
+macOS Keychain의 `maeil1dok-sentry` 서비스, `automation-token` 계정에서
+실행 시 주입한다. 토큰에 다른 조직의 권한만 있으면 업로드는 403으로 실패한다.
+토큰 값이나 EAS의 인코딩된 로컬 빌드 작업 데이터를 로그에 출력하지 않는다.
 
 ---
 

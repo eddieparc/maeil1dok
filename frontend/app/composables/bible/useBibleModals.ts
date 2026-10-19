@@ -33,8 +33,6 @@ export interface HighlightSelection {
 export interface UseBibleModalsReturn {
   // 상태 (Refs)
   showBookSelector: Ref<boolean>;
-  showVersionSelector: Ref<boolean>;
-  showTongdokCompleteModal: Ref<boolean>;
   showNoteModal: Ref<boolean>;
   showHighlightModal: Ref<boolean>;
   showSettingsModal: Ref<boolean>;
@@ -43,10 +41,6 @@ export interface UseBibleModalsReturn {
   // 액션
   openBookSelector: () => void;
   closeBookSelector: () => void;
-  openVersionSelector: () => void;
-  closeVersionSelector: () => void;
-  openTongdokCompleteModal: () => void;
-  closeTongdokCompleteModal: () => void;
   openNoteModal: () => void;
   closeNoteModal: () => void;
   openHighlightModal: (selection: HighlightSelection) => void;
@@ -68,8 +62,6 @@ export function useBibleModals(): UseBibleModalsReturn {
   // ============================================
 
   const showBookSelector = ref(false);
-  const showVersionSelector = ref(false);
-  const showTongdokCompleteModal = ref(false);
   const showNoteModal = ref(false);
   const showHighlightModal = ref(false);
   const showSettingsModal = ref(false);
@@ -83,8 +75,6 @@ export function useBibleModals(): UseBibleModalsReturn {
 
   const isAnyModalOpen = computed(() =>
     showBookSelector.value ||
-    showVersionSelector.value ||
-    showTongdokCompleteModal.value ||
     showNoteModal.value ||
     showHighlightModal.value ||
     showSettingsModal.value
@@ -101,24 +91,6 @@ export function useBibleModals(): UseBibleModalsReturn {
 
   const closeBookSelector = () => {
     showBookSelector.value = false;
-  };
-
-  // Version Selector
-  const openVersionSelector = () => {
-    showVersionSelector.value = true;
-  };
-
-  const closeVersionSelector = () => {
-    showVersionSelector.value = false;
-  };
-
-  // Tongdok Complete Modal
-  const openTongdokCompleteModal = () => {
-    showTongdokCompleteModal.value = true;
-  };
-
-  const closeTongdokCompleteModal = () => {
-    showTongdokCompleteModal.value = false;
   };
 
   // Note Modal
@@ -154,8 +126,6 @@ export function useBibleModals(): UseBibleModalsReturn {
   // 모든 모달 닫기
   const closeAllModals = () => {
     showBookSelector.value = false;
-    showVersionSelector.value = false;
-    showTongdokCompleteModal.value = false;
     showNoteModal.value = false;
     showHighlightModal.value = false;
     showSettingsModal.value = false;
@@ -168,8 +138,6 @@ export function useBibleModals(): UseBibleModalsReturn {
   return {
     // State
     showBookSelector,
-    showVersionSelector,
-    showTongdokCompleteModal,
     showNoteModal,
     showHighlightModal,
     showSettingsModal,
@@ -178,10 +146,6 @@ export function useBibleModals(): UseBibleModalsReturn {
     // Actions
     openBookSelector,
     closeBookSelector,
-    openVersionSelector,
-    closeVersionSelector,
-    openTongdokCompleteModal,
-    closeTongdokCompleteModal,
     openNoteModal,
     closeNoteModal,
     openHighlightModal,

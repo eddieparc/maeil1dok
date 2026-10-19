@@ -90,7 +90,7 @@ test('renders a floating playback speed control for embedded tongdok audio', asy
 });
 
 test('applies selected playback rates through the YouTube player API', () => {
-  assert.deepEqual([...audioRuntime.PLAYBACK_RATES], [0.75, 1, 1.25, 1.5, 2]);
+  assert.deepEqual([...audioRuntime.PLAYBACK_RATES], [0.75, 1, 1.25, 1.5, 1.75, 2]);
   for (const rate of audioRuntime.PLAYBACK_RATES) {
     assert.equal(audioRuntime.isPlaybackRate(rate), true);
   }

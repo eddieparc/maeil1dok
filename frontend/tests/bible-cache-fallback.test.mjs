@@ -71,14 +71,15 @@ test('falls back to cache when the direct proxy fetch is slow', async () => {
       'GAE',
       'gen',
       1,
+      50, // inject short proxy timeout — no real 3.5s wait
     );
     const elapsedMs = Date.now() - startedAt;
 
     assert.equal(result.source, 'cache');
     assert.equal(result.fromCache, true);
     assert.equal(result.content, '<p>Cached Bible content</p>');
-    assert.ok(elapsedMs >= 3000, 'proxy timeout should drive the fallback');
-    assert.ok(elapsedMs < 8000, 'slow proxy should not wait for the full backend timeout');
+    assert.ok(elapsedMs >= 50, 'proxy timeout should drive the fallback');
+    assert.ok(elapsedMs < 2000, 'slow proxy should not wait for the full backend timeout');
     assert.deepEqual(calls, [
       'https://cache.test/api/v1/bible-cache/GAE/gen/1/',
       '/bible-proxy/bible/korbibReadpage.php?version=GAE&book=gen&chap=1&cVersion=&fontSize=15px&fontWeight=normal',

@@ -92,16 +92,6 @@ export function getVerseCount(bookId: string, chapter: number): number {
 }
 
 /**
- * 특정 책의 총 장 수 반환 (VERSE_COUNTS 기준)
- * @param bookId 책 ID
- * @returns 총 장 수
- */
-export function getChapterCountFromVerseData(bookId: string): number {
-  const verses = VERSE_COUNTS[bookId];
-  return verses ? verses.length : 0;
-}
-
-/**
  * 성경 구절 참조가 유효한지 검증
  * @param bookId 책 ID
  * @param chapter 장 번호 (1-based)

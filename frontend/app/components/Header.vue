@@ -3,7 +3,7 @@
     <header class="header">
       <NuxtLink to="/" class="logo-link">
         <NuxtImg
-          src="/images/logo-transparent.png"
+          :src="cdnAsset('/images/logo-transparent.png')"
           alt="매일일독"
           class="logo"
           loading="eager"
@@ -136,6 +136,7 @@
 </template>
 
 <script setup>
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import {
   CalendarDaysIcon,
   ClipboardListIcon,
@@ -149,12 +150,14 @@ import {
   UsersIcon
 } from '@lucide/vue'
 import { useAuthService } from '~/composables/useAuthService'
+import { useToast } from '~/composables/useToast'
 import { useReadingSettingsStore } from '~/stores/readingSettings'
 import { useNotificationsStore } from '~/stores/notifications'
 import { useRouter, useRoute } from 'vue-router'
-import { computed, ref, inject, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import Menu from '~/components/Menu.vue'
 import NotificationBell from '~/components/notifications/NotificationBell.vue'
+const { cdnAsset } = useCdnAsset();
 
 const auth = useAuthService()
 const readingSettingsStore = useReadingSettingsStore()
@@ -164,7 +167,7 @@ const route = useRoute()
 const isMenuOpen = ref(false)
 const isProfileMenuOpen = ref(false)
 const profileDropdown = ref(null)
-const toast = inject('toast')
+const toast = useToast()
 
 // Theme
 const currentTheme = computed(() => readingSettingsStore.effectiveTheme)
@@ -206,7 +209,7 @@ const closeProfileMenu = () => {
 const handleLogout = async () => {
   closeProfileMenu()
   await auth.logout()
-  toast.value?.show('로그아웃 되었어요.')
+  toast.show('로그아웃 되었어요.')
   router.push('/')
 }
 

@@ -2,9 +2,13 @@
   <PageLayout title="알림 설정">
     <div class="notification-settings-shell">
       <h2 class="sr-only">알림 설정</h2>
-      <div v-if="notificationsStore.isLoading && !settings" class="settings-card">
+      <div v-if="!notificationsStore.hasLoadedSettings || (notificationsStore.isLoading && !settings)" class="settings-card">
         <SkeletonList :count="4" variant="default" />
       </div>
+
+      <EmptyState v-else-if="!auth.isAuthenticated.value" text="로그인 후 알림을 설정할 수 있습니다" fullscreen>
+        <template #action><NuxtLink to="/login" class="history-link">로그인</NuxtLink></template>
+      </EmptyState>
 
       <ErrorState
         v-else-if="notificationsStore.error && !settings"
@@ -15,30 +19,25 @@
       <form v-else-if="settings" class="settings-card" @submit.prevent="saveSettings">
         <DevicePushSetting />
 
-        <label class="setting-row">
-          <span>
-            <strong>전체 알림</strong>
-            <small>통독과 친구 활동 알림을 한 번에 관리합니다.</small>
-          </span>
-          <input
-            v-model="settings.notifications_enabled"
-            type="checkbox"
-            role="switch"
-          >
-        </label>
+        <div class="setting-row">
+          <AppSwitch
+            :model-value="settings.notifications_enabled === true"
+            label="전체 알림"
+            data-testid="notifications-enabled"
+            @update:model-value="settings.notifications_enabled = $event"
+            description="통독과 친구 활동 알림을 한 번에 관리합니다."
+          />
+        </div>
 
-        <label class="setting-row">
-          <span>
-            <strong>통독 응원</strong>
-            <small>오늘 배정된 통독을 놓치지 않도록 알려드려요.</small>
-          </span>
-          <input
-            v-model="settings.reading_reminders_enabled"
-            type="checkbox"
-            role="switch"
+        <div class="setting-row">
+          <AppSwitch
+            :model-value="settings.reading_reminders_enabled === true"
+            label="통독 응원"
+            description="오늘 배정된 통독을 놓치지 않도록 알려드려요."
             :disabled="!settings.notifications_enabled"
-          >
-        </label>
+            @update:model-value="settings.reading_reminders_enabled = $event"
+          />
+        </div>
 
         <label class="setting-row compact">
           <span>
@@ -51,18 +50,15 @@
           >
         </label>
 
-        <label class="setting-row">
-          <span>
-            <strong>하세나하시조 알림</strong>
-            <small>오늘의 묵상 시간을 부드럽게 알려드려요.</small>
-          </span>
-          <input
-            v-model="settings.hasena_reminders_enabled"
-            type="checkbox"
-            role="switch"
+        <div class="setting-row">
+          <AppSwitch
+            :model-value="settings.hasena_reminders_enabled === true"
+            label="하세나하시조 알림"
+            description="오늘의 묵상 시간을 부드럽게 알려드려요."
             :disabled="!settings.notifications_enabled"
-          >
-        </label>
+            @update:model-value="settings.hasena_reminders_enabled = $event"
+          />
+        </div>
 
         <label class="setting-row compact">
           <span>
@@ -75,22 +71,24 @@
           >
         </label>
 
-        <label class="setting-row">
-          <span>
-            <strong>친구 활동</strong>
-            <small>서로 팔로우한 친구의 통독과 하세나 활동을 받아봅니다.</small>
-          </span>
-          <input
-            v-model="settings.friend_activity_enabled"
-            type="checkbox"
-            role="switch"
+        <div class="setting-row">
+          <AppSwitch
+            :model-value="settings.friend_activity_enabled === true"
+            label="친구 활동"
+            description="서로 팔로우한 친구의 통독과 하세나 활동을 받아봅니다."
             :disabled="!settings.notifications_enabled"
-          >
-        </label>
+            @update:model-value="settings.friend_activity_enabled = $event"
+          />
+        </div>
+
+        <NotificationDetailedSettings
+          :settings="settings"
+          :disabled="!settings.notifications_enabled"
+        />
 
         <div class="settings-actions">
           <NuxtLink to="/notifications" class="history-link">알림 내역 보기</NuxtLink>
-          <button class="save-button" type="submit" :disabled="notificationsStore.isSaving">
+          <button class="save-button" type="submit" :disabled="notificationsStore.isSaving" data-testid="notification-settings-save">
             {{ notificationsStore.isSaving ? '저장 중' : '저장' }}
           </button>
         </div>
@@ -103,8 +101,12 @@
 import { onMounted, ref, watch } from 'vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import ErrorState from '~/components/ErrorState.vue'
+import EmptyState from '~/components/common/EmptyState.vue'
+import { useAuthService } from '~/composables/useAuthService'
 import DevicePushSetting from '~/components/notifications/DevicePushSetting.vue'
+import NotificationDetailedSettings from '~/components/notifications/NotificationDetailedSettings.vue'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
+import AppSwitch from '~/components/ui/AppSwitch.vue'
 import { useNotificationsStore, type NotificationSettings } from '~/stores/notifications'
 import { useToast } from '~/composables/useToast'
 
@@ -115,14 +117,25 @@ useHead({
   ],
 })
 
+const auth = useAuthService()
 const notificationsStore = useNotificationsStore()
 const toast = useToast()
 const settings = ref<NotificationSettings | null>(null)
 
+function cloneSettings(value: NotificationSettings): NotificationSettings {
+  const draft: NotificationSettings = { ...value }
+  // reminder_weekdays 같은 배열 필드는 저장 전에 스토어 상태를 오염시키지
+  // 않도록 새 배열로 복제한다.
+  draft.reminder_weekdays = Array.isArray(value.reminder_weekdays)
+    ? [...value.reminder_weekdays]
+    : [0, 1, 2, 3, 4, 5, 6]
+  return draft
+}
+
 watch(
   () => notificationsStore.settings,
   (value) => {
-    settings.value = value ? { ...value } : null
+    settings.value = value ? cloneSettings(value) : null
   },
   { immediate: true },
 )
@@ -206,10 +219,9 @@ onMounted(() => {
   line-height: 1.5;
 }
 
-.setting-row input[type="checkbox"] {
-  width: 44px;
-  height: 24px;
-  accent-color: var(--color-accent-primary);
+.setting-row :deep(.app-switch) {
+  flex: 1;
+  min-height: 0;
 }
 
 .setting-row input[type="time"] {
@@ -242,7 +254,7 @@ onMounted(() => {
   border-radius: 8px;
   border: 0;
   background: var(--color-accent-primary);
-  color: white;
+  color: var(--color-text-inverse);
   font-weight: 700;
 }
 

@@ -67,6 +67,7 @@ const renderSearchResults = async (snippet, query) => {
   const component = defineComponent({
     components: {
       BibleSubpageLayout: passthroughLayout,
+      CheckIcon: iconStub,
       ChevronDownIcon: iconStub,
       SearchIcon: iconStub,
       NuxtLink: linkStub,
@@ -80,6 +81,7 @@ const renderSearchResults = async (snippet, query) => {
         highlightSnippet: value => snippetRuntime.highlightBibleSearchSnippet(value, query),
         isGroupExpanded: () => true,
         isSearching: false,
+        isVersionOpen: false,
         message: '',
         query,
         resultSummary: '1개 결과 · 1권',

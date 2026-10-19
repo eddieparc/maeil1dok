@@ -67,6 +67,8 @@ let requested = false;
 
 onMounted(async () => {
   if (window.isReactNativeWebView || window.ReactNativeWebView) return;
+  // 가시성 관측을 못 하는 환경에서는 광고를 요청하지 않고 공간도 만들지 않는다.
+  if (typeof IntersectionObserver === 'undefined') return;
   eligible.value = true;
   await nextTick();
   if (disposed || !container.value || !unit.value) return;

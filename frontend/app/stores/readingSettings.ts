@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
+import {
+  READING_SETTINGS_STORAGE_KEY as STORAGE_KEY,
+  recoverPendingReadingSettings,
+  savePendingReadingSettings,
+} from '~/utils/readingSettingsRecovery'
 
 // Type definitions
 export type ThemeMode = 'light' | 'dark' | 'system'
@@ -27,6 +32,7 @@ export interface ReadingSettings {
 
   // Behavior settings
   tongdokAutoComplete: boolean
+  audioPlaybackRate: number
 
   // View options (existing, migrated from localStorage)
   showDescription: boolean
@@ -39,6 +45,7 @@ interface ReadingSettingsState {
   settings: ReadingSettings
   isLoading: boolean
   isSyncing: boolean
+  syncError: string | null
   lastSyncedAt: Date | null
   initialized: boolean
 }
@@ -54,6 +61,7 @@ const DEFAULT_SETTINGS: ReadingSettings = {
   verseJoining: false,
   showVerseNumbers: true,
   tongdokAutoComplete: false,
+  audioPlaybackRate: 1.0,
   showDescription: true,
   showCrossRef: true,
   highlightNames: true,
@@ -99,18 +107,39 @@ export const FONT_WEIGHTS: Record<FontWeight, number> = {
   bold: 600,
 }
 
-const STORAGE_KEY = 'readingSettings'
 const OLD_VIEW_OPTIONS_KEY = 'bibleViewOptions'
 const OLD_FONT_SIZE_KEY = 'bibleFontSize'
 
-// Debounce timeout reference
-let syncTimeout: NodeJS.Timeout | null = null
+// Timers and pending user edits belong to a store instance, not the module/SSR request.
+interface SettingsSync {
+  timer: ReturnType<typeof setTimeout> | null
+  pending: Partial<ReadingSettings>
+  serverLoaded: boolean
+  auth: ReturnType<typeof useAuthService> | null
+  ownerId: number | null
+}
+const syncStates = new WeakMap<object, SettingsSync>()
+const syncState = (store: object): SettingsSync => {
+  let state = syncStates.get(store)
+  if (!state) {
+    state = { timer: null, pending: {}, serverLoaded: false, auth: null, ownerId: null }
+    syncStates.set(store, state)
+  }
+  const userId = state.auth?.isAuthenticated.value ? state.auth.user.value?.id ?? null : null
+  if (state.ownerId !== null && state.ownerId !== userId) {
+    state.pending = {}
+    state.serverLoaded = false
+  }
+  state.ownerId = userId
+  return state
+}
 
 export const useReadingSettingsStore = defineStore('readingSettings', {
   state: (): ReadingSettingsState => ({
     settings: { ...DEFAULT_SETTINGS },
     isLoading: false,
     isSyncing: false,
+    syncError: null,
     lastSyncedAt: null,
     initialized: false,
   }),
@@ -145,6 +174,8 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
   actions: {
     async initialize() {
       if (this.initialized) return
+      const auth = useAuthService()
+      syncState(this).auth = auth
 
       this.loadFromLocalStorage()
       this.migrateOldSettings()
@@ -152,7 +183,6 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
       this.setupSystemThemeListener()
       this.initialized = true
 
-      const auth = useAuthService()
       if (auth.isAuthenticated.value) {
         await this.syncFromServer()
         this.applyTheme()
@@ -188,14 +218,28 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
       if (typeof window === 'undefined') return
 
       try {
-        // Migrate old viewOptions
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+        let migrated = false
+        // Only migrate fields absent from the current saved preferences.
         const oldViewOptions = localStorage.getItem(OLD_VIEW_OPTIONS_KEY)
         if (oldViewOptions) {
           const parsed = JSON.parse(oldViewOptions)
-          if (parsed.showDescription !== undefined) this.settings.showDescription = parsed.showDescription
-          if (parsed.showCrossRef !== undefined) this.settings.showCrossRef = parsed.showCrossRef
-          if (parsed.highlightNames !== undefined) this.settings.highlightNames = parsed.highlightNames
-          if (parsed.showFootnotes !== undefined) this.settings.showFootnotes = parsed.showFootnotes
+          if (saved.showDescription === undefined && parsed.showDescription !== undefined) {
+            this.settings.showDescription = parsed.showDescription
+            migrated = true
+          }
+          if (saved.showCrossRef === undefined && parsed.showCrossRef !== undefined) {
+            this.settings.showCrossRef = parsed.showCrossRef
+            migrated = true
+          }
+          if (saved.highlightNames === undefined && parsed.highlightNames !== undefined) {
+            this.settings.highlightNames = parsed.highlightNames
+            migrated = true
+          }
+          if (saved.showFootnotes === undefined && parsed.showFootnotes !== undefined) {
+            this.settings.showFootnotes = parsed.showFootnotes
+            migrated = true
+          }
           localStorage.removeItem(OLD_VIEW_OPTIONS_KEY)
         }
 
@@ -203,13 +247,14 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
         const oldFontSize = localStorage.getItem(OLD_FONT_SIZE_KEY)
         if (oldFontSize) {
           const size = parseInt(oldFontSize, 10)
-          if (!isNaN(size) && size >= 14 && size <= 24) {
+          if (saved.fontSize === undefined && !isNaN(size) && size >= 14 && size <= 24) {
             this.settings.fontSize = size
+            migrated = true
           }
           localStorage.removeItem(OLD_FONT_SIZE_KEY)
         }
 
-        this.saveToLocalStorage()
+        if (migrated) this.saveToLocalStorage()
       } catch (e) {
         console.warn('Failed to migrate old settings:', e)
       }
@@ -221,6 +266,11 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
 
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings))
+        const auth = syncState(this).auth
+        savePendingReadingSettings(
+          this.settings, syncState(this).pending,
+          auth?.isAuthenticated.value ? auth.user.value?.id ?? null : null,
+        )
       } catch (e) {
         console.warn('Failed to save reading settings to localStorage:', e)
       }
@@ -229,12 +279,24 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
     // Sync from server (authenticated users)
     async syncFromServer() {
       const auth = useAuthService()
-      if (!auth.isAuthenticated.value) return
+      syncState(this).auth = auth
+      if (!auth.isAuthenticated.value || this.isLoading) return
+      const userId = auth.user.value?.id ?? null
 
       this.isLoading = true
       try {
+        if (!this.initialized) this.loadFromLocalStorage()
+        const state = syncState(this)
+        state.pending = {
+          ...recoverPendingReadingSettings(
+            this.settings, auth.user.value?.id ?? null,
+            Object.keys(DEFAULT_SETTINGS) as Array<keyof ReadingSettings>,
+          ),
+          ...state.pending,
+        }
         const api = useApi()
         const response = await api.GET('/api/v1/auth/reading-settings/')
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== userId) return
 
         if (response.data.success && response.data.data.settings) {
           const serverSettings = response.data.data.settings
@@ -251,68 +313,104 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
             verseJoining: serverSettings.verse_joining ?? this.settings.verseJoining,
             showVerseNumbers: serverSettings.show_verse_numbers ?? this.settings.showVerseNumbers,
             tongdokAutoComplete: serverSettings.tongdok_auto_complete ?? this.settings.tongdokAutoComplete,
+            audioPlaybackRate: serverSettings.audio_playback_rate ?? this.settings.audioPlaybackRate,
             showDescription: serverSettings.show_description ?? this.settings.showDescription,
             showCrossRef: serverSettings.show_cross_ref ?? this.settings.showCrossRef,
             highlightNames: serverSettings.highlight_names ?? this.settings.highlightNames,
             showFootnotes: serverSettings.show_footnotes ?? this.settings.showFootnotes,
+            ...syncState(this).pending,
           }
+          syncState(this).serverLoaded = true
+          this.syncError = null
           this.saveToLocalStorage()
           this.lastSyncedAt = new Date()
+        } else {
+          throw new Error('Reading settings were not returned by the server')
         }
       } catch (e) {
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== userId) return
+        this.syncError = '설정을 불러오지 못했습니다. 다시 시도해주세요.'
         console.warn('Failed to sync reading settings from server:', e)
       } finally {
         this.isLoading = false
+        if (auth.isAuthenticated.value && auth.user.value?.id !== userId) {
+          void this.syncFromServer().then(() => this.applyTheme())
+        } else if (syncState(this).serverLoaded && Object.keys(syncState(this).pending).length) {
+          this.debouncedSync()
+        }
       }
     },
 
     // Sync to server (debounced, called after setting changes)
     async syncToServer() {
       const auth = useAuthService()
-      if (!auth.isAuthenticated.value) return
-
+      if (!auth.isAuthenticated.value || this.isLoading || this.isSyncing) return
+      const state = syncState(this)
+      const userId = auth.user.value?.id ?? null
+      // A pending edit must not send untouched defaults before the user's GET completes.
+      if (!state.serverLoaded) await this.syncFromServer()
+      if (!state.serverLoaded) return
+      if (state.timer) clearTimeout(state.timer)
+      state.timer = null
+      const snapshot = { ...this.settings }
       this.isSyncing = true
+      this.syncError = null
       try {
         const api = useApi()
-        await api.PATCH('/api/v1/auth/reading-settings/update/', {
-          theme: this.settings.theme,
-          font_family: this.settings.fontFamily,
-          font_size: this.settings.fontSize,
-          font_weight: this.settings.fontWeight,
-          line_height: this.settings.lineHeight,
-          text_align: this.settings.textAlign,
-          verse_joining: this.settings.verseJoining,
-          show_verse_numbers: this.settings.showVerseNumbers,
-          tongdok_auto_complete: this.settings.tongdokAutoComplete,
-          show_description: this.settings.showDescription,
-          show_cross_ref: this.settings.showCrossRef,
-          highlight_names: this.settings.highlightNames,
-          show_footnotes: this.settings.showFootnotes,
+        const response = await api.PATCH('/api/v1/auth/reading-settings/update/', {
+          theme: snapshot.theme,
+          font_family: snapshot.fontFamily,
+          font_size: snapshot.fontSize,
+          font_weight: snapshot.fontWeight,
+          line_height: snapshot.lineHeight,
+          text_align: snapshot.textAlign,
+          verse_joining: snapshot.verseJoining,
+          show_verse_numbers: snapshot.showVerseNumbers,
+          tongdok_auto_complete: snapshot.tongdokAutoComplete,
+          audio_playback_rate: snapshot.audioPlaybackRate,
+          show_description: snapshot.showDescription,
+          show_cross_ref: snapshot.showCrossRef,
+          highlight_names: snapshot.highlightNames,
+          show_footnotes: snapshot.showFootnotes,
         })
+        if (!response.success) throw new Error('Reading settings persistence failed')
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== userId) return
         this.lastSyncedAt = new Date()
+        for (const key of Object.keys(state.pending) as Array<keyof ReadingSettings>) {
+          if (state.pending[key] === snapshot[key]) delete state.pending[key]
+        }
+        this.saveToLocalStorage()
       } catch (e) {
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== userId) return
+        this.syncError = '설정을 서버에 저장하지 못했습니다. 이 기기의 변경사항은 유지됩니다.'
         console.warn('Failed to sync reading settings to server:', e)
       } finally {
         this.isSyncing = false
+        // Serialize writes; a later user edit must finish after the in-flight snapshot.
+        const pending = syncState(this).pending
+        if (Object.keys(pending).length && (auth.user.value?.id !== userId ||
+            Object.keys(pending).some(key => this.settings[key as keyof ReadingSettings] !== snapshot[key as keyof ReadingSettings]))) this.debouncedSync()
       }
     },
 
     // Update a single setting
     updateSetting<K extends keyof ReadingSettings>(key: K, value: ReadingSettings[K]) {
       this.settings[key] = value
+      Object.assign(syncState(this).pending, { [key]: value })
       this.saveToLocalStorage()
 
       if (key === 'theme') {
         this.applyTheme()
       }
 
-      // Debounced sync to server (500ms)
+      // Debounced sync to server (400ms)
       this.debouncedSync()
     },
 
     // Update multiple settings at once
     updateSettings(updates: Partial<ReadingSettings>) {
       Object.assign(this.settings, updates)
+      Object.assign(syncState(this).pending, updates)
       this.saveToLocalStorage()
 
       if ('theme' in updates) {
@@ -322,14 +420,14 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
       this.debouncedSync()
     },
 
-    // Debounced server sync (500ms)
+    // Keep local recovery immediate; debounce remote persistence by 400ms.
     debouncedSync() {
-      if (syncTimeout) {
-        clearTimeout(syncTimeout)
-      }
-      syncTimeout = setTimeout(() => {
-        this.syncToServer()
-      }, 500)
+      const state = syncState(this)
+      if (state.timer) clearTimeout(state.timer)
+      state.timer = setTimeout(() => {
+        state.timer = null
+        void this.syncToServer()
+      }, 400)
     },
 
     // Apply theme to document
@@ -361,6 +459,7 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
     // Reset to defaults
     resetToDefaults() {
       this.settings = { ...DEFAULT_SETTINGS }
+      syncState(this).pending = { ...DEFAULT_SETTINGS }
       this.saveToLocalStorage()
       this.applyTheme()
       this.debouncedSync()

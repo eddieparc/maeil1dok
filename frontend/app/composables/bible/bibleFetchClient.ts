@@ -19,8 +19,8 @@ type BibleCacheResponse = {
   readonly error?: string;
 };
 
-const PROXY_SLOW_FALLBACK_TIMEOUT = 3500;
-const CACHE_TIMEOUT = 15000;
+export const PROXY_SLOW_FALLBACK_TIMEOUT = 3500;
+export const CACHE_TIMEOUT = 15000;
 
 export async function fetchKntContentWithCache(
   bibleCacheUrl: string,
@@ -42,6 +42,7 @@ export async function fetchStandardContentWithCache(
   version: string,
   book: string,
   chapter: number,
+  proxyTimeoutMs = PROXY_SLOW_FALLBACK_TIMEOUT,
 ): Promise<BibleFetchResult> {
   return fetchWithCacheFallback({
     bibleCacheUrl,
@@ -49,7 +50,7 @@ export async function fetchStandardContentWithCache(
     book,
     chapter,
     contentType: 'html',
-    proxyFetch: () => fetchStandardFromProxy(version, book, chapter),
+    proxyFetch: () => fetchStandardFromProxy(version, book, chapter, proxyTimeoutMs),
   });
 }
 
@@ -149,10 +150,16 @@ async function fetchWithCacheFallback(options: FallbackOptions): Promise<BibleFe
   return errorResult(options.contentType);
 }
 
+/** bskorea KNT upstream uses JON for Jonah; internal code is jnh. */
+const KNT_UPSTREAM_BOOK_CODES: Record<string, string> = {
+  jnh: 'JON',
+};
+
 export function buildKntProxyUrl(book: string, chapter: number): string {
+  const upstreamBook = KNT_UPSTREAM_BOOK_CODES[book] ?? book.toUpperCase();
   const params = new URLSearchParams({
     version: 'd7a4326402395391-01',
-    chapter: `${book.toUpperCase()}.${chapter}`,
+    chapter: `${upstreamBook}.${chapter}`,
   });
   return `/bible-proxy/KNT/get_chapter.php?${params.toString()}`;
 }
@@ -200,10 +207,11 @@ async function fetchStandardFromProxy(
   version: string,
   book: string,
   chapter: number,
+  timeoutMs = PROXY_SLOW_FALLBACK_TIMEOUT,
 ): Promise<BibleFetchResult> {
   const response = await fetchWithTimeout(
     buildStandardProxyUrl(version, book, chapter),
-    PROXY_SLOW_FALLBACK_TIMEOUT,
+    timeoutMs,
   );
 
   if (!response.ok) {

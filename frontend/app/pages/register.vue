@@ -12,7 +12,7 @@
       <div>
         <NuxtImg
           class="mx-auto h-8 w-auto object-contain"
-          src="/images/logo-transparent.png"
+          :src="cdnAsset('/images/logo-transparent.png')"
           alt="매일일독"
           loading="eager"
           format="webp"
@@ -69,7 +69,7 @@
           <div class="flex gap-4 justify-center">
             <button type="button" @click="handleKakaoLogin" class="social-button kakao-button">
               <NuxtImg
-                src="/images/kakao.png"
+                :src="cdnAsset('/images/kakao.png')"
                 width="16"
                 height="16"
                 alt="카카오 로고"
@@ -92,6 +92,7 @@
 </template>
 
 <script setup>
+import { useCdnAsset } from '~/composables/useCdnAsset';
 import { ref, watch } from 'vue'
 import { useAuthService } from '~/composables/useAuthService'
 import { useApi } from '~/composables/useApi'
@@ -99,6 +100,8 @@ import { useRuntimeConfig } from 'nuxt/app'
 import { useHead } from '#imports'
 import { useModal } from '~/composables/useModal'
 import { useNavigation } from '~/composables/useNavigation'
+import { resolveSocialRedirectUri } from '#shared/utils/authCallbackRuntime'
+const { cdnAsset } = useCdnAsset();
 
 const { goBack } = useNavigation()
 const handleBack = () => goBack('/login')
@@ -205,12 +208,22 @@ const handleSubmit = async () => {
 }
 
 const handleKakaoLogin = () => {
-  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${config.public.KAKAO_CLIENT_ID}&redirect_uri=${config.public.KAKAO_REDIRECT_URI}&response_type=code`
+  const redirectUri = resolveSocialRedirectUri(
+    'kakao',
+    config.public.KAKAO_REDIRECT_URI,
+    window.location.origin,
+  )
+  const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${config.public.KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`
   window.location.href = kakaoAuthUrl
 }
 
 const handleGoogleLogin = () => {
-  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.public.GOOGLE_CLIENT_ID}&redirect_uri=${config.public.GOOGLE_REDIRECT_URI}&response_type=code&scope=profile`
+  const redirectUri = resolveSocialRedirectUri(
+    'google',
+    config.public.GOOGLE_REDIRECT_URI,
+    window.location.origin,
+  )
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${config.public.GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=profile`
   window.location.href = googleAuthUrl
 }
 

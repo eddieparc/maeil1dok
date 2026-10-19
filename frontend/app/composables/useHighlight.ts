@@ -14,11 +14,10 @@ export type { Highlight } from '~/types/bible';
 
 // 기본 색상 팔레트
 export const DEFAULT_HIGHLIGHT_COLORS = [
-  { name: '노랑', value: '#FEF3C7' },
-  { name: '초록', value: '#D1FAE5' },
-  { name: '파랑', value: '#DBEAFE' },
-  { name: '빨강', value: '#FEE2E2' },
-  { name: '보라', value: '#E9D5FF' },
+  { name: '노랑', value: '#FFE28A' },
+  { name: '초록', value: '#BFE8C4' },
+  { name: '파랑', value: '#BBDDFB' },
+  { name: '분홍', value: '#F9C6D3' },
 ];
 
 const normalizeHighlight = (highlight: components['schemas']['BibleHighlight']): Highlight => ({
@@ -65,10 +64,13 @@ export const useHighlight = () => {
    * 전체 하이라이트 목록 불러오기
    */
   const fetchHighlights = async (): Promise<void> => {
-    if (!auth.isAuthenticated.value) return;
-
     try {
       isHighlightLoading.value = true;
+      if (!auth.isInitialized.value || auth.isLoading.value) {
+        await auth.initialize();
+      }
+      if (!auth.isAuthenticated.value) return;
+
       const response = await api.GET('/api/v1/todos/bible/highlights/');
       highlights.value = response.data.results.map(normalizeHighlight);
     } catch (error) {
@@ -83,6 +85,9 @@ export const useHighlight = () => {
    * 장별 하이라이트 불러오기
    */
   const fetchChapterHighlights = async (book: string, chapter: number): Promise<void> => {
+    if (!auth.isInitialized.value || auth.isLoading.value) {
+      await auth.initialize();
+    }
     if (!auth.isAuthenticated.value) {
       chapterHighlights.value = [];
       return;
@@ -152,7 +157,7 @@ export const useHighlight = () => {
 
     try {
       isHighlightLoading.value = true;
-      const response = await api.PUT(
+      const response = await api.PATCH(
         api.path('/api/v1/todos/bible/highlights/{id}/', { id }),
         data,
       );

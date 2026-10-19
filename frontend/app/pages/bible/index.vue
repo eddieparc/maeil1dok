@@ -1,11 +1,11 @@
 <template>
-  <div class="bible-page">
+  <div class="bible-page" :class="{ 'is-reader': viewMode === 'reader' }">
     <!-- 홈/대시보드 뷰 -->
     <BibleHome
       v-if="viewMode === 'home'"
       @continue-reading="handleContinueReading"
       @select-book="handleHomeBookSelect"
-      @show-toc="viewMode = 'toc'"
+      @show-toc="showBookSelector = true"
     />
 
     <!-- 목차 뷰 -->
@@ -20,6 +20,16 @@
       <BibleReaderView
         ref="bibleReaderViewRef"
         :content="bibleContent"
+        :compare-enabled="compareEnabled"
+        :secondary-content="secondaryContent"
+        :secondary-version-name="versionNames[secondaryVersion] || secondaryVersion"
+        :primary-version-code="currentVersion"
+        :secondary-version-code="secondaryVersion"
+        :primary-meta="versionMeta[currentVersion]"
+        :secondary-meta="versionMeta[secondaryVersion]"
+        :is-secondary-loading="isSecondaryLoading"
+        @compare-version-select="handleCompareColumnSelect"
+        @compare-swap="swapCompareVersions"
         :is-loading="isLoading"
         :scroll-position="scrollPosition"
         :current-book-name="currentBookName"
@@ -30,7 +40,9 @@
         :has-next-chapter="hasNextChapter"
         :is-tongdok-mode="isTongdokMode"
         :tongdok-schedule-range="tongdokScheduleRange"
-        :tongdok-schedule-date="tongdokScheduleDate"
+        :tongdok-schedule-date="tongdokScheduleDateDisplay"
+        :tongdok-plan-name="readerPlanName"
+        :tongdok-schedule="tongdokScheduleRowsDisplay"
         :tongdok-audio-link="tongdokAudioLink"
         :tongdok-guide-link="tongdokGuideLink"
         :tongdok-progress="tongdokProgress"
@@ -42,12 +54,15 @@
         :is-authenticated="auth.isAuthenticated.value"
         :is-bookmarked="isCurrentChapterBookmarked"
         :note-count="currentChapterNoteCount"
-        :highlights="chapterHighlights"
+        :highlights="visibleChapterHighlights"
+        :overlay-open="overlayOpen"
+        :audio-context-key="audioContextKey"
+        :tab-bar-visible="tabBarVisible"
         @back="goBack"
         @prev-chapter="goToPrevChapter"
         @next-chapter="goToNextChapter"
         @open-book-selector="showBookSelector = true"
-        @open-version-selector="showVersionSelector = true"
+        @open-version-selector="showBookSelector = true"
         @open-settings="showSettingsModal = true"
         @bookmark-toggle="handleBookmarkToggle"
         @note-click="handleNoteClick"
@@ -56,57 +71,51 @@
         @bookmark="handleBookmarkAction"
         @highlight="handleHighlightAction"
         @highlight-delete="handleHighlightDeleteDirect"
+        @highlight-save="handleDirectHighlightSave"
+        @copy-error="handleCopyError"
         @copy="handleCopyAction"
-        @share="handleShareAction"
+        @share="handleSelectionShareAction"
         @exit-tongdok="handleExitTongdok"
-        @tongdok-complete-click="showTongdokCompleteModal = true"
-        @today-tongdok="handleTodayTongdok"
+        @tongdok-complete-click="handleTongdokComplete(undefined, undefined, true)"
         @audio-link-click="handleEmbeddedAudioLink"
         @audio-external-click="handleAudioLink"
         @audio-player-open-change="showTongdokAudioPlayer = $event"
         @audio-ended="handleTongdokAudioEnded"
-        @reading-plan-click="showScheduleModal = true"
-      />
+        @reading-plan-click="showFullScheduleModal = true"
+        @share-click="handleChapterShare"
+        @guide-click="showGuideSheet = true"
+        @toggle-tab-bar="handleToggleTabBar"
+      >
+        <template #tab-bar>
+          <BibleTabBar
+            v-if="tabBarVisible"
+            :tabs="bibleTabs"
+            :active-tab-id="activeBibleTabId"
+            @switch="handleTabSwitch"
+            @close="handleTabClose"
+            @add="handleTabAdd"
+          />
+        </template>
+      </BibleReaderView>
 
       <!-- 모달 -->
-      <BookSelector
-        v-model="showBookSelector"
-        :current-book="currentBook"
-        :current-chapter="currentChapter"
-        :current-version="currentVersion"
-        @select="handleBookSelect"
-        @version-select="handleVersionSelect"
+      <ShareSheet
+        v-model="showShareSheet"
+        :mode="shareMode"
+        :metadata="shareMetadata"
+        :verses="shareVerses"
+        :share-url="shareUrl"
+        :plan-id="shareContext.planId"
+        :schedule-id="shareContext.scheduleId"
+        @error="handleShareError"
+        @result="handleShareResult"
       />
 
-      <VersionSelector
-        v-model="showVersionSelector"
-        :current-version="currentVersion"
-        @select="handleVersionSelect"
-      />
-
-      <!-- 통독 완료 모달 -->
-      <TongdokCompleteModal
-        v-model="showTongdokCompleteModal"
-        :schedule-range="fullTongdokRange"
-        :initial-auto-complete="tongdokAutoComplete"
-        :is-loading="isCompleting"
-        @confirm="handleTongdokComplete"
-      />
-
-      <!-- 통독 완료 후 다음 일정 이동 모달 -->
-      <TongdokNextScheduleModal
-        v-model="showNextScheduleModal"
-        :schedule-range="fullTongdokRange"
-        :is-loading="isCompleting"
-        @action="handleNextScheduleAction"
-      />
-
-      <!-- 통독 인증 카드 모달 -->
-      <TongdokCertificationModal
-        v-model="showCertificationModal"
-        :plan-id="certificationContext.planId"
-        :schedule-id="certificationContext.scheduleId"
-        @close="handleCertificationClose"
+      <ReaderGuideSheet
+        v-model="showGuideSheet"
+        :schedule-title="fullTongdokRange"
+        :guide-link="tongdokGuideLink"
+        @open-guide="handleAudioLink"
       />
 
       <!-- 노트 빠른 메모 모달 -->
@@ -136,10 +145,9 @@
       />
 
       <!-- 읽기 설정 모달 -->
-      <ReadingSettingsModal
-        :is-open="showSettingsModal"
+      <ReadingSettingsSheet
+        v-model="showSettingsModal"
         :current-version="currentVersion"
-        @close="showSettingsModal = false"
       />
 
       <!-- 통독 플랜 선택 모달 -->
@@ -154,13 +162,14 @@
 
       <!-- 성경통독표 모달 -->
       <BaseModal
-        v-model="showScheduleModal"
+        v-model="showFullScheduleModal"
         title="성경통독표"
         size="lg"
         :no-padding="true"
+        :compact="true"
       >
         <BibleScheduleContent
-          v-if="showScheduleModal"
+          v-if="showFullScheduleModal"
           :is-modal="true"
           :current-book="currentBook"
           :current-chapter="currentChapter"
@@ -169,16 +178,29 @@
         />
       </BaseModal>
 
-      <!-- 토스트 -->
-      <Toast />
-
     </template>
+    <BookSelector
+      v-model="showBookSelector"
+      :current-book="currentBook"
+      :current-chapter="currentChapter"
+      :current-version="currentVersion"
+      :read-chapters="selectorReadChapters"
+      :compare-enabled="compareEnabled"
+      :secondary-version="secondaryVersion"
+      @select="handleBookSelect"
+      @version-select="handleVersionSelect"
+      @compare-toggle="toggleCompare"
+      @compare-version-select="handleCompareVersionSelect"
+    />
+    <SidebarNav v-if="viewMode !== 'reader'" />
+    <BottomNavigation v-if="viewMode !== 'reader'" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import SidebarNav from '~/components/common/SidebarNav.vue';
 // useBibleFetch는 이제 useBibleContent 내부에서 사용됨
 import { useTongdokMode } from '~/composables/useTongdokMode';
 import { usePersonalRecord } from '~/composables/usePersonalRecord';
@@ -189,8 +211,11 @@ import { useHighlight } from '~/composables/useHighlight';
 import { useScheduleApi } from '~/composables/useScheduleApi';
 import { useBibleModals } from '~/composables/bible/useBibleModals';
 import { useBibleContent } from '~/composables/bible/useBibleContent';
+import { useCompareMode } from '~/composables/bible-page/useCompareMode';
+import { useShareSheet } from '~/composables/bible-page/useShareSheet';
+import { useBiblePageTabs } from '~/composables/bible-page/useBiblePageTabs';
+import { VERSION_NAMES, VERSION_META } from '~/composables/useBibleData';
 import {
-  buildBibleSelectionShareData,
   parseVerseRangeParam,
   useBiblePageState,
   type BibleVerseRange,
@@ -212,32 +237,31 @@ import { useToast } from '~/composables/useToast';
 import { useModal } from '~/composables/useModal';
 import { useApi } from '~/composables/useApi';
 // 뷰 컴포넌트
+import BottomNavigation from '~/components/BottomNavigation.vue';
 import BibleHome from '~/components/bible/BibleHome.vue';
 import BibleTOC from '~/components/bible/BibleTOC.vue';
 import BibleReaderView from '~/components/bible/BibleReaderView.vue';
-import type { SelectionSharePayload } from '~/components/bible/BibleViewer.vue';
+import BibleTabBar from '~/components/bible/BibleTabBar.vue';
+import type { SelectionHighlightPayload, SelectionSharePayload } from '~/components/bible/BibleViewer.vue';
 
 // 모달 컴포넌트
 import BookSelector from '~/components/bible/BookSelector.vue';
-import VersionSelector from '~/components/bible/VersionSelector.vue';
-import TongdokCompleteModal from '~/components/bible/TongdokCompleteModal.vue';
-import TongdokNextScheduleModal from '~/components/bible/TongdokNextScheduleModal.vue';
-import type { NextScheduleAction } from '~/components/bible/TongdokNextScheduleModal.vue';
-import TongdokCertificationModal from '~/components/bible/TongdokCertificationModal.vue';
+import ReaderCompletionContent, { type ReaderCompletionHighlight } from '~/components/bible/ReaderCompletionContent.vue';
+import ReaderGuideSheet from '~/components/bible/ReaderGuideSheet.vue';
+import ShareSheet from '~/components/bible/share/ShareSheet.vue';
+import type { AudioEndedSource } from '~/components/bible/TongdokAudioPlayer.vue';
+import type { BibleShareMetadata } from '~/composables/bible/bibleShare';
+import type { Schedule } from '~/types/plan';
 import NoteQuickModal from '~/components/bible/NoteQuickModal.vue';
 import HighlightModal from '~/components/bible/HighlightModal.vue';
-import ReadingSettingsModal from '~/components/ReadingSettingsModal.vue';
+import ReadingSettingsSheet from '~/components/ReadingSettingsSheet.vue';
 import BibleScheduleContent from '~/components/BibleScheduleContent.vue';
 import PlanSelectorModal from '~/components/schedule/PlanSelectorModal.vue';
 import BaseModal from '~/components/ui/modal/BaseModal.vue';
 
-// 기타
-import Toast from '~/components/Toast.vue';
-
 // 유틸리티
 import { getBookCode } from '~/constants/bible';
 import { parseSearchFocusParam } from '~/utils/bibleSearchRoute';
-import { selectTongdokLastChapterAction } from '~/utils/tongdokLastChapter';
 
 // 타입
 import type { VerseSelection } from '~/types/bible';
@@ -246,10 +270,11 @@ definePageMeta({
   layout: 'default'
 });
 
+const nuxtApp = useNuxtApp();
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthService();
-const { requireAuth } = useAuthGuard();
+const { requireAuth, requireAuthWithPrompt } = useAuthGuard();
 const readingSettingsStore = useReadingSettingsStore();
 const selectedPlanStore = useSelectedPlanStore();
 const subscriptionStore = useSubscriptionStore();
@@ -257,10 +282,12 @@ const toast = useToast();
 const modal = useModal();
 const api = useApi();
 const { fetchNextPosition, fetchMonthlySchedules } = useScheduleApi();
-const { handleApiError, handleUserActionError } = useErrorHandler();
+const { handleApiError } = useErrorHandler();
 
 // Composables
 const {
+  readChapters,
+  clearCache: clearReadChapters,
   fetchReadChapters,
   markAsRead,
   isChapterRead,
@@ -272,16 +299,23 @@ const {
   tongdokMode,
   tongdokScheduleId,
   tongdokPlanId,
+  tongdokPlanName,
   isCompleting,
   initTongdokMode,
   getTongdokScheduleRange,
+  getScheduleRows,
   getFullScheduleRange,
   isLastChapterInTongdok,
-  isScheduleCompleted,
+  isOffPlanDetail,
   disableTongdokMode,
   enableTongdokMode,
-  completeReading,
-  setReadingDetailResponse,
+  completeCurrentChapter,
+  uncompleteCurrentChapter,
+  markAllScheduleChapters,
+  isChapterCompleted,
+  isScheduleCompleted,
+  getCurrentSectionChapters,
+  readingDetailResponse,
   loadReadingDetail,
   getAudioLink,
   getGuideLink,
@@ -291,7 +325,6 @@ const {
 const {
   loadReadingPosition,
   saveReadingPosition,
-  restoreScrollPosition: restoreReadingScrollPosition,
   cleanup: cleanupReadingPosition,
   enableSaving: enablePositionSaving,
 } = useReadingPosition();
@@ -317,12 +350,10 @@ const {
   deleteHighlight
 } = useHighlight();
 
-// 콘텐츠 로딩 (useBibleContent composable)
-const {
-  content: bibleContent,
-  isLoading,
-  loadContent: loadBibleContentFromComposable,
-} = useBibleContent();
+// Each load owns its content ref so a superseded request cannot paint another chapter.
+const bibleContent = ref('');
+const isLoading = ref(true);
+let contentGeneration = 0;
 
 // 페이지 상태 (useBiblePageState composable)
 const {
@@ -339,77 +370,92 @@ const {
   goBack,
   goToPrevChapter: goToPrevChapterBase,
   goToNextChapter: goToNextChapterBase,
-  selectBook,
-  selectVersion,
   initFromQuery: initFromQueryBase,
   generateShareUrl,
 } = useBiblePageState();
+viewMode.value = getBibleRouteQueryPolicy(route.query).shouldInitializeOnEntry ? 'reader' : 'home';
+if (viewMode.value === 'reader') initFromQueryBase(route.query);
 
 // 모달 상태 (useBibleModals composable로 통합 관리)
 const {
   showBookSelector,
-  showVersionSelector,
-  showTongdokCompleteModal,
   showHighlightModal,
   showSettingsModal,
   highlightSelection,
   openHighlightModal,
-  closeTongdokCompleteModal,
 } = useBibleModals();
 
-const showNextScheduleModal = ref(false);
-const showCertificationModal = ref(false);
-const certificationCloseHandler = ref<(() => Promise<void> | void) | null>(null);
-
-interface CertificationContext {
-  planId: number | null;
-  scheduleId: number | null;
-}
-
-const certificationContext = ref<CertificationContext>({
-  planId: null,
-  scheduleId: null,
+const versionNames: Record<string, string> = VERSION_NAMES;
+const versionMeta: Record<string, { direction: string; language: string; testament: string }> = VERSION_META;
+// 역본 비교 모드 (composables/bible-page/useCompareMode)
+const {
+  compareEnabled,
+  secondaryVersion,
+  secondaryContent,
+  isSecondaryLoading,
+  compareChapters,
+  chapterKey,
+  restoreComparePrefs,
+  toggleCompare,
+  handleCompareVersionSelect,
+  handleCompareColumnSelect,
+  swapCompareVersions,
+  loadSecondaryContent,
+} = useCompareMode({
+  currentBook,
+  currentChapter,
+  currentVersion,
+  viewMode,
+  onPrimaryVersionSelect: version => handleVersionSelect(version),
 });
 
-const getCertificationContext = (): CertificationContext => ({
-  planId: tongdokPlanId.value ?? selectedPlanStore.effectivePlanId ?? null,
-  scheduleId: tongdokScheduleId.value ?? null,
+// 공유 시트 (composables/bible-page/useShareSheet)
+const {
+  showShareSheet,
+  shareMode,
+  shareMetadata,
+  shareVerses,
+  shareUrl,
+  shareContext,
+  shareBibleLink,
+  handleShareAction,
+  handleChapterShare,
+  handleShareError,
+  handleShareResult,
+} = useShareSheet({
+  currentBookName,
+  currentChapter,
+  currentVersionName,
+  chapterSuffix,
+  generateShareUrl,
 });
 
-const openCertificationModal = (
-  context: CertificationContext,
-  onClose?: () => Promise<void> | void,
-): void => {
-  certificationContext.value = context;
-  certificationCloseHandler.value = onClose ?? null;
-  showCertificationModal.value = true;
-};
-
-// 통독 완료 후 다음 일정 이동 모달 관련
-const NEXT_SCHEDULE_ACTION_KEY = 'tongdokNextScheduleAction';
-type SavedNextScheduleAction = 'go-next-schedule' | null;
-
-const getSavedNextScheduleAction = (): SavedNextScheduleAction => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const saved = localStorage.getItem(NEXT_SCHEDULE_ACTION_KEY);
-    if (saved === 'go-next-schedule') return saved;
-    return null;
-  } catch {
-    return null;
+const handleSelectionShareAction = (selection: SelectionSharePayload) => {
+  if (selection.pane !== 'secondary') {
+    handleShareAction(selection);
+    return;
   }
+  const versionName = versionNames[secondaryVersion.value] || secondaryVersion.value;
+  if (!compareEnabled.value || selection.book !== currentBookName.value ||
+      selection.chapter !== currentChapter.value || selection.version !== versionName) return;
+  const range = { start: selection.startVerse, end: selection.endVerse };
+  const url = new URL(generateShareUrl(range));
+  url.searchParams.set('version', secondaryVersion.value);
+  const reference = `${selection.book} ${selection.chapter}:${range.start}${range.end === range.start ? '' : `-${range.end}`}`;
+  void shareBibleLink(reference, url.toString());
 };
 
-const saveNextScheduleAction = (action: SavedNextScheduleAction): void => {
-  if (typeof window === 'undefined') return;
-  try {
-    if (action) {
-      localStorage.setItem(NEXT_SCHEDULE_ACTION_KEY, action);
-    } else {
-      localStorage.removeItem(NEXT_SCHEDULE_ACTION_KEY);
-    }
-  } catch {}
-};
+const showGuideSheet = ref(false);
+const showFullScheduleModal = ref(false);
+const completionPreparing = ref(false);
+// 본문 탭 바 상태는 useBiblePageTabs로 분리 (스크롤 헬퍼 이후에 인스턴스화)
+const completionModalId = 'bible-reader-completion';
+const nextSchedule = ref<Schedule | null>(null);
+const progressRevision = ref(0);
+const readerReady = ref(false);
+let pageActive = true;
+let routeGeneration = 0;
+let routeLoad: Promise<void> = Promise.resolve();
 
 // Refs
 const bibleReaderViewRef = ref<InstanceType<typeof BibleReaderView> | null>(null);
@@ -447,20 +493,65 @@ const tongdokScheduleRange = computed(() =>
   getTongdokScheduleRange(currentBook.value, currentChapter.value)
 );
 const fullTongdokRange = computed(() => getFullScheduleRange());
+const tongdokScheduleRows = computed(() => getScheduleRows());
 const isAtLastTongdokChapter = computed(() =>
   isLastChapterInTongdok(currentBook.value, currentChapter.value)
-);
-const tongdokAutoComplete = computed(() =>
-  readingSettingsStore.settings.tongdokAutoComplete
 );
 const tongdokAudioLink = computed(() =>
   getAudioLink(currentBook.value, currentChapter.value)
 );
 const tongdokGuideLink = computed(() => getGuideLink());
 const tongdokScheduleDate = computed(() => getScheduleDate());
-const tongdokProgress = computed(() =>
-  getTongdokProgress(currentBook.value, currentChapter.value)
-);
+// 응답이 현재 위치와 일치할 때만 일정 정보를 보인다. 로딩 중(이전 위치 응답)이나
+// 플랜에 없는 위치에서는 날짜·범위 자리를 '-'로 표시해 비통독처럼 보이게 한다.
+const tongdokDetailMatchesPosition = computed(() => {
+  const data = readingDetailResponse.value?.data;
+  return Boolean(data && data.book === currentBook.value && Number(data.chapter) === currentChapter.value);
+});
+const tongdokScheduleDateDisplay = computed(() =>
+  isOffPlanDetail() || !tongdokDetailMatchesPosition.value ? '-' : tongdokScheduleDate.value);
+const tongdokScheduleRowsDisplay = computed(() =>
+  tongdokDetailMatchesPosition.value ? tongdokScheduleRows.value : []);
+const readerContextKey = computed(() => JSON.stringify([
+  viewMode.value, auth.user.value?.id, isTongdokMode.value, tongdokPlanId.value,
+  tongdokScheduleId.value, tongdokScheduleDate.value, currentBook.value,
+  currentChapter.value, currentVersion.value,
+]));
+const audioContextKey = computed(() => `${readerContextKey.value}|${tongdokAudioLink.value ?? ''}`);
+const tongdokProgress = computed(() => {
+  // Chapter marks are owned by the mode service's active-session Set.
+  progressRevision.value;
+  if (!tongdokDetailMatchesPosition.value) return null;
+  const progress = getTongdokProgress(currentBook.value, currentChapter.value);
+  return progress ? { ...progress, completed: getCurrentSectionChapters(currentBook.value)
+    .flatMap(section => section.chapters.map(chapter => isChapterCompleted(section.book, chapter))) } : null;
+});
+const visibleChapterHighlights = computed(() => auth.isAuthenticated.value
+  ? chapterHighlights.value.filter(h => h.book === currentBook.value && h.chapter === currentChapter.value)
+  : []);
+const selectorReadChapters = computed(() => {
+  progressRevision.value;
+  if (!auth.isAuthenticated.value) return {};
+  if (!isTongdokMode.value) return Object.fromEntries([...readChapters.value].map(([book, chapters]) => [book, [...chapters]]));
+  const result: Record<string, number[]> = {};
+  for (const section of getCurrentSectionChapters(currentBook.value)) {
+    result[section.book] = [...(result[section.book] || []), ...section.chapters.filter(chapter => isChapterCompleted(section.book, chapter))];
+  }
+  return result;
+});
+const overlayOpen = computed(() => showBookSelector.value ||
+  showSettingsModal.value || showNoteModal.value || showHighlightModal.value ||
+  showScheduleModal.value || showFullScheduleModal.value || showTongdokPlanModal.value ||
+  showGuideSheet.value || showShareSheet.value || completionPreparing.value || modal.isOpen.value);
+watch(overlayOpen, open => {
+  if (open) bibleReaderViewRef.value?.bibleViewerRef?.clearSelection();
+}, { flush: 'sync' });
+const readerPlanName = computed(() => readingDetailResponse.value?.data?.plan_name ||
+  tongdokPlanName.value ||
+  subscriptions.value.find(sub => sub.plan_id === selectedPlanStore.effectivePlanId)?.plan_name || '');
+const nextScheduleLabel = computed(() => nextSchedule.value
+  ? `${nextSchedule.value.date} · ${nextSchedule.value.book} ${nextSchedule.value.start_chapter}-${nextSchedule.value.end_chapter}장`
+  : null);
 
 // 읽기모드 관련 (통독모드가 아닐 때)
 const isCurrentChapterRead = computed(() =>
@@ -500,7 +591,18 @@ const initFromQuery = () => {
 
 // 성경 본문 로드 (composable wrapper)
 const loadBibleContent = async (book: string, chapter: number) => {
-  await loadBibleContentFromComposable(book, chapter, currentVersion.value);
+  const generation = ++contentGeneration;
+  const version = currentVersion.value;
+  const key = chapterKey(book, chapter, version);
+  const cached = compareChapters.get(key);
+  if (compareEnabled.value && cached !== undefined) { bibleContent.value = cached; isLoading.value = false; return; }
+  const loader = await nuxtApp.runWithContext(() => useBibleContent());
+  isLoading.value = true;
+  await loader.loadContent(book, chapter, version);
+  if (!pageActive || generation !== contentGeneration) return;
+  bibleContent.value = loader.content.value;
+  if (!loader.error?.value) compareChapters.set(key, loader.content.value);
+  isLoading.value = false;
 };
 
 const focusPendingVerseRange = async () => {
@@ -526,11 +628,37 @@ const resetReaderScrollPosition = () => {
 
 const restoreSavedScrollPosition = async (position: number | undefined) => {
   if (typeof position !== 'number') return;
-  setReaderScrollPosition(position);
+  setReaderScrollPosition(position, true);
   await nextTick();
   bibleReaderViewRef.value?.restoreScrollPosition();
-  restoreReadingScrollPosition(position);
+  // BibleViewer owns the reading scroller; never scroll the hub/document here.
 };
+
+// 본문 탭 바 (composables/bible-page/useBiblePageTabs)
+const {
+  tabBarVisible,
+  bibleTabs,
+  activeBibleTabId,
+  syncActiveBibleTab,
+  applyTabSnapshot,
+  handleToggleTabBar,
+  handleTabAdd,
+  handleTabSwitch,
+  handleTabClose,
+  hydrateTabs,
+  persistTabs,
+  updateActiveScroll,
+} = useBiblePageTabs({
+  viewMode,
+  currentBook,
+  currentChapter,
+  currentVersion,
+  currentBookName,
+  chapterSuffix,
+  scrollPosition,
+  navigateReader: (book, chapter, version) => navigateReader(book, chapter, undefined, version),
+  restoreSavedScrollPosition,
+});
 
 const getExplicitReaderScrollPosition = () => selectExplicitReaderScrollPosition({
   scrollPosition: scrollPosition.value,
@@ -541,6 +669,7 @@ const saveCurrentReadingPosition = (
   immediate: boolean,
   explicitScrollPosition = getExplicitReaderScrollPosition(),
 ): Promise<void> => {
+  if (viewMode.value !== 'reader' || !readerReady.value) return Promise.resolve();
   const command = buildReadingPositionSaveCommand({
     book: currentBook.value,
     chapter: currentChapter.value,
@@ -556,62 +685,57 @@ const saveCurrentReadingPosition = (
   );
 };
 
-// 이벤트 핸들러 (composable wrapper)
-// goBack은 useBiblePageState에서 직접 사용
+const navigateReader = async (book: string, chapter: number, verse?: number, version = currentVersion.value) => {
+  await saveCurrentReadingPosition(true);
+  const query = {
+    book, chapter: String(chapter), version,
+    ...(verse ? { verse: String(verse) } : {}),
+    ...(isTongdokMode.value ? { tongdok: 'true',
+      ...(tongdokPlanId.value ? { plan: String(tongdokPlanId.value) } : {}),
+      ...(tongdokScheduleId.value ? { schedule: String(tongdokScheduleId.value) } : {}),
+      ...(tongdokScheduleDate.value ? { date: tongdokScheduleDate.value } : {}),
+    } : {}),
+  };
+  await router.push({ path: '/bible', query });
+  await nextTick();
+  await routeLoad;
+};
 
-// BookSelector는 (book, chapter, verse) emit
-// verse가 있으면 콘텐츠 로드 후 해당 절로 스크롤
-const handleBookSelect = async (book: string, chapter: number, verse?: number) => {
-  selectBook(book, chapter);
-  resetReaderScrollPosition();
-  await loadBibleContent(book, chapter);
-  
-  // 절 정보가 있으면 해당 절로 스크롤 및 강조
-  if (verse) {
-    nextTick(() => {
-      bibleReaderViewRef.value?.scrollToVerse(verse);
-    });
+const handleBookSelect = (book: string, chapter: number, verse?: number) => navigateReader(book, chapter, verse);
+const handleVersionSelect = async (version: string) => {
+  if (viewMode.value !== 'reader') {
+    currentVersion.value = version;
+    return;
   }
+  await navigateReader(currentBook.value, currentChapter.value, undefined, version);
 };
-
-const handleVersionSelect = (version: string) => {
-  selectVersion(version);
-  resetReaderScrollPosition();
-  loadBibleContent(currentBook.value, currentChapter.value);
-};
-
-// 네비게이션 (composable wrapper with content loading)
 const goToPrevChapter = async () => {
-  goToPrevChapterBase();
-  resetReaderScrollPosition();
-  await loadBibleContent(currentBook.value, currentChapter.value);
-  scrollToTop();
+  await saveCurrentReadingPosition(true);
+  readerReady.value = false;
+  const position = goToPrevChapterBase();
+  if (position) await navigateReader(position.book, position.chapter);
+  else readerReady.value = true;
 };
-
 const goToNextChapter = async () => {
-  // 통독 모드에서 마지막 장일 때
-  if (isTongdokMode.value && isAtLastTongdokChapter.value) {
-    const action = selectTongdokLastChapterAction({
-      isScheduleCompleted: isScheduleCompleted(),
-      savedNextScheduleAction: getSavedNextScheduleAction(),
+  // 통독 모드에서 마지막 장이면 완료 여부를 먼저 묻는다.
+  // 이미 완료된 일정은 묻지 않고 그냥 다음 장으로 넘어간다.
+  if (isTongdokMode.value && isAtLastTongdokChapter.value && !isScheduleCompleted()) {
+    const confirmed = await modal.confirm({
+      title: '오늘 통독을 완료할까요?',
+      description: `${fullTongdokRange.value || '오늘 일정'}을 다 읽으셨다면 완료로 기록해요.`,
+      confirmText: '통독 완료',
+      cancelText: '계속 읽기',
     });
-
-    // 이미 완료된 일정이면 모달 없이 그냥 다음 장으로 이동
-    if (action === 'navigate') {
-      disableTongdokMode();
-    } else if (action === 'saved') {
-      await handleNextScheduleAction({ action: 'go-next-schedule', remember: true });
-      return;
-    } else {
-      showNextScheduleModal.value = true;
+    if (confirmed) {
+      await handleTongdokComplete();
       return;
     }
   }
-
-  goToNextChapterBase();
-  resetReaderScrollPosition();
-  await loadBibleContent(currentBook.value, currentChapter.value);
-  scrollToTop();
+  await saveCurrentReadingPosition(true);
+  readerReady.value = false;
+  const position = goToNextChapterBase();
+  if (position) await navigateReader(position.book, position.chapter);
+  else readerReady.value = true;
 };
 
 const scrollToTop = () => {
@@ -624,6 +748,7 @@ const scrollToTop = () => {
 // BibleViewer 이벤트 핸들러
 const handleScrollPosition = (position: number) => {
   setReaderScrollPosition(position, true);
+  updateActiveScroll(position);
   saveCurrentReadingPosition(false, position);
 };
 
@@ -631,8 +756,8 @@ const handleBookmarkAction = (_verses: VerseSelection) => {
   // 북마크 기능: 현재 장 단위 북마크만 지원, 절 단위는 추후 구현 예정
 };
 
-const handleHighlightAction = (verses: VerseSelection) => {
-  if (!requireAuth()) return;
+const handleHighlightAction = async (verses: VerseSelection) => {
+  if (!(await requireAuthWithPrompt())) return;
   openHighlightModal({ start: verses.start, end: verses.end });
 };
 
@@ -713,47 +838,28 @@ const handleCopyAction = (_text: string) => {
   toast.success('복사 완료');
 };
 
-const handleShareAction = async (selection: SelectionSharePayload) => {
-  const verseRange = {
-    start: selection.startVerse,
-    end: selection.endVerse,
-  };
-  const shareUrl = generateShareUrl(verseRange);
-  const shareData = buildBibleSelectionShareData({
-    bookName: currentBookName.value,
-    chapter: currentChapter.value,
-    chapterSuffix: chapterSuffix.value,
-    verseRange,
-    url: shareUrl,
+const handleCopyError = (error: unknown) => handleApiError(error, '복사');
+const handleDirectHighlightSave = async (selection: SelectionHighlightPayload) => {
+  if (!(await requireAuthWithPrompt())) return;
+  if (selection.pane === 'secondary' && !compareEnabled.value) return;
+  const versionName = selection.pane === 'secondary'
+    ? versionNames[secondaryVersion.value] || secondaryVersion.value
+    : currentVersionName.value;
+  if (selection.book !== currentBookName.value || selection.chapter !== currentChapter.value ||
+      selection.version !== versionName) return;
+  const existing = selection.highlightId === undefined ? null : visibleChapterHighlights.value.find(h =>
+    h.id === selection.highlightId && h.start_verse === selection.start && h.end_verse === selection.end);
+  if (selection.highlightId !== undefined && !existing) return;
+  const result = existing ? await updateHighlight(existing.id, { color: selection.color }) : await createHighlight({
+    book: currentBook.value, chapter: selection.chapter, start_verse: selection.start,
+    end_verse: selection.end, color: selection.color,
   });
-
-  // Web Share API 지원 시 네이티브 공유
-  if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
-    try {
-      await navigator.share(shareData);
-    } catch (err) {
-      // 사용자 취소 무시, 실패 시 클립보드로 폴백
-      handleUserActionError(err, '공유', () => copyToClipboard(shareUrl));
-    }
-  } else {
-    // Web Share API 미지원 시 클립보드 복사
-    await copyToClipboard(shareUrl);
-  }
+  if (result) toast.success('하이라이트 저장');
+  else toast.error('하이라이트 저장에 실패했습니다');
 };
-
-// 클립보드 복사 헬퍼
-const copyToClipboard = async (text: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success('링크가 복사되었습니다');
-  } catch (error) {
-    handleApiError(error, '복사');
-  }
-};
-
 // 읽기모드: 읽음 표시 핸들러
 const handleMarkAsRead = async () => {
-  if (!requireAuth()) return;
+  if (!(await requireAuthWithPrompt())) return;
 
   if (isCurrentChapterRead.value) {
     toast.info('이미 읽음으로 표시되었습니다');
@@ -820,43 +926,14 @@ const handleAudioLink = (audioLink: string) => {
   }
 };
 
-const handleTongdokAudioEnded = async () => {
-  if (!isTongdokMode.value || isCompleting.value) return;
-  if (!requireAuth('로그인해야 통독 기록을 저장할 수 있습니다')) return;
-
-  const completionContext = getCertificationContext();
-  const success = await completeReading();
-
-  if (success) {
-    showTongdokAudioPlayer.value = false;
-    toast.success('통독 오디오를 완료했습니다!');
-    openCertificationModal(completionContext);
-  } else {
-    toast.error('완료 처리에 실패했습니다');
-  }
-};
-
-// 통독모드: 버튼 클릭 핸들러
-const handleTodayTongdok = async () => {
-  // 선택된 플랜 ID 확인
-  const planId = selectedPlanStore.effectivePlanId;
-  
-  // 플랜이 없으면 구독 목록을 로드하고 플랜 선택 모달 표시
-  if (!planId) {
-    await subscriptionStore.fetchSubscriptions();
-    
-    if (subscriptions.value.length === 0) {
-      toast.info('구독 중인 플랜이 없습니다. 플랜 관리에서 플랜을 구독해주세요.');
-      return;
-    }
-    
-    // 구독 목록이 있으면 플랜 선택 모달 표시
-    showTongdokPlanModal.value = true;
+const handleTongdokAudioEnded = async (source: AudioEndedSource) => {
+  if (viewMode.value !== 'reader' || source.audioLink !== tongdokAudioLink.value ||
+      source.audioContextKey !== audioContextKey.value) return;
+  if (!isTongdokMode.value) {
+    toast.info('오디오 재생이 끝났어요');
     return;
   }
-
-  // 플랜이 있으면 성경통독표 모달 표시
-  showScheduleModal.value = true;
+  await handleTongdokComplete(undefined, source);
 };
 
 // 플랜 선택 모달에서 플랜 선택 핸들러
@@ -867,7 +944,7 @@ const handleTongdokPlanSelect = (subscription: { plan_id: number; plan_name: str
   selectedPlanStore.setSelectedPlanId(subscription.plan_id);
   
   // 성경통독표 모달 표시
-  showScheduleModal.value = true;
+  showFullScheduleModal.value = true;
 };
 
 // 플랜 선택 모달에서 플랜 관리로 이동
@@ -881,6 +958,7 @@ interface ScheduleSelectPayload {
   book: string;
   start_chapter: number;
   id: number;
+  date?: string;
   plan_detail?: Array<{
     book: string;
     start_chapter: number;
@@ -890,13 +968,9 @@ interface ScheduleSelectPayload {
 }
 
 const handleScheduleSelect = (schedule: ScheduleSelectPayload) => {
-  showScheduleModal.value = false;
+  showFullScheduleModal.value = false;
 
-  enableTongdokMode(schedule.id, selectedPlanStore.effectivePlanId ?? undefined);
-
-  if (schedule.plan_detail) {
-    setReadingDetailResponse({ data: { plan_detail: schedule.plan_detail } });
-  }
+  enableTongdokMode(schedule.id, selectedPlanStore.effectivePlanId ?? undefined, schedule.date ?? null);
 
   // 한국어 책 이름을 영문 코드로 변환
   const bookCode = getBookCode(schedule.book);
@@ -963,113 +1037,162 @@ const handleNoteGoDetail = (noteId?: number, _content?: string) => {
   }
 };
 
-// 통독모드: 완료 처리 핸들러
-const handleTongdokComplete = async (payload: { autoComplete: boolean }) => {
-  if (!requireAuth('로그인해야 통독 기록을 저장할 수 있습니다')) {
-    closeTongdokCompleteModal();
-    return;
-  }
-
-  if (payload.autoComplete !== tongdokAutoComplete.value) {
-    readingSettingsStore.updateSetting('tongdokAutoComplete', payload.autoComplete);
-  }
-
-  const completionContext = getCertificationContext();
-  const success = await completeReading();
-
-  closeTongdokCompleteModal();
-
-  if (success) {
-    toast.success('오늘 통독을 완료했습니다!');
-    openCertificationModal(completionContext);
-  } else {
-    toast.error('완료 처리에 실패했습니다');
-  }
+// The next-position endpoint, not chronological arithmetic, owns continuation.
+const fetchNextSchedule = async (planId: number): Promise<Schedule | null> => {
+  const position = await fetchNextPosition(planId);
+  if (!position || !position.schedule_id || !position.month || position.month < 1 || position.month > 12 ||
+      ['all_completed', 'no_schedule', 'error'].includes(position.status)) return null;
+  const schedules = await fetchMonthlySchedules(planId, position.month);
+  return schedules.find(schedule => schedule.id === position.schedule_id) || null;
 };
-
-const handleCertificationClose = async () => {
-  showCertificationModal.value = false;
-  const onClose = certificationCloseHandler.value;
-  certificationCloseHandler.value = null;
-  if (onClose) {
-    await onClose();
-    return;
-  }
-  router.push('/plan');
-};
-
 const continueToNextUnreadSchedule = async (planId: number): Promise<void> => {
-  const nextPosition = await fetchNextPosition(planId);
-
-  if (!nextPosition || nextPosition.status === 'all_completed') {
-    toast.info('모든 일정을 완료했습니다! 🎉');
-    router.push('/plan');
+  const context = readerContextKey.value;
+  const schedule = await fetchNextSchedule(planId);
+  if (!pageActive || readerContextKey.value !== context) return;
+  if (!schedule) {
+    toast.info('다음 일정 정보를 찾을 수 없습니다');
     return;
   }
-
-  const monthSchedules = await fetchMonthlySchedules(planId, nextPosition.month);
-  const nextSchedule = monthSchedules.find(s => s.id === nextPosition.schedule_id);
-
-  if (!nextSchedule) {
-    toast.error('다음 일정 정보를 찾을 수 없습니다');
-    router.push('/plan');
-    return;
-  }
-
-  enableTongdokMode(nextPosition.schedule_id, planId);
-
-  const bookCode = getBookCode(nextSchedule.book);
-  if (!bookCode) {
-    toast.error(`알 수 없는 성경 책: ${nextSchedule.book}`);
-    return;
-  }
-
-  await handleBookSelect(bookCode, nextSchedule.start_chapter);
-  scrollToTop();
+  const book = getBookCode(schedule.book);
+  if (!book) { toast.error(`알 수 없는 성경 책: ${schedule.book}`); return; }
+  showScheduleModal.value = false;
+  showShareSheet.value = false;
+  await modal.close(completionModalId);
+  enableTongdokMode(schedule.id, planId, schedule.date);
+  await handleBookSelect(book, schedule.start_chapter);
+  toast.success(`통독 · ${schedule.book} ${schedule.start_chapter}-${schedule.end_chapter}장`);
 };
 
-// 통독 완료 후 다음 일정 이동 핸들러
-const handleNextScheduleAction = async (payload: { action: NextScheduleAction; remember: boolean }) => {
-  if (payload.remember && payload.action !== 'cancel') {
-    saveNextScheduleAction(payload.action);
-  }
 
-  switch (payload.action) {
-    case 'go-next-schedule': {
-      // 현재 일정 완료 처리
-      if (!requireAuth('로그인해야 통독 기록을 저장할 수 있습니다')) return;
-      
-      const planId = tongdokPlanId.value;
-      if (!planId) {
-        toast.error('플랜 정보를 찾을 수 없습니다');
-        showNextScheduleModal.value = false;
-        return;
-      }
-
-      const completionContext = getCertificationContext();
-      const success = await completeReading();
-      if (!success) {
-        toast.error('완료 처리에 실패했습니다');
-        showNextScheduleModal.value = false;
-        return;
-      }
-
-      toast.success('통독을 완료했습니다!');
-      showNextScheduleModal.value = false;
-      openCertificationModal(completionContext, async () => {
-        await continueToNextUnreadSchedule(planId);
-      });
-      break;
+const openCompletion = async (context: string, planId: number, scheduleId: number) => {
+  const range = fullTongdokRange.value;
+  const rows = (readingDetailResponse.value?.data?.plan_detail || []).map(row => ({ ...row }));
+  const chapters = new Map<string, { book: string; chapter: number }>();
+  for (const row of rows) {
+    for (let chapter = row.start_chapter; chapter <= row.end_chapter; chapter++) {
+      chapters.set(`${row.book}:${chapter}`, { book: row.book, chapter });
     }
-    case 'cancel':
-    default:
-      showNextScheduleModal.value = false;
-      break;
+  }
+  const version = currentVersion.value;
+  const metadata: BibleShareMetadata = { readingRange: range, ...(auth.user.value?.nickname ? { nickname: auth.user.value.nickname } : {}),
+    ...(readerPlanName.value ? { planName: readerPlanName.value } : {}), ...(tongdokScheduleDate.value ? { dateLabel: tongdokScheduleDate.value } : {}) };
+  completionPreparing.value = true;
+  try {
+    const [certification, highlightResponse, following] = await Promise.allSettled([
+      api.GET('/api/v1/todos/certification/progress/', { params: { plan_id: planId, schedule_id: scheduleId } }),
+      Promise.all(Array.from(chapters.values(), params =>
+        api.GET('/api/v1/todos/bible/highlights/by-chapter/', { params }),
+      )).then(responses => responses.flatMap(response => response.data.highlights)),
+      fetchNextSchedule(planId),
+    ]);
+    if (!pageActive || context !== readerContextKey.value) return;
+    const data = certification.status === 'fulfilled' ? certification.value.data : null;
+    const validCertification = data?.success && data.plan.id === planId;
+    if (!validCertification) handleApiError(certification.status === 'rejected' ? certification.reason : new Error('요청한 플랜의 인증 정보가 아닙니다.'), '인증 정보 조회');
+    const actualMetadata: BibleShareMetadata = validCertification && data ? { ...metadata, nickname: data.user.nickname, planName: data.plan.name,
+      ...(Number.isInteger(data.progress.currentStreak) ? { streak: data.progress.currentStreak } : {}),
+      ...(data.progress.totalSchedules > 0 ? { progress: { completed: data.progress.completedSchedules,
+        total: data.progress.totalSchedules, percent: data.progress.completionRate } } : {}),
+    } : metadata;
+    if (highlightResponse.status === 'rejected') handleApiError(highlightResponse.reason, '하이라이트 조회');
+    if (following.status === 'rejected') handleApiError(following.reason, '다음 일정 조회');
+    const highlights = (highlightResponse.status === 'fulfilled' ? highlightResponse.value : [])
+      .filter(h => rows.some(row => row.book === h.book && h.chapter >= row.start_chapter && h.chapter <= row.end_chapter));
+    const chapterContent = new Map<string, Promise<string>>();
+    const completionHighlights: ReaderCompletionHighlight[] = await Promise.all(highlights.map(async highlight => {
+      const key = `${highlight.book}:${highlight.chapter}`;
+      if (!chapterContent.has(key)) {
+        chapterContent.set(key, (async () => {
+          const loader = await nuxtApp.runWithContext(() => useBibleContent());
+          await loader.loadContent(highlight.book, highlight.chapter, version);
+          return loader.content.value;
+        })());
+      }
+      const html = await chapterContent.get(key)!;
+      const document = new DOMParser().parseFromString(html, 'text/html');
+      const text = Array.from(document.querySelectorAll('.verse')).filter(verse => {
+        const number = Number(verse.querySelector('.verse-number')?.textContent);
+        return number >= highlight.start_verse && number <= highlight.end_verse;
+      }).flatMap(verse => Array.from(verse.querySelectorAll('.verse-text')).map(line => line.textContent?.trim() || '')).join(' ');
+      const bookName = highlight.book_name || getCurrentSectionChapters(highlight.book).find(section => section.book === highlight.book)?.book_kor || highlight.book;
+      return { id: highlight.id, text, color: highlight.color,
+        reference: `${bookName} ${highlight.chapter}:${highlight.start_verse}${highlight.end_verse === highlight.start_verse ? '' : `-${highlight.end_verse}`}` };
+    }));
+    if (!pageActive || context !== readerContextKey.value) return;
+    nextSchedule.value = following.status === 'fulfilled' ? following.value : null;
+    const verses = completionHighlights.filter(highlight => highlight.text).map(highlight => ({ id: String(highlight.id), text: highlight.text, reference: highlight.reference }));
+    const openShare = async (highlightId?: number | string) => {
+      if (context !== readerContextKey.value) return;
+      shareMode.value = highlightId === undefined ? 'complete' : 'verse';
+      shareMetadata.value = actualMetadata;
+      shareContext.value = { planId, scheduleId };
+      shareVerses.value = highlightId === undefined ? verses : verses.filter(verse => verse.id === String(highlightId));
+      const params = new URLSearchParams({ certification: 'tongdok', plan_id: String(planId), schedule_id: String(scheduleId) });
+      shareUrl.value = `${window.location.origin}/bible/history?${params}`;
+      await modal.close(completionModalId);
+      showShareSheet.value = true;
+    };
+    void modal.open(ReaderCompletionContent, { id: completionModalId, size: 'sm', showCloseButton: false,
+      props: { scheduleRange: range, streak: actualMetadata.streak, highlights: completionHighlights.filter(h => h.text), nextScheduleLabel: nextScheduleLabel.value,
+        onShare: () => openShare(), onShareHighlight: openShare,
+        onNext: () => continueToNextUnreadSchedule(planId), onClose: () => modal.close(completionModalId),
+      },
+    }).catch(error => { if (error instanceof Error) handleApiError(error, '통독 완료'); });
+  } catch (error) {
+    if (context === readerContextKey.value) handleApiError(error, '통독 완료 정보 조회');
+  } finally {
+    completionPreparing.value = false;
+  }
+};
+const handleTongdokComplete = async (_payload?: unknown, audioSource?: AudioEndedSource, allowUndo = false) => {
+  if (!isTongdokMode.value || isCompleting.value || completionPreparing.value) return;
+  if (!(await requireAuthWithPrompt('로그인해야 통독 기록을 저장할 수 있습니다'))) return;
+  const context = readerContextKey.value;
+  const book = currentBook.value;
+  const chapter = currentChapter.value;
+  await loadReadingDetail(tongdokPlanId.value, book, chapter);
+  // loadReadingDetail이 다른 날짜 일정을 채택하면 schedule/date가 바뀌어
+  // contextKey가 달라진다 — 그것은 이탈이 아니라 정상 채택이므로 위치만 비교한다.
+  const positionKey = (key: string) => {
+    const parts = JSON.parse(key) as unknown[];
+    return JSON.stringify([parts[0], parts[1], parts[2], parts[3], parts[6], parts[7], parts[8]]);
+  };
+  const contextChanged = positionKey(context) !== positionKey(readerContextKey.value);
+  if (contextChanged || (audioSource && audioSource.audioContextKey !== audioContextKey.value)) return;
+  const activeContext = readerContextKey.value;
+  // 버튼 클릭은 그날 일정 전체를 완료한다. 오디오 종료는 현재 장만 완료한다.
+  // 체크박스를 완료 상태에서 다시 누르면 잘못 체크한 완료를 되돌린다.
+  // (다음 장 확인 모달처럼 완료 의도가 명시된 경로는 되돌리지 않는다.)
+  if (allowUndo && !audioSource && isScheduleCompleted()) {
+    const result = await uncompleteCurrentChapter(book, chapter);
+    progressRevision.value++;
+    if (!pageActive || activeContext !== readerContextKey.value || result.status === 'stale-context') return;
+    if (result.status === 'busy' || result.status === 'not-complete') return;
+    if (!result.ok) { toast.error('완료 취소에 실패했습니다'); return; }
+    toast.success('통독 완료를 취소했어요');
+    return;
+  }
+  if (!audioSource) markAllScheduleChapters();
+  const result = await completeCurrentChapter(book, chapter);
+  progressRevision.value++;
+  if (!pageActive || activeContext !== readerContextKey.value || result.status === 'stale-context') return;
+  if (result.status === 'out-of-range') { toast.info('오늘 일정 범위 밖의 장이에요'); return; }
+  if (result.status === 'busy') return;
+  if (!result.ok) { toast.error('완료 처리에 실패했습니다'); return; }
+  if (!audioSource) toast.success(`${currentBookName.value} ${chapter}${chapterSuffix.value} 통독 완료`);
+  if (result.scheduleCompleted && result.planId && result.selectedScheduleId) {
+    const scheduleId = result.persistedScheduleIds.at(-1) ?? result.selectedScheduleId;
+    await openCompletion(activeContext, result.planId, scheduleId);
   }
 };
 
 // 헬퍼: 사용자 데이터 로딩 (인증된 사용자 전용)
+// 마지막으로 로드를 시작한 사용자 ID — auth.user 감시자가 초기 하이드레이션의
+// 동일 사용자 전이를 '사용자 변경'으로 오인해 같은 데이터를 다시 요청하지 않게 한다.
+let loadedUserDataUserId: number | null | undefined;
 const loadUserDataForChapter = async (book: string, chapter: number, skipReadChapters = false) => {
+  await auth.initialize();
+  loadedUserDataUserId = auth.user.value?.id ?? null;
   if (!auth.isAuthenticated.value) return;
 
   const promises: Promise<void>[] = [
@@ -1085,204 +1208,139 @@ const loadUserDataForChapter = async (book: string, chapter: number, skipReadCha
   await Promise.all(promises);
 };
 
-// 헬퍼: reader 모드 진입 (공통 로직)
-// Note: 사용자 데이터 로딩은 book/chapter watch에서 자동 처리됨
-const enterReaderMode = async (book: string, chapter: number) => {
-  currentBook.value = book;
-  currentChapter.value = chapter;
-  viewMode.value = 'reader';
-  await loadBibleContent(book, chapter);
-};
-
-// 진입점 모드 핸들러: 홈에서 계속 읽기
+const enterReaderMode = async (book: string, chapter: number) => navigateReader(book, chapter);
 const handleContinueReading = async () => {
   const lastPos = await loadReadingPosition();
   if (lastPos) {
-    currentVersion.value = lastPos.version || 'GAE';
-    await enterReaderMode(lastPos.book, lastPos.chapter);
+    await navigateReader(lastPos.book, lastPos.chapter, undefined, lastPos.version || 'GAE');
     await restoreSavedScrollPosition(lastPos.scroll_position);
   } else {
-    resetReaderScrollPosition();
     await enterReaderMode(currentBook.value, currentChapter.value);
   }
 };
+const handleHomeBookSelect = (bookId: string, chapter = 1) => enterReaderMode(bookId, chapter);
+const handleTocBookSelect = (bookId: string, chapter = 1) => enterReaderMode(bookId, chapter);
+const handleTocBack = () => { viewMode.value = 'home'; };
 
-// 진입점 모드 핸들러: 홈에서 책 선택
-const handleHomeBookSelect = async (bookId: string, chapter: number = 1) => {
-  resetReaderScrollPosition();
-  await enterReaderMode(bookId, chapter);
-};
+let pendingResumeScroll: number | null = null;
 
-// 진입점 모드 핸들러: 목차에서 책 선택
-const handleTocBookSelect = async (bookId: string, chapter: number = 1) => {
-  resetReaderScrollPosition();
-  await enterReaderMode(bookId, chapter);
-};
-
-// 진입점 모드 핸들러: 목차에서 뒤로가기
-const handleTocBack = () => {
-  // 기본 진입점은 항상 last-position이므로 이전 페이지로 이동
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.push('/');
-  }
-};
-
-// 라이프사이클
-onMounted(async () => {
+const applyReaderRoute = async (restorePosition = false) => {
+  const generation = ++routeGeneration;
+  const wasAudioOpen = showTongdokAudioPlayer.value;
+  await saveCurrentReadingPosition(true);
+  readerReady.value = false;
+  showTongdokAudioPlayer.value = false;
+  showShareSheet.value = false;
+  showGuideSheet.value = false;
+  showScheduleModal.value = false;
+  nextSchedule.value = null;
+  await modal.close(completionModalId);
   initTongdokMode();
-
-  // URL에 book/chapter/plan/tongdok이 있으면 그것을 사용 (바로 reader로)
-  const routeQueryPolicy = getBibleRouteQueryPolicy(route.query);
-
-  if (routeQueryPolicy.shouldInitializeOnEntry) {
-    viewMode.value = 'reader';
-    initFromQuery();
-    resetReaderScrollPosition();
-    await loadBibleContent(currentBook.value, currentChapter.value);
-    await focusPendingVerseRange();
-    
-    // 통독/플랜 상태용 쿼리는 기존처럼 정리하되, 공유 가능한 성경 위치 딥링크는 유지한다.
-    if (!routeQueryPolicy.hasBibleLocationQuery) {
-      router.replace({ path: '/bible' });
-    }
-  } else if (!tongdokMode.value) {
-    // 쿼리 파라미터가 없고 통독모드가 아니면 마지막 위치로 이동
-    viewMode.value = 'reader';
-    const lastPos = await loadReadingPosition();
-    if (lastPos) {
-      currentBook.value = lastPos.book;
-      currentChapter.value = lastPos.chapter;
-      currentVersion.value = lastPos.version || 'GAE';
-    }
-    await loadBibleContent(currentBook.value, currentChapter.value);
-    await restoreSavedScrollPosition(lastPos?.scroll_position);
-  } else {
-    // tongdokMode가 true이고 query params가 없는 경우 (새로고침 후)
-    // 반드시 저장된 reading position에서 복원해야 함
-    viewMode.value = 'reader';
-    
-    const lastPos = await loadReadingPosition();
-    if (lastPos) {
-      currentBook.value = lastPos.book;
-      currentChapter.value = lastPos.chapter;
-      currentVersion.value = lastPos.version || 'GAE';
-    }
-    
-    await loadBibleContent(currentBook.value, currentChapter.value);
-    await restoreSavedScrollPosition(lastPos?.scroll_position);
-    
-    // 통독모드 진입 시에도 URL 정리 (상태는 localStorage에서 관리)
-    if (Object.keys(route.query).length > 0) {
-      router.replace({ path: '/bible' });
-    }
-  }
-
-  // 읽기 기록, 노트, 북마크 조회 (로그인 시, reader 모드일 때만)
-  if (viewMode.value === 'reader') {
-    await loadUserDataForChapter(
-      currentBook.value,
-      currentChapter.value,
-      isTongdokMode.value // 통독모드일 때 readChapters 스킵
-    );
-  }
-
-  // 읽기 상세 정보 로드. 통독모드가 아니어도 부른다 —
-  // 플랜 오디오가 없는 일반 읽기 화면에서도 장별 오디오 폴백이 필요하다.
-  await loadReadingDetail(
-    isTongdokMode.value ? tongdokPlanId.value : null,
-    currentBook.value,
-    currentChapter.value
-  );
-
-  if (typeof window !== 'undefined') {
-    window.addEventListener('beforeunload', handleBeforeUnload);
-  }
-
-  enablePositionSaving();
-});
-
-onBeforeUnmount(() => {
-  cleanupReadingPosition();
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-  }
-  saveCurrentReadingPosition(true);
-});
-
-const handleBeforeUnload = () => {
-  saveCurrentReadingPosition(true);
-};
-
-// route.query 변경 감지 (딥링크 처리)
-watch(
-  () => route.query,
-  async (newQuery) => {
-    // 쿼리 파라미터가 있으면 처리 (딥링크로 접근한 경우)
-    const hasBibleLocationQuery = newQuery.book || newQuery.chapter || newQuery.verse;
-    const routeQueryPolicy = getBibleRouteQueryPolicy(newQuery);
-    if (routeQueryPolicy.shouldReloadReader) {
-      initFromQuery();
-      resetReaderScrollPosition();
-      await loadBibleContent(currentBook.value, currentChapter.value);
-      await focusPendingVerseRange();
-      
-      // 통독 상태용 쿼리는 기존처럼 정리하되, 공유 가능한 성경 위치 딥링크는 유지한다.
-      if (!hasBibleLocationQuery) {
-        router.replace({ path: '/bible' });
+  if (!getBibleRouteQueryPolicy(route.query).shouldInitializeOnEntry) {
+    // 북마크: 진입 쿼리가 없으면 마지막 읽은 위치로 자동 복귀한다.
+    if (restorePosition) {
+      const last = await loadReadingPosition();
+      if (pageActive && generation === routeGeneration && last) {
+        pendingResumeScroll = last.scroll_position;
+        await navigateReader(last.book, last.chapter, undefined, last.version || 'GAE');
+        return;
       }
     }
+    viewMode.value = 'home';
+    ++contentGeneration;
+    return;
   }
-);
-
-// 책 변경 시 읽기 기록 조회
-watch(
-  () => currentBook.value,
-  async (newBook) => {
-    if (auth.isAuthenticated.value && !isTongdokMode.value) {
-      await fetchReadChapters(newBook);
-    }
+  viewMode.value = 'reader';
+  initFromQuery();
+  resetReaderScrollPosition();
+  const book = currentBook.value;
+  const chapter = currentChapter.value;
+  const [lastPosition] = await Promise.all([
+    restorePosition && !pendingVerseFocus.value ? loadReadingPosition() : Promise.resolve(null),
+    loadBibleContent(book, chapter),
+    loadUserDataForChapter(book, chapter, isTongdokMode.value),
+    loadReadingDetail(isTongdokMode.value ? tongdokPlanId.value : null, book, chapter),
+  ]);
+  if (!pageActive || generation !== routeGeneration) return;
+  if (pendingResumeScroll !== null) {
+    const resumeScroll = pendingResumeScroll;
+    pendingResumeScroll = null;
+    await restoreSavedScrollPosition(resumeScroll);
+  } else if (lastPosition?.book === book && lastPosition.chapter === chapter && lastPosition.version === currentVersion.value) {
+    await restoreSavedScrollPosition(lastPosition.scroll_position);
+  } else if (pendingVerseFocus.value) {
+    await focusPendingVerseRange();
+  } else {
+    // 장 전환은 새 본문이 로드된 뒤 본문 최상단에서 시작한다.
+    scrollToTop();
   }
-);
-
-// 책/장 변경 시 노트, 하이라이트, 북마크 조회
-watch(
-  [() => currentBook.value, () => currentChapter.value],
-  async ([newBook, newChapter]) => {
-    if (auth.isAuthenticated.value) {
-      await fetchChapterNotes(newBook, newChapter);
-      await fetchChapterHighlights(newBook, newChapter);
-      await loadBookmarks(newBook, newChapter);
-    }
+  readerReady.value = true;
+  // 오디오가 켜진 채로 장을 넘기면 새 장의 오디오를 이어서 연다.
+  if (wasAudioOpen && tongdokAudioLink.value) showTongdokAudioPlayer.value = true;
+  enablePositionSaving();
+};
+onMounted(async () => {
+  const activeTab = hydrateTabs();
+  restoreComparePrefs();
+  if (activeTab && !getBibleRouteQueryPolicy(route.query).shouldInitializeOnEntry) {
+    initTongdokMode();
+    await applyTabSnapshot(activeTab);
+  } else {
+    routeLoad = applyReaderRoute(true);
+    await routeLoad;
   }
-);
-
-watch(
-  [() => currentBook.value, () => currentChapter.value, () => currentVersion.value],
-  () => {
-    saveCurrentReadingPosition(false);
-  },
-  { flush: 'post' }
-);
-
-// 책/장 변경 시 읽기 상세 정보 로드 (통독모드가 아니면 플랜 없이 장별 오디오만 받는다)
-watch(
-  [() => currentBook.value, () => currentChapter.value, () => tongdokMode.value],
-  async ([newBook, newChapter, isTongdok]) => {
-    await loadReadingDetail(
-      isTongdok ? tongdokPlanId.value : null,
-      newBook,
-      newChapter
-    );
+  // 마운트 시점의 본문으로 활성 탭을 동기화한다 (watcher는 변경에만 반응)
+  syncActiveBibleTab();
+  if (pageActive) {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
   }
-);
+});
+onBeforeUnmount(() => {
+  persistTabs();
+  void saveCurrentReadingPosition(true);
+  pageActive = false;
+  ++routeGeneration;
+  ++contentGeneration;
+  cleanupReadingPosition();
+  void modal.close(completionModalId);
+  window.removeEventListener('beforeunload', handleBeforeUnload);
+  window.removeEventListener('pagehide', handleBeforeUnload);
+});
+const handleBeforeUnload = () => {
+  persistTabs();
+  void saveCurrentReadingPosition(true);
+};
+watch(() => route.query, () => {
+  routeLoad = applyReaderRoute();
+  return routeLoad;
+});
+watch(() => auth.user.value?.id, async (userId) => {
+  await auth.initialize();
+  if (!pageActive || userId !== auth.user.value?.id) return;
+  // 초기 하이드레이션: 방금 로드를 시작한 사용자와 같으면 중복 로드하지 않는다.
+  if (userId === loadedUserDataUserId) return;
+  clearReadChapters();
+  chapterHighlights.value = [];
+  if (viewMode.value === 'reader') await Promise.all([
+    loadUserDataForChapter(currentBook.value, currentChapter.value),
+    loadReadingDetail(isTongdokMode.value ? tongdokPlanId.value : null, currentBook.value, currentChapter.value),
+  ]);
+});
+// Content-affecting preferences need reparsing; typography itself is live in BibleViewer.
+watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.settings.showDescription,
+  readingSettingsStore.settings.showCrossRef], async () => {
+  compareChapters.clear();
+  if (viewMode.value === 'reader') await Promise.all([loadBibleContent(currentBook.value, currentChapter.value), loadSecondaryContent()]);
+});
 </script>
 
 <style scoped>
 .bible-page {
-  max-width: 768px;
-  margin: 0 auto;
+  /* 리더는 화면 너비를 전부 쓴다(역본 비교 포함). 전역 bible-page.css의
+     768px 상한을 해제한다. */
+  width: 100%;
+  max-width: none;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
@@ -1294,6 +1352,18 @@ watch(
 @media (max-width: 768px) {
   .bible-page {
     box-shadow: none;
+  }
+}
+
+.bible-page.is-reader {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .bible-page {
+    padding-inline-start: var(--sidebar-width);
   }
 }
 

@@ -28,7 +28,7 @@ const verse = (page: Page, number: number) => page.locator('.bible-content .vers
 const grantClipboardPermissions = async (page: Page): Promise<void> => {
   await page.context().grantPermissions(
     ['clipboard-read', 'clipboard-write'],
-    { origin: 'http://127.0.0.1:3019' },
+    { origin: `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT || 3019}` },
   );
 };
 
@@ -62,7 +62,9 @@ test('Bible search result deep link focuses and scrolls to the matching term', a
   await expect(focusedTerm).toHaveText('브라우저 말씀');
   await expect(focusedTerm).toBeInViewport();
 
-  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  // v2 scrolls the .bible-viewer container (overflow-y: auto), not window.
+  const viewer = page.locator('.bible-viewer');
+  await expect.poll(() => viewer.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
 
 test('verse selection toolbar is the topmost layer above the bottom bar', async ({ api, page }) => {
@@ -95,7 +97,7 @@ test('verse selection toolbar is the topmost layer above the bottom bar', async 
   expect(layout.isTopmost).toBe(true);
 });
 
-test('copy menu writes the selected verse and location to the browser clipboard', async ({ api, page }) => {
+test('copy action writes the selected verse and location to the browser clipboard', async ({ api, page }) => {
   await grantClipboardPermissions(page);
   mockBibleChapter(api, { book: 'jhn', chapter: 3 });
   await page.goto('/bible?book=jhn&chapter=3');
@@ -105,36 +107,43 @@ test('copy menu writes the selected verse and location to the browser clipboard'
   const verseText = (await selectedVerse.locator('.verse-text').innerText()).trim();
   await selectedVerse.click();
 
+  // v2 opens a copy-format menu (위치 포함/절 번호만/내용만); choosing
+  // "위치 포함" writes "[책장:절] 본문" to the clipboard.
   const actionToolbar = page.getByTestId('selection-action-menu');
-  await actionToolbar.getByRole('button', { name: '복사', exact: true }).click();
-  const copyToolbar = page.getByTestId('selection-copy-menu');
-  await expect(copyToolbar).toBeVisible();
-  await expect(copyToolbar.getByRole('button')).toHaveCount(4);
-  await copyToolbar.getByRole('button', { name: '위치 포함' }).click();
+  await actionToolbar.getByRole('button', { name: '구절 복사' }).click();
 
-  await expect(page.getByText('복사 완료')).toBeVisible();
+  const copyMenu = page.getByTestId('selection-copy-menu');
+  await expect(copyMenu).toBeVisible();
+  await copyMenu.getByRole('button', { name: '위치 포함' }).click();
+
+  await expect(page.locator('.toast-container').getByText('복사 완료')).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     `[요한복음3:4] ${verseText}`,
   );
 });
 
-test('sharing a selected verse range copies the range deep link', async ({ api, page }) => {
+test('sharing a selected verse range shares the [매일일독] deep-link text', async ({ api, page }) => {
   await grantClipboardPermissions(page);
   mockBibleChapter(api, { book: 'jhn', chapter: 3 });
+  // Force the clipboard fallback so the shared text is observable.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+  });
   await page.goto('/bible?book=jhn&chapter=3');
 
   await expect(page.locator('.bible-content .verse')).toHaveCount(24);
-  expect(await page.evaluate(() => typeof navigator.share)).toBe('undefined');
   await verse(page, 6).click();
   await verse(page, 8).click();
   await expect(page.locator('.verse.selected-verse')).toHaveCount(3);
 
-  await page.getByTestId('selection-action-menu').getByRole('button', { name: '공유' }).click();
-  await expect(page.getByText('링크가 복사되었습니다')).toBeVisible();
+  // v2 shares the selection as a "[매일일독] <ref>\n<deep link>" text payload.
+  await page.getByTestId('selection-action-menu').getByRole('button', { name: '구절 공유' }).click();
+
+  await expect(page.locator('.toast-container').getByText('링크를 복사했습니다')).toBeVisible();
 
   const origin = new URL(page.url()).origin;
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    `${origin}/bible?book=jhn&chapter=3&verse=6-8`,
+    `[매일일독] 요한복음 3:6-8\n${origin}/bible?book=jhn&chapter=3&verse=6-8`,
   );
 });
 
@@ -149,5 +158,7 @@ test('verse-range deep link focuses the complete range and scrolls to its start'
   await expect(verse(page, 74)).toHaveClass(/selected-last/);
   await expect(verse(page, 72)).toBeInViewport();
 
-  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  // v2 scrolls the .bible-viewer container (overflow-y: auto), not window.
+  const viewer = page.locator('.bible-viewer');
+  await expect.poll(() => viewer.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });

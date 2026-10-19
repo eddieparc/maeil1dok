@@ -20,6 +20,10 @@ export interface BibleRouteQuery {
   readonly verse?: unknown;
   readonly plan?: unknown;
   readonly tongdok?: unknown;
+  readonly schedule?: unknown;
+  readonly from?: unknown;
+  readonly search?: unknown;
+  readonly version?: unknown;
 }
 
 export interface BibleRouteQueryPolicy {
@@ -63,7 +67,7 @@ export const getBibleRouteQueryPolicy = (
   return {
     hasBibleLocationQuery,
     shouldInitializeOnEntry: Boolean(
-      hasBibleLocationQuery || query.plan || query.tongdok,
+      hasBibleLocationQuery || query.plan || query.tongdok || query.schedule || query.from || query.search || query.version,
     ),
     shouldReloadReader: Boolean(hasBibleLocationQuery || query.tongdok),
   };

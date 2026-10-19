@@ -61,7 +61,12 @@ const importReadingPositionModule = async () => {
     )
     .replace(
       "import { useAuthService } from '~/composables/useAuthService';",
-      'const useAuthService = () => ({ isAuthenticated: { value: false } });',
+      `const useAuthService = () => ({
+        isAuthenticated: { value: false },
+        isInitialized: { value: true },
+        isLoading: { value: false },
+        initialize: async () => undefined,
+      });`,
     )
     .replace(
       "import { BIBLE_BOOKS, VISIBLE_VERSION_NAMES } from '~/composables/useBibleData';",
@@ -94,10 +99,30 @@ test('loadReadingPosition ignores malformed localStorage reading positions at ru
 test('loadReadingPosition normalizes valid stored positions at runtime', async () => {
   setupBrowserGlobals();
   localStorage.setItem('lastReadingPosition', JSON.stringify({
-    book: 'jon',
+    book: 'jnh',
     chapter: 3,
     scroll_position: 0.42,
     version: 'knt',
+  }));
+
+  const { useReadingPosition } = await importReadingPositionModule();
+  const readingPosition = useReadingPosition();
+
+  assert.deepEqual(await readingPosition.loadReadingPosition(), {
+    book: 'jnh',
+    chapter: 3,
+    scroll_position: 0.42,
+    version: 'KNT',
+  });
+});
+
+test('loadReadingPosition normalizes the legacy jon book code to jnh at runtime', async () => {
+  setupBrowserGlobals();
+  localStorage.setItem('lastReadingPosition', JSON.stringify({
+    book: 'jon',
+    chapter: 3,
+    scroll_position: 0.42,
+    version: 'KNT',
   }));
 
   const { useReadingPosition } = await importReadingPositionModule();

@@ -15,6 +15,8 @@ const apiSource = await readFile(
 // stub is resolved through a global hook set per-test.
 const importApiModule = async () => {
   const runnableSource = apiSource
+    .replace("import { readCsrfToken, storeCsrfToken } from './csrfCookie'",
+      await readFile(new URL('../app/composables/csrfCookie.ts', import.meta.url), 'utf8'))
     .replace(
       "import { useRuntimeConfig } from '#app'",
       "const useRuntimeConfig = () => ({ public: { apiBase: 'http://api.test' }, internalApiBase: '' });",

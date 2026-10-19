@@ -64,6 +64,14 @@ app.conf.beat_schedule = {
     },
     'send-due-notification-reminders': {
         'task': 'todos.tasks.send_due_notification_reminders_task',
+        'schedule': crontab(minute='*'),
+    },
+    'dispatch-pending-push-notifications': {
+        'task': 'todos.tasks.dispatch_pending_push_notifications_task',
+        'schedule': crontab(minute='*'),
+    },
+    'check-native-push-receipts': {
+        'task': 'todos.tasks.check_expo_push_receipts_task',
         'schedule': crontab(minute='*/5'),
     },
     # Auth-migration metrics: the request path only writes to a durable outbox, so

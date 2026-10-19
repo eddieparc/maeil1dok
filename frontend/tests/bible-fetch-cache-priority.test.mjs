@@ -84,3 +84,16 @@ test('KNT Bible fetch checks the cache server before the no-store proxy', async 
     source: 'cache',
   });
 });
+
+test('buildKntProxyUrl maps jnh to JON for bskorea KNT upstream', async () => {
+  const { buildKntProxyUrl } = await import(dataUrl);
+  const url = buildKntProxyUrl('jnh', 1);
+  assert.ok(url.includes('chapter=JON.1'), `expected JON.1 in ${url}`);
+});
+
+test('buildKntProxyUrl passes other book codes through unchanged', async () => {
+  const { buildKntProxyUrl } = await import(dataUrl);
+  assert.ok(buildKntProxyUrl('gen', 1).includes('chapter=GEN.1'));
+  assert.ok(buildKntProxyUrl('psa', 23).includes('chapter=PSA.23'));
+  assert.ok(buildKntProxyUrl('rev', 22).includes('chapter=REV.22'));
+});

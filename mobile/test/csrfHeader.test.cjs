@@ -55,6 +55,18 @@ test('Given a plain string map Then it is read too', () => {
   });
 });
 
+test('Given the beta CSRF cookie Then it becomes a header too', () => {
+  // The beta stack names its CSRF cookie beta_csrftoken (measured from the
+  // real consume response). Without it the shell's own refresh/logout calls
+  // to the beta API fail Django's CSRF check.
+  assert.deepEqual(csrfHeadersFrom({ beta_csrftoken: 'tok-beta' }), {
+    [CSRF_HEADER_NAME]: 'tok-beta',
+  });
+  assert.deepEqual(csrfHeadersFrom({ beta_csrftoken: { value: 'tok-beta-obj' } }), {
+    [CSRF_HEADER_NAME]: 'tok-beta-obj',
+  });
+});
+
 test('Given no CSRF cookie Then no header is invented', () => {
   // Sending an empty header is worse than sending none: Django compares it and
   // rejects, turning "not configured" into a confusing hard failure.
@@ -73,7 +85,7 @@ test('the shell logout call actually carries the header', () => {
   // The rule can be perfect while the call site forgets it, and no pure test can
   // see that. Scoped to the logout fetch block so an unrelated mention elsewhere
   // cannot satisfy it.
-  const source = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx'), 'utf8');
   const start = source.indexOf("auth/logout/");
   assert.notEqual(start, -1, 'logout call not found');
   const block = source.slice(Math.max(0, start - 400), start + 300);
@@ -100,7 +112,7 @@ test('the shell refresh call carries the header too', async () => {
 test('the session bridge issue call carries the header when cookies exist', async () => {
   // Given: the actual App closure and a shared cookie store populated by the
   // refresh response that immediately precedes this bridge call.
-  const appPath = path.join(__dirname, '..', 'App.tsx');
+  const appPath = path.join(__dirname, '..', 'screens', 'WebViewScreen.tsx');
   const source = fs.readFileSync(appPath, 'utf8');
   const sourceFile = ts.createSourceFile(
     appPath,
@@ -151,6 +163,7 @@ module.exports = { initiateSessionBridge };`,
     'buildSessionBridgeConsumeUrl',
     'currentWebViewUrlRef',
     'NATIVE_CLIENT_OBSERVATION_HEADERS',
+    'tokenStore',
     compiled,
   )(
     instance,
@@ -178,6 +191,7 @@ module.exports = { initiateSessionBridge };`,
       'X-App-Platform': 'android',
       'X-App-Version': '1.2.3',
     },
+    { write: async () => {} },
   );
 
   // When: native login/restore issues the one-time WebView session code.

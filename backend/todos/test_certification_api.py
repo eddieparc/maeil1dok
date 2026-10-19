@@ -1,10 +1,12 @@
 from datetime import date, datetime
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import include, path
 from rest_framework.test import APIClient
 
+from accounts.services.achievement_service import AchievementService
 from todos.models import (
     BibleReadingPlan,
     DailyBibleSchedule,
@@ -76,7 +78,8 @@ class CertificationProgressApiTest(TestCase):
         self._complete(self.second_schedule, latest_completed_at)
 
         # When
-        response = self.client.get(self.URL)
+        with patch.object(AchievementService, "_local_today", return_value=date(2026, 1, 2)):
+            response = self.client.get(self.URL)
 
         # Then
         self.assertEqual(response.status_code, 200)
@@ -88,7 +91,7 @@ class CertificationProgressApiTest(TestCase):
         self.assertEqual(data["progress"]["totalSchedules"], 3)
         self.assertEqual(data["progress"]["completedSchedules"], 2)
         self.assertEqual(data["progress"]["completionRate"], 66.67)
-        self.assertEqual(data["progress"]["currentStreak"], 4)
+        self.assertEqual(data["progress"]["currentStreak"], 2)
         self.assertEqual(data["progress"]["totalCompletedDays"], 10)
         self.assertEqual(data["progress"]["latestCompletedAt"], "2026-01-02T09:30:00")
         self.assertEqual(data["progress"]["status"], "in_progress")
@@ -98,6 +101,19 @@ class CertificationProgressApiTest(TestCase):
         self.assertEqual(data["card"]["dateLabel"], "2026-01-02")
         self.assertEqual(data["card"]["footer"], "매일 말씀을 읽는 작은 습관")
         self.assertEqual(set(data["user"].keys()), {"id", "nickname"})
+
+    def test_progress_streak_is_live_two_consecutive_days_not_stale_profile(self):
+        self.user.profile.current_streak = 1
+        self.user.profile.total_completed_days = 1
+        self.user.profile.save(update_fields=["current_streak", "total_completed_days"])
+        self._complete(self.first_schedule, datetime(2026, 1, 1, 9, 30))
+        self._complete(self.second_schedule, datetime(2026, 1, 2, 9, 30))
+
+        with patch.object(AchievementService, "_local_today", return_value=date(2026, 1, 2)):
+            response = self.client.get(self.URL)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["progress"]["currentStreak"], 2)
 
     def test_progress_returns_no_progress_status_without_completed_schedules(self):
         # Given

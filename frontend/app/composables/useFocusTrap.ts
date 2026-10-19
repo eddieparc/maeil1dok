@@ -1,4 +1,4 @@
-import { ref, watch, onUnmounted, type Ref } from 'vue'
+import { ref, shallowRef, computed, watch, nextTick, onBeforeUnmount, type Ref } from 'vue'
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -10,143 +10,128 @@ const FOCUSABLE_SELECTOR = [
   '[contenteditable="true"]'
 ].join(', ')
 
+interface ActiveTrap {
+  container: HTMLElement
+  previous: HTMLElement | null
+  focusFirst: () => void
+  zIndex: number
+}
+
+// Sheets and service modals share paint, pointer and keyboard/focus ownership.
+const activeTraps = shallowRef<ActiveTrap[]>([])
+
 export interface UseFocusTrapOptions {
-  /** 트랩 활성화 여부 */
   enabled?: Ref<boolean>
-  /** 첫 번째 요소로 자동 포커스 */
   autoFocus?: boolean
-  /** 비활성화 시 원래 포커스로 복귀 */
   returnFocusOnDeactivate?: boolean
+  /** Capture Escape before an underlying sheet's document listener. */
+  onEscape?: (event: KeyboardEvent) => void
 }
 
 export function useFocusTrap(
   containerRef: Ref<HTMLElement | null>,
   options: UseFocusTrapOptions = {}
 ) {
-  const {
-    enabled = ref(true),
-    autoFocus = true,
-    returnFocusOnDeactivate = true
-  } = options
-
-  const previousActiveElement = ref<HTMLElement | null>(null)
+  const { enabled = ref(true), autoFocus = true, returnFocusOnDeactivate = true } = options
+  let trap: ActiveTrap | null = null
+  // Retain the assigned layer during leave transitions and lower-owner removal.
+  const zIndex = ref(1000)
+  const isTopmost = computed(() => activeTraps.value.at(-1) === trap)
 
   function getFocusableElements(): HTMLElement[] {
     if (!containerRef.value) return []
-    return Array.from(
-      containerRef.value.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-    ).filter(el => {
-      return el.offsetParent !== null // 화면에 보이는 요소만
-    })
+    return Array.from(containerRef.value.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+      .filter(el => el.offsetParent !== null)
   }
 
   function focusFirst(): void {
-    const elements = getFocusableElements()
-    if (elements.length > 0) {
-      elements[0].focus()
-    } else {
-      // focusable 요소가 없으면 컨테이너에 포커스
-      containerRef.value?.focus()
-    }
+    if (isTopmost.value) (getFocusableElements()[0] || containerRef.value)?.focus()
   }
 
   function focusLast(): void {
-    const elements = getFocusableElements()
-    if (elements.length > 0) {
-      elements[elements.length - 1].focus()
-    }
+    if (isTopmost.value) (getFocusableElements().at(-1) || containerRef.value)?.focus()
   }
 
   function handleKeyDown(event: KeyboardEvent): void {
-    if (!enabled.value || event.key !== 'Tab') return
-
-    const elements = getFocusableElements()
-    if (elements.length === 0) {
+    if (!enabled.value || !isTopmost.value) return
+    if (event.key === 'Escape' && options.onEscape) {
       event.preventDefault()
+      event.stopImmediatePropagation()
+      options.onEscape(event)
       return
     }
-
-    const firstElement = elements[0]
-    const lastElement = elements[elements.length - 1]
-    const activeElement = document.activeElement
-
-    if (event.shiftKey) {
-      // Shift + Tab: 역방향
-      if (activeElement === firstElement || !containerRef.value?.contains(activeElement)) {
-        event.preventDefault()
-        lastElement.focus()
-      }
-    } else {
-      // Tab: 정방향
-      if (activeElement === lastElement || !containerRef.value?.contains(activeElement)) {
-        event.preventDefault()
-        firstElement.focus()
-      }
+    if (event.key !== 'Tab') return
+    event.stopImmediatePropagation()
+    const elements = getFocusableElements()
+    const first = elements[0]
+    const last = elements.at(-1)
+    const active = document.activeElement
+    if (!first) {
+      event.preventDefault()
+      containerRef.value?.focus()
+    } else if (event.shiftKey && (active === first || !containerRef.value?.contains(active))) {
+      event.preventDefault()
+      last?.focus()
+    } else if (!event.shiftKey && (active === last || !containerRef.value?.contains(active))) {
+      event.preventDefault()
+      first.focus()
     }
+  }
+
+  function handleFocusIn(event: FocusEvent): void {
+    if (isTopmost.value && !containerRef.value?.contains(event.target as Node)) focusFirst()
   }
 
   function activate(): void {
-    // SSR 가드: 서버에는 document가 없다
-    if (typeof document === 'undefined') return
-    if (!containerRef.value) return
-
-    // 현재 포커스된 요소 저장
-    previousActiveElement.value = document.activeElement as HTMLElement
-
-    // 이벤트 리스너 등록
-    document.addEventListener('keydown', handleKeyDown)
-
-    // 자동 포커스
-    if (autoFocus) {
-      // 약간의 지연을 주어 트랜지션 후 포커스
-      requestAnimationFrame(() => {
-        focusFirst()
-      })
+    if (typeof document === 'undefined' || !containerRef.value || trap) return
+    zIndex.value = (activeTraps.value.at(-1)?.zIndex ?? 990) + 10
+    trap = {
+      container: containerRef.value,
+      previous: document.activeElement as HTMLElement | null,
+      focusFirst,
+      zIndex: zIndex.value
     }
+    activeTraps.value = [...activeTraps.value, trap]
+    document.addEventListener('keydown', handleKeyDown, true)
+    document.addEventListener('focusin', handleFocusIn, true)
+    // Wait for Vue's rendered refs, not a guessed transition duration/frame.
+    if (autoFocus) void nextTick(() => { if (enabled.value) focusFirst() })
   }
 
   function deactivate(): void {
-    // SSR 가드: 서버에는 document가 없다
-    if (typeof document === 'undefined') return
-
-    // 이벤트 리스너 제거
-    document.removeEventListener('keydown', handleKeyDown)
-
-    // 원래 포커스로 복귀
-    if (returnFocusOnDeactivate && previousActiveElement.value) {
-      previousActiveElement.value.focus()
-      previousActiveElement.value = null
+    if (typeof document === 'undefined' || !trap) return
+    const removed = trap
+    const wasTopmost = isTopmost.value
+    // If a lower overlay is removed first, retain the original return target.
+    for (const active of activeTraps.value) {
+      if (active !== removed && active.previous && removed.container.contains(active.previous)) {
+        active.previous = removed.previous
+      }
     }
+    trap = null
+    activeTraps.value = activeTraps.value.filter(active => active !== removed)
+    document.removeEventListener('keydown', handleKeyDown, true)
+    document.removeEventListener('focusin', handleFocusIn, true)
+    if (!wasTopmost || !returnFocusOnDeactivate) return
+    const top = activeTraps.value.at(-1)
+    const restoreFocus = () => {
+      if (activeTraps.value.at(-1) !== top) return
+      if (removed.previous?.isConnected && (!top || top.container.contains(removed.previous))) {
+        removed.previous.focus()
+      } else {
+        top?.focusFirst()
+      }
+    }
+    // A resumed service modal is inert until Vue patches its topmost state.
+    if (top) void nextTick(restoreFocus)
+    else restoreFocus()
   }
 
-  // enabled 상태 감시
-  watch(enabled, (isEnabled) => {
-    if (isEnabled) {
-      activate()
-    } else {
-      deactivate()
-    }
-  }, { immediate: true })
+  watch([enabled, containerRef], ([isEnabled, container]) => {
+    if (trap && (!isEnabled || trap.container !== container)) deactivate()
+    if (isEnabled && container) activate()
+  }, { immediate: true, flush: 'post' })
+  onBeforeUnmount(deactivate)
 
-  // 컨테이너 변경 감시
-  watch(containerRef, (newContainer, oldContainer) => {
-    if (oldContainer && enabled.value) {
-      deactivate()
-    }
-    if (newContainer && enabled.value) {
-      activate()
-    }
-  })
-
-  // 컴포넌트 언마운트 시 정리
-  onUnmounted(() => {
-    deactivate()
-  })
-
-  return {
-    activate,
-    deactivate,
-    focusFirst,
-    focusLast
-  }
+  return { activate, deactivate, focusFirst, focusLast, isTopmost, zIndex }
 }

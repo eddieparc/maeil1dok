@@ -1,3 +1,4 @@
+from django.conf import settings
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 
@@ -16,7 +17,7 @@ class CookieJWTAuthenticationScheme(OpenApiAuthenticationExtension):
             {
                 'type': 'apiKey',
                 'in': 'cookie',
-                'name': 'access_token',
+                'name': getattr(settings, 'ACCESS_TOKEN_COOKIE_NAME', 'access_token'),
                 'description': 'HttpOnly access-token cookie. Unsafe methods also require CSRF.',
             },
             {

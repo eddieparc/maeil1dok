@@ -25,6 +25,36 @@ test('rejected stored-session restore preserves cookies and SecureStore', async 
   assert.equal(observations.navigateCount, 0);
 });
 
+test('beta auth cookies short-circuit the restore like prod cookies do', async () => {
+  // The beta backend sets beta_access_token/beta_refresh_token (measured from
+  // the real consume response). If the shell only recognises the unprefixed
+  // names, every page load's auth:request re-runs the whole bridge and the
+  // WebView loops consume -> / -> consume forever.
+  const { observations, restoreStoredSession } = createRestoreHarness({
+    betaMode: true,
+    cookieStores: [
+      { beta_access_token: { value: 'beta-access' } },
+    ],
+  });
+
+  assert.equal(await restoreStoredSession(), false);
+  assert.equal(observations.fetchCalls.length, 0);
+  assert.equal(observations.bridgeCalls.length, 0);
+  assert.equal(observations.navigateCount, 0);
+});
+
+test('beta refresh cookie alone also counts as an existing session', async () => {
+  const { observations, restoreStoredSession } = createRestoreHarness({
+    betaMode: true,
+    cookieStores: [
+      { beta_refresh_token: { value: 'beta-refresh' } },
+    ],
+  });
+
+  assert.equal(await restoreStoredSession(), false);
+  assert.equal(observations.fetchCalls.length, 0);
+});
+
 test('successful stored-session restore bridges rotated tokens then navigates', async () => {
   const { observations, restoreStoredSession } = createRestoreHarness();
 

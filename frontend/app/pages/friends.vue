@@ -1,143 +1,85 @@
 <template>
   <PageLayout title="친구" fallback-path="/">
-    <!-- 스크롤 영역 -->
-    <div class="scroll-area">
-      <!-- 탭 -->
-      <div class="tabs fade-in" style="animation-delay: 0.1s">
-        <button 
-          class="tab-button" 
-          :class="{ active: activeTab === 'friends' }"
-          @click="activeTab = 'friends'"
-        >
-          친구
-        </button>
-        <button 
-          class="tab-button" 
-          :class="{ active: activeTab === 'followers' }"
-          @click="activeTab = 'followers'"
-        >
-          팔로워
-        </button>
-        <button 
-          class="tab-button" 
-          :class="{ active: activeTab === 'following' }"
-          @click="activeTab = 'following'"
-        >
-          팔로잉
-        </button>
-        <button 
-          class="tab-button" 
-          :class="{ active: activeTab === 'search' }"
-          @click="activeTab = 'search'"
-        >
-          검색
-        </button>
-      </div>
-
-      <!-- 검색 바 (검색 탭일 때만) -->
-      <div v-if="activeTab === 'search'" class="search-bar fade-in" style="animation-delay: 0.2s">
-        <input 
+    <div class="friends-content stagger">
+      <div class="search-bar fade-in">
+        <SearchIcon :size="18" aria-hidden="true" />
+        <input
           v-model="searchQuery"
-          type="text" 
-          placeholder="사용자 검색..."
+          type="search"
+          placeholder="닉네임으로 검색"
+          aria-label="닉네임으로 검색"
           class="search-input"
-          @input="searchUsers"
+          @input="onSearchInput"
         >
       </div>
 
-      <!-- 로딩 상태 -->
-      <SkeletonList v-if="isLoading" :count="6" variant="user" />
-      
-      <!-- 에러 상태 -->
-      <div v-else-if="error" class="error-state">
+      <div class="tabs fade-in" role="group" aria-label="친구 목록 보기">
+        <FilterChip label="친구" :count="friendsList.length" :active="activeTab === 'friends'" @click="selectTab('friends')" />
+        <FilterChip label="팔로워" :count="followersList.length" :active="activeTab === 'followers'" @click="selectTab('followers')" />
+        <FilterChip label="팔로잉" :count="followingList.length" :active="activeTab === 'following'" @click="selectTab('following')" />
+      </div>
+
+      <p v-if="followError" class="inline-error" role="alert">{{ followError }}</p>
+      <SkeletonList v-if="isLoading || isSearching" :count="6" variant="user" />
+      <div v-else-if="error" class="error-state" role="alert">
         <p>{{ error }}</p>
-        <button @click="() => { error = null; onMounted() }" class="retry-button">
-          다시 시도
-        </button>
+        <AppButton variant="secondary" @click="activeTab === 'search' ? searchUsers() : loadLists()">다시 시도</AppButton>
       </div>
-      
-      <!-- 사용자 목록 -->
-      <div v-else class="users-list">
-        <!-- 친구 목록 -->
-        <div v-if="activeTab === 'friends'">
-          <div v-if="friendsList.length === 0" class="empty-state">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="9" cy="7" r="4" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p>아직 친구가 없습니다</p>
-            <p class="empty-subtitle">서로 팔로우하는 사용자가 친구로 표시됩니다</p>
-          </div>
-          <UserCard 
-            v-for="user in friendsList" 
-            :key="user.id"
-            :user="user"
-            @follow="handleFollow"
-            @unfollow="handleUnfollow"
-            class="fade-in"
-          />
+      <ListCard v-else :padded="false" class="users-list fade-in">
+        <div v-if="visibleUsers.length === 0" class="empty-state">
+          <UsersIcon :size="40" aria-hidden="true" />
+          <p>{{ emptyMessage }}</p>
+          <p v-if="activeTab === 'friends'" class="empty-subtitle">서로 팔로우하는 사용자가 친구로 표시됩니다</p>
         </div>
-
-        <!-- 팔로워 목록 -->
-        <div v-else-if="activeTab === 'followers'">
-          <div v-if="followersList.length === 0" class="empty-state">
-            <p>팔로워가 없습니다</p>
+        <div v-for="user in visibleUsers" :key="user.id" class="friend-row">
+          <NuxtLink :to="`/profile/${user.id}`" class="friend-info">
+            <NuxtImg
+              v-if="user.profile_image && !avatarErrors[user.id]"
+              :src="user.profile_image"
+              :alt="user.nickname"
+              class="friend-avatar"
+              loading="lazy"
+              @error="avatarErrors[user.id] = true"
+            />
+            <span v-else class="friend-avatar avatar-placeholder"><UserIcon :size="20" aria-hidden="true" /></span>
+            <span class="friend-details">
+              <span class="friend-heading">
+                <span class="friend-name">{{ user.nickname }}</span>
+                <UserCheckIcon v-if="user.is_mutual_follow || user.is_friend" :size="14" class="mutual-icon" aria-label="상호 팔로우" role="img" />
+              </span>
+              <span v-if="user.current_streak !== undefined && user.progress_rate !== undefined" class="friend-sub">연속 {{ user.current_streak }}일 · 진도 {{ user.progress_rate }}%</span>
+              <span v-else-if="user.total_completed_days !== undefined" class="friend-sub">통독 {{ user.total_completed_days }}일 완료</span>
+              <span v-else class="friend-sub">@{{ user.username }}</span>
+            </span>
+          </NuxtLink>
+          <div v-if="auth.user.value?.id !== user.id" class="follow-hit-area">
+            <button
+              type="button"
+              class="follow-toggle"
+              :class="{ following: user.is_following }"
+              :disabled="pendingFollows[user.id]"
+              :aria-pressed="Boolean(user.is_following)"
+              :aria-label="`${user.nickname} ${user.is_following ? '팔로잉 취소' : '팔로우'}`"
+              :aria-busy="Boolean(pendingFollows[user.id])"
+              @click="toggleFollow(user)"
+            >{{ user.is_following ? '팔로잉' : '팔로우' }}</button>
           </div>
-          <UserCard 
-            v-for="user in followersList" 
-            :key="user.id"
-            :user="user"
-            @follow="handleFollow"
-            @unfollow="handleUnfollow"
-            class="fade-in"
-          />
         </div>
-
-        <!-- 팔로잉 목록 -->
-        <div v-else-if="activeTab === 'following'">
-          <div v-if="followingList.length === 0" class="empty-state">
-            <p>팔로잉하는 사용자가 없습니다</p>
-          </div>
-          <UserCard 
-            v-for="user in followingList" 
-            :key="user.id"
-            :user="user"
-            @follow="handleFollow"
-            @unfollow="handleUnfollow"
-            class="fade-in"
-          />
-        </div>
-
-        <!-- 검색 결과 -->
-        <div v-else-if="activeTab === 'search'">
-          <div v-if="searchResults.length === 0 && searchQuery" class="empty-state">
-            <p>검색 결과가 없습니다</p>
-          </div>
-          <div v-else-if="!searchQuery" class="empty-state">
-            <p>사용자를 검색해보세요</p>
-          </div>
-          <UserCard 
-            v-for="user in searchResults" 
-            :key="user.id"
-            :user="user"
-            @follow="handleFollow"
-            @unfollow="handleUnfollow"
-            class="fade-in"
-          />
-        </div>
-      </div>
+      </ListCard>
     </div>
   </PageLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { debounce } from 'lodash-es'
+import { SearchIcon, UserIcon, UsersIcon, UserCheckIcon } from '@lucide/vue'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
 import { useSocialStore } from '~/stores/social'
-import UserCard from '~/components/UserCard.vue'
+import FilterChip from '~/components/ui/FilterChip.vue'
+import ListCard from '~/components/ui/ListCard.vue'
+import AppButton from '~/components/ui/AppButton.vue'
 import SkeletonList from '~/components/ui/skeleton/SkeletonList.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 
@@ -156,400 +98,255 @@ useHead({
 
 const activeTab = ref('friends')
 const searchQuery = ref('')
-
 const friendsList = ref([])
 const followersList = ref([])
 const followingList = ref([])
 const searchResults = ref([])
-
-const isLoading = ref(false)
+const isLoading = ref(true)
+const isSearching = ref(false)
 const error = ref(null)
+const followError = ref(null)
+const pendingFollows = ref({})
+const avatarErrors = ref({})
+let searchVersion = 0
 
-// 친구 목록 가져오기
+const visibleUsers = computed(() => {
+  if (activeTab.value === 'search') return searchResults.value
+  if (activeTab.value === 'followers') return followersList.value
+  if (activeTab.value === 'following') return followingList.value
+  return friendsList.value
+})
+const emptyMessage = computed(() => ({
+  friends: '아직 친구가 없습니다',
+  followers: '팔로워가 없습니다',
+  following: '팔로잉하는 사용자가 없습니다',
+  search: '검색 결과가 없습니다'
+})[activeTab.value])
+
 const fetchFriends = async () => {
   try {
     const response = await api.GET('/api/v1/auth/friends/')
-    if (response.data.success) {
-      friendsList.value = response.data.data.friends.map(friend => ({
-        ...friend,
-        is_friend: true,
-        is_mutual_follow: true
-      }))
-    }
+    if (!response.data?.success) throw new Error('친구 목록 조회 실패')
+    friendsList.value = response.data.data.friends.map(friend => ({
+      ...friend,
+      is_following: true,
+      is_friend: true,
+      is_mutual_follow: true
+    }))
   } catch (err) {
     console.error('친구 목록 조회 실패:', err)
     error.value = '친구 목록을 불러올 수 없습니다.'
   }
 }
 
-// 팔로워 목록 가져오기
 const fetchFollowers = async () => {
   if (!auth.user.value) return
-
   try {
     const response = await api.GET(
       api.path('/api/v1/auth/followers/{user_id}/', { user_id: auth.user.value.id })
     )
-    if (response.data.success) {
-      followersList.value = response.data.data.followers
-    }
-  } catch (error) {
-    console.error('팔로워 목록 조회 실패:', error)
+    if (!response.data?.success) throw new Error('팔로워 목록 조회 실패')
+    followersList.value = response.data.data.followers.map(user => ({
+      ...user, is_mutual_follow: user.is_following
+    }))
+  } catch (err) {
+    console.error('팔로워 목록 조회 실패:', err)
+    error.value = '팔로워 목록을 불러올 수 없습니다.'
   }
 }
 
-// 팔로잉 목록 가져오기
 const fetchFollowing = async () => {
   if (!auth.user.value) return
-
   try {
     const response = await api.GET(
       api.path('/api/v1/auth/following/{user_id}/', { user_id: auth.user.value.id })
     )
-    if (response.data.success) {
-      followingList.value = response.data.data.following
-    }
-  } catch (error) {
-    console.error('팔로잉 목록 조회 실패:', error)
+    if (!response.data?.success) throw new Error('팔로잉 목록 조회 실패')
+    followingList.value = response.data.data.following
+  } catch (err) {
+    console.error('팔로잉 목록 조회 실패:', err)
+    error.value = '팔로잉 목록을 불러올 수 없습니다.'
   }
 }
 
-// 사용자 검색
 const searchUsers = async () => {
-  if (!searchQuery.value) {
+  const query = searchQuery.value.trim()
+  const version = ++searchVersion
+  if (!query) {
     searchResults.value = []
+    isSearching.value = false
     return
   }
-
+  isSearching.value = true
+  error.value = null
   try {
-    const response = await api.GET('/api/v1/auth/search/', {
-      params: { q: searchQuery.value }
-    })
-    if (response.data.success) {
-      searchResults.value = response.data.data.users
-    }
-  } catch (error) {
-    console.error('사용자 검색 실패:', error)
+    const response = await api.GET('/api/v1/auth/search/', { params: { q: query } })
+    if (version !== searchVersion) return
+    if (!response.data?.success) throw new Error('사용자 검색 실패')
+    searchResults.value = response.data.data.users
+  } catch (err) {
+    console.error('사용자 검색 실패:', err)
+    if (version === searchVersion) error.value = '사용자를 검색할 수 없습니다.'
+  } finally {
+    if (version === searchVersion) isSearching.value = false
   }
 }
+const debouncedSearch = debounce(searchUsers, 300)
+const selectTab = (tab) => {
+  debouncedSearch.cancel()
+  searchVersion++
+  searchQuery.value = ''
+  searchResults.value = []
+  isSearching.value = false
+  error.value = null
+  activeTab.value = tab
+}
+const onSearchInput = () => {
+  searchVersion++
+  searchResults.value = []
+  error.value = null
+  if (!searchQuery.value.trim()) {
+    selectTab('friends')
+    return
+  }
+  activeTab.value = 'search'
+  isSearching.value = true
+  debouncedSearch()
+}
 
-// 로컬 목록에서 is_following 상태 업데이트 (낙관적 업데이트)
+// 성공한 관계 변경은 기존 로컬 목록과 social store에 함께 반영한다.
 const updateLocalFollowStatus = (userId, isFollowing) => {
-  // 팔로워 목록 업데이트
   followersList.value = followersList.value.map(user =>
-    user.id === userId ? { ...user, is_following: isFollowing } : user
+    user.id === userId ? { ...user, is_following: isFollowing, is_mutual_follow: isFollowing } : user
   )
-  // 검색 결과 업데이트
   searchResults.value = searchResults.value.map(user =>
     user.id === userId ? { ...user, is_following: isFollowing } : user
   )
-  // 팔로잉 목록 업데이트
   if (isFollowing) {
-    // 팔로우 시: 팔로잉 목록에 추가 (이미 있으면 무시)
     const userToAdd = followersList.value.find(u => u.id === userId) ||
                       searchResults.value.find(u => u.id === userId)
     if (userToAdd && !followingList.value.some(u => u.id === userId)) {
       followingList.value.push({ ...userToAdd, is_following: true })
     }
+    if (userToAdd?.is_mutual_follow && !friendsList.value.some(u => u.id === userId)) {
+      friendsList.value.push({ ...userToAdd, is_friend: true })
+    }
   } else {
-    // 언팔로우 시: 팔로잉 목록에서 제거
     followingList.value = followingList.value.filter(u => u.id !== userId)
-    // 친구 목록에서도 제거 (상호 팔로우 깨짐)
     friendsList.value = friendsList.value.filter(u => u.id !== userId)
   }
 }
 
-// 팔로우 처리 (social store 사용 + 낙관적 업데이트)
 const handleFollow = async (userId) => {
-  // 사용자 정보 찾기 (낙관적 업데이트용)
   const userInfo = followersList.value.find(u => u.id === userId) ||
                    searchResults.value.find(u => u.id === userId)
-
   const result = await socialStore.followUser(userId, userInfo)
   if (result.success) {
-    // 로컬 상태 낙관적 업데이트
     updateLocalFollowStatus(userId, true)
   } else {
     console.error('팔로우 실패:', result.error)
   }
+  return result
 }
 
-// 언팔로우 처리 (social store 사용 + 낙관적 업데이트)
 const handleUnfollow = async (userId) => {
   const result = await socialStore.unfollowUser(userId)
   if (result.success) {
-    // 로컬 상태 낙관적 업데이트
     updateLocalFollowStatus(userId, false)
   } else {
     console.error('언팔로우 실패:', result.error)
   }
+  return result
+}
+
+// 클릭 즉시 토글하되 요청이 끝날 때까지 중복 입력을 막고 실패 시 복원한다.
+const toggleFollow = async (user) => {
+  if (pendingFollows.value[user.id]) return
+  const previous = user.is_following
+  pendingFollows.value[user.id] = true
+  followError.value = null
+  user.is_following = !previous
+  try {
+    const result = await (previous ? handleUnfollow(user.id) : handleFollow(user.id))
+    if (!result.success) {
+      user.is_following = previous
+      followError.value = result.error || '팔로우 상태를 변경할 수 없습니다.'
+    }
+  } catch (err) {
+    user.is_following = previous
+    console.error('팔로우 상태 변경 실패:', err)
+    followError.value = '팔로우 상태를 변경할 수 없습니다.'
+  } finally {
+    delete pendingFollows.value[user.id]
+  }
+}
+
+const loadLists = async () => {
+  error.value = null
+  isLoading.value = true
+  try {
+    await Promise.all([fetchFriends(), fetchFollowers(), fetchFollowing()])
+    followingList.value = followingList.value.map(user => ({
+      ...user, is_mutual_follow: friendsList.value.some(friend => friend.id === user.id)
+    }))
+  } finally {
+    isLoading.value = false
+  }
 }
 
 onMounted(async () => {
-  // 비로그인 사용자는 로그인 페이지로 리다이렉트
+  await auth.initialize()
   if (!auth.isAuthenticated.value) {
     navigateTo('/login')
     return
   }
-
-  isLoading.value = true
-  try {
-    await Promise.all([
-      fetchFriends(),
-      fetchFollowers(),
-      fetchFollowing()
-    ])
-  } finally {
-    isLoading.value = false
-  }
+  await loadLists()
+})
+onBeforeUnmount(() => {
+  debouncedSearch.cancel()
+  searchVersion++
 })
 </script>
 
 <style scoped>
-.scroll-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem 1.25rem;
-}
-
-.tabs {
-  background: var(--color-bg-card, white);
-  border: 1px solid var(--color-border-default, #E5E7EB);
-  border-radius: 0.5rem;
-  padding: 0.25rem;
-  display: flex;
-  gap: 0.25rem;
-  margin-bottom: 1rem;
-}
-
-.tab-button {
-  flex: 1;
-  padding: 0.5rem;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-button.active {
-  background: var(--primary-color);
-  color: white;
-}
-
-.tab-button:not(.active):hover {
-  background: var(--color-bg-hover, #F3F4F6);
-}
-
-.search-bar {
-  margin-bottom: 1rem;
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-border-default, #E5E7EB);
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  background: var(--color-bg-card, white);
-  color: var(--color-text-primary, inherit);
-  transition: all 0.2s ease;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--primary-light);
-}
-
-.users-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: var(--text-secondary);
-}
-
-.empty-state svg {
-  margin: 0 auto 1rem;
-}
-
-.empty-state p {
-  margin: 0.5rem 0;
-}
-
-.empty-subtitle {
-  font-size: 0.875rem;
-  color: #9CA3AF;
-}
-
-.error-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: var(--text-secondary);
-}
-
-.retry-button {
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.retry-button:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-}
-
-/* 애니메이션 */
-.fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
-  opacity: 0;
-}
-
-@keyframes fadeIn {
-  to {
-    opacity: 1;
-  }
-}
-
-/* Tablet: iPad Mini and similar */
-@media (min-width: 768px) {
-  .content-wrapper {
-    padding: 1.5rem;
-  }
-
-  .search-container {
-    padding: 1.25rem;
-  }
-
-  .friends-list {
-    padding: 1.25rem;
-  }
-
-  .friend-item {
-    padding: 1.25rem;
-  }
-
-  .friend-avatar {
-    width: 3.5rem;
-    height: 3.5rem;
-  }
-
-  .friend-name {
-    font-size: 1.125rem;
-  }
-
-  .friend-email {
-    font-size: 0.9375rem;
-  }
-
-  .action-button {
-    font-size: 0.9375rem;
-    padding: 0.625rem 1.125rem;
-  }
-}
-
-[data-theme="dark"] .tabs {
-  background: var(--color-bg-card);
-  border: none;
-  box-shadow: none;
-}
-
-[data-theme="dark"] .tab-button {
-  color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .tab-button.active {
-  background: var(--color-accent-primary);
-  color: var(--color-text-inverse);
-}
-
-[data-theme="dark"] .tab-button:not(.active):hover {
-  background: var(--color-bg-hover);
-}
-
-[data-theme="dark"] .search-input {
-  background: var(--color-bg-card);
-  border: none;
-  color: var(--color-text-primary);
-}
-
-[data-theme="dark"] .search-input::placeholder {
-  color: var(--color-text-muted);
-}
-
-[data-theme="dark"] .search-input:focus {
-  box-shadow: 0 0 0 2px var(--color-accent-primary);
-}
-
-[data-theme="dark"] .empty-state {
-  color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .empty-subtitle {
-  color: var(--color-text-muted);
-}
-
-[data-theme="dark"] .error-state {
-  color: var(--color-text-secondary);
-}
-
-[data-theme="dark"] .retry-button {
-  background: var(--color-accent-primary);
-}
-
-[data-theme="dark"] .retry-button:hover {
-  background: var(--color-accent-primary-hover, #3A1A1A);
-}
-
-/* Tablet Large: iPad Pro and larger tablets */
-@media (min-width: 1024px) {
-  .content-wrapper {
-    padding: 2rem;
-  }
-
-  .search-container {
-    padding: 1.5rem;
-  }
-
-  .friends-list {
-    padding: 1.5rem;
-  }
-
-  .friend-item {
-    padding: 1.5rem;
-  }
-
-  .friend-avatar {
-    width: 4rem;
-    height: 4rem;
-  }
-
-  .friend-name {
-    font-size: 1.25rem;
-  }
-
-  .friend-email {
-    font-size: 1rem;
-  }
-
-  .action-button {
-    font-size: 1rem;
-    padding: 0.75rem 1.25rem;
-  }
+.friends-content { width: 100%; max-width: 768px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; letter-spacing: var(--tracking-body); }
+.search-bar { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px; border: 1px solid var(--color-border-default); border-radius: var(--radius-pill); background: var(--color-bg-card); color: var(--color-text-tertiary); }
+.search-bar:focus-within { border-color: var(--color-accent-primary); box-shadow: 0 0 0 3px var(--color-accent-focus-ring); }
+.search-input { width: 100%; min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--color-text-primary); font: inherit; font-size: 14px; }
+.search-input::placeholder { color: var(--color-text-tertiary); }
+.search-input:focus-visible { outline: none; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs :deep(.filter-chip) { padding-inline: 12px; }
+.users-list { padding: 6px 0; }
+.users-list:hover { box-shadow: var(--shadow-card); }
+.friend-row { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 20px; }
+.friend-row + .friend-row { border-top: 1px solid var(--color-border-light); }
+.friend-info { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 44px; gap: 10px; color: var(--color-text-primary); text-decoration: none; border-radius: var(--radius-control); transition: color var(--duration-micro) ease, transform var(--duration-micro) ease; }
+.friend-info:hover { color: var(--color-accent-primary); }
+.friend-info:active, .follow-toggle:active { transform: scale(0.97); }
+.friend-info:focus-visible, .follow-toggle:focus-visible { outline: 3px solid var(--color-accent-focus-ring); outline-offset: 2px; box-shadow: 0 0 0 1px var(--color-accent-primary); }
+.friend-avatar { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+.avatar-placeholder { display: flex; align-items: center; justify-content: center; background: var(--color-bg-tertiary); color: var(--color-accent-primary); }
+.friend-details { min-width: 0; }
+.friend-heading { display: flex; align-items: center; gap: 4px; }
+.friend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+.mutual-icon { flex-shrink: 0; color: var(--color-accent-primary); }
+.friend-sub { display: block; margin-top: 2px; color: var(--color-text-tertiary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.follow-hit-area { display: flex; align-items: center; min-height: 44px; flex-shrink: 0; }
+.follow-toggle { position: relative; height: 32px; min-width: 64px; padding: 0 12px; border: 1px solid var(--color-accent-primary); border-radius: var(--radius-pill); background: var(--color-accent-primary); color: var(--color-text-inverse); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: background-color var(--duration-micro) ease, color var(--duration-micro) ease, transform var(--duration-micro) ease; }
+.follow-toggle::before { content: ''; position: absolute; inset: -6px 0; }
+.follow-toggle:hover { background: var(--color-accent-primary-hover); }
+.follow-toggle.following { background: var(--color-bg-card); border-color: var(--color-border-default); color: var(--color-text-secondary); }
+.follow-toggle.following:hover { background: var(--color-bg-hover); }
+.follow-toggle:disabled { cursor: wait; opacity: 0.5; }
+.empty-state, .error-state { padding: 40px 20px; text-align: center; color: var(--color-text-secondary); font-size: 14px; }
+.empty-state svg { display: block; margin: 0 auto 14px; color: var(--color-text-tertiary); }
+.empty-state p { margin: 8px 0; }
+.empty-subtitle { font-size: 12px; color: var(--color-text-tertiary); }
+.inline-error { margin: 0; font-size: 12px; color: var(--color-error); }
+@media (prefers-reduced-motion: reduce) {
+  .fade-in { animation: none; opacity: 1; transform: none; }
+  .friend-info, .follow-toggle { transition: none; }
+  .friend-info:active, .follow-toggle:active { transform: none; }
 }
 </style>

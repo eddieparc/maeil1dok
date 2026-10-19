@@ -1,7 +1,7 @@
 <template>
   <div class="header">
     <button v-if="showBack" class="back-button" aria-label="뒤로 가기" @click="handleBack">
-      <ChevronLeftIcon :size="20" />
+      <ChevronLeftIcon :size="22" />
     </button>
     <div v-else class="back-placeholder"></div>
 
@@ -98,7 +98,8 @@ const handleBack = () => {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  min-height: 52px;
+  padding: 0 1rem;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -108,16 +109,18 @@ const handleBack = () => {
 }
 
 .header h1 {
-  flex: 1;
-  font-size: 1.125rem;
-  font-weight: 600;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .back-button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   color: var(--color-text-secondary);
   cursor: pointer;
   border-radius: 8px;
@@ -133,8 +136,8 @@ const handleBack = () => {
 }
 
 .back-placeholder {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
 }
 
 .right-slot {
@@ -149,15 +152,23 @@ const handleBack = () => {
 }
 
 .notification-link {
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .back-button {
+    transition: none;
+  }
+}
+
 @media (max-width: 640px) {
   .header {
-    padding: 0.75rem;
+    padding: 0 0.75rem;
   }
 }
 

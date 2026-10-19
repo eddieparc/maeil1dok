@@ -34,7 +34,7 @@ export default defineNuxtConfig({
   ],
   // 이미지 최적화 설정
   image: {
-    provider: 'ipx',
+    provider: process.env.NUXT_IMAGE_PROVIDER || 'ipx',
     domains: [
       'k.kakaocdn.net',
       't1.kakaocdn.net',
@@ -91,7 +91,10 @@ export default defineNuxtConfig({
     hasenaPlaylistId: process.env.HASENA_PLAYLIST_ID || '',
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8019',
+      csrfCookieName: process.env.NUXT_PUBLIC_CSRF_COOKIE_NAME || 'csrftoken',
+      testMailTransport: process.env.NUXT_PUBLIC_TEST_MAIL_TRANSPORT || '',
       bibleCacheUrl: process.env.NUXT_PUBLIC_BIBLE_CACHE_URL || '',
+      cdnBase: process.env.NUXT_PUBLIC_CDN_BASE || '',
       // 성경 캐시 서버 URL (failback용)
       KAKAO_CLIENT_ID: process.env.NUXT_PUBLIC_KAKAO_CLIENT_ID || process.env.KAKAO_CLIENT_ID,
       kakaoJsKey: process.env.NUXT_PUBLIC_KAKAO_JS_KEY || process.env.KAKAO_JS_KEY,
@@ -120,6 +123,8 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
         { rel: 'manifest', href: '/manifest.json' },
+        { rel: 'preconnect', href: 'https://cdn.jsdelivr.net', crossorigin: '' },
+        { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard-dynamic-subset.css' },
         // Google Fonts - Noto Serif KR, Noto Sans KR
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
@@ -160,6 +165,12 @@ export default defineNuxtConfig({
     host: '0.0.0.0',
     port: 3019
   },
+  // 터치 기기 hover 고착 방지 — :hover 규칙을 @media (hover: hover)로 감싼다.
+  postcss: {
+    plugins: {
+      './postcss/hover-guard.mjs': {},
+    },
+  },
   // Vite 설정 추가
   vite: {
     build: {
@@ -180,6 +191,12 @@ export default defineNuxtConfig({
   },
   nitro: {
     routeRules: {
+      // Vercel 배포에서 브라우저 API 호출을 same-origin으로 프록시한다.
+      // NUXT_API_PROXY_TARGET이 있을 때만 활성 — OCI는 cloudflared가 /api를
+      // 백엔드로 먼저 라우팅하고, 로컬 dev는 이 변수가 없어 규칙이 생기지 않는다.
+      ...(process.env.NUXT_API_PROXY_TARGET
+        ? { '/api/v1/**': { proxy: `${process.env.NUXT_API_PROXY_TARGET}/api/v1/**` } }
+        : {}),
       '/**': {
         headers: {
           'cache-control': 'no-store'
@@ -220,6 +237,14 @@ export default defineNuxtConfig({
           'cache-control': 'public, max-age=31536000, immutable'
         }
       },
+      // Public, non-fingerprinted images can be reused without caching page data.
+      ...Object.fromEntries([
+        '/images/**', '/_ipx/**', '/icon-192x192.png', '/icon-512x512.png', '/youtube-icon.svg',
+        '/iOS1.png', '/iOS2.png', '/iOS3.png', '/iOS4.png',
+        '/Android1.png', '/Android2.png', '/Android3.png', '/Android4.png',
+      ].map(path => [path, {
+        headers: { 'cache-control': 'public, max-age=86400, stale-while-revalidate=604800' }
+      }])),
       '/favicon.ico': {
         headers: {
           'cache-control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400'

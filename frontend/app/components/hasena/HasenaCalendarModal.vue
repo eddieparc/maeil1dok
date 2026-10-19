@@ -400,11 +400,11 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .stat-item:nth-child(1) .stat-value {
-  color: #f97316;
+  color: var(--color-warning);
 }
 
 .stat-item:nth-child(2) .stat-value {
-  color: #eab308;
+  color: var(--color-warning);
 }
 
 .stat-item:nth-child(3) .stat-value {
@@ -473,7 +473,7 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .weekdays span.sunday {
-  color: #ef4444;
+  color: var(--color-error);
 }
 
 .dates-grid {
@@ -510,7 +510,7 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .date-cell.completed:not(.disabled):hover {
-  background: #0d9668;
+  background: var(--color-success);
 }
 
 .date-cell:not(.disabled):not(.other-month):active {
@@ -529,11 +529,11 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .date-cell.sunday .date-number {
-  color: #ef4444;
+  color: var(--color-error);
 }
 
 .date-cell.sunday.other-month .date-number {
-  color: #ef4444;
+  color: var(--color-error);
   opacity: 0.3;
 }
 
@@ -547,7 +547,7 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .date-cell.completed {
-  background: #2A1111;
+  background: var(--color-accent-primary);
 }
 
 .date-cell.completed .date-number {
@@ -555,7 +555,7 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .date-cell.completed.today {
-  background: #2A1111;
+  background: var(--color-accent-primary);
   box-shadow: 0 0 0 2px var(--color-accent-primary);
 }
 
@@ -632,7 +632,7 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .legend-dot.completed {
-  background: #2A1111;
+  background: var(--color-accent-primary);
 }
 
 .legend-dot.today {
@@ -646,8 +646,8 @@ watch(() => props.isOpen, async (isOpen) => {
 }
 
 .legend-dot.sunday {
-  background: #fef2f2;
-  border: 1px solid #ef4444;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
 }
 
 /* Help Text */

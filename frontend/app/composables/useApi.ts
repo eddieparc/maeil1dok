@@ -1,4 +1,5 @@
 import { useRuntimeConfig } from '#app'
+import { readCsrfToken, storeCsrfToken } from './csrfCookie'
 import { useAuthService } from '~/composables/useAuthService'
 import { buildClientObservationHeaders } from '~/composables/clientObservationHeaders'
 import type {
@@ -14,8 +15,6 @@ type AxiosConfig = {
 }
 
 type AxiosRequestConfig = AxiosConfig;
-
-const CSRF_TOKEN_KEY = 'csrfToken'
 
 type PathParameterNames<Path extends string> =
   Path extends `${string}{${infer Parameter}}${infer Rest}`
@@ -39,11 +38,7 @@ const apiPath = <Path extends ApiPath>(
   return result as Path
 }
 
-export const saveCsrfToken = (token: string): void => {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(CSRF_TOKEN_KEY, token)
-  }
-}
+export const saveCsrfToken = storeCsrfToken
 
 // 204/205(No Content) 응답은 본문이 비어 있어 response.json() 호출 시
 // "Unexpected end of JSON input" SyntaxError가 발생한다. 삭제(DELETE)류
@@ -70,15 +65,7 @@ export const useApi = () => {
     return config.public.apiBase as string
   }
 
-  const getCsrfToken = (): string | null => {
-    if (typeof window === 'undefined') return null
-    
-    const storedToken = localStorage.getItem(CSRF_TOKEN_KEY)
-    if (storedToken) return storedToken
-    
-    const match = document.cookie.match(/csrftoken=([^;]+)/)
-    return match?.[1] ?? null
-  }
+  const getCsrfToken = (): string | null => readCsrfToken(config.public.csrfCookieName)
 
   const getHeaders = (includeCsrf: boolean = false): Record<string, string> => {
     const shellWindow = typeof window === 'undefined'
@@ -138,6 +125,25 @@ export const useApi = () => {
     }
   }
 
+  // Catch only native fetch transport rejections, not decoding/auth/programming errors.
+  const fetchTransport = async (url: string, options: RequestInit): Promise<Response> => {
+    try {
+      return await fetch(url, options)
+    } catch (error) {
+      if (
+        !options.signal?.aborted &&
+        error instanceof TypeError &&
+        ['Failed to fetch', 'NetworkError when attempting to fetch resource.', 'Load failed', 'fetch failed'].includes(error.message)
+      ) {
+        const message = '네트워크 연결을 확인한 후 다시 시도해주세요.'
+        const networkError = new ApiError(message, 0, { code: 'NETWORK_ERROR', error: message })
+        networkError.cause = error
+        throw networkError
+      }
+      throw error
+    }
+  }
+
   // 401 에러 시 토큰 갱신 후 재시도하는 공통 함수
   const fetchWithRetry = async (
     url: string,
@@ -150,11 +156,20 @@ export const useApi = () => {
       throw new ApiError('Authentication required', 401)
     }
 
-    let response = await fetch(url, options)
+    // 셸 브리지·쿠키 복원처럼 로그인 응답 없이 인증된 세션은 CSRF 토큰이 없다.
+    // 인증된 변경 요청만 보내기 전에 토큰을 받아 둔다 (LAB-74).
+    const method = (options.method ?? 'GET').toUpperCase()
+    const headers = options.headers as Record<string, string> | undefined
+    if (requiresAuth && method !== 'GET' && headers && !headers['X-CSRFToken']) {
+      const csrfToken = await ensureCsrfToken()
+      if (csrfToken) headers['X-CSRFToken'] = csrfToken
+    }
+
+    let response = await fetchTransport(url, options)
 
     const csrfTokenFromHeader = response.headers.get('X-CSRFToken')
     if (csrfTokenFromHeader) {
-      saveCsrfToken(csrfTokenFromHeader)
+      saveCsrfToken(csrfTokenFromHeader, config.public.csrfCookieName)
     }
 
     if (response.status === 401) {
@@ -194,11 +209,11 @@ export const useApi = () => {
             }
             options.headers = retryHeaders
           }
-          response = await fetch(url, options)
+          response = await fetchTransport(url, options)
           
           const retryTokenFromHeader = response.headers.get('X-CSRFToken')
           if (retryTokenFromHeader) {
-            saveCsrfToken(retryTokenFromHeader)
+            saveCsrfToken(retryTokenFromHeader, config.public.csrfCookieName)
           }
         } else {
           if (refreshRejected && auth.isAuthenticated.value) {
@@ -220,7 +235,10 @@ export const useApi = () => {
       } catch {
         body = null
       }
-      const message = body?.error || body?.detail || body?.message || `API request failed: ${response.status}`
+      // 429는 DRF 기본 영문 문구("Request was throttled...")가 그대로 노출되므로 한국어 안내로 치환한다.
+      const message = response.status === 429
+        ? '요청이 너무 많아요. 잠시 후 다시 시도해주세요.'
+        : body?.error || body?.detail || body?.message || `API request failed: ${response.status}`
       throw new ApiError(message, response.status, body)
     }
 
@@ -254,9 +272,24 @@ export const useApi = () => {
                            url.includes('/api/v1/todos/plans/user/') ||  // 사용자 플랜 목록
                            url.includes('/api/v1/todos/certification/progress/') ||
                            url.includes('/api/v1/todos/notifications/') ||
+                           url.includes('/api/v1/todos/bible/notes/') ||
+                           url.includes('/api/v1/todos/bible/bookmarks/') ||
+                           url.includes('/api/v1/todos/bible/highlights/') ||
+                           url.includes('/api/v1/todos/bible/personal-records/') ||
+                           url.includes('/api/v1/todos/bible/reading-position/') ||
                            (url.includes('/api/v1/todos/user/') && !isVideoIntroAPI);
 
       const auth = useAuthService();
+      // The selector returns subscriptions for members and public plans for guests.
+      // Wait for identity restoration without requiring login for the public read.
+      if (
+        (requiresAuth || url === '/api/v1/todos/plan/') &&
+        !isAuthCheckEndpoint &&
+        (!auth.isInitialized.value || auth.isLoading.value)
+      ) {
+        await auth.initialize();
+      }
+
       // 인증 확인 엔드포인트는 항상 서버로 요청 (쿠키 기반 인증 지원)
       if (requiresAuth && !isAuthCheckEndpoint && !auth.isAuthenticated.value) {
         return { data: { success: false, message: 'Authentication required' } };
@@ -267,7 +300,11 @@ export const useApi = () => {
         credentials: 'include'
       }, requiresAuth && !isAuthCheckEndpoint)
 
-      const data = await readJsonBody(response)
+      const contentType = response.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase()
+      // Only CSV opts into text decoding; other bodies retain JSON validation.
+      const data = response.status !== 204 && response.status !== 205 && contentType === 'text/csv'
+        ? await response.text()
+        : await readJsonBody(response)
       return { data }
     } catch (error) {
       throw error
@@ -303,11 +340,9 @@ export const useApi = () => {
         '/api/v1/auth/reset-password/'
       ];
 
-      const requiresAuth = !publicEndpoints.some(endpoint => url.includes(endpoint));
-      if (requiresAuth && !headers['X-CSRFToken']) {
-        const csrfToken = await ensureCsrfToken()
-        if (csrfToken) headers['X-CSRFToken'] = csrfToken
-      }
+      // Only the exact support creation path is public, not nested support routes.
+      const requiresAuth = url !== '/api/v1/support/inquiries/' &&
+                           !publicEndpoints.some(endpoint => url.includes(endpoint));
 
       const response = await fetchWithRetry(fullUrl, {
         method: 'POST',
@@ -326,14 +361,9 @@ export const useApi = () => {
     const fullUrl = `${getBaseUrl()}${url}`
 
     try {
-      const headers = getHeaders(true)
-      if (!headers['X-CSRFToken']) {
-        const csrfToken = await ensureCsrfToken()
-        if (csrfToken) headers['X-CSRFToken'] = csrfToken
-      }
       const response = await fetchWithRetry(fullUrl, {
         method: 'PUT',
-        headers,
+        headers: getHeaders(true),
         body: JSON.stringify(data),
         credentials: 'include'
       })
@@ -348,14 +378,9 @@ export const useApi = () => {
     const fullUrl = `${getBaseUrl()}${url}`
 
     try {
-      const headers = getHeaders(true)
-      if (!headers['X-CSRFToken']) {
-        const csrfToken = await ensureCsrfToken()
-        if (csrfToken) headers['X-CSRFToken'] = csrfToken
-      }
       const response = await fetchWithRetry(fullUrl, {
         method: 'PATCH',
-        headers,
+        headers: getHeaders(true),
         body: JSON.stringify(data),
         credentials: 'include'
       })
@@ -383,14 +408,9 @@ export const useApi = () => {
 
   const remove = async (url: string) => {
     try {
-      const headers = getHeaders(true)
-      if (!headers['X-CSRFToken']) {
-        const csrfToken = await ensureCsrfToken()
-        if (csrfToken) headers['X-CSRFToken'] = csrfToken
-      }
       const response = await fetchWithRetry(`${getBaseUrl()}${url}`, {
         method: 'DELETE',
-        headers,
+        headers: getHeaders(true),
         credentials: 'include'
       })
       return readJsonBody(response)
@@ -417,7 +437,7 @@ export const useApi = () => {
     async upload(url: string, formData: FormData) {
       try {
         const headers: Record<string, string> = {}
-        const csrfToken = await ensureCsrfToken()
+        const csrfToken = getCsrfToken()
         if (csrfToken) {
           headers['X-CSRFToken'] = csrfToken
         }

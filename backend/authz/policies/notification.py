@@ -49,6 +49,10 @@ class PushSubscriptionRemoval:
     endpoint: str
     resource_type: ClassVar[str] = "push_subscription"
 
+@dataclass(frozen=True)
+class NativePushCurrent:
+    resource_type: ClassVar[str] = "native_push_subscription"
+
 
 def _require_authenticated(subject):
     if not subject.is_authenticated:
@@ -97,6 +101,7 @@ def _remove_push_subscription(subject, resource):
 
 
 POLICIES = {
+    ("manage_native_push", NativePushCurrent): _self_scoped,
     ("view_notifications", NotificationInbox): _view_notifications,
     ("mark_notification_read", NotificationResource): _mark_notification_read,
     ("mark_all_notifications_read", NotificationInbox): _self_scoped,

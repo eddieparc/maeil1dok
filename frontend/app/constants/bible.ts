@@ -50,7 +50,7 @@ export const OLD_TESTAMENT: BibleBook[] = [
   { id: 'jol', name: '요엘', abbreviation: '욜', chapters: 3 },
   { id: 'amo', name: '아모스', abbreviation: '암', chapters: 9 },
   { id: 'oba', name: '오바댜', abbreviation: '옵', chapters: 1 },
-  { id: 'jon', name: '요나', abbreviation: '욘', chapters: 4 },
+  { id: 'jnh', name: '요나', abbreviation: '욘', chapters: 4 },
   { id: 'mic', name: '미가', abbreviation: '미', chapters: 7 },
   { id: 'nam', name: '나훔', abbreviation: '나', chapters: 3 },
   { id: 'hab', name: '하박국', abbreviation: '합', chapters: 3 },

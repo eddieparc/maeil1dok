@@ -24,12 +24,34 @@ function loadWebViewNavigationModule() {
   return moduleInstance.exports;
 }
 
-const { shouldAllowWebViewNavigation, isFatalWebViewError } = loadWebViewNavigationModule();
+const {
+  shouldAllowWebViewNavigation,
+  isFatalWebViewError,
+  resolveWebTabUrl,
+} = loadWebViewNavigationModule();
 
 const OPTIONS = {
   webAppUrl: 'https://maeil1dok.app/',
   apiUrl: 'https://api.maeil1dok.app',
 };
+
+test('탭의 상대 경로는 현재 웹 스택 절대 URL로 정규화한다', () => {
+  assert.equal(
+    resolveWebTabUrl('https://beta.maeil1dok.app', '/groups'),
+    'https://beta.maeil1dok.app/groups',
+  );
+  assert.equal(
+    resolveWebTabUrl('https://beta.maeil1dok.app/', 'profile/42?tab=notes'),
+    'https://beta.maeil1dok.app/profile/42?tab=notes',
+  );
+});
+
+test('세션 브리지와 딥링크가 보내는 절대 URL은 보존한다', () => {
+  assert.equal(
+    resolveWebTabUrl('https://beta.maeil1dok.app', 'https://maeil1dok.app/groups?sort=recent'),
+    'https://maeil1dok.app/groups?sort=recent',
+  );
+});
 
 // --- shouldAllowWebViewNavigation ---------------------------------------
 

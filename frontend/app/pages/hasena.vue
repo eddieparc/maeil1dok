@@ -1,7 +1,11 @@
 <template>
   <PageLayout title="하세나하시조" fallback-path="/">
+    <template #header-action>
+      <button class="calendar-header-btn" aria-label="전체 기록 보기" @click="isCalendarOpen = true">
+        <CalendarDaysIcon :size="22" aria-hidden="true" />
+      </button>
+    </template>
     <div class="sanctuary-theme">
-    <div class="bg-pattern"></div>
     
     <div class="sanctuary-container">
       <main class="main-content">
@@ -9,7 +13,7 @@
         
         <template v-else>
           <!-- 비디오 섹션 -->
-          <div class="card video-card fade-in" style="animation-delay: 0.1s">
+          <div class="card video-card fade-in" style="animation-delay: var(--stagger)">
           <div class="video-wrapper">
             <div class="video-container">
               <iframe 
@@ -35,12 +39,14 @@
         </div>
 
         <!-- AI 요약 섹션 (아코디언) -->
-        <div class="card summary-card fade-in" style="animation-delay: 0.15s">
+        <div class="card summary-card fade-in" style="animation-delay: calc(2 * var(--stagger))">
           <!-- 아코디언 헤더 -->
           <button 
             class="accordion-header"
             @click="isSummaryExpanded = !isSummaryExpanded"
             :aria-expanded="isSummaryExpanded"
+            aria-controls="hasena-summary"
+            aria-describedby="hasena-beta-tooltip"
           >
             <div class="accordion-title">
               <span class="ai-icon">
@@ -49,32 +55,32 @@
               </span>
               <div class="beta-tooltip-container" @click.stop>
                 <span class="beta-tag">BETA</span>
-                <div class="tooltip">실험 중인 기능입니다.<br>내용이 정확하지 않을 수 있습니다.</div>
+                <div id="hasena-beta-tooltip" class="tooltip" role="tooltip">실험 중인 기능입니다.<br>내용이 정확하지 않을 수 있습니다.</div>
               </div>
             </div>
             <ChevronDownIcon class="accordion-chevron" :class="{ 'expanded': isSummaryExpanded }" :size="20" />
           </button>
           
           <!-- 아코디언 콘텐츠 -->
-          <div class="accordion-content" :class="{ 'expanded': isSummaryExpanded }">
+          <div id="hasena-summary" class="accordion-content" :class="{ 'expanded': isSummaryExpanded }" :inert="!isSummaryExpanded">
             
             <!-- 관리자 버튼 -->
             <div v-if="auth.isStaff?.value && latestVideoId && !summaryLoading" class="admin-actions">
-              <button class="summary-btn" @click.stop="generateAISummary">
+              <AppButton variant="secondary" size="sm" @click.stop="generateAISummary">
                 {{ summaryContent ? '재생성' : '요약 생성' }}
-              </button>
+              </AppButton>
             </div>
             
             <div v-if="summaryLoading || (!summaryContent && !summaryError)" class="summary-skeleton-container">
-              <div class="skeleton-line title"></div>
-              <div class="skeleton-line text"></div>
-              <div class="skeleton-line text"></div>
-              <div class="skeleton-line text short"></div>
+              <Skeleton width="40%" :height="22" />
+              <Skeleton />
+              <Skeleton />
+              <Skeleton width="70%" />
             </div>
             
             <div v-else-if="summaryError && !summaryContent" class="summary-error">
               <p>{{ summaryError }}</p>
-              <button v-if="auth.isStaff?.value" class="retry-btn" @click.stop="generateAISummary">다시 시도</button>
+              <AppButton v-if="auth.isStaff?.value" variant="danger" size="sm" @click.stop="generateAISummary">다시 시도</AppButton>
             </div>
             
             <div v-else-if="summaryContent" class="summary-content" v-html="formattedSummary"></div>
@@ -82,12 +88,18 @@
         </div>
 
         <!-- 본문 섹션 -->
-        <div class="card content-card fade-in" style="animation-delay: 0.2s">
+        <div class="card content-card fade-in" style="animation-delay: calc(3 * var(--stagger))">
           <!-- 에러 상태 -->
-          <div v-if="error" class="state-container error">
+          <div v-if="error" class="state-container error" role="alert">
             <div class="error-icon">!</div>
             <h3>말씀을 불러올 수 없습니다</h3>
             <p>{{ error }}</p>
+            <AppButton
+              variant="secondary"
+              data-action="retry-hasena-content"
+              :loading="isLoading"
+              @click="fetchHasenaContent"
+            >다시 시도</AppButton>
           </div>
 
           <!-- 본문 내용 -->
@@ -96,7 +108,7 @@
               <div class="bible-header-top">
                 <span class="date-badge">{{ formattedDate }}</span>
                 <!-- 읽기 설정 바로가기 -->
-                <button class="settings-btn" @click="goToReadingSettings" title="읽기 설정">
+                <button class="settings-btn" @click="goToReadingSettings" title="읽기 설정" aria-label="읽기 설정">
                   <SlidersHorizontalIcon :size="18" />
                 </button>
               </div>
@@ -107,59 +119,41 @@
           </div>
         </div>
 
-        <div class="inline-complete-action fade-in" style="animation-delay: 0.22s">
+        <div class="completion-dock">
+        <div class="inline-complete-action">
           <button
-            class="hasena-complete-floating-btn"
+            class="hasena-complete-floating-btn complete-button"
             :class="{ completed: isButtonCompleted }"
             :disabled="hasenaStore.isLoading"
             :aria-label="buttonText"
+            :aria-pressed="isButtonCompleted"
+            :aria-busy="hasenaStore.isLoading"
             @click="handleComplete"
           >
             <span v-if="hasenaStore.isLoading" class="loading-spinner nav-spinner" aria-hidden="true"></span>
-            <CheckCircleIcon v-else class="hasena-complete-icon" :size="18" aria-hidden="true" />
+            <CheckCircleIcon v-else class="hasena-complete-icon" :size="20" aria-hidden="true" />
             <span>{{ buttonText }}</span>
           </button>
         </div>
 
-        <!-- 스트릭 & 달력 섹션 (로그인 시에만) -->
-        <div v-if="auth.isAuthenticated.value" class="card streak-card fade-in" style="animation-delay: 0.25s">
-          <!-- 스트릭 통계 -->
-          <div class="streak-stats">
-            <div class="streak-item current">
-              <FlameIcon class="streak-icon" :size="20" />
-              <div class="streak-info">
-                <span class="streak-value">{{ hasenaStore.stats.current_streak }}</span>
-                <span class="streak-label">현재 연속</span>
-              </div>
-            </div>
-            <div class="streak-item longest">
-              <TrophyIcon class="streak-icon" :size="20" />
-              <div class="streak-info">
-                <span class="streak-value">{{ hasenaStore.stats.longest_streak }}</span>
-                <span class="streak-label">최장 연속</span>
-              </div>
-            </div>
-            <div class="streak-item total">
-              <CalendarDaysIcon class="streak-icon" :size="20" />
-              <div class="streak-info">
-                <span class="streak-value">{{ hasenaStore.stats.total_completed }}</span>
-                <span class="streak-label">총 완료</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 달력 버튼 -->
-          <button class="calendar-btn" @click="isCalendarOpen = true">
-            <CalendarDaysIcon :size="20" />
-            <span>전체 기록 보기</span>
-            <ChevronRightIcon :size="16" />
+        <!-- 스트릭 통계와 기록 링크 (로그인 시에만) -->
+        <div v-if="auth.isAuthenticated.value" class="card streak-card">
+          <p class="streak-stats" aria-live="polite" aria-atomic="true">
+            <span>연속 <strong>{{ hasenaStore.stats.current_streak }}</strong>일</span>
+            <span aria-hidden="true">·</span>
+            <span>최장 <strong>{{ hasenaStore.stats.longest_streak }}</strong>일</span>
+            <span aria-hidden="true">·</span>
+            <span>총 <strong>{{ hasenaStore.stats.total_completed }}</strong>회</span>
+          </p>
+          <button class="calendar-btn" aria-label="전체 기록 보기" @click="isCalendarOpen = true">
+            기록 <ChevronRightIcon :size="14" aria-hidden="true" />
           </button>
+        </div>
         </div>
         </template>
       </main>
 
-      <!-- Toast 컴포넌트 -->
-      <Toast ref="toast" />
+      <ReadingSettingsSheet v-model="isReadingSettingsOpen" />
 
       <!-- 달력 모달 -->
       <HasenaCalendarModal 
@@ -174,7 +168,7 @@
   </PageLayout>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
@@ -182,22 +176,26 @@ import { useHasenaStore } from '~/stores/hasena'
 import { useReadingSettingsStore, FONT_FAMILIES, FONT_WEIGHTS } from '~/stores/readingSettings'
 import { useRouter } from 'vue-router'
 import { useSanitize } from '~/composables/useSanitize'
-import Toast from '~/components/Toast.vue'
+import { useToast } from '~/composables/useToast'
+import { useYouTubePlayer } from '~/composables/useYouTubePlayer'
+import { useHasenaSummary } from '~/composables/hasena/useHasenaSummary'
+import { renderHasenaVerses } from '~/composables/hasena/hasenaVerses'
+import { getTodayString } from '~/utils/dateFormat'
+import ReadingSettingsSheet from '~/components/ReadingSettingsSheet.vue'
 import HasenaCalendarModal from '~/components/hasena/HasenaCalendarModal.vue'
 import SkeletonHasenaCard from '~/components/ui/skeleton/SkeletonHasenaCard.vue'
+import AppButton from '~/components/ui/AppButton.vue'
+import Skeleton from '~/components/ui/Skeleton.vue'
 import PageLayout from '~/components/common/PageLayout.vue'
 import {
   CalendarDaysIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  FlameIcon,
-  CheckCircleIcon,
+  CircleCheckIcon as CheckCircleIcon,
   PlayIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
-  TrophyIcon,
 } from '@lucide/vue'
-import { formatHasenaSummary } from '~/utils/hasenaFormatters'
 import { buildHasenaEmbedUrl, withJsApiEnabled } from '~/utils/hasenaVideoUrl'
 
 const api = useApi()
@@ -205,8 +203,9 @@ const auth = useAuthService()
 const hasenaStore = useHasenaStore()
 const readingSettings = useReadingSettingsStore()
 const router = useRouter()
-const toast = ref(null)
+const toast = useToast()
 const { sanitize } = useSanitize()
+const { loadYouTubeIframeApi, createYouTubePlayer } = useYouTubePlayer()
 
 // 달력 모달 상태
 const isCalendarOpen = ref(false)
@@ -215,8 +214,9 @@ const isCalendarOpen = ref(false)
 const isSummaryExpanded = ref(false)
 
 // 읽기 설정 바로가기
+const isReadingSettingsOpen = ref(false)
 const goToReadingSettings = () => {
-  router.push('/bible/settings')
+  isReadingSettingsOpen.value = true
 }
 
 // 본문 스타일 (읽기 설정 적용)
@@ -236,8 +236,8 @@ const onCalendarUpdated = async () => {
 // 마운트 후 iframe.src를 갈아끼우면 진행 중인 플레이어 로드가 취소되고
 // 임베드가 광고 서브프레임 네비게이션을 다시 일으켜, iOS WebView에서
 // 첫 진입 시 전체화면 에러로 이어졌다(LAB-59).
-const videoUrl = computed(() => withJsApiEnabled(buildHasenaEmbedUrl(latestVideoId.value)))
 const latestVideoId = ref('') // 빈 값으로 초기화
+const videoUrl = computed(() => withJsApiEnabled(buildHasenaEmbedUrl(latestVideoId.value)))
 const isMobile = ref(false)
 const isIOS = ref(false)
 const isAndroid = ref(false)
@@ -270,99 +270,24 @@ const openYouTubeApp = () => {
 
 // 상태 변수들
 const isLoading = ref(true)
-const error = ref(null)
+const error = ref<string | null>(null)
 const bibleTitle = ref('')
 const parsedContent = ref('')
 const sanitizedContent = computed(() => sanitize(parsedContent.value))
 
-// AI 요약 관련 상태
-const summaryLoading = ref(false)
-const summaryError = ref(null)
-const summaryContent = ref('')
-
-// Markdown을 HTML로 변환 (고급 파싱 및 스타일링)
-const formattedSummary = computed(() => {
-  if (!summaryContent.value) return ''
-  
-  return sanitize(formatHasenaSummary(summaryContent.value))
-})
-
-// AI 요약 조회 (생성 없이)
-const loadAISummary = async () => {
-  if (!latestVideoId.value) return
-  
-  summaryLoading.value = true
-  summaryError.value = null
-  summaryContent.value = ''
-  
-  try {
-    const { data } = await api.GET('/api/v1/todos/hasena/summary/', {
-      params: { video_id: latestVideoId.value }
-    })
-    
-    if (data.success) {
-      summaryContent.value = data.summary
-    }
-  } catch (err) {
-    const status = err?.response?.status || err?.status
-    const apiError = err?.response?.data?.error || err?.data?.error
-
-    summaryError.value = status === 404
-      ? (apiError || '오늘 AI 요약은 아직 준비 중입니다.')
-      : (apiError || 'AI 요약을 불러오지 못했습니다.')
-  } finally {
-    summaryLoading.value = false
-  }
-}
-
-// AI 요약 생성/재생성 (관리자 전용)
-const generateAISummary = async () => {
-  if (!latestVideoId.value) {
-    summaryError.value = '영상 ID를 가져올 수 없습니다.'
-    return
-  }
-  
-  summaryLoading.value = true
-  summaryError.value = null
-  
-  try {
-    let data
-    
-    // 기존 요약이 있으면 재생성 API 호출, 없으면 생성 API 호출
-    if (summaryContent.value) {
-      // 재생성: POST /api/v1/todos/hasena/summaries/regenerate/
-      data = await api.POST('/api/v1/todos/hasena/summaries/regenerate/', {
-        video_id: latestVideoId.value
-      })
-    } else {
-      // 신규 생성: GET /api/v1/todos/hasena/summary/?generate=true
-      const response = await api.GET('/api/v1/todos/hasena/summary/', {
-        params: {
-          video_id: latestVideoId.value,
-          generate: true
-        }
-      })
-      data = response.data
-    }
-    
-    if (data.success) {
-      summaryContent.value = data.summary
-    } else {
-      summaryError.value = data.error || '요약을 생성할 수 없습니다.'
-    }
-  } catch (err) {
-    summaryError.value = err?.data?.error || err?.response?.data?.error || '요약 생성 중 오류가 발생했습니다.'
-  } finally {
-    summaryLoading.value = false
-  }
-}
+// AI 요약 (composables/hasena/useHasenaSummary.ts로 추출)
+const {
+  summaryLoading,
+  summaryError,
+  summaryContent,
+  formattedSummary,
+  resetSummary,
+  loadAISummary,
+  generateAISummary,
+} = useHasenaSummary(latestVideoId)
 
 // 날짜 관련
-const today = new Date()
-const formatApiDate = (date) => {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-const selectedDate = ref(formatApiDate(today))
+const selectedDate = ref(getTodayString())
 const selectedDateObj = computed(() => new Date(`${selectedDate.value}T00:00:00`))
 const formattedDate = computed(() => new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
@@ -376,15 +301,14 @@ const fetchHasenaContent = async () => {
   try {
     isLoading.value = true
     error.value = null
-    summaryError.value = null
-    summaryContent.value = ''
+    resetSummary()
 
     const { data } = await api.GET('/api/v1/todos/hasena/day/', {
       params: { date: selectedDate.value }
     })
 
     if (!data?.success || !data.entry) {
-      throw new Error(data?.error || '본문을 불러오는데 실패했습니다')
+      throw new Error((data as { error?: string })?.error || '본문을 불러오는데 실패했습니다')
     }
 
     const entry = data.entry
@@ -392,8 +316,8 @@ const fetchHasenaContent = async () => {
     parsedContent.value = renderHasenaVerses(entry.verses || [])
     latestVideoId.value = entry.video_id || ''
     hasenaStore.setCompletionStatus(Boolean(data.is_completed))
-    await loadAISummary()
-  } catch (err) {
+    void loadAISummary()
+  } catch (err: any) {
     error.value = err?.message || '본문을 불러오는데 실패했습니다'
     latestVideoId.value = ''
   } finally {
@@ -401,25 +325,7 @@ const fetchHasenaContent = async () => {
   }
 }
 
-const renderHasenaVerses = (verses) => {
-  return verses.map((verse) => `
-    <div class="hasena-verse">
-      <span class="hasena-verse-number">${escapeHtml(verse.number || '')}</span>
-      <span class="hasena-verse-text">${escapeHtml(verse.text || '')}</span>
-    </div>
-  `).join('')
-}
-
-const escapeHtml = (value) => {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-const selectHasenaDate = async (date) => {
+const selectHasenaDate = async (date: string) => {
   selectedDate.value = date
   await fetchHasenaContent()
   if (auth.isAuthenticated.value) {
@@ -429,7 +335,7 @@ const selectHasenaDate = async (date) => {
 
 // 반응형 상태 관리를 위한 computed 속성
 const isButtonCompleted = computed(() => hasenaStore.isCompleted)
-const buttonText = computed(() => isButtonCompleted.value ? '미완료로 변경' : '완료하기')
+const buttonText = computed(() => isButtonCompleted.value ? '오늘 하세나 완료' : '하세나 완료하기')
 
 // handleComplete 함수 강화
 const handleComplete = async () => {
@@ -443,45 +349,39 @@ const handleComplete = async () => {
 
   try {
     await hasenaStore.updateStatus(selectedDateObj.value)
-    await fetchHasenaContent()
+    await Promise.all([fetchHasenaContent(), hasenaStore.fetchStats()])
     await nextTick()
-  } catch (error) {
-    toast.value?.show('완료 처리에 실패했습니다', 'error')
+  } catch {
+    toast.error('완료 처리에 실패했습니다')
   }
 }
 
 // YouTube 현재 재생 비디오 가져오기
-const setupYouTubeListener = () => {
-  if (!window.YT) {
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    const firstScriptTag = document.getElementsByTagName('script')[0]
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag)
-    
-    window.onYouTubeIframeAPIReady = () => {
-      const iframe = document.querySelector('.video-container iframe')
-      if (iframe) {
-        // iframe의 ID 설정
-        iframe.id = 'hasena-youtube-player'
+// 로더는 composables/useYouTubePlayer.ts — 이전 버전은
+// window.onYouTubeIframeAPIReady를 덮어써 TongdokAudioPlayer의 ready 체인을
+// 깰 수 있었다(arch-map P1-8). 공유 로더는 이전 콜백을 보존한다.
+const setupYouTubeListener = async () => {
+  const YT = await loadYouTubeIframeApi()
+  if (!YT) return
 
-        // src는 이미 enablejsapi=1로 렌더되어 있으므로 다시 쓰지 않는다.
-        // YouTube Player 인스턴스 생성
-                new window.YT.Player('hasena-youtube-player', {
-          events: {
-            'onReady': (event) => {
-              // 플레이어가 준비되면 현재 비디오 ID 가져오기
-              const videoId = event.target.getVideoData().video_id
+  const iframe = document.querySelector<HTMLIFrameElement>('.video-container iframe')
+  if (!iframe) return
 
-              if (videoId && videoId !== latestVideoId.value) {
-                latestVideoId.value = videoId
-                loadAISummary()
-              }
-            }
-          }
-        })
+  // e2e fixture는 문자열 id로 player 생성을 감지한다 (hasena-sns-behavior.spec.ts).
+  iframe.id = 'hasena-youtube-player'
+
+  // src는 이미 enablejsapi=1로 렌더되어 있으므로 다시 쓰지 않는다.
+  createYouTubePlayer(YT, 'hasena-youtube-player', {
+    onReady: (event) => {
+      // 플레이어가 준비되면 현재 비디오 ID 가져오기
+      const videoId = event.target.getVideoData().video_id
+
+      if (videoId && videoId !== latestVideoId.value) {
+        latestVideoId.value = videoId
+        loadAISummary()
       }
     }
-  }
+  })
 }
 
 onMounted(async () => {
@@ -493,9 +393,11 @@ onMounted(async () => {
   // 읽기 설정 초기화
   await readingSettings.initialize()
 
+  const authReady = auth.initialize()
   await fetchHasenaContent()
   setupYouTubeListener()
-  
+
+  await authReady
   if (auth.isAuthenticated.value) {
     await hasenaStore.fetchStats()
   }
@@ -507,17 +409,19 @@ onMounted(async () => {
 .hasena-verse {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 0.75rem;
-  line-height: 1.8;
+  gap: 10px;
+  margin-bottom: 12px;
+  line-height: inherit;
 }
 
 .hasena-verse-number {
   color: var(--color-accent-primary);
   font-weight: 600;
-  margin-right: 0.5rem;
-  min-width: 1.2rem;
-  font-size: 0.85em;
-  padding-top: 0.2em;
+  flex: 0 0 18px;
+  text-align: right;
+  font-size: 12px;
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
   font-family: var(--font-sans);
 }
 
@@ -532,32 +436,13 @@ onMounted(async () => {
 <style scoped>
 /* Sanctuary Theme Variables - Uses global theme tokens */
 .sanctuary-theme {
-  --font-serif: 'Noto Serif KR', 'RIDIBatang', serif;
-  --font-sans: 'Pretendard', sans-serif;
-  --primary-color: var(--color-accent-primary);
-  --primary-dark: var(--color-accent-primary-hover);
-  --color-success: var(--color-accent-primary);
-  --color-success-dark: var(--color-accent-primary-dark);
-
   font-family: var(--font-sans);
+  letter-spacing: var(--tracking-body);
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   min-height: 100vh;
   position: relative;
   -webkit-font-smoothing: antialiased;
-}
-
-.bg-pattern {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: radial-gradient(var(--color-text-tertiary) 1px, transparent 1px);
-  background-size: 32px 32px;
-  opacity: 0.1;
-  z-index: 0;
-  pointer-events: none;
 }
 
 .sanctuary-container {
@@ -566,23 +451,22 @@ onMounted(async () => {
   min-height: 100vh;
   position: relative;
   z-index: 1;
-  padding-bottom: 3rem;
 }
 
 /* Main Content */
 .main-content {
-  padding: 1.5rem 1rem calc(10.5rem + env(safe-area-inset-bottom, 0px));
+  padding: 20px var(--screen-gutter) 148px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 14px;
 }
 
 .card {
   background: var(--color-bg-card);
-  border-radius: 20px;
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
-  border: 1px solid var(--color-border-light);
+  border: 1px solid var(--color-border-default);
 }
 
 /* Video Section */
@@ -599,7 +483,7 @@ onMounted(async () => {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 */
   height: 0;
-  background: #000;
+  background: linear-gradient(160deg, var(--color-video-gradient-start), var(--color-video-gradient-end));
 }
 
 .video-container iframe {
@@ -617,21 +501,18 @@ onMounted(async () => {
   gap: 0.5rem;
   width: 100%;
   padding: 0.75rem;
-  background: #ff0000;
-  color: white;
+  min-height: var(--hit-min);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
   border: none;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--duration-micro) ease;
 }
 
 .youtube-deep-link:hover {
-  background: #cc0000;
-}
-
-.youtube-deep-link:active {
-  background: #aa0000;
+  background: var(--color-bg-hover);
 }
 
 .youtube-icon {
@@ -650,11 +531,13 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
+  min-height: var(--hit-min);
+  padding: 16px var(--card-padding);
   background: transparent;
   border: none;
+  border-radius: var(--radius-card);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--duration-micro) ease;
 }
 
 .accordion-header:hover {
@@ -667,32 +550,9 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 
-.ai-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-primary-hover) 100%);
-  color: var(--color-text-inverse);
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.beta-tag {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: var(--color-text-tertiary);
-  background: var(--color-bg-secondary);
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .accordion-chevron {
   color: var(--color-text-tertiary);
-  transition: transform 0.3s ease;
+  transition: transform var(--duration-standard) ease;
   flex-shrink: 0;
 }
 
@@ -704,7 +564,7 @@ onMounted(async () => {
 .accordion-content {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease;
+  transition: max-height var(--duration-standard) ease, padding var(--duration-standard) ease;
   padding: 0 1.25rem;
 }
 
@@ -713,72 +573,18 @@ onMounted(async () => {
   padding: 0 1.25rem 1.25rem;
 }
 
-.beta-notice {
-  font-size: 0.75rem;
-  color: var(--color-text-tertiary);
-  background: var(--color-bg-secondary);
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
 .admin-actions {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 1rem;
 }
 
-.summary-btn {
-  background: var(--color-accent-primary);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.summary-btn:hover {
-  background: var(--color-accent-primary-dark, #3A1A1A);
-  transform: translateY(-1px);
-}
-
-.summary-loading {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
-  padding: 1rem 0;
-}
-
 .summary-error {
-  background: #fef2f2;
-  border-radius: 8px;
-  padding: 1rem;
-  color: #dc2626;
-  font-size: 0.9rem;
-}
-
-.summary-error .retry-btn {
-  margin-top: 0.75rem;
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.summary-placeholder {
-  color: var(--color-text-tertiary);
-  font-size: 0.9rem;
-  text-align: center;
-  padding: 1rem 0;
+  background: var(--color-error-bg);
+  border-radius: var(--radius-control);
+  padding: 16px;
+  color: var(--color-error-text);
+  font-size: 14px;
 }
 
 /* AI 요약 스켈레톤 */
@@ -787,32 +593,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem 0;
-}
-
-.skeleton-line {
-  height: 1rem;
-  background: var(--color-bg-secondary, rgba(156, 163, 175, 0.2));
-  border-radius: 6px;
-  animation: skeleton-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.skeleton-line.title {
-  width: 40%;
-  height: 1.4rem;
-  margin-bottom: 0.5rem;
-}
-
-.skeleton-line.text {
-  width: 100%;
-}
-
-.skeleton-line.text.short {
-  width: 70%;
-}
-
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
 }
 
 /* 요약 콘텐츠 스타일링 (미니멀 디자인) */
@@ -840,7 +620,7 @@ onMounted(async () => {
   color: var(--color-text-tertiary);
   margin: 0 0 0.5rem 0;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-body);
 }
 
 .summary-content :deep(.section-text) {
@@ -897,26 +677,12 @@ onMounted(async () => {
   color: var(--color-text-primary);
 }
 
-/* 다크모드 대응 */
-[data-theme="dark"] .summary-content :deep(.section-title) {
-  color: var(--color-text-tertiary);
-}
-
-[data-theme="dark"] .summary-content :deep(.check-icon) {
-  color: var(--color-accent-primary-light);
-}
-
-/* 아코디언 헤더 스타일 개선 (미니멀) */
-.accordion-header {
-  padding: 1.25rem;
-}
-
 .ai-icon {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 15px;
   color: var(--color-text-primary);
 }
 
@@ -929,14 +695,13 @@ onMounted(async () => {
 }
 
 .beta-tag {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--color-accent-primary);
-  background: rgba(42, 17, 17, 0.1);
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
-  letter-spacing: 0.5px;
-  border: 1px solid rgba(42, 17, 17, 0.2);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
 }
 
 /* 툴팁 스타일 */
@@ -947,16 +712,16 @@ onMounted(async () => {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%) translateY(5px);
-  background: var(--color-text-primary);
-  color: var(--color-bg-primary);
+  background: var(--color-tooltip-bg);
+  color: var(--color-tooltip-text);
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 500;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
   z-index: 61;
-  transition: all 0.2s ease;
+  transition: opacity var(--duration-micro) ease, transform var(--duration-micro) ease;
   pointer-events: none;
   text-align: center;
   line-height: 1.4;
@@ -970,11 +735,12 @@ onMounted(async () => {
   margin-left: -5px;
   border-width: 5px;
   border-style: solid;
-  border-color: var(--color-text-primary) transparent transparent transparent;
+  border-color: var(--color-tooltip-bg) transparent transparent transparent;
 }
 
 .beta-tooltip-container:hover .tooltip,
-.beta-tooltip-container:active .tooltip {
+.beta-tooltip-container:active .tooltip,
+.accordion-header:focus-visible .tooltip {
   visibility: visible;
   opacity: 1;
   transform: translateX(-50%) translateY(-5px);
@@ -982,100 +748,85 @@ onMounted(async () => {
 
 /* Streak & Calendar Section */
 .streak-card {
-  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .streak-stats {
   display: flex;
-  justify-content: space-around;
-  margin-bottom: 1rem;
-}
-
-.streak-item {
-  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 4px;
+  margin: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
-.streak-icon {
-  font-size: 1.5rem;
-}
-
-.streak-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.streak-value {
-  font-size: 1.25rem;
+.streak-stats strong {
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
-.streak-item.current .streak-value {
-  color: #f97316;
-}
-
-.streak-item.longest .streak-value {
-  color: #eab308;
-}
-
-.streak-item.total .streak-value {
-  color: var(--color-accent-primary);
-}
-
-.streak-label {
-  font-size: 0.75rem;
-  color: var(--color-text-tertiary);
-}
-
-/* Calendar Button */
-.calendar-btn {
-  width: 100%;
-  display: flex;
+.calendar-btn,
+.calendar-header-btn,
+.settings-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  background: var(--color-bg-secondary, var(--color-bg-hover));
-  border: 1px solid var(--color-border-light);
-  border-radius: 12px;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
   cursor: pointer;
-  transition: all 0.2s;
-  font-family: inherit;
-  color: var(--color-text-primary);
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.calendar-btn:hover {
-  background: var(--color-bg-hover);
-  border-color: var(--color-border-default);
-}
-
-.calendar-btn:active {
-  transform: scale(0.98);
-}
-
-.calendar-btn svg:first-child {
   color: var(--color-accent-primary);
-  flex-shrink: 0;
+  transition: background var(--duration-micro) ease, transform var(--duration-micro) ease;
 }
 
-.calendar-btn span {
-  flex: 1;
-  text-align: left;
+.calendar-btn {
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.calendar-btn svg:last-child {
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
+.calendar-btn:hover,
+.calendar-header-btn:hover,
+.settings-btn:hover {
+  background: var(--color-bg-hover);
 }
 
 /* Content Section */
 .content-card {
-  padding: 1.5rem;
+  position: relative;
+  flex: 1;
+  padding: var(--card-padding) var(--card-padding) 8px;
   min-height: 200px;
+}
+
+.content-card::after {
+  content: '';
+  display: block;
+  position: sticky;
+  bottom: 0;
+  height: 60px;
+  margin-top: -60px;
+  background: linear-gradient(to bottom, transparent, var(--color-bg-card));
+  pointer-events: none;
+}
+
+.bible-content-wrapper {
+  padding-bottom: 60px;
 }
 
 .state-container {
@@ -1101,8 +852,8 @@ onMounted(async () => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #fee2e2;
-  color: #ef4444;
+  background: var(--color-error-bg);
+  color: var(--color-error);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1111,60 +862,37 @@ onMounted(async () => {
 }
 
 .bible-header {
-  text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px dashed var(--color-border-default);
+  text-align: left;
+  margin-bottom: 20px;
 }
 
 .bible-header-top {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-  position: relative;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .date-badge {
   display: inline-block;
-  background: var(--color-accent-primary-light);
+  background: var(--color-accent-bg);
   color: var(--color-accent-primary);
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.875rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-control);
+  font-size: 12px;
   font-weight: 600;
 }
 
 .settings-btn {
-  position: absolute;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-light);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
   color: var(--color-text-secondary);
-}
-
-.settings-btn:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-accent-primary);
-  border-color: var(--color-accent-primary-light);
-}
-
-.settings-btn:active {
-  transform: scale(0.95);
 }
 
 .bible-header h2 {
   font-family: var(--font-serif);
-  font-size: 1.5rem;
+  font-size: 22px;
+  line-height: 1.3;
+  letter-spacing: var(--tracking-display);
   color: var(--color-text-primary);
   margin: 0;
   font-weight: 700;
@@ -1172,9 +900,10 @@ onMounted(async () => {
 
 .verse-container {
   font-family: var(--font-serif);
-  font-size: 1.05rem;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.75;
   color: var(--color-text-primary);
-  transition: all 0.2s ease;
 }
 
 .inline-complete-action {
@@ -1182,54 +911,64 @@ onMounted(async () => {
   justify-content: center;
 }
 
-.hasena-complete-floating-btn {
+.completion-dock {
+  position: fixed;
+  z-index: 20;
+  inset-inline: 0;
+  bottom: calc(var(--tabbar-height) + max(env(safe-area-inset-bottom, 0px), var(--native-bottom-inset, 0px)));
+  width: auto;
+  max-width: 768px;
+  margin-inline: auto;
+  padding: 24px var(--screen-gutter) 8px;
+  box-sizing: border-box;
+  background: linear-gradient(to bottom, transparent, var(--color-bg-primary) 24px);
+}
+
+.complete-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 8px;
   width: 100%;
-  max-width: 360px;
-  min-height: 46px;
-  padding: 0.75rem 1.25rem;
-  color: white;
-  background: linear-gradient(135deg, var(--color-success) 0%, #3A1A1A 100%);
-  border: none;
-  border-radius: 12px;
-  box-shadow:
-    0 10px 24px rgba(42, 17, 17, 0.28),
-    0 3px 8px rgba(42, 17, 17, 0.2);
+  height: 52px;
+  padding: 0 20px;
+  color: var(--color-text-inverse);
+  background: var(--color-accent-primary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-cta);
   cursor: pointer;
   font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 700;
-  transition: all 0.2s ease;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background var(--duration-standard) ease, color var(--duration-standard) ease, transform var(--duration-micro) ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.hasena-complete-floating-btn.completed {
-  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
-  box-shadow:
-    0 10px 24px rgba(239, 68, 68, 0.24),
-    0 3px 8px rgba(239, 68, 68, 0.18);
+.complete-button.completed {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-primary);
 }
 
-.hasena-complete-floating-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-success-dark) 0%, var(--color-success) 100%);
-  transform: translateY(-2px);
+.complete-button:hover:not(:disabled):not(.completed) {
+  background: var(--color-accent-primary-hover);
 }
 
-.hasena-complete-floating-btn.completed:hover:not(:disabled) {
-  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+.complete-button.completed:hover:not(:disabled) {
+  background: var(--color-bg-hover);
 }
 
-.hasena-complete-floating-btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.hasena-complete-floating-btn:disabled {
-  opacity: 0.65;
+.complete-button:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
+}
+
+.complete-button.completed .hasena-complete-icon {
+  animation: hasena-check-pop var(--duration-pop) var(--ease-spring);
+}
+
+[data-theme="dark"] .complete-button.completed {
+  border: 1.5px solid var(--color-accent-primary);
 }
 
 .hasena-complete-icon {
@@ -1247,24 +986,44 @@ onMounted(async () => {
   to { transform: rotate(360deg); }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes hasena-check-pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
 }
 
-.fade-in {
-  opacity: 0;
-  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+button:focus-visible {
+  outline: 3px solid var(--color-accent-focus-ring);
+  outline-offset: 2px;
+  border-color: var(--color-accent-primary);
 }
 
-/* Mobile Responsive Tweaks */
-@media (max-width: 640px) {
-  .bible-header h2 {
-    font-size: 1.25rem;
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (min-width: 1024px) {
+  .completion-dock {
+    inset-inline-start: var(--sidebar-width);
+    bottom: max(0px, env(safe-area-inset-bottom, 0px));
   }
-  
-  .verse-container {
-    font-size: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .complete-button.completed .hasena-complete-icon,
+  .loading-spinner {
+    animation: none;
+  }
+
+  button,
+  .accordion-chevron,
+  .accordion-content,
+  .tooltip {
+    transition: none;
+  }
+
+  button:active:not(:disabled) {
+    transform: none;
   }
 }
 </style>
