@@ -5,6 +5,7 @@ export type NativeWebFeatureReply =
   | { readonly kind: 'error'; readonly scope: string; readonly requestId: string }
   | { readonly kind: 'confirming'; readonly scope: string; readonly requestId: string }
   | { readonly kind: 'cancelled'; readonly scope: string; readonly requestId: string }
+  | { readonly kind: 'saving'; readonly scope: string; readonly requestId: string }
   | {
       readonly kind: 'return';
       readonly scope: string;
@@ -50,9 +51,11 @@ export const parseNativeWebFeatureReply = (data: string): NativeWebFeatureReply 
   if (typeof value !== 'object' || value === null || Array.isArray(value)
     || !('type' in value) || !('scope' in value) || typeof value.scope !== 'string') return null;
   if (value.type === 'native-feature:ready') return { kind: 'ready', scope: value.scope };
-  if ((value.type === 'native-feature:confirming' || value.type === 'native-feature:cancelled')
+  if ((value.type === 'native-feature:confirming' || value.type === 'native-feature:cancelled'
+    || value.type === 'native-feature:saving')
     && 'requestId' in value && typeof value.requestId === 'string') {
-    return { kind: value.type === 'native-feature:confirming' ? 'confirming' : 'cancelled',
+    return { kind: value.type === 'native-feature:confirming' ? 'confirming'
+      : value.type === 'native-feature:cancelled' ? 'cancelled' : 'saving',
       scope: value.scope, requestId: value.requestId };
   }
   if (value.type !== 'native-feature:return'

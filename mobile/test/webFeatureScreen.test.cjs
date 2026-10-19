@@ -201,6 +201,59 @@ test('an editor decision pauses the machine deadline and cancellation leaves the
   await h.wait(() => h.actions.length === 1);
 });
 
+test('confirmed editor return resumes the deadline while the web save is pending', { timeout: 2500 }, async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const h = mount(t);
+  await h.wait(() => h.web());
+  h.back();
+  let decide, save, enteredSave, ready;
+  const decision = new Promise(resolve => { decide = resolve; });
+  const saving = new Promise(resolve => { save = resolve; });
+  const saveStarted = new Promise(resolve => { enteredSave = resolve; });
+  const auth = {
+    isAuthenticated: { value: true }, user: { value: { id: 7 } },
+    isInitialized: { value: true }, isLoading: { value: false },
+    isSessionUnknown: { value: false }, initialize: async () => {},
+  };
+  const store = {
+    settings: {}, initialize: async () => {},
+    flushPending: () => { enteredSave(); return saving; },
+  };
+  const webWindow = {
+    __maeilNativeFeatureContext: h.context(),
+    __maeilConfirmNativeReturn: () => decision,
+    ReactNativeWebView: { postMessage: data => h.reply(JSON.parse(data)) },
+  };
+  const plugin = { exports: {} };
+  const source = fs.readFileSync(path.resolve(__dirname, '../../frontend/app/plugins/native-feature.client.ts'), 'utf8');
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  new Function('require', 'module', 'exports', 'defineNuxtPlugin', 'onNuxtReady', 'window', compiled)(
+    name => {
+      if (name.endsWith('useAuthService')) return { useAuthService: () => auth };
+      if (name.endsWith('readingSettings')) return { useReadingSettingsStore: () => store };
+      throw new Error(`Unexpected plugin dependency: ${name}`);
+    },
+    plugin, plugin.exports, value => value, callback => { ready = callback; }, webWindow,
+  );
+  plugin.exports.default.setup({ runWithContext: action => action(), vueApp: { onUnmount() {} } });
+  await ready();
+  const returning = webWindow.__maeilPrepareNativeReturn(h.requestId());
+  t.mock.timers.tick(30000);
+  assert.equal(h.alerts.length, 0);
+  decide(true);
+  await saveStarted;
+  t.mock.timers.tick(15000);
+  assert.equal(h.alerts.length, 1);
+  assert.equal(h.actions.length, 0);
+  save(true);
+  await returning;
+  assert.equal(h.actions.length, 0, 'late save acknowledgement cannot exit after recovery');
+  h.alerts[0][2][2].onPress();
+  assert.equal(h.actions.length, 1);
+});
+
 test('account change invalidates a pending return acknowledgement', { timeout: 2500 }, async t => {
   let finish;
   const h = mount(t, { apply: () => new Promise(resolve => { finish = resolve; }) });

@@ -896,11 +896,15 @@ export default function WebViewScreen() {
     if (reply.kind === 'ready') return;
     const pending = closingRef.current;
     if (!pending || pending.requestId !== reply.requestId || !sessionKey) return;
-    if (reply.kind === 'confirming' || reply.kind === 'cancelled') {
+    if (reply.kind === 'confirming' || reply.kind === 'cancelled' || reply.kind === 'saving') {
       clearTimeout(pending.timer);
       if (reply.kind === 'cancelled') {
         closingRef.current = null;
         setClosing(false);
+      } else if (reply.kind === 'saving') {
+        pending.timer = setTimeout(() => {
+          if (currentScopeRef.current === scope) failReturn(pending.action);
+        }, 15000);
       }
       return;
     }

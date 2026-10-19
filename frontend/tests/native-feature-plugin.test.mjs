@@ -86,7 +86,11 @@ test('native return waits for the editor decision and cancellation keeps the doc
   assert.equal(h.messages.at(-1).type, 'native-feature:cancelled');
   assert.equal(h.messages.some(message => message.ok === true), false);
   window.__maeilConfirmNativeReturn = async () => true;
+  const resumeIndex = h.messages.length;
   await window.__maeilPrepareNativeReturn('discard-close');
+  assert.deepEqual(h.messages.slice(resumeIndex).map(message => message.type), [
+    'native-feature:confirming', 'native-feature:saving', 'native-feature:return',
+  ]);
   assert.equal(h.messages.at(-1).ok, true);
 });
 

@@ -38,6 +38,7 @@ export default defineNuxtPlugin({
             send({ type: 'native-feature:cancelled', requestId })
             return
           }
+          send({ type: 'native-feature:saving', requestId })
         }
         const saved = isCurrent() && await nuxtApp.runWithContext(() => settings.flushPending())
         if (!saved || !isCurrent()) {
