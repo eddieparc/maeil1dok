@@ -124,7 +124,7 @@ async function mount(url = '/bible', options = {}) {
   const nuxtStates = new Map(); globalThis.useState = (key, initial) => { if (!nuxtStates.has(key)) nuxtStates.set(key, Vue.ref(initial())); return nuxtStates.get(key); };
   r.requests = []; r.writes = []; r.messages = []; r.external = []; r.contentCalls = [];
   const authenticated = options.authenticated ?? true;
-  r.auth = { isAuthenticated: Vue.ref(authenticated), isInitialized: Vue.ref(true), isLoading: Vue.ref(false), user: Vue.ref(authenticated ? { id: 2, nickname: 'reader' } : null), initialize: options.initialize ?? (async () => {}) };
+  r.auth = options.auth ?? { isAuthenticated: Vue.ref(authenticated), isInitialized: Vue.ref(true), isLoading: Vue.ref(false), user: Vue.ref(authenticated ? { id: 2, nickname: 'reader' } : null), initialize: options.initialize ?? (async () => {}) };
   r.authPrompts = [];
   r.requireAuthWithPrompt = async (message) => {
     if (r.auth.isAuthenticated.value) return true;
@@ -170,14 +170,15 @@ async function mount(url = '/bible', options = {}) {
     PATCH: async (path, data) => { r.writes.push([path, data]); return { ...r.highlights.find(h => path.includes(`/${h.id}/`)), ...data }; },
     DELETE: async (path) => { r.writes.push([path]); },
   };
-  const { default: Page, useBibleTabsStore } = await compilePage();
+  const compiled = options.compiled ?? await compilePage();
+  const { default: Page, useBibleTabsStore } = compiled;
   const pinia = Pinia.createPinia();
   r.bibleTabs = useBibleTabsStore(pinia);
   const router = Router.createRouter({ history: Router.createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }] });
   r.router = router; await router.push(url); await router.isReady();
   const host = node('root'); const app = renderer.createApp({ render: () => Vue.h(Page) }); app.use(pinia); app.use(router); app.component('NuxtLink', Router.RouterLink); app.component('ClientOnly', { setup: (_, { slots }) => () => slots.default?.() });
   app.mount(host);
-  return { host, router, values, events, tabs: r.bibleTabs, state: r.state, ready: async () => { await Promise.all(r.mounts); await settled(); }, close: () => app.unmount(), route: async url => { await router.push(url); await settled(); } };
+  return { host, router, values, events, compiled, auth: r.auth, tabs: r.bibleTabs, state: r.state, ready: async () => { await Promise.all(r.mounts); await settled(); }, close: () => app.unmount(), route: async url => { await router.push(url); await settled(); } };
 }
 
 const savedTabs = () => JSON.stringify({
@@ -645,6 +646,61 @@ test('selecting the current reader location keeps it ready for later saves', { t
   await view.state.handleBookSelect('gen', 49); await settled();
   assert.equal(view.state.readerReady.value, true);
 });
+
+test('reader remount cannot reuse a previous login response cached after leaving the page', { timeout: 10000 }, async t => {
+  const entered = deferred(), oldReply = deferred();
+  let reads = 0;
+  const url = '/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true&date=2026-09-06';
+  const GET = async (path, { params = {} }) => {
+    if (!path.endsWith('/detail/')) return;
+    const completed = ++reads === 1;
+    if (completed) { entered.resolve(); await oldReply.promise; }
+    return { data: { book: params.book, chapter: params.chapter, plan_id: 7,
+      plan_date: '2026-09-06', plan_detail: [{
+        book: 'gen', start_chapter: 49, end_chapter: 49,
+        schedule_id: 1, date: '2026-09-06', is_complete: completed,
+      }] } };
+  };
+  const first = await mount(url, { GET });
+  await entered.promise;
+  const previousMount = first.ready();
+  first.close();
+  first.auth.user.value = null;
+  first.auth.user.value = { id: 3 };
+  first.auth.user.value = null;
+  first.auth.user.value = { id: 2 };
+  const next = await mount(url, { GET, compiled: first.compiled, auth: first.auth });
+  t.after(() => { oldReply.resolve(); next.close(); });
+  await next.ready();
+  assert.equal(next.state.isScheduleCompleted(), false);
+  oldReply.resolve();
+  await previousMount;
+  await next.state.loadReadingDetail(7, 'gen', 49);
+  assert.equal(reads, 2);
+  assert.equal(next.state.isScheduleCompleted(), false);
+});
+
+for (const signOut of [false, true]) {
+  test(`reader remount ${signOut ? 'discards previous login' : 'preserves same login'} chapter marks and cache`, { timeout: 10000 }, async t => {
+    const url = '/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true&date=2026-09-06';
+    let reads = 0;
+    const GET = async path => { if (path.endsWith('/detail/')) reads += 1; };
+    const first = await mount(url, { GET }); await first.ready();
+    assert.equal((await first.state.completeCurrentChapter('gen', 49)).status, 'progressed');
+    assert.equal(first.state.getTongdokProgress('gen', 49).done, 1);
+    first.close();
+    if (signOut) {
+      first.auth.user.value = null;
+      first.auth.user.value = { id: 3 };
+      first.auth.user.value = null;
+      first.auth.user.value = { id: 2 };
+    }
+    const next = await mount(url, { GET, compiled: first.compiled, auth: first.auth });
+    t.after(next.close); await next.ready();
+    assert.equal(next.state.getTongdokProgress('gen', 49).done, signOut ? 0 : 1);
+    assert.equal(reads, signOut ? 2 : 1);
+  });
+}
 
 test('account changes clear completed tongdok detail immediately and fetch the new owner', { timeout: 10000 }, async t => {
   const owners = [];

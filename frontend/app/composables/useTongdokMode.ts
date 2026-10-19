@@ -5,7 +5,7 @@
  * belong only to the active reader session and are used to decide when a real
  * schedule row is eligible for that existing write API.
  */
-import { computed, ref, watch, type Ref } from 'vue';
+import { computed, effectScope, ref, watch, type EffectScope, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { BIBLE_BOOKS, useBibleData } from './useBibleData';
 import { useApi } from './useApi';
@@ -185,6 +185,7 @@ let activeScheduleRange: Pick<ReadingDetailData, 'plan_detail' | 'plan_date' | '
 let detailRequestVersion = 0;
 let activeUserId: number | null = null;
 let ownerGeneration = 0;
+let ownerWatchScope: EffectScope | null = null;
 
 const resetActiveSession = (clearDetail = true): void => {
   sessionChapterMarks.clear();
@@ -233,14 +234,18 @@ export const useTongdokMode = () => {
   const auth = useAuthService();
   const { bookNames } = useBibleData();
 
-  watch(() => auth.user.value?.id ?? null, userId => {
+  // Ownership must remain observed while settings/login replace the reader.
+  // Replace the previous observer so remounting never accumulates watchers.
+  ownerWatchScope?.stop();
+  ownerWatchScope = effectScope(true);
+  ownerWatchScope.run(() => watch(() => auth.user.value?.id ?? null, userId => {
     if (activeUserId === userId) return;
     activeUserId = userId;
     ownerGeneration += 1;
     detailCache.clear();
     resetActiveSession();
     isCompleting.value = false;
-  }, { immediate: true, flush: 'sync' });
+  }, { immediate: true, flush: 'sync' }));
 
   const activeTongdokContext = computed<TongdokContextIdentity | null>(() => {
     const planId = positiveId(tongdokPlanId.value);

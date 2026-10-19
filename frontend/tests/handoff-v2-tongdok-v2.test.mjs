@@ -23,7 +23,7 @@ async function loadTongdok(runtime) {
     plugins: [{ name: 'tongdok-v2-runtime', setup(builder) {
       builder.onResolve({ filter: /^vue$/ }, () => ({ path: 'vue', namespace: 'runtime' }))
       builder.onResolve({ filter: /^vue-router$/ }, () => ({ path: 'router', namespace: 'runtime' }))
-      builder.onLoad({ filter: /.*/, namespace: 'runtime' }, ({ path }) => ({ contents: path === 'vue' ? `export const ref=globalThis.__tongdokV2.Vue.ref; export const computed=globalThis.__tongdokV2.Vue.computed; export const watch=globalThis.__tongdokV2.Vue.watch;` : `export const useRoute=()=>globalThis.__tongdokV2.route; export const useRouter=()=>globalThis.__tongdokV2.router;` }))
+      builder.onLoad({ filter: /.*/, namespace: 'runtime' }, ({ path }) => ({ contents: path === 'vue' ? `export const ref=globalThis.__tongdokV2.Vue.ref; export const computed=globalThis.__tongdokV2.Vue.computed; export const watch=globalThis.__tongdokV2.Vue.watch; export const effectScope=globalThis.__tongdokV2.Vue.effectScope;` : `export const useRoute=()=>globalThis.__tongdokV2.route; export const useRouter=()=>globalThis.__tongdokV2.router;` }))
       builder.onResolve({ filter: /(?:^|\/)useAuthService$/ }, () => ({ path: 'auth', namespace: 'auth' }))
       builder.onLoad({ filter: /.*/, namespace: 'auth' }, () => ({ contents: 'export const useAuthService=()=>globalThis.__tongdokV2.auth;' }))
       builder.onResolve({ filter: /(?:^|\/)useApi$/ }, () => ({ path: 'api', namespace: 'service' }))
@@ -55,6 +55,49 @@ function tongdokRuntime({ path = '/bible', query = {}, saved, get, post } = {}) 
 }
 
 for (const action of ['complete', 'cancel']) {
+  test(`reader remount rejects a previous login ${action} acknowledgement and busy state`, { timeout: 10000 }, async t => {
+    const previousWrite = deferred(), currentWrite = deferred();
+    let writes = 0;
+    const runtime = tongdokRuntime({
+      query: { tongdok: 'true', plan: '7', schedule: '101' },
+      get: async () => detail({ chapter: 1, rows: [{
+        book: 'gen', start_chapter: 1, end_chapter: 1, schedule_id: 101,
+        date: '2026-09-06', is_complete: action === 'cancel',
+      }] }),
+      post: () => ++writes === 1 ? previousWrite.promise : currentWrite.promise,
+    });
+    const { useTongdokMode } = await loadTongdok(runtime);
+    const firstScope = Vue.effectScope();
+    const first = firstScope.run(() => useTongdokMode());
+    first.initTongdokMode(); await first.loadReadingDetail(7, 'gen', 1);
+    const perform = mode => action === 'complete'
+      ? mode.completeCurrentChapter('gen', 1) : mode.uncompleteCurrentChapter('gen', 1);
+    const previous = perform(first);
+    assert.equal(first.isCompleting.value, true);
+    firstScope.stop();
+    runtime.auth.user.value = null;
+    runtime.auth.user.value = { id: 3 };
+    runtime.auth.user.value = null;
+    runtime.auth.user.value = { id: 2 };
+    const nextScope = Vue.effectScope();
+    t.after(() => nextScope.stop());
+    const next = nextScope.run(() => useTongdokMode());
+    next.initTongdokMode(); await next.loadReadingDetail(7, 'gen', 1);
+    assert.equal(next.isCompleting.value, false);
+    assert.equal(next.lastCompleteCurrentResult.value, null);
+    const current = perform(next);
+    assert.equal(writes, 2);
+    const response = { success: true, plan_id: 7, schedule_ids: [101], is_completed: action === 'complete' };
+    previousWrite.resolve(response);
+    assert.equal((await previous).status, 'stale-context');
+    assert.equal(next.lastCompleteCurrentResult.value, null);
+    assert.equal(next.isCompleting.value, true);
+    currentWrite.resolve(response);
+    const result = await current;
+    assert.equal(result.ok, true);
+    assert.deepEqual(next.lastCompleteCurrentResult.value, result);
+  });
+
   test(`previous owners ${action} result cannot replace the current operation result`, async () => {
     const previousWrite = deferred(), currentWrite = deferred()
     let writes = 0
