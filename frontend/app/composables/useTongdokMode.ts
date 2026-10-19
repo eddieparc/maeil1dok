@@ -287,6 +287,11 @@ export const useTongdokMode = () => {
   /** Bare /bible is the hub. A stored session is restored only for explicit reader intent. */
   const initTongdokMode = (): void => {
     const query = route.query;
+    if (query.tongdok === 'false') {
+      disableTongdokMode();
+      return;
+    }
+
     const hasExplicitReaderIntent = Boolean(
       query.book || query.chapter || query.verse || query.search ||
       query.tongdok || query.plan || query.schedule || query.from

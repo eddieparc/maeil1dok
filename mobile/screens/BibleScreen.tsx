@@ -1375,6 +1375,7 @@ export default function BibleScreen() {
           <View style={styles.sheet}>
             {[
               { label: '읽기 설정', settings: true },
+              { label: '웹에서 비교·기록·공유', webReader: true },
               ...(readingContext.context.enabled ? [{ label: '성경 통독표', schedule: true }] : []),
               { label: '북마크', path: '/bible/bookmarks' },
               { label: '묵상노트', path: '/bible/notes' },
@@ -1387,9 +1388,25 @@ export default function BibleScreen() {
                 style={styles.sheetRow}
                 accessibilityRole="button"
                 accessibilityLabel={item.label}
+                testID={'webReader' in item ? 'reader-web-features' : undefined}
                 onPress={() => {
                   setMoreOpen(false);
                   if ('settings' in item && item.settings) setSettingsOpen(true);
+                  else if ('webReader' in item && item.webReader) {
+                    const context = readingContext.context;
+                    const query = new URLSearchParams({
+                      book: location.book,
+                      chapter: String(location.chapter),
+                      version,
+                      tongdok: context.enabled ? 'true' : 'false',
+                    });
+                    if (context.enabled) {
+                      if (context.planId !== null) query.set('plan', String(context.planId));
+                      if (context.scheduleId !== null) query.set('schedule', String(context.scheduleId));
+                      if (context.date !== null) query.set('date', context.date);
+                    }
+                    openWebPath(stack.web, `/bible?${query}`);
+                  }
                   else if ('schedule' in item && item.schedule) setScheduleOpen(true);
                   else if ('home' in item && item.home) setViewMode('home');
                   else if (item.path) openWebPath(stack.web, item.path);

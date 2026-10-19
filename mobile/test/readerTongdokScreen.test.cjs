@@ -13,7 +13,7 @@ const rows = [
 ];
 const token = (id, nonce = 1) => `header.${Buffer.from(JSON.stringify({ user_id: id, nonce })).toString('base64url')}.signature`;
 function mount({ url, storage = Promise.resolve(null), update = null, detail = null, subscriptions = null, status = 'signedIn', autoComplete = false, schedules = [], nextPosition = { status: 'all_completed' } } = {}) {
-  const slots = [], effects = [], listeners = new Set(), cache = new Map(), calls = [], scrolls = [];
+  const slots = [], effects = [], listeners = new Set(), cache = new Map(), calls = [], scrolls = [], navigation = [];
   let cursor = 0, dirty = false, disposed = false, tree, readingContext;
   const route = { params: { url } };
   let accessToken = token(1), api = 'https://api.example.test';
@@ -78,7 +78,9 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
       if (name === '@react-native-async-storage/async-storage') return { getItem: key => key === 'bibleReaderTabs' ? storage : Promise.resolve(null), setItem: async () => {} };
       if (name.includes('AuthSession')) return { useAuth: () => ({ status, accessToken, apiFetch }) };
       if (name.includes('AppStackContext')) return { useAppStack: () => ({ stack: { api, web: 'https://beta.example.test' } }) };
-      if (name.includes('navigationRef')) return { navigationRef: { isReady: () => true, navigate() {} } };
+      if (name.includes('navigationRef')) return { navigationRef: {
+        isReady: () => true, navigate: (screen, params) => navigation.push({ screen, params }),
+      } };
       if (name.includes('NativeTabBar')) return { useNativeTabBarInset: () => 0 };
       if (name === '@expo/vector-icons/Ionicons') return { __esModule: true, default: 'Icon' };
       if (name.includes('ReadingSettingsProvider')) return { useReadingSettings: () => ({
@@ -117,7 +119,7 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
   }
   render();
   return {
-    calls, scrolls, external,
+    calls, scrolls, external, navigation,
     get: id => tree.find(n => n.props.testID === id),
     nodes: () => tree,
     context: () => readingContext,
@@ -152,6 +154,32 @@ async function openAudio(h) {
 const ended = (player, generation = 1) => player.onEnded({
   link: player.audioLink, contextKey: player.contextKey, generation,
 });
+
+for (const [url, expected] of [
+  [route, { book: 'gen', chapter: '1', version: 'KNT', tongdok: 'true',
+    plan: '4', schedule: '101', date: '2026-09-22' }],
+  ['/bible?book=mat&chapter=4&version=HAN&tongdok=false',
+    { book: 'mat', chapter: '4', version: 'HAN', tongdok: 'false' }],
+]) {
+  test(`web reader entry preserves the active context for ${expected.tongdok}`, { timeout: 2500 }, async t => {
+    const h = mount({ url });
+    t.after(h.dispose);
+    await h.wait(() => h.nodes().some(n => n.props.accessibilityLabel === '더보기') && !h.context()?.loading);
+    const before = h.context().context;
+    h.nodes().find(n => n.props.accessibilityLabel === '더보기').props.onPress();
+    await h.wait(() => h.nodes().some(n => n.props.visible === true && n.type === 'Modal'));
+    const entry = h.get('reader-web-features');
+    assert.ok(entry);
+    entry.props.onPress();
+    assert.equal(h.navigation.length, 1);
+    assert.equal(h.navigation[0].screen, 'WebView');
+    const destination = new URL(h.navigation[0].params.url);
+    assert.equal(destination.origin, 'https://beta.example.test');
+    assert.equal(destination.pathname, '/bible');
+    assert.deepEqual(Object.fromEntries(destination.searchParams), expected);
+    assert.deepEqual(h.context().context, before);
+  });
+}
 
 test('screen audio completes only an entirely heard row, never the partial day', { timeout: 2500 }, async t => {
   const pending = deferred();

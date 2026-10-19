@@ -16,10 +16,11 @@ export interface GroupDetailProps {
   readonly group: ReadingGroup;
   readonly signedIn: boolean;
   readonly actionError: string;
+  readonly onBoard: () => void;
 }
-export function GroupDetail({ apiFetch, group, signedIn, actionError }: GroupDetailProps) {
+export function GroupDetail({ apiFetch, group, signedIn, actionError, onBoard }: GroupDetailProps) {
   const colors = useNativeColors();
-  const [tab, setTab] = useState<'info' | 'calendar' | 'board'>('info');
+  const [tab, setTab] = useState<'info' | 'calendar'>('info');
   const [planId, setPlanId] = useState<number | null>(group.plans[0]?.id ?? null);
   const today = useMemo(() => new Date(), []);
   const stats = useTogetherResource(useCallback(async () => {
@@ -59,7 +60,8 @@ export function GroupDetail({ apiFetch, group, signedIn, actionError }: GroupDet
       </View>
       <View style={styles.tabs}>
         {([{ key: 'info', label: `멤버 ${group.member_count}` }, { key: 'calendar', label: '일정' }, { key: 'board', label: '게시판' }] as const).map(({ key, label }) =>
-          <NativeButton key={key} label={label} selected={tab === key} onPress={() => setTab(key)} />)}
+          <NativeButton key={key} label={label} selected={tab === key}
+            onPress={() => { if (key === 'board') onBoard(); else setTab(key); }} />)}
       </View>
       {group.plans.length > 1 && <View style={styles.tabs}>
         {group.plans.map((plan) => <NativeButton key={plan.id} label={plan.name} selected={planId === plan.id} onPress={() => setPlanId(plan.id)} />)}
@@ -74,7 +76,6 @@ export function GroupDetail({ apiFetch, group, signedIn, actionError }: GroupDet
         {tab === 'calendar' && (planId !== null
           ? <GroupCalendar apiFetch={apiFetch} planId={planId} />
           : <NativeStateView kind="empty" message="등록된 읽기표가 없습니다." />)}
-        {tab === 'board' && <NativeStateView kind="empty" message="게시판 준비 중입니다. 아직 그룹 게시판 기능이 제공되지 않습니다." />}
       </View>
       {actionError !== '' && <NativeStateView kind="error" message={actionError} />}
     </View>

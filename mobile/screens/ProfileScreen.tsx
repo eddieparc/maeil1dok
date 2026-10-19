@@ -51,6 +51,7 @@ export default function ProfileScreen({ route }: BottomTabScreenProps<TabParamLi
     <ProfileView state={state} controller={controller} bottomInset={Math.max(bottomInset, insets.bottom)} onShare={share}
       betaMode={betaMode} onBetaModeChange={(enabled) => { void handleBetaToggle(enabled); }}
       onLogin={() => { if (navigationRef.isReady()) navigationRef.navigate('Login'); }}
+      onSettings={() => { if (navigationRef.isReady()) navigationRef.navigate('WebView', { url: `${stack.web}/account/settings` }); }}
       onProfile={id => { if (navigationRef.isReady()) navigationRef.navigate('Main', { screen: 'Profile', params: { url: `${stack.web}/profile/${id}` } }); }}
       onGroups={url => { if (navigationRef.isReady()) navigationRef.navigate('Main', { screen: 'Together', params: { url: `${stack.web}${url}` } }); }}
       onRead={url => { if (navigationRef.isReady()) navigationRef.navigate('Main', { screen: 'Bible', params: { url: `${stack.web}${url}` } }); }} />

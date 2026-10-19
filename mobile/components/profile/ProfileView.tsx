@@ -11,7 +11,7 @@ import { ProfilePeople } from './ProfilePeople';
 import type { ProfileController } from './profileController';
 import type { ProfileState } from './profileTypes';
 
-export function ProfileView({ state, controller, onLogin, onRead, onShare, onProfile, onGroups, bottomInset, betaMode, onBetaModeChange }: {
+export function ProfileView({ state, controller, onLogin, onRead, onShare, onProfile, onGroups, onSettings, bottomInset, betaMode, onBetaModeChange }: {
   readonly state: ProfileState;
   readonly controller: ProfileController;
   readonly onLogin: () => void;
@@ -19,6 +19,7 @@ export function ProfileView({ state, controller, onLogin, onRead, onShare, onPro
   readonly onShare?: () => void;
   readonly onProfile: (id: number) => void;
   readonly onGroups: (url: string) => void;
+  readonly onSettings?: () => void;
   readonly bottomInset: number;
   // 로그인 전에도 베타 스택으로 전환할 수 있어야 한다 (LAB-143/147).
   readonly betaMode?: boolean | null;
@@ -79,6 +80,9 @@ export function ProfileView({ state, controller, onLogin, onRead, onShare, onPro
           }]}>
           <Text style={[typography.label, { color: colors.text }]}>프로필 편집</Text>
         </Pressable>}
+        {state.isOwnProfile && onSettings && <View testID="profile-settings">
+          <NativeButton label="계정 설정" onPress={onSettings} />
+        </View>}
         {!state.isOwnProfile && state.viewerId !== null && <NativeButton
           label={profile.is_following ? '언팔로우' : '팔로우'} disabled={state.pendingPerson !== null}
           onPress={() => { void controller.follow(profile.user.id); }} />}

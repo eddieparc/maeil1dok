@@ -60,6 +60,9 @@ test('Together consumes a new same-URL intent but preserves internal state on ta
       } };
       if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0 }) };
       if (name.endsWith('/AuthSession')) return { useAuth: () => auth };
+      if (name.endsWith('/AppStackContext')) return { useAppStack: () => ({
+        stack: { web: 'https://beta.example.test', api: 'https://api-beta.example.test' },
+      }) };
       if (name.endsWith('/navigationRef')) return { navigationRef: {} };
       if (name.endsWith('/NativeTabBar')) return { useNativeTabBarInset: () => 0 };
       if (name.endsWith('/tokens')) return { typography: {}, useNativeColors: () => ({}) };

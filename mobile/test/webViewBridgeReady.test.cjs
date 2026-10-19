@@ -19,7 +19,10 @@ for (const screen of ['WebViewScreen.tsx', 'WebViewTabScreen.tsx']) {
     }
     visit(source);
     const script = initializer
-      ? new Function('Platform', `return (${initializer})`)({ OS: 'ios' })
+      ? new Function('Platform', 'buildNativeWebFeatureBootstrap', 'scope', 'sessionKey',
+        'WEB_APP_URL', 'settings', `return (${initializer})`)(
+        { OS: 'ios' }, () => '', 'capability-fixture', 'guest:prod', 'https://example.test', {},
+      )
       : '';
     const messages = [];
     const window = { ReactNativeWebView: { postMessage: value => messages.push(value) } };

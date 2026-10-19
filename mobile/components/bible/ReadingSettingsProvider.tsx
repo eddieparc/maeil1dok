@@ -7,11 +7,14 @@ import { createReadingSettingsSync } from '../../api/readingSettingsSync';
 import type { ReadingSettingsSession, ReadingSettingsStorage } from '../../api/readingSettingsSync';
 
 export interface ReadingSettingsValue {
+  readonly sessionKey: string | null;
   readonly settings: ReadingSettings;
   readonly syncError: Error | null;
   readonly update: <K extends keyof ReadingSettings>(key: K, value: ReadingSettings[K]) => Promise<void>;
   readonly retry: () => Promise<void>;
   readonly refresh: () => Promise<void>;
+  readonly prepareWebFeature: () => Promise<boolean>;
+  readonly applyWebSettings: (expectedSessionKey: string, settings: unknown) => Promise<boolean>;
 }
 
 const ReadingSettingsContext = createContext<ReadingSettingsValue | null>(null);
@@ -41,11 +44,14 @@ export function ReadingSettingsProvider({
   // Never expose the prior account's snapshot during the render before effects.
   const current = snapshot.sessionKey === (key ?? null);
   const value: ReadingSettingsValue = {
+    sessionKey: current ? snapshot.sessionKey : null,
     settings: current ? snapshot.settings : DEFAULT_READING_SETTINGS,
     syncError: current ? snapshot.syncError : null,
     update: sync.update,
     retry: sync.retry,
     refresh: sync.refresh,
+    prepareWebFeature: sync.prepareWebFeature,
+    applyWebSettings: sync.applyWebSettings,
   };
   return <ReadingSettingsContext.Provider value={value}>{children}</ReadingSettingsContext.Provider>;
 }

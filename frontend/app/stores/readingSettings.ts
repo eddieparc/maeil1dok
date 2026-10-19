@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { watch } from 'vue'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
 import {
@@ -390,6 +391,37 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
         const pending = syncState(this).pending
         if (Object.keys(pending).length && (auth.user.value?.id !== userId ||
             Object.keys(pending).some(key => this.settings[key as keyof ReadingSettings] !== snapshot[key as keyof ReadingSettings]))) this.debouncedSync()
+      }
+    },
+
+    // Native return waits for acknowledged writes, not the debounce timer.
+    async flushPending(): Promise<boolean> {
+      const auth = useAuthService()
+      const state = syncState(this)
+      state.auth = auth
+      const ownerId = auth.isAuthenticated.value ? auth.user.value?.id ?? null : null
+      const isCurrentOwner = () =>
+        (auth.isAuthenticated.value ? auth.user.value?.id ?? null : null) === ownerId
+      if (state.timer) clearTimeout(state.timer)
+      state.timer = null
+
+      for (;;) {
+        if (this.isLoading || this.isSyncing) {
+          await new Promise<void>(resolve => {
+            const stop = watch(
+              () => this.isLoading || this.isSyncing,
+              busy => {
+                if (!busy) { stop(); resolve() }
+              },
+              { flush: 'sync' },
+            )
+            if (!this.isLoading && !this.isSyncing) { stop(); resolve() }
+          })
+        }
+        if (!isCurrentOwner()) return false
+        if (!auth.isAuthenticated.value || !Object.keys(syncState(this).pending).length) return true
+        await this.syncToServer()
+        if (!isCurrentOwner() || this.syncError) return false
       }
     },
 

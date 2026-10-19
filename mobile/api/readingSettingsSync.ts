@@ -192,6 +192,32 @@ export function createReadingSettingsSync({ storage }: { readonly storage: Readi
       publish({ settings });
       return flush();
     },
+    async prepareWebFeature(): Promise<boolean> {
+      if (!session) return false;
+      const epoch = generation;
+      await (hydrated ? flush() : refresh());
+      return generation === epoch && snapshot.syncError === null;
+    },
+    async applyWebSettings(expectedSessionKey: string, value: unknown): Promise<boolean> {
+      const target = session;
+      const epoch = generation;
+      if (!target || target.key !== expectedSessionKey) return false;
+      if (target.apiFetch) {
+        await refresh();
+      } else {
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+        const settings = parseReadingSettings(value);
+        if (keys.some(key => Reflect.get(value, key) !== settings[key])) return false;
+        for (const key of keys) {
+          if (settings[key] === snapshot.settings[key]) continue;
+          versions.set(key, ++revision);
+          dirty.set(key, revision);
+        }
+        publish({ settings });
+        await (hydrated ? flush() : refresh());
+      }
+      return generation === epoch && snapshot.syncError === null;
+    },
     refresh,
     retry: () => loadError ? refresh()
       : dirty.size > 0 && (session?.apiFetch || hydrated) ? flush() : refresh(),

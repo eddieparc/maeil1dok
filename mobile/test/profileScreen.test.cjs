@@ -84,6 +84,18 @@ test('guest can switch beta mode from the profile tab before signing in', async 
   toggle.props.onValueChange(true);
   assert.deepEqual(changes, [true]);
 });
+test('own profile exposes the account settings action', async () => {
+  const c = controller();
+  await c.start();
+  let opened = 0;
+  const tree = nodes(ProfileView({ state: c.getSnapshot(), controller: c,
+    onLogin() {}, onRead() {}, onProfile() {}, onGroups() {}, bottomInset: 97,
+    onSettings: () => { opened++; } }));
+  const entry = tree.find(n => n.props.testID === 'profile-settings');
+  assert.ok(entry);
+  nodes(entry).find(n => typeof n.props.onPress === 'function').props.onPress();
+  assert.equal(opened, 1);
+});
 test('signed-in A opening B loads B and cannot edit A through B', async () => {
   const calls = [];
   const b = { ...profile, user: { ...profile.user, id: 8, nickname: 'B' } };
