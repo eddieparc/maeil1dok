@@ -645,3 +645,115 @@ test('selecting the current reader location keeps it ready for later saves', { t
   await view.state.handleBookSelect('gen', 49); await settled();
   assert.equal(view.state.readerReady.value, true);
 });
+
+test('account changes clear completed tongdok detail immediately and fetch the new owner', { timeout: 10000 }, async t => {
+  const owners = [];
+  const view = await mount('/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true&date=2026-09-06', {
+    GET: async (path, { params = {} }) => {
+      if (!path.endsWith('/detail/')) return;
+      const owner = r.auth.user.value?.id ?? null;
+      owners.push(owner);
+      return { data: { book: params.book, chapter: params.chapter, plan_id: 7, plan_date: '2026-09-06',
+        plan_detail: [{ book: 'gen', start_chapter: 49, end_chapter: 49, schedule_id: 1,
+          date: '2026-09-06', is_complete: owner === 2 }] } };
+    },
+  });
+  t.after(view.close); await view.ready();
+  assert.equal(view.state.isScheduleCompleted(), true);
+  r.auth.user.value = { id: 3, nickname: 'other' };
+  assert.equal(view.state.isScheduleCompleted(), false, 'old completion disappears before the next render');
+  await settled();
+  assert.equal(view.state.isScheduleCompleted(), false);
+  assert.deepEqual(owners, [2, 3]);
+  r.auth.user.value = null;
+  r.auth.isAuthenticated.value = false;
+  assert.equal(view.state.readingDetailResponse.value, null);
+  await settled();
+  assert.equal(view.state.isScheduleCompleted(), false);
+  assert.deepEqual(owners, [2, 3, null]);
+});
+
+test('account changes discard session chapter marks before loading the same range', { timeout: 10000 }, async t => {
+  const view = await mount('/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true&date=2026-09-06');
+  t.after(view.close); await view.ready();
+  assert.equal((await view.state.completeCurrentChapter('gen', 49)).status, 'progressed');
+  assert.equal(view.state.getTongdokProgress('gen', 49).done, 1);
+  r.auth.user.value = { id: 3, nickname: 'other' };
+  await settled();
+  assert.equal(view.state.getTongdokProgress('gen', 49).done, 0);
+  assert.equal(r.writes.some(([path]) => path.endsWith('/reading/update/')), false);
+});
+
+test('late detail from a previous login cannot overwrite or repopulate a returning owners cache', { timeout: 10000 }, async t => {
+  const entered = deferred(), oldDetail = deferred();
+  let firstOwnerReads = 0;
+  const response = (params, completed) => ({ data: {
+    book: params.book, chapter: params.chapter, plan_id: 7, plan_date: '2026-09-06',
+    plan_detail: [{ book: 'gen', start_chapter: 49, end_chapter: 49, schedule_id: 1,
+      date: '2026-09-06', is_complete: completed }],
+  } });
+  const view = await mount('/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true&date=2026-09-06', {
+    GET: async (path, { params = {} }) => {
+      if (!path.endsWith('/detail/')) return;
+      if (r.auth.user.value.id === 2 && ++firstOwnerReads === 1) {
+        entered.resolve();
+        await oldDetail.promise;
+        return response(params, true);
+      }
+      return response(params, false);
+    },
+  });
+  t.after(() => { oldDetail.resolve(); view.close(); });
+  await entered.promise;
+  r.auth.user.value = { id: 3, nickname: 'other' };
+  await settled();
+  assert.equal(view.state.isScheduleCompleted(), false);
+  r.auth.user.value = { id: 2, nickname: 'reader again' };
+  await settled();
+  assert.equal(view.state.isScheduleCompleted(), false);
+  oldDetail.resolve();
+  await view.ready();
+  await view.state.loadReadingDetail(7, 'gen', 49);
+  assert.equal(view.state.isScheduleCompleted(), false);
+  assert.equal(firstOwnerReads, 2, 'the returning owner keeps its fresh cached detail');
+});
+
+for (const action of ['complete', 'cancel']) {
+  test(`late ${action} acknowledgement cannot change a new owners state or release its active write`, { timeout: 10000 }, async t => {
+    const oldEntered = deferred(), newEntered = deferred(), oldWrite = deferred(), newWrite = deferred();
+    const initiallyComplete = action === 'cancel';
+    const acknowledgement = { success: true, plan_id: 7, schedule_ids: [1], is_completed: action === 'complete' };
+    const view = await mount('/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true&date=2026-09-06', {
+      GET: async (path, { params = {} }) => path.endsWith('/detail/') ? { data: {
+        book: params.book, chapter: params.chapter, plan_id: 7, plan_date: '2026-09-06',
+        plan_detail: [{ book: 'gen', start_chapter: 49, end_chapter: 49, schedule_id: 1,
+          date: '2026-09-06', is_complete: initiallyComplete }],
+      } } : undefined,
+      POST: async path => {
+        if (!path.endsWith('/reading/update/')) return;
+        const oldOwner = r.auth.user.value.id === 2;
+        (oldOwner ? oldEntered : newEntered).resolve();
+        return (oldOwner ? oldWrite : newWrite).promise;
+      },
+    });
+    t.after(() => { oldWrite.resolve(acknowledgement); newWrite.resolve(acknowledgement); view.close(); });
+    await view.ready();
+    const perform = () => action === 'complete'
+      ? view.state.completeCurrentChapter('gen', 49)
+      : view.state.uncompleteCurrentChapter('gen', 49);
+    const previous = perform(); await oldEntered.promise;
+    r.auth.user.value = { id: 3, nickname: 'other' };
+    assert.equal(view.state.isCompleting.value, false);
+    await settled();
+    assert.equal(view.state.isScheduleCompleted(), initiallyComplete);
+    const current = perform(); await newEntered.promise;
+    oldWrite.resolve(acknowledgement);
+    assert.equal((await previous).status, 'stale-context');
+    assert.equal(view.state.isCompleting.value, true, 'the new owners write still owns the busy state');
+    assert.equal(view.state.tongdokProgress.value.isComplete, initiallyComplete);
+    assert.equal(view.state.isScheduleCompleted(), initiallyComplete);
+    newWrite.resolve(acknowledgement);
+    assert.equal((await current).ok, true);
+    assert.equal(view.state.isScheduleCompleted(), action === 'complete');
+  });
+}

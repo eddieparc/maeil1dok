@@ -1317,11 +1317,15 @@ watch(() => route.query, () => {
 });
 watch(() => auth.user.value?.id, async (userId) => {
   await auth.initialize();
+  if (!pageActive || userId !== auth.user.value?.id) return;
   // 초기 하이드레이션: 방금 로드를 시작한 사용자와 같으면 중복 로드하지 않는다.
   if (userId === loadedUserDataUserId) return;
   clearReadChapters();
   chapterHighlights.value = [];
-  if (viewMode.value === 'reader') await loadUserDataForChapter(currentBook.value, currentChapter.value);
+  if (viewMode.value === 'reader') await Promise.all([
+    loadUserDataForChapter(currentBook.value, currentChapter.value),
+    loadReadingDetail(isTongdokMode.value ? tongdokPlanId.value : null, currentBook.value, currentChapter.value),
+  ]);
 });
 // Content-affecting preferences need reparsing; typography itself is live in BibleViewer.
 watch(() => [readingSettingsStore.settings.showFootnotes, readingSettingsStore.settings.showDescription,

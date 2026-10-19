@@ -23,7 +23,9 @@ async function loadTongdok(runtime) {
     plugins: [{ name: 'tongdok-v2-runtime', setup(builder) {
       builder.onResolve({ filter: /^vue$/ }, () => ({ path: 'vue', namespace: 'runtime' }))
       builder.onResolve({ filter: /^vue-router$/ }, () => ({ path: 'router', namespace: 'runtime' }))
-      builder.onLoad({ filter: /.*/, namespace: 'runtime' }, ({ path }) => ({ contents: path === 'vue' ? `export const ref=globalThis.__tongdokV2.Vue.ref; export const computed=globalThis.__tongdokV2.Vue.computed;` : `export const useRoute=()=>globalThis.__tongdokV2.route; export const useRouter=()=>globalThis.__tongdokV2.router;` }))
+      builder.onLoad({ filter: /.*/, namespace: 'runtime' }, ({ path }) => ({ contents: path === 'vue' ? `export const ref=globalThis.__tongdokV2.Vue.ref; export const computed=globalThis.__tongdokV2.Vue.computed; export const watch=globalThis.__tongdokV2.Vue.watch;` : `export const useRoute=()=>globalThis.__tongdokV2.route; export const useRouter=()=>globalThis.__tongdokV2.router;` }))
+      builder.onResolve({ filter: /(?:^|\/)useAuthService$/ }, () => ({ path: 'auth', namespace: 'auth' }))
+      builder.onLoad({ filter: /.*/, namespace: 'auth' }, () => ({ contents: 'export const useAuthService=()=>globalThis.__tongdokV2.auth;' }))
       builder.onResolve({ filter: /(?:^|\/)useApi$/ }, () => ({ path: 'api', namespace: 'service' }))
       builder.onResolve({ filter: /(?:^|\/)useBibleData$/ }, () => ({ path: 'bible', namespace: 'service' }))
       builder.onLoad({ filter: /.*/, namespace: 'service' }, ({ path }) => ({ contents: path === 'api' ? `export const useApi=()=>globalThis.__tongdokV2.api;` : `export const BIBLE_BOOKS={old:[{id:'gen'},{id:'exo'}],new:[{id:'jhn'}]}; export const useBibleData=()=>({bookNames:{gen:'창세기',exo:'출애굽기',jhn:'요한복음'}});` }))
@@ -43,12 +45,45 @@ function detail({ planId = 7, book = 'gen', chapter = 2, date = '2026-09-06', ro
 function tongdokRuntime({ path = '/bible', query = {}, saved, get, post } = {}) {
   const calls = []; const localStorage = storage(saved ? { tongdokModeState: JSON.stringify(saved) } : {})
   const runtime = { Vue, route: Vue.reactive({ path, query }), router: { replace: value => calls.push(['replace', value]) }, calls, localStorage,
+    auth: { user: Vue.ref({ id: 2 }), isInitialized: Vue.ref(true), isLoading: Vue.ref(false), initialize: async () => {} },
     api: {
       GET: async (url, options) => { calls.push(['GET', url, options.params]); return { data: await get(options.params) } },
       POST: async (url, payload) => { calls.push(['POST', url, payload]); return post ? post(payload) : { success: true, plan_id: String(payload.plan_id), schedule_ids: payload.schedule_ids.map(String), is_completed: true } },
     } }
   globalThis.window = { localStorage }; globalThis.localStorage = localStorage
   return runtime
+}
+
+for (const action of ['complete', 'cancel']) {
+  test(`previous owners ${action} result cannot replace the current operation result`, async () => {
+    const previousWrite = deferred(), currentWrite = deferred()
+    let writes = 0
+    const runtime = tongdokRuntime({
+      query: { tongdok: 'true', plan: '7', schedule: '101' },
+      get: async () => detail({ chapter: 1, rows: [{
+        book: 'gen', start_chapter: 1, end_chapter: 1, schedule_id: 101,
+        date: '2026-09-06', is_complete: action === 'cancel',
+      }] }),
+      post: () => ++writes === 1 ? previousWrite.promise : currentWrite.promise,
+    })
+    const { useTongdokMode } = await loadTongdok(runtime)
+    const mode = useTongdokMode(); mode.initTongdokMode()
+    await mode.loadReadingDetail(7, 'gen', 1)
+    const perform = () => action === 'complete' ? mode.completeCurrentChapter('gen', 1) : mode.uncompleteCurrentChapter('gen', 1)
+    const previous = perform()
+    runtime.auth.user.value = { id: 3 }
+    await mode.loadReadingDetail(7, 'gen', 1)
+    const current = perform()
+    const response = { success: true, plan_id: 7, schedule_ids: [101], is_completed: action === 'complete' }
+    previousWrite.resolve(response)
+    assert.equal((await previous).status, 'stale-context')
+    assert.equal(mode.lastCompleteCurrentResult.value, null)
+    assert.equal(mode.isCompleting.value, true)
+    currentWrite.resolve(response)
+    const result = await current
+    assert.equal(result.ok, true)
+    assert.deepEqual(mode.lastCompleteCurrentResult.value, result)
+  })
 }
 
 test('bare bible hub does not reactivate persisted tongdok identity', async () => {

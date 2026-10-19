@@ -5,10 +5,11 @@
  * belong only to the active reader session and are used to decide when a real
  * schedule row is eligible for that existing write API.
  */
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { BIBLE_BOOKS, useBibleData } from './useBibleData';
 import { useApi } from './useApi';
+import { useAuthService } from './useAuthService';
 import { useErrorHandler } from './useErrorHandler';
 import type { paths } from '~/types/generated/api-schema';
 import {
@@ -107,6 +108,7 @@ interface TongdokStateStorage {
 }
 
 interface LoadedDetailIdentity {
+  ownerGeneration: number;
   planId: number | null;
   scheduleId: number | null;
   scheduleDate: string | null;
@@ -115,6 +117,7 @@ interface LoadedDetailIdentity {
 }
 
 interface AuthoritativeDetail {
+  ownerGeneration: number;
   identity: TongdokContextIdentity;
   data: ReadingDetailData;
   rows: Array<PlanDetail & { schedule_id: number; date: string }>;
@@ -180,6 +183,8 @@ const detailCache = new Map<string, ReadingDetailResponse>();
 let loadedDetailIdentity: LoadedDetailIdentity | null = null;
 let activeScheduleRange: Pick<ReadingDetailData, 'plan_detail' | 'plan_date' | 'schedule_date'> | null = null;
 let detailRequestVersion = 0;
+let activeUserId: number | null = null;
+let ownerGeneration = 0;
 
 const resetActiveSession = (clearDetail = true): void => {
   sessionChapterMarks.clear();
@@ -201,10 +206,11 @@ const currentContextKey = (
     ? tongdokScheduleId.value
     : null;
   const scheduleDate = scheduleId === null ? null : tongdokScheduleDate.value;
-  return [planId ?? 'plain', scheduleId ?? 'none', scheduleDate ?? 'unknown', book, chapter].join('|');
+  return [activeUserId ?? 'guest', ownerGeneration, planId ?? 'plain', scheduleId ?? 'none', scheduleDate ?? 'unknown', book, chapter].join('|');
 };
 
 const sameIdentity = (left: LoadedDetailIdentity, right: LoadedDetailIdentity): boolean =>
+  left.ownerGeneration === right.ownerGeneration &&
   left.planId === right.planId &&
   left.scheduleId === right.scheduleId &&
   left.scheduleDate === right.scheduleDate &&
@@ -212,6 +218,7 @@ const sameIdentity = (left: LoadedDetailIdentity, right: LoadedDetailIdentity): 
   left.chapter === right.chapter;
 
 const currentLoadedIdentity = (book: string, chapter: number): LoadedDetailIdentity => ({
+  ownerGeneration,
   planId: tongdokPlanId.value,
   scheduleId: tongdokScheduleId.value,
   scheduleDate: tongdokScheduleDate.value,
@@ -223,7 +230,17 @@ export const useTongdokMode = () => {
   const route = useRoute();
   const router = useRouter();
   const api = useApi();
+  const auth = useAuthService();
   const { bookNames } = useBibleData();
+
+  watch(() => auth.user.value?.id ?? null, userId => {
+    if (activeUserId === userId) return;
+    activeUserId = userId;
+    ownerGeneration += 1;
+    detailCache.clear();
+    resetActiveSession();
+    isCompleting.value = false;
+  }, { immediate: true, flush: 'sync' });
 
   const activeTongdokContext = computed<TongdokContextIdentity | null>(() => {
     const planId = positiveId(tongdokPlanId.value);
@@ -341,7 +358,7 @@ export const useTongdokMode = () => {
     // always present (e.g. deep links like ?tongdok=true&plan=4&book=psa&chapter=7).
     // When it is absent, accept whatever schedule the backend resolved for today.
     if (identity.scheduleId !== null && !rows.some(row => row.schedule_id === identity.scheduleId)) return null;
-    return { identity, data, rows };
+    return { ownerGeneration: detailIdentity.ownerGeneration, identity, data, rows };
   };
 
   const rowContains = (row: PlanDetail, book: string, chapter: number): boolean =>
@@ -547,9 +564,11 @@ export const useTongdokMode = () => {
   ): Promise<ReadingDetailData | null> => {
     const bibleBook = toBibleBook(book);
     if (!bibleBook || positiveChapter(chapter) === null) return null;
+    if (!auth.isInitialized.value || auth.isLoading.value) await auth.initialize();
 
     const normalizedPlanId = positiveId(planId);
     const requestIdentity: LoadedDetailIdentity = {
+      ownerGeneration,
       planId: normalizedPlanId,
       scheduleId: tongdokMode.value && tongdokPlanId.value === normalizedPlanId ? tongdokScheduleId.value : null,
       scheduleDate: tongdokMode.value && tongdokPlanId.value === normalizedPlanId ? tongdokScheduleDate.value : null,
@@ -577,6 +596,7 @@ export const useTongdokMode = () => {
           ...(constrainToSelectedDay && requestIdentity.scheduleDate ? { date: requestIdentity.scheduleDate } : {}),
         },
       });
+      if (requestIdentity.ownerGeneration !== ownerGeneration) return null;
       const wrapped: ReadingDetailResponse = { data: response.data };
       detailCache.set(requestKey, wrapped);
 
@@ -686,17 +706,18 @@ export const useTongdokMode = () => {
     persistedScheduleIds: number[] = [],
     ok = false,
   ): CompleteCurrentChapterResult => {
+    const staleOwner = authoritative !== null && authoritative.ownerGeneration !== ownerGeneration;
     const context = authoritative?.identity || activeTongdokContext.value;
     const rows = authoritative?.rows || [];
-    const progress = authoritative
+    const progress = authoritative && !staleOwner
       ? calculateProgress(rows, book || '', chapter || 0)
       : null;
-    const completedScheduleIds = rows
+    const completedScheduleIds = (staleOwner ? [] : rows)
       .filter(row => rowCompleted(row))
       .map(row => row.schedule_id);
     const result: CompleteCurrentChapterResult = {
-      ok,
-      status,
+      ok: staleOwner ? false : ok,
+      status: staleOwner ? 'stale-context' : status,
       planId: context?.planId ?? null,
       selectedScheduleId: context?.scheduleId ?? null,
       scheduleDate: context?.scheduleDate ?? null,
@@ -706,7 +727,7 @@ export const useTongdokMode = () => {
       scheduleCompleted: progress?.isComplete ?? false,
       progress,
     };
-    lastCompleteCurrentResult.value = result;
+    if (!staleOwner) lastCompleteCurrentResult.value = result;
     return result;
   };
 
@@ -766,6 +787,9 @@ export const useTongdokMode = () => {
         schedule_ids: eligibleIds,
         action: 'complete',
       });
+      if (authoritative.ownerGeneration !== ownerGeneration) {
+        return completeResult('stale-context', authoritative, book, chapter);
+      }
       const acknowledgedIds = Array.isArray(response?.schedule_ids)
         ? response.schedule_ids.map(positiveId).filter((id): id is number => id !== null)
         : [];
@@ -830,7 +854,7 @@ export const useTongdokMode = () => {
       useErrorHandler().handleSilentError(error, '통독 완료');
       return completeResult('failed', authoritative, book, chapter);
     } finally {
-      isCompleting.value = false;
+      if (authoritative.ownerGeneration === ownerGeneration) isCompleting.value = false;
     }
   };
 
@@ -878,6 +902,9 @@ export const useTongdokMode = () => {
         schedule_ids: completedIds,
         action: 'cancel',
       });
+      if (authoritative.ownerGeneration !== ownerGeneration) {
+        return completeResult('stale-context', authoritative, book, chapter);
+      }
       const acknowledgedIds = Array.isArray(response?.schedule_ids)
         ? response.schedule_ids.map(positiveId).filter((id): id is number => id !== null)
         : [];
@@ -936,7 +963,7 @@ export const useTongdokMode = () => {
       useErrorHandler().handleSilentError(error, '통독 완료 취소');
       return completeResult('failed', authoritative, book, chapter);
     } finally {
-      isCompleting.value = false;
+      if (authoritative.ownerGeneration === ownerGeneration) isCompleting.value = false;
     }
   };
 
