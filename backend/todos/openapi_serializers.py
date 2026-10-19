@@ -22,6 +22,44 @@ class DetailResponseSerializer(serializers.Serializer):
     detail = serializers.CharField()
 
 
+class GroupPostAuthorSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nickname = serializers.CharField(allow_blank=True)
+
+
+class GroupPostResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    group_id = serializers.IntegerField()
+    title = serializers.CharField(max_length=200)
+    content = serializers.CharField(max_length=10000, help_text='Plain text; never render as HTML.')
+    author = GroupPostAuthorSerializer()
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+    can_edit = serializers.BooleanField()
+    can_delete = serializers.BooleanField()
+
+
+class GroupPostEnvelopeSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    post = GroupPostResponseSerializer()
+
+
+class GroupPostListResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    count = serializers.IntegerField(min_value=0)
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    posts = GroupPostResponseSerializer(many=True)
+
+
+class GroupPostErrorSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    error = serializers.CharField()
+    errors = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()), required=False,
+    )
+
+
 class TodoSuccessMessageResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     message = serializers.CharField()

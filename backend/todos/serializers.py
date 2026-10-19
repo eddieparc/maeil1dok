@@ -13,6 +13,27 @@ from django.contrib.auth import get_user_model
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 
+
+class GroupPostWriteSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=200, allow_blank=False)
+    content = serializers.CharField(max_length=10000, allow_blank=False)
+
+    def to_internal_value(self, data):
+        # Explicitly reject identity forgery and other unsupported write fields.
+        if isinstance(data, dict):
+            unknown = set(data) - set(self.fields)
+            if unknown:
+                raise serializers.ValidationError({
+                    key: ['지원하지 않는 필드예요.'] for key in sorted(unknown)
+                })
+        return super().to_internal_value(data)
+
+
+class GroupPostPaginationSerializer(serializers.Serializer):
+    page = serializers.IntegerField(min_value=1, default=1)
+    page_size = serializers.IntegerField(min_value=1, max_value=100, default=20)
+
+
 class DailyBibleScheduleSerializer(serializers.ModelSerializer):
     plan_name = serializers.CharField(source='plan.name', read_only=True)
     

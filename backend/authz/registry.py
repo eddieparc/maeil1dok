@@ -1165,6 +1165,28 @@ ENDPOINTS = (
 
     # Reading groups and invitations.
     _endpoint(
+        "reading_group.posts",
+        "group-posts",
+        _action("list_group_posts", "reading_group", "GET",
+                _gate((IS_AUTHENTICATED,), "authenticated", "subject_is_active_member")),
+        _action("create_group_post", "reading_group", "POST",
+                _gate((IS_AUTHENTICATED,), "authenticated", "subject_is_active_member",
+                      "author_and_group_from_request_context_only")),
+    ),
+    _endpoint(
+        "reading_group.post_detail",
+        "group-post-detail",
+        _action("view_group_post", "group_post", "GET",
+                _gate((IS_AUTHENTICATED,), "authenticated", "subject_is_active_member",
+                      "post_belongs_to_group")),
+        _action("update_group_post", "group_post", "PATCH",
+                _gate((IS_AUTHENTICATED,), "authenticated", "subject_is_active_member",
+                      "post_belongs_to_group", "resource_owner_is_subject")),
+        _action("delete_group_post", "group_post", "DELETE",
+                _gate((IS_AUTHENTICATED,), "authenticated", "subject_is_active_member",
+                      "post_belongs_to_group", "author_or_active_group_admin")),
+    ),
+    _endpoint(
         "reading_group.collection",
         "groups-list",
         _action(

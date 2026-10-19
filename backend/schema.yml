@@ -4448,6 +4448,249 @@ paths:
               schema:
                 $ref: '#/components/schemas/GroupMembersResponse'
           description: ''
+  /api/v1/todos/groups/{group_id}/posts/:
+    get:
+      operationId: todos_groups_posts_list
+      parameters:
+      - in: path
+        name: group_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+      tags:
+      - todos
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostListResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+    post:
+      operationId: todos_groups_posts_create
+      parameters:
+      - in: path
+        name: group_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - todos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupPostWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GroupPostWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GroupPostWrite'
+        required: true
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostEnvelope'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+  /api/v1/todos/groups/{group_id}/posts/{post_id}/:
+    get:
+      operationId: todos_groups_posts_retrieve
+      parameters:
+      - in: path
+        name: group_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: post_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - todos
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostEnvelope'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+    patch:
+      operationId: todos_groups_posts_partial_update
+      parameters:
+      - in: path
+        name: group_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: post_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - todos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGroupPostWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGroupPostWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGroupPostWrite'
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostEnvelope'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+    delete:
+      operationId: todos_groups_posts_destroy
+      parameters:
+      - in: path
+        name: group_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: post_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - todos
+      security:
+      - cookieJwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostEnvelope'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupPostError'
+          description: ''
   /api/v1/todos/groups/{group_id}/visibility/:
     patch:
       operationId: todos_groups_visibility_partial_update
@@ -7415,6 +7658,13 @@ components:
       - message
       - scheduled_deletion_at
       - success
+    DetailResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
     ErrorCodeEnum:
       enum:
       - transcript_unavailable
@@ -7715,6 +7965,116 @@ components:
       required:
       - message
       - success
+    GroupPostAuthor:
+      type: object
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+      required:
+      - id
+      - nickname
+    GroupPostEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+        post:
+          $ref: '#/components/schemas/GroupPostResponse'
+      required:
+      - post
+      - success
+    GroupPostError:
+      type: object
+      properties:
+        success:
+          type: boolean
+        error:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+      - error
+      - success
+    GroupPostListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        count:
+          type: integer
+          minimum: 0
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupPostResponse'
+      required:
+      - count
+      - next
+      - posts
+      - previous
+      - success
+    GroupPostResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        group_id:
+          type: integer
+        title:
+          type: string
+          maxLength: 200
+        content:
+          type: string
+          description: Plain text; never render as HTML.
+          maxLength: 10000
+        author:
+          $ref: '#/components/schemas/GroupPostAuthor'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        can_edit:
+          type: boolean
+        can_delete:
+          type: boolean
+      required:
+      - author
+      - can_delete
+      - can_edit
+      - content
+      - created_at
+      - group_id
+      - id
+      - title
+      - updated_at
+    GroupPostWrite:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        content:
+          type: string
+          maxLength: 10000
+      required:
+      - content
+      - title
     GroupProgressDay:
       type: object
       properties:
@@ -9649,6 +10009,15 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedGroupPostWrite:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        content:
+          type: string
+          maxLength: 10000
     PatchedNotificationSettings:
       type: object
       properties:

@@ -11,6 +11,9 @@ not the group's `is_public`.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import ClassVar
+
 from django.db.models import Q
 
 from accounts.models import User, UserProfile
@@ -40,9 +43,10 @@ from authz.policies.reading_group_types import (
     ReadingGroupResource,
     USER_NOT_FOUND,
 )
-from todos.models import GroupInvitation, GroupMembership, ReadingGroup
+from todos.models import GroupInvitation, GroupMembership, GroupPost, ReadingGroup
 
 __all__ = [
+    "GroupPostResource",
     "GroupInvitationCollection",
     "GroupInvitationResource",
     "GroupScoreboardResource",
@@ -55,6 +59,63 @@ __all__ = [
     "ReadingGroupMembershipResource",
     "ReadingGroupResource",
 ]
+
+
+@dataclass(frozen=True)
+class GroupPostResource:
+    post: GroupPost
+    membership: GroupMembership | None
+    resource_type: ClassVar[str] = "group_post"
+
+
+def _access_group_posts(subject, resource, *, for_update=False):
+    if not subject.is_authenticated:
+        return Decision.deny(401, AUTHENTICATION_REQUIRED)
+    memberships = GroupMembership.objects.filter(
+        group_id=resource.group_id, user_id=subject.user_id, is_active=True,
+    )
+    if for_update:
+        memberships = memberships.select_for_update()
+    membership = memberships.first()
+    if membership is None:
+        return Decision.deny(404, GROUP_NOT_FOUND)
+    return Decision.allow(membership)
+
+
+def _create_group_post(subject, resource):
+    return _access_group_posts(subject, resource, for_update=True)
+
+
+def _view_group_post(subject, resource):
+    membership = resource.membership
+    if not subject.is_authenticated:
+        return Decision.deny(401, AUTHENTICATION_REQUIRED)
+    if (
+        membership is None
+        or not membership.is_active
+        or membership.user_id != subject.user_id
+        or membership.group_id != resource.post.group_id
+    ):
+        return Decision.deny(404, GROUP_NOT_FOUND)
+    return Decision.allow(resource.post)
+
+
+def _update_group_post(subject, resource):
+    access = _view_group_post(subject, resource)
+    if not access:
+        return access
+    if resource.post.author_id != subject.user_id:
+        return Decision.deny(403, {"success": False, "error": "작성자만 수정할 수 있어요."})
+    return access
+
+
+def _delete_group_post(subject, resource):
+    access = _view_group_post(subject, resource)
+    if not access:
+        return access
+    if resource.post.author_id != subject.user_id and resource.membership.role != "admin":
+        return Decision.deny(403, {"success": False, "error": "작성자나 그룹 관리자만 삭제할 수 있어요."})
+    return access
 
 
 def _load_group(group_id):
@@ -272,6 +333,11 @@ def _view_group_scoreboard(subject, resource):
 
 
 POLICIES = {
+    ("list_group_posts", ReadingGroupResource): _access_group_posts,
+    ("create_group_post", ReadingGroupResource): _create_group_post,
+    ("view_group_post", GroupPostResource): _view_group_post,
+    ("update_group_post", GroupPostResource): _update_group_post,
+    ("delete_group_post", GroupPostResource): _delete_group_post,
     ("list_groups", ReadingGroupCollection): _list_groups,
     ("create_group", ReadingGroupCreation): _create_group,
     ("view_group", ReadingGroupResource): _view_group,
