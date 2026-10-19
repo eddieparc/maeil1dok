@@ -364,8 +364,8 @@ jobs:
             sudo install -d -m 0750 -o 10001 -g 10001 /mnt/data/maeil1dok/alloy
             sudo install -d -m 0700 -o 10001 -g 10001 /mnt/data/maeil1dok/alerts
             ./scripts/oci_compose.sh build web celery-worker celery-beat frontend docker-proxy alert-probe
+            ./scripts/oci_compose.sh up -d --wait --wait-timeout 240 web
             ./scripts/oci_compose.sh up -d web celery-worker celery-beat frontend cloudflared loki docker-proxy alloy alert-probe
-            docker image prune -f >/dev/null
           '
 
       - name: Smoke test (via Cloudflare Tunnel)

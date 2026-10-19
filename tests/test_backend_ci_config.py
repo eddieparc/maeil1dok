@@ -73,6 +73,18 @@ class BackendCiConfigTest(unittest.TestCase):
         self.assertIn("https://api.maeil1dok.app/ready/", self.workflow)
         self.assertIn('[ "$ready" = "200" ]', self.workflow)
 
+    def test_web_is_healthy_before_frontend_rollout(self) -> None:
+        health_gate = "./scripts/oci_compose.sh up -d --wait --wait-timeout 240 web"
+        frontend_rollout = "./scripts/oci_compose.sh up -d web celery-worker celery-beat frontend"
+
+        self.assertLess(
+            self.workflow.index(health_gate),
+            self.workflow.index(frontend_rollout),
+        )
+
+    def test_deploy_preserves_other_projects_images(self) -> None:
+        self.assertNotIn("docker image prune", self.workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
