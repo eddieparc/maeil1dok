@@ -312,7 +312,7 @@ onBeforeUnmount(() => {
 
 .swap-btn:hover {
   background: var(--color-accent-primary);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 
 .swap-btn:disabled {
@@ -374,7 +374,7 @@ onBeforeUnmount(() => {
 
 .pane-switch:hover {
   background: var(--color-accent-primary);
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 
 @media (max-width: 767px) and (orientation: portrait) {

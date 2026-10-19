@@ -16,6 +16,17 @@ for (const width of [390, 1280]) {
     await expect(page.locator('.verse-pair')).toHaveCount(24);
     await expect(page.locator('.pair-secondary .verse')).toHaveCount(24);
     await expect(page.locator('.bible-compare-viewer')).toHaveClass(/theme-dark/);
+    const inverseText = await page.evaluate(() => {
+      const sample = document.createElement('span');
+      sample.style.color = 'var(--color-text-inverse)';
+      document.body.append(sample);
+      const color = getComputedStyle(sample).color;
+      sample.remove();
+      return color;
+    });
+    const compareAction = page.locator(width < 768 ? '.pane-switch' : '.swap-btn');
+    await compareAction.hover();
+    await expect(compareAction).toHaveCSS('color', inverseText);
     const geometry = await page.locator('.verse-pair').first().evaluate(row => {
       const primary = row.querySelector('.pair-primary')?.getBoundingClientRect().toJSON();
       const secondary = row.querySelector('.pair-secondary')?.getBoundingClientRect().toJSON();
