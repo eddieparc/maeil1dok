@@ -181,3 +181,34 @@ test('plain reading never acquires the home default plan', async () => {
   assert.equal(requests, 0);
   assert.equal(c.getState().context.enabled, false);
 });
+
+test('detail requests identify the selected repeated schedule and date', async () => {
+  let requested;
+  const c = controller(async url => { requested = url; return ok(detail); });
+  enter(c);
+
+  await c.load();
+
+  const query = new URL(requested, 'https://example.test').searchParams;
+  assert.equal(query.get('schedule_id'), '101');
+  assert.equal(query.get('date'), '2026-09-22');
+});
+
+test('moving inside the verified day retains its repeated-schedule identity', async () => {
+  const requested = [];
+  const c = controller(async url => {
+    requested.push(url);
+    const chapter = new URL(url, 'https://example.test').searchParams.get('chapter');
+    return ok({ ...detail, chapter });
+  });
+  enter(c);
+  await c.load();
+
+  c.move({ book: 'gen', chapter: 2 });
+  await c.load();
+
+  assert.equal(c.getState().context.scheduleId, 101);
+  assert.equal(c.getState().context.date, '2026-09-22');
+  assert.notEqual(c.getState().detail, null);
+  assert.equal(new URL(requested[1], 'https://example.test').searchParams.get('date'), '2026-09-22');
+});

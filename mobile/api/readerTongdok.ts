@@ -136,9 +136,14 @@ export function createReaderTongdok(fetch: ApiFetch) {
     },
     move(location: ChapterRef) {
       if (location.book === state.location.book && location.chapter === state.location.chapter) return;
-      // Keep the global plan, not the entry day's constraints. Only a verified
-      // detail for the new passage may establish its date and schedule.
-      reset({ ...state.context, date: null, scheduleId: null }, location);
+      // Preserve a verified day's identity while moving inside its reading range.
+      // Outside that range, only a fresh detail may establish the next schedule.
+      const sameDay = state.detail?.rows.some(row => contains(row, location)) === true;
+      reset({
+        ...state.context,
+        date: sameDay ? state.context.date : null,
+        scheduleId: sameDay ? state.context.scheduleId : null,
+      }, location);
     },
     async load() {
       const snapshot = state, token = generation, request = ++loadGeneration;
@@ -147,6 +152,9 @@ export function createReaderTongdok(fetch: ApiFetch) {
       try {
         const query = new URLSearchParams({ book: snapshot.location.book,
           chapter: String(snapshot.location.chapter), plan_id: String(snapshot.context.planId) });
+        if (snapshot.context.scheduleId !== null)
+          query.set('schedule_id', String(snapshot.context.scheduleId));
+        if (snapshot.context.date !== null) query.set('date', snapshot.context.date);
         const value = await json(`/api/v1/todos/detail/?${query}`);
         if (token !== generation || request !== loadGeneration) return;
         const detail = parseDetail(value, snapshot);

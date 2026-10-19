@@ -2,6 +2,7 @@ from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework.decorators import api_view, authentication_classes, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+from rest_framework.exceptions import APIException
 import numbers
 import pandas as pd
 from calendar import monthrange
@@ -69,6 +70,7 @@ from .services.notifications import (
 
 from .services.catchup import sync_catchup_schedules
 from .services.chapter_audio_service import build_fallback_audio_links
+from .services.chapter_schedule_selection import select_chapter_schedule
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -1378,6 +1380,14 @@ def plan_subscription_toggle_active(request, pk):
             description='Bible book code.',
         ),
         OpenApiParameter('chapter', int, required=True, description='Positive chapter number.'),
+        OpenApiParameter(
+            'schedule_id', int, required=False,
+            description='Schedule in the selected plan whose date group should be used.',
+        ),
+        OpenApiParameter(
+            'date', OpenApiTypes.DATE, required=False,
+            description='Selected schedule date. Must agree with schedule_id when both are supplied.',
+        ),
     ],
     responses={200: openapi.ChapterDetailResponseSerializer},
 )
@@ -1429,12 +1439,16 @@ def get_chapter_detail(request):
             return Response({'error': '존재하지 않는 플랜입니다.'}, status=404)
 
         # 해당 장이 속한 일정 조회
-        target_schedule = DailyBibleSchedule.objects.filter(
-            plan=plan,
-            book=book_name,
-            start_chapter__lte=chapter_number,
-            end_chapter__gte=chapter_number
-        ).first()
+        target_schedule = select_chapter_schedule(
+            plan,
+            DailyBibleSchedule.objects.filter(
+                plan=plan,
+                book=book_name,
+                start_chapter__lte=chapter_number,
+                end_chapter__gte=chapter_number,
+            ),
+            request.GET,
+        )
 
         if not target_schedule:
             # 에러 코드 대신 정상 응답으로 메시지 전달
@@ -1516,6 +1530,8 @@ def get_chapter_detail(request):
 
         return Response(response_data)
 
+    except APIException as exc:
+        return Response(exc.detail, status=exc.status_code)
     except Exception as e:
         logger.error(f"Error in get_chapter_detail: {str(e)}", exc_info=True)
         return Response({'error': '요청 처리 중 오류가 발생했습니다.'}, status=500)

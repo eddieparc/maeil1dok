@@ -565,8 +565,17 @@ export const useTongdokMode = () => {
     }
 
     try {
+      const constrainToSelectedDay = !activeScheduleRange ||
+        activeScheduleRange.plan_detail?.some(row => rowContains(row, bibleBook, chapter)) === true;
       const response = await api.GET('/api/v1/todos/detail/', {
-        params: { plan_id: normalizedPlanId ?? undefined, book: bibleBook, chapter },
+        params: {
+          plan_id: normalizedPlanId ?? undefined,
+          book: bibleBook,
+          chapter,
+          ...(constrainToSelectedDay && requestIdentity.scheduleId !== null
+            ? { schedule_id: requestIdentity.scheduleId } : {}),
+          ...(constrainToSelectedDay && requestIdentity.scheduleDate ? { date: requestIdentity.scheduleDate } : {}),
+        },
       });
       const wrapped: ReadingDetailResponse = { data: response.data };
       detailCache.set(requestKey, wrapped);

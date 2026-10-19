@@ -9924,8 +9924,12 @@ export interface operations {
                 book: "1ch" | "1co" | "1jn" | "1ki" | "1pe" | "1sa" | "1th" | "1ti" | "2ch" | "2co" | "2jn" | "2ki" | "2pe" | "2sa" | "2th" | "2ti" | "3jn" | "act" | "amo" | "col" | "dan" | "deu" | "ecc" | "eph" | "est" | "exo" | "ezk" | "ezr" | "gal" | "gen" | "hab" | "hag" | "heb" | "hos" | "isa" | "jas" | "jdg" | "jer" | "jhn" | "jnh" | "job" | "jol" | "jos" | "jud" | "lam" | "lev" | "luk" | "mal" | "mat" | "mic" | "mrk" | "nam" | "neh" | "num" | "oba" | "phm" | "php" | "pro" | "psa" | "rev" | "rom" | "rut" | "sng" | "tit" | "zec" | "zep";
                 /** @description Positive chapter number. */
                 chapter: number;
+                /** @description Selected schedule date. Must agree with schedule_id when both are supplied. */
+                date?: string;
                 /** @description Active public reading plan ID. Without it, only basic chapter information is returned. */
                 plan_id?: number;
+                /** @description Schedule in the selected plan whose date group should be used. */
+                schedule_id?: number;
             };
             header?: never;
             path?: never;

@@ -375,11 +375,14 @@ for (const navigation of ['chapter', 'tab']) test(`${navigation} move adopts ser
   const h = mount({ url: route, storage: Promise.resolve(JSON.stringify({
     activeTabId: 'a', barVisible: true, tabs: [
       { id: 'a', label: '창1', snapshot: { book: 'gen', chapter: 1, version: 'KNT', scrollPosition: 0 } },
-      { id: 'b', label: '창2', snapshot: { book: 'gen', chapter: 2, version: 'KNT', scrollPosition: .25 } },
+      { id: 'b', label: '창3', snapshot: { book: 'gen', chapter: 3, version: 'KNT', scrollPosition: .25 } },
     ],
-  })), detail: async q => ok({ book: q.get('book'), chapter: q.get('chapter'), plan_id: 4,
-    plan_name: 'Plan 4', plan_date: q.get('chapter') === '1' ? '2026-09-22' : '2026-09-23',
-    plan_detail: q.get('chapter') === '1' ? rows : newRows }),
+  })), detail: async q => {
+    const originalDay = q.get('date') === '2026-09-22' || q.get('chapter') === '1';
+    return ok({ book: q.get('book'), chapter: q.get('chapter'), plan_id: 4,
+      plan_name: 'Plan 4', plan_date: originalDay ? '2026-09-22' : '2026-09-23',
+      plan_detail: originalDay ? rows : newRows });
+  },
   update: async (_, init) => {
     const body = JSON.parse(init.body); writes.push(body);
     return ok({ success: true, plan_id: 4, schedule_ids: body.schedule_ids, is_completed: true });
@@ -387,8 +390,13 @@ for (const navigation of ['chapter', 'tab']) test(`${navigation} move adopts ser
   await h.wait(() => h.get('reader-tongdok-complete')?.props.disabled === false
     && h.nodes().some(n => n.type === 'ReaderTabs'));
   if (navigation === 'tab') h.nodes().find(n => n.type === 'ReaderTabs').props.onSelect('b');
-  else h.nodes().find(n => n.props.accessibilityLabel === '다음 장').props.onPress();
-  await h.wait(() => h.context()?.location.chapter === 2 && !h.context().loading);
+  else {
+    h.nodes().find(n => n.props.accessibilityLabel === '다음 장').props.onPress();
+    await h.wait(() => h.context()?.location.chapter === 2 && !h.context().loading);
+    assert.equal(h.context().context.date, '2026-09-22');
+    h.nodes().find(n => n.props.accessibilityLabel === '다음 장').props.onPress();
+  }
+  await h.wait(() => h.context()?.location.chapter === 3 && !h.context().loading);
   assert.equal(h.get('reader-tongdok-complete').props.disabled, false, 'new day must be writable after verified detail');
   assert.equal(h.context().context.date, '2026-09-23');
   assert.equal(h.context().context.scheduleId, 201);

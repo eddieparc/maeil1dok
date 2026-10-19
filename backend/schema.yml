@@ -4162,11 +4162,23 @@ paths:
         description: Positive chapter number.
         required: true
       - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Selected schedule date. Must agree with schedule_id when both
+          are supplied.
+      - in: query
         name: plan_id
         schema:
           type: integer
         description: Active public reading plan ID. Without it, only basic chapter
           information is returned.
+      - in: query
+        name: schedule_id
+        schema:
+          type: integer
+        description: Schedule in the selected plan whose date group should be used.
       tags:
       - todos
       security:

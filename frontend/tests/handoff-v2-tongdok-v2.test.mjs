@@ -68,6 +68,28 @@ test('progress separates completed count from the current ordinal', async () => 
   assert.equal(mode.getTongdokProgress('exo', 9)?.current, 0)
 })
 
+test('a repeated passage requests and completes its explicitly selected day', async () => {
+  const runtime = tongdokRuntime({
+    query: { tongdok: 'true', plan: '7', schedule: '201', date: '2026-09-13' },
+    get: async params => {
+      const selected = params.schedule_id === 201 && params.date === '2026-09-13'
+      const date = selected ? '2026-09-13' : '2026-09-06'
+      return detail({ chapter: 1, date, rows: [
+        { book: 'gen', book_kor: '창세기', start_chapter: 1, end_chapter: 1,
+          schedule_id: selected ? 201 : 101, date, is_complete: false },
+      ] })
+    },
+  })
+  const { useTongdokMode } = await loadTongdok(runtime)
+  const mode = useTongdokMode(); mode.initTongdokMode()
+
+  await mode.loadReadingDetail(7, 'gen', 1)
+  const completed = await mode.completeCurrentChapter('gen', 1)
+
+  assert.equal(mode.readingDetailResponse.value.data.plan_date, '2026-09-13')
+  assert.deepEqual(completed.persistedScheduleIds, [201])
+})
+
 test('detail cache is context-scoped and stale responses cannot replace it', async () => {
   const first = deferred(), second = deferred(); let request = 0
   const runtime = tongdokRuntime({ path: '/bible', query: { tongdok: 'true', plan: '7', schedule: '101' }, get: () => ++request === 1 ? first.promise : second.promise })
@@ -415,6 +437,9 @@ test('explicit schedule and plan switches reset the retained active range and lo
   await mode.loadReadingDetail(7, 'gen', 1)
   await mode.completeCurrentChapter('gen', 1)
   await mode.loadReadingDetail(7, 'gen', 3)
+  const nextDayRequest = runtime.calls.filter(call => call[0] === 'GET').at(-1)[2]
+  assert.equal(nextDayRequest.date, undefined)
+  assert.equal(nextDayRequest.schedule_id, undefined)
   // 이동으로 이미 2026-09-07 일정이 채택됐으므로 같은 식별자의 enable은 no-op이다.
   mode.enableTongdokMode(103, 7, '2026-09-07')
   assert.equal(mode.readingDetailResponse.value.data.plan_date, '2026-09-07')
@@ -440,13 +465,15 @@ test('explicit schedule and plan switches reset the retained active range and lo
   assert.equal(mode.getTongdokProgress('gen', 1), null)
 })
 
-test('a wrong selected schedule id is corrected to the browsed day before completion', async () => {
-  const runtime = tongdokRuntime({ query: { tongdok: 'true', plan: '7', schedule: '999' }, get: async params => rangeDetail(params) })
+test('an invalid explicit schedule cannot authorize another days completion', async () => {
+  const runtime = tongdokRuntime({ query: { tongdok: 'true', plan: '7', schedule: '999' }, get: async () => {
+    throw Object.assign(new Error('Schedule does not belong to this plan'), { status: 404 })
+  } })
   const { useTongdokMode } = await loadTongdok(runtime); const mode = useTongdokMode(); mode.initTongdokMode(); await mode.loadReadingDetail(7, 'gen', 1)
-  // schedule=999는 그날 행에 없지만 이동한 날짜의 일정이 채택되어 복구된다.
-  assert.equal(mode.tongdokScheduleId.value, 101)
-  assert.equal(mode.tongdokScheduleDate.value, '2026-09-06')
-  assert.equal((await mode.completeCurrentChapter('gen', 1)).status, 'progressed')
+  assert.equal(mode.tongdokScheduleId.value, 999)
+  assert.equal(mode.readingDetailResponse.value, null)
+  assert.equal((await mode.completeCurrentChapter('gen', 1)).status, 'invalid-context')
+  assert.equal(runtime.calls.filter(call => call[0] === 'POST').length, 0)
 })
 
 test('an ambiguous chapter cannot mark or complete multiple schedule IDs', async () => {
