@@ -65,7 +65,7 @@ test('읽기 설정은 바텀시트로 열린다', { timeout: 5000 }, async t =>
   const requests = [];
   const navigation = [];
   runtime.router = { back: () => navigation.push('back'), replace: path => navigation.push(path) };
-  runtime.auth = { isAuthenticated: Vue.ref(true) };
+  runtime.auth = { user: Vue.ref({ id: 7 }), isAuthenticated: Vue.ref(true) };
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     requests.push({ url, method: options.method ?? 'GET', payload: options.body ? JSON.parse(options.body) : undefined });
     return Response.json({ success: true, data: { settings: { font_family: 'noto-serif', font_size: 19, line_height: 1.8, theme: 'dark' } } });

@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { useApi } from '~/composables/useApi'
 import { useAuthService } from '~/composables/useAuthService'
+import {
+  READING_SETTINGS_STORAGE_KEY as STORAGE_KEY,
+  recoverPendingReadingSettings,
+  savePendingReadingSettings,
+} from '~/utils/readingSettingsRecovery'
 
 // Type definitions
 export type ThemeMode = 'light' | 'dark' | 'system'
@@ -102,7 +107,6 @@ export const FONT_WEIGHTS: Record<FontWeight, number> = {
   bold: 600,
 }
 
-const STORAGE_KEY = 'readingSettings'
 const OLD_VIEW_OPTIONS_KEY = 'bibleViewOptions'
 const OLD_FONT_SIZE_KEY = 'bibleFontSize'
 
@@ -111,14 +115,22 @@ interface SettingsSync {
   timer: ReturnType<typeof setTimeout> | null
   pending: Partial<ReadingSettings>
   serverLoaded: boolean
+  auth: ReturnType<typeof useAuthService> | null
+  ownerId: number | null
 }
 const syncStates = new WeakMap<object, SettingsSync>()
 const syncState = (store: object): SettingsSync => {
   let state = syncStates.get(store)
   if (!state) {
-    state = { timer: null, pending: {}, serverLoaded: false }
+    state = { timer: null, pending: {}, serverLoaded: false, auth: null, ownerId: null }
     syncStates.set(store, state)
   }
+  const userId = state.auth?.isAuthenticated.value ? state.auth.user.value?.id ?? null : null
+  if (state.ownerId !== null && state.ownerId !== userId) {
+    state.pending = {}
+    state.serverLoaded = false
+  }
+  state.ownerId = userId
   return state
 }
 
@@ -162,6 +174,8 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
   actions: {
     async initialize() {
       if (this.initialized) return
+      const auth = useAuthService()
+      syncState(this).auth = auth
 
       this.loadFromLocalStorage()
       this.migrateOldSettings()
@@ -169,7 +183,6 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
       this.setupSystemThemeListener()
       this.initialized = true
 
-      const auth = useAuthService()
       if (auth.isAuthenticated.value) {
         await this.syncFromServer()
         this.applyTheme()
@@ -253,6 +266,11 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
 
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings))
+        const auth = syncState(this).auth
+        savePendingReadingSettings(
+          this.settings, syncState(this).pending,
+          auth?.isAuthenticated.value ? auth.user.value?.id ?? null : null,
+        )
       } catch (e) {
         console.warn('Failed to save reading settings to localStorage:', e)
       }
@@ -261,12 +279,24 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
     // Sync from server (authenticated users)
     async syncFromServer() {
       const auth = useAuthService()
+      syncState(this).auth = auth
       if (!auth.isAuthenticated.value || this.isLoading) return
+      const userId = auth.user.value?.id ?? null
 
       this.isLoading = true
       try {
+        if (!this.initialized) this.loadFromLocalStorage()
+        const state = syncState(this)
+        state.pending = {
+          ...recoverPendingReadingSettings(
+            this.settings, auth.user.value?.id ?? null,
+            Object.keys(DEFAULT_SETTINGS) as Array<keyof ReadingSettings>,
+          ),
+          ...state.pending,
+        }
         const api = useApi()
         const response = await api.GET('/api/v1/auth/reading-settings/')
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== userId) return
 
         if (response.data.success && response.data.data.settings) {
           const serverSettings = response.data.data.settings
@@ -298,11 +328,16 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
           throw new Error('Reading settings were not returned by the server')
         }
       } catch (e) {
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== userId) return
         this.syncError = '설정을 불러오지 못했습니다. 다시 시도해주세요.'
         console.warn('Failed to sync reading settings from server:', e)
       } finally {
         this.isLoading = false
-        if (syncState(this).serverLoaded && Object.keys(syncState(this).pending).length) this.debouncedSync()
+        if (auth.isAuthenticated.value && auth.user.value?.id !== userId) {
+          void this.syncFromServer().then(() => this.applyTheme())
+        } else if (syncState(this).serverLoaded && Object.keys(syncState(this).pending).length) {
+          this.debouncedSync()
+        }
       }
     },
 
@@ -311,6 +346,7 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
       const auth = useAuthService()
       if (!auth.isAuthenticated.value || this.isLoading || this.isSyncing) return
       const state = syncState(this)
+      const userId = auth.user.value?.id ?? null
       // A pending edit must not send untouched defaults before the user's GET completes.
       if (!state.serverLoaded) await this.syncFromServer()
       if (!state.serverLoaded) return
@@ -338,17 +374,22 @@ export const useReadingSettingsStore = defineStore('readingSettings', {
           show_footnotes: snapshot.showFootnotes,
         })
         if (!response.success) throw new Error('Reading settings persistence failed')
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== userId) return
         this.lastSyncedAt = new Date()
         for (const key of Object.keys(state.pending) as Array<keyof ReadingSettings>) {
           if (state.pending[key] === snapshot[key]) delete state.pending[key]
         }
+        this.saveToLocalStorage()
       } catch (e) {
+        if (!auth.isAuthenticated.value || auth.user.value?.id !== userId) return
         this.syncError = '설정을 서버에 저장하지 못했습니다. 이 기기의 변경사항은 유지됩니다.'
         console.warn('Failed to sync reading settings to server:', e)
       } finally {
         this.isSyncing = false
         // Serialize writes; a later user edit must finish after the in-flight snapshot.
-        if (Object.keys(state.pending).some(key => this.settings[key as keyof ReadingSettings] !== snapshot[key as keyof ReadingSettings])) this.debouncedSync()
+        const pending = syncState(this).pending
+        if (Object.keys(pending).length && (auth.user.value?.id !== userId ||
+            Object.keys(pending).some(key => this.settings[key as keyof ReadingSettings] !== snapshot[key as keyof ReadingSettings]))) this.debouncedSync()
       }
     },
 
