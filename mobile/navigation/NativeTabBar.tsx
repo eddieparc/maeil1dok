@@ -76,13 +76,15 @@ export function NativeTabBar({ state, navigation }: BottomTabBarProps) {
       selectedIndex={state.index}
       onTabSelect={({ nativeEvent }) => {
         const route = state.routes[nativeEvent.index];
-        if (!route || state.index === nativeEvent.index) return;
+        if (!route) return;
         const event = navigation.emit({
           type: 'tabPress',
           target: route.key,
           canPreventDefault: true,
         });
-        if (!event.defaultPrevented) navigation.navigate(route.name);
+        if (state.index !== nativeEvent.index && !event.defaultPrevented) {
+          navigation.navigate(route.name);
+        }
       }}
     />
   );
