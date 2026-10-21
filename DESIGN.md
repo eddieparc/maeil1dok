@@ -109,6 +109,30 @@ All spacing derives from 4px.
 
 Buttons, chips, segments, badges and inputs use `--radius-pill: 999px`; small controls use `--radius-control: 10px`, calendar cells `--radius-cell: 4px`.
 
+### Native App Navigation
+
+- The native app shell uses the light palette consistently, including shared
+  sheets and status-bar chrome, regardless of system appearance. An explicitly
+  supplied component mode and the user's reading-content theme remain separate.
+- The iOS floating tab bar has one opaque `--color-bg-card` surface, a 1px
+  `--color-border-default` outline, and no glass/material layers. Elevation uses
+  `--color-text-primary` at 8% opacity, 12pt radius and 4pt vertical offset.
+- Active items use `--color-accent-primary` on `--color-accent-bg`; inactive
+  items use `--color-text-secondary`, never tertiary text. The selected capsule
+  has no outline or separate shadow.
+- The capsule is 56pt tall: 44pt item targets plus 6pt inner padding per edge.
+  Keep a 16pt screen gutter, 480pt maximum width, and 8pt gap above the bottom
+  safe area. Screen scroll padding includes this entire overlay exactly once.
+- Symbols are 22pt, labels are 11pt with selected semibold weight. Selection
+  transitions take 250ms; presses use opacity 0.85 and scale 0.97 over 150ms.
+  Reduced motion disables selection movement and press scaling.
+- Native light screens use dark system status-bar icons. Icons without visible
+  text have accessible action labels and at least a 44pt target.
+- Schedule month chips are at least 44pt high. Layout and selection changes
+  reveal the selected month without a timer. The list also clears its 96pt
+  bulk-action region and 68pt floating-top-action region when those are shown,
+  in addition to the bottom navigation inset.
+
 ### Grouped Settings Section
 
 - Structure: section title, bordered `--color-bg-card` container, stacked rows.

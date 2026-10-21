@@ -11,10 +11,11 @@
         <Skeleton width="240px" height="44px" />
         <ListCard><Skeleton v-for="i in 4" :key="i" height="56px" /></ListCard>
       </div>
-      <ListCard v-else-if="error" class="error-state">
+      <ListCard v-else-if="error && (activeTab !== 'board' || !validGroupId)" class="error-state">
         <CircleAlert :size="48" aria-hidden="true" />
         <h2>그룹을 불러올 수 없습니다</h2>
         <p role="alert">{{ error }}</p>
+        <AppButton variant="secondary" @click="loadGroupData">다시 시도</AppButton>
         <AppButton variant="secondary" to="/groups">그룹 목록으로 돌아가기</AppButton>
       </ListCard>
       <template v-else-if="currentGroup">
@@ -51,7 +52,7 @@
             :aria-selected="activeTab === tab.value"
             :aria-controls="`group-panel-${tab.value}`"
             :tabindex="activeTab === tab.value ? 0 : -1"
-            @click="activeTab = tab.value"
+            @click="selectTab(tab.value)"
             @keydown="handleTabKeydown($event, tab.value)"
           />
         </div>
@@ -91,18 +92,14 @@
             <EmptyState v-else title="등록된 읽기표가 없습니다" description="그룹에 읽기표가 연결되면 일정을 볼 수 있어요." />
           </ListCard>
         </div>
-        <!-- TODO(handoff-v2): No group board API is available; retain the honest unavailable state. -->
-        <div v-else id="group-panel-board" role="tabpanel" aria-labelledby="group-tab-board">
-          <ListCard class="fade-in">
-            <EmptyState title="게시판 준비 중" description="아직 그룹 게시판 기능이 제공되지 않습니다.">
-              <template #icon><MessageSquare :size="48" aria-hidden="true" /></template>
-            </EmptyState>
-          </ListCard>
-        </div>
       </template>
+      <div v-if="!isLoading && boardVisited && validGroupId" v-show="activeTab === 'board'" id="group-panel-board" role="tabpanel"
+        :aria-labelledby="currentGroup ? 'group-tab-board' : undefined" :aria-label="currentGroup ? undefined : '그룹 게시판'">
+        <GroupBoard :key="`${groupId}:${auth.user.value?.id ?? 'guest'}`" :group-id="groupId" :member="currentGroup?.is_member" />
+      </div>
     </div>
 
-    <div v-if="currentGroup && !isLoading && !error" class="group-cta">
+    <div v-if="currentGroup && !isLoading && !error && (activeTab !== 'board' || !currentGroup.is_member)" class="group-cta">
       <div class="group-cta-inner">
         <AppButton v-if="currentGroup.is_member" variant="primary" size="lg" block @click="handleOpenChat">그룹 채팅 열기</AppButton>
         <AppButton v-else variant="primary" size="lg" block :disabled="currentGroup.is_full" :loading="isActionLoading" @click="handleJoinGroup">{{ currentGroup.is_full ? '정원 초과' : '그룹 가입하기' }}</AppButton>
@@ -120,7 +117,9 @@
 </template>
 
 <script setup lang="ts">
-import { CircleAlert, Ellipsis, MessageSquare, Users } from '@lucide/vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { CircleAlert, Ellipsis, Users } from '@lucide/vue'
 import { useGroupsStore } from '~/stores/groups'
 import { useAuthService } from '~/composables/useAuthService'
 import { useApi } from '~/composables/useApi'
@@ -134,23 +133,38 @@ import FilterChip from '~/components/ui/FilterChip.vue'
 import ListCard from '~/components/ui/ListCard.vue'
 import Skeleton from '~/components/ui/Skeleton.vue'
 import GroupPlanCalendar from '~/components/groups/GroupPlanCalendar.vue'
+import GroupBoard from '~/components/groups/GroupBoard.vue'
 
 const route = useRoute()
+const router = useRouter()
 const groupsStore = useGroupsStore()
 const auth = useAuthService()
 const api = useApi()
 const modal = useModal()
-const groupId = computed(() => parseInt(route.params.id as string))
+const groupId = computed(() => Number(route.params.id))
+const validGroupId = computed(() => Number.isSafeInteger(groupId.value) && groupId.value > 0)
 const isAuthenticated = computed(() => auth.isAuthenticated.value)
-const currentGroup = computed(() => groupsStore.currentGroup)
-const currentGroupMembers = computed(() => groupsStore.currentGroupMembers)
+// Keep this route's reads local: the shared store cannot discard old-owner replies.
+const currentGroup = ref<components['schemas']['ReadingGroupResponse'] | null>(null)
+const currentGroupMembers = ref<components['schemas']['GroupMember'][]>([])
 const isLoading = ref(true)
 const isMembersLoading = ref(true)
 const isActionLoading = ref(false)
 const error = ref<string | null>(null)
 const selectedPlanId = ref<number | null>(null)
 const selectedPlan = computed(() => currentGroup.value?.plans.find(plan => plan.id === selectedPlanId.value))
-const activeTab = ref<'info' | 'calendar' | 'board'>('info')
+type GroupTab = 'info' | 'calendar' | 'board'
+const activeTab = ref<GroupTab>(route.query.tab === 'board' ? 'board' : route.query.tab === 'calendar' ? 'calendar' : 'info')
+const boardVisited = ref(activeTab.value === 'board')
+watch(() => route.query.tab, tab => {
+  activeTab.value = tab === 'board' ? 'board' : tab === 'calendar' ? 'calendar' : 'info'
+  if (activeTab.value === 'board') boardVisited.value = true
+})
+const selectTab = (tab: GroupTab) => {
+  activeTab.value = tab
+  if (tab === 'board') boardVisited.value = true
+  void router.replace({ query: { ...route.query, tab } })
+}
 const showMore = ref(false)
 const tabs = [
   { value: 'info', label: '멤버' },
@@ -164,7 +178,7 @@ const handleTabKeydown = (event: KeyboardEvent, value: typeof activeTab.value) =
       : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null
   if (next === null) return
   event.preventDefault()
-  activeTab.value = tabs[next]?.value ?? tabs[0].value
+  selectTab(tabs[next]?.value ?? tabs[0].value)
   document.getElementById(`group-tab-${activeTab.value}`)?.focus()
 }
 
@@ -193,8 +207,14 @@ const weekStateLabel = (userId: number, key: string) => ({ completed: '읽음', 
 
 // 월 경계 주간도 기존 월별 API로 조회한다. 상세 화면의 스냅샷을 사용해 일정 탭의 store와 분리한다.
 let activityRequest = 0
+let groupRequest = 0
+let mounted = false
+let disposed = false
+const owner = computed(() => `${groupId.value}:${auth.user.value?.id ?? ''}:${auth.isAuthenticated.value}`)
 const loadActivity = async () => {
   const request = ++activityRequest
+  const requestOwner = owner.value
+  const isCurrent = () => mounted && request === activityRequest && requestOwner === owner.value
   const planId = selectedPlanId.value
   stats.value = []
   weekCalendar.value = {}
@@ -207,9 +227,9 @@ const loadActivity = async () => {
       try {
         const { data } = await api.GET(api.path('/api/v1/todos/scoreboard/group/{group_id}/', { group_id: groupId.value }), { params: { period: 'all', plan_id: planId } })
         if (!data?.success) throw new Error('그룹 진도를 불러올 수 없습니다.')
-        if (request === activityRequest) stats.value = data.leaderboard ?? []
+        if (isCurrent()) stats.value = data.leaderboard ?? []
       } catch (err) {
-        if (request === activityRequest) statsError.value = err instanceof Error ? err.message : '그룹 진도를 불러올 수 없습니다.'
+        if (isCurrent()) statsError.value = err instanceof Error ? err.message : '그룹 진도를 불러올 수 없습니다.'
       }
     })(),
     (async () => {
@@ -219,9 +239,9 @@ const loadActivity = async () => {
           if (!data?.success) throw new Error('주간 기록을 불러올 수 없습니다.')
           return data.calendar
         }))
-        if (request === activityRequest) weekCalendar.value = Object.assign({}, ...calendars)
+        if (isCurrent()) weekCalendar.value = Object.assign({}, ...calendars)
       } catch (err) {
-        if (request === activityRequest) weekError.value = err instanceof Error ? err.message : '주간 기록을 불러올 수 없습니다.'
+        if (isCurrent()) weekError.value = err instanceof Error ? err.message : '주간 기록을 불러올 수 없습니다.'
       }
     })()
   ])
@@ -231,64 +251,114 @@ const handlePlanChange = (planId: number) => {
   loadActivity()
 }
 const loadGroupData = async () => {
+  const request = ++groupRequest
+  const requestOwner = owner.value
+  const id = groupId.value
+  const isCurrent = () => mounted && request === groupRequest && requestOwner === owner.value
+  if (!validGroupId.value) {
+    error.value = '그룹을 찾을 수 없어요.'
+    isLoading.value = false
+    isMembersLoading.value = false
+    return
+  }
   isLoading.value = true
   isMembersLoading.value = true
   error.value = null
   try {
-    const result = await groupsStore.fetchGroupDetail(groupId.value)
-    if (!result.success) {
-      error.value = result.error || '그룹 정보를 불러올 수 없습니다.'
-      return
-    }
-    selectedPlanId.value = currentGroup.value?.plans[0]?.id ?? null
-    await Promise.all([groupsStore.fetchGroupMembers(groupId.value), loadActivity()])
-  } catch (err: any) {
-    error.value = err.message || '그룹 정보를 불러올 수 없습니다.'
+    const { data } = await api.GET(api.path('/api/v1/todos/groups/{group_id}/', { group_id: id }))
+    if (!isCurrent()) return
+    if (!data.success || !data.group) throw new Error('그룹 정보를 불러올 수 없습니다.')
+    currentGroup.value = data.group
+    if (!data.group.plans.some(plan => plan.id === selectedPlanId.value)) selectedPlanId.value = data.group.plans[0]?.id ?? null
+    await Promise.all([
+      (async () => {
+        try {
+          const { data: members } = await api.GET(api.path('/api/v1/todos/groups/{group_id}/members/', { group_id: id }))
+          if (isCurrent()) {
+            currentGroupMembers.value = members.members ?? []
+            if (!members.success) weekError.value = '멤버 정보를 불러올 수 없어요.'
+          }
+        } catch {
+          if (isCurrent()) weekError.value = '멤버 정보를 불러올 수 없어요.'
+        }
+      })(),
+      loadActivity(),
+    ])
+  } catch (err) {
+    if (isCurrent()) error.value = err instanceof Error ? err.message : '그룹 정보를 불러올 수 없습니다.'
   } finally {
-    isLoading.value = false
-    isMembersLoading.value = false
+    if (isCurrent()) {
+      isLoading.value = false
+      isMembersLoading.value = false
+    }
   }
 }
-onMounted(loadGroupData)
+watch(owner, () => {
+  groupRequest++
+  activityRequest++
+  currentGroup.value = null
+  currentGroupMembers.value = []
+  stats.value = []
+  weekCalendar.value = {}
+  selectedPlanId.value = null
+  isActionLoading.value = false
+  if (mounted) void loadGroupData()
+}, { flush: 'sync' })
+onMounted(async () => {
+  await auth.initialize()
+  if (disposed) return
+  mounted = true
+  void loadGroupData()
+})
 
 const handleJoinGroup = async () => {
+  if (isActionLoading.value) return
   if (!isAuthenticated.value) {
     await modal.alert({ title: '로그인 필요', description: '로그인이 필요합니다.', icon: 'warning' })
-    navigateTo('/login')
+    navigateTo(`/login?redirect=${encodeURIComponent(`/groups/${groupId.value}?tab=${activeTab.value}`)}`)
     return
   }
+  const requestOwner = owner.value
+  const id = groupId.value
   isActionLoading.value = true
   try {
-    const result = await groupsStore.joinGroup(groupId.value)
+    const result = await groupsStore.joinGroup(id)
+    if (!mounted || requestOwner !== owner.value) return
     if (result.success) await loadGroupData()
     else await modal.alert({ title: '가입 실패', description: result.error || '그룹 가입에 실패했습니다.', icon: 'error' })
   } catch (err: any) {
-    await modal.alert({ title: '가입 실패', description: err.message || '그룹 가입에 실패했습니다.', icon: 'error' })
+    if (mounted && requestOwner === owner.value) await modal.alert({ title: '가입 실패', description: err.message || '그룹 가입에 실패했습니다.', icon: 'error' })
   } finally {
-    isActionLoading.value = false
+    if (mounted && requestOwner === owner.value) isActionLoading.value = false
   }
 }
 const handleLeaveGroup = async () => {
+  if (isActionLoading.value) return
+  const requestOwner = owner.value
+  const id = groupId.value
   showMore.value = false
-  const confirmed = await modal.confirm({ title: '그룹 탈퇴', description: '정말로 이 그룹에서 탈퇴하시겠습니까?', confirmText: '탈퇴', confirmVariant: 'danger', cancelText: '취소', icon: 'warning' })
-  if (!confirmed) return
   isActionLoading.value = true
+  const confirmed = await modal.confirm({ title: '그룹 탈퇴', description: '정말로 이 그룹에서 탈퇴하시겠습니까?', confirmText: '탈퇴', confirmVariant: 'danger', cancelText: '취소', icon: 'warning' })
+  if (!mounted || requestOwner !== owner.value) return
+  if (!confirmed) { isActionLoading.value = false; return }
   try {
-    const result = await groupsStore.leaveGroup(groupId.value)
+    const result = await groupsStore.leaveGroup(id)
+    if (!mounted || requestOwner !== owner.value) return
     if (result.success) navigateTo('/groups')
     else await modal.alert({ title: '탈퇴 실패', description: result.error || '그룹 탈퇴에 실패했습니다.', icon: 'error' })
   } catch (err: any) {
-    await modal.alert({ title: '탈퇴 실패', description: err.message || '그룹 탈퇴에 실패했습니다.', icon: 'error' })
+    if (mounted && requestOwner === owner.value) await modal.alert({ title: '탈퇴 실패', description: err.message || '그룹 탈퇴에 실패했습니다.', icon: 'error' })
   } finally {
-    isActionLoading.value = false
+    if (mounted && requestOwner === owner.value) isActionLoading.value = false
   }
 }
 // TODO(handoff-v2): 현재 앱에는 채팅 라우트/API가 없다. 존재하지 않는 경로로 이동하지 않는다.
 const handleOpenChat = () => modal.alert({ title: '그룹 채팅', description: '아직 그룹 채팅 기능이 제공되지 않습니다.' })
 onUnmounted(() => {
+  disposed = true
+  mounted = false
+  groupRequest++
   activityRequest++
-  groupsStore.currentGroup = null
-  groupsStore.currentGroupMembers = []
 })
 </script>
 

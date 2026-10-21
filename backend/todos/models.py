@@ -5,6 +5,8 @@ from django.utils import timezone
 from django.conf import settings
 
 from django.core.exceptions import ValidationError
+from django.db.models.functions import Length, Trim
+from django.db.models.lookups import GreaterThan, LessThanOrEqual
 from datetime import time
 
 VISITOR_COUNT_INCREMENT_RETRY_DELAYS = (0, 0.02, 0.05, 0.1)
@@ -676,6 +678,41 @@ class GroupMembership(models.Model):
     
     def __str__(self):
         return f"{self.user.nickname} in {self.group.name} as {self.get_role_display()}"
+
+
+class GroupPost(models.Model):
+    """Member-only plain-text posts owned by their group and author."""
+
+    group = models.ForeignKey(ReadingGroup, on_delete=models.CASCADE, related_name='posts')
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='group_posts'
+    )
+    title = models.CharField(max_length=200)
+    content = models.TextField(max_length=10000)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['group', '-created_at', '-id'], name='group_post_order_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    GreaterThan(Length(Trim('title')), models.Value(0))
+                    & LessThanOrEqual(Length('title'), models.Value(200))
+                ),
+                name='group_post_title_bounds',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    GreaterThan(Length(Trim('content')), models.Value(0))
+                    & LessThanOrEqual(Length('content'), models.Value(10000))
+                ),
+                name='group_post_content_bounds',
+            ),
+        ]
 
 
 class GroupInvitation(models.Model):

@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "covered_route_count": 207,
+    "covered_route_count": 209,
     "excluded_route_count": 23,
     "personas": [
       "anonymous",
       "owner",
       "non_owner"
     ],
-    "route_count": 230,
+    "route_count": 232,
     "schema_version": 1
   },
   "excluded": {
@@ -6122,6 +6122,79 @@
               "offset": "<integer>",
               "returned_members": "<integer>",
               "total_members": "<integer>"
+            },
+            "success": "<boolean>"
+          },
+          "status": 200
+        }
+      }
+    },
+    "api/v1/todos/groups/<int:group_id>/posts/": {
+      "method": "GET",
+      "name": "group-posts",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 404
+        },
+        "owner": {
+          "shape": {
+            "count": "<integer>",
+            "next": "<null>",
+            "posts": {
+              "element_shapes": [
+                {
+                  "author": {
+                    "id": "<id>",
+                    "nickname": "<string>"
+                  },
+                  "can_delete": "<boolean>",
+                  "can_edit": "<boolean>",
+                  "content": "<string>",
+                  "created_at": "<datetime>",
+                  "group_id": "<id>",
+                  "id": "<id>",
+                  "title": "<string>",
+                  "updated_at": "<datetime>"
+                }
+              ],
+              "length": 1,
+              "type": "list"
+            },
+            "previous": "<null>",
+            "success": "<boolean>"
+          },
+          "status": 200
+        }
+      }
+    },
+    "api/v1/todos/groups/<int:group_id>/posts/<int:post_id>/": {
+      "method": "GET",
+      "name": "group-post-detail",
+      "personas": {
+        "anonymous": {
+          "status": 401
+        },
+        "non_owner": {
+          "status": 404
+        },
+        "owner": {
+          "shape": {
+            "post": {
+              "author": {
+                "id": "<id>",
+                "nickname": "<string>"
+              },
+              "can_delete": "<boolean>",
+              "can_edit": "<boolean>",
+              "content": "<string>",
+              "created_at": "<datetime>",
+              "group_id": "<id>",
+              "id": "<id>",
+              "title": "<string>",
+              "updated_at": "<datetime>"
             },
             "success": "<boolean>"
           },

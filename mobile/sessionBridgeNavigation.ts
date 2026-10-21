@@ -5,26 +5,33 @@ export type SessionBridgeConsumeUrlOptions = {
   readonly currentUrl?: string | null;
 };
 
-const resolveSessionBridgeNextUrl = (
+export const resolveSessionBridgeNextUrl = (
   currentUrl: string | null | undefined,
   webAppUrl: string,
 ): string => {
   const rootUrl = new URL('/', webAppUrl);
-  if (!currentUrl) return rootUrl.toString();
+  if (!currentUrl || currentUrl.includes('\\')) return '/';
 
   try {
     const candidate = new URL(currentUrl);
     const isAuthOnlyPath =
       candidate.pathname.startsWith('/login')
-      || candidate.pathname.startsWith('/auth/');
+      || candidate.pathname === '/auth'
+      || candidate.pathname.startsWith('/auth/')
+      || candidate.pathname.startsWith('/api/v1/auth/')
+      || candidate.pathname.startsWith('/api/v1/accounts/');
 
-    if (candidate.origin !== rootUrl.origin || isAuthOnlyPath) {
-      return rootUrl.toString();
+    if (
+      candidate.origin !== rootUrl.origin
+      || candidate.pathname.startsWith('//')
+      || isAuthOnlyPath
+    ) {
+      return '/';
     }
 
-    return candidate.toString();
+    return candidate.pathname + candidate.search + candidate.hash;
   } catch {
-    return rootUrl.toString();
+    return '/';
   }
 };
 

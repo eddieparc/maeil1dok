@@ -46,7 +46,7 @@ export const hasNativeTabBar = shouldUseNativeTabBar(
 // Floating capsule metrics. The bar is an absolute overlay, so screens that
 // host scrollable content must pad by useNativeTabBarInset() to keep the last
 // row reachable. On Android (WebTabBar stays in-flow) the inset is 0.
-export const NATIVE_TAB_BAR_HEIGHT = 55;
+export const NATIVE_TAB_BAR_HEIGHT = 56;
 export const NATIVE_TAB_BAR_GAP = 8;
 const NATIVE_TAB_BAR_MAX_WIDTH = 480;
 

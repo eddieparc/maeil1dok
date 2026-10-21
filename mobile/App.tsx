@@ -26,6 +26,7 @@ import { WebViewControllerProvider, useWebViewController } from './screens/WebVi
 import { AuthSessionProvider } from './auth/AuthSession';
 import RootNavigator from './navigation/RootNavigator';
 import { isPushBridgeOrigin, pushDestination } from './nativePush';
+import { colors } from './components/ui/tokens';
 
 initMobileTelemetry();
 SplashScreen.preventAutoHideAsync();
@@ -218,27 +219,30 @@ function AppContent() {
   if (!fontsLoaded || !ready) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#faf8f6" />
+        <StatusBar barStyle="dark-content" backgroundColor={colors.light.background} />
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#4B9F7E" />
+          <ActivityIndicator size="large" color={colors.light.accent} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <AuthSessionProvider key={stack.web}>
-      <WebViewControllerProvider bundleIdentity={bundleIdentity}>
-        <ShellBody />
-      </WebViewControllerProvider>
-    </AuthSessionProvider>
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.light.background} />
+      <AuthSessionProvider key={stack.web}>
+        <WebViewControllerProvider bundleIdentity={bundleIdentity}>
+          <ShellBody />
+        </WebViewControllerProvider>
+      </AuthSessionProvider>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#faf8f6',
+    backgroundColor: colors.light.background,
   },
   loadingOverlay: {
     position: 'absolute',
@@ -248,7 +252,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#faf8f6',
+    backgroundColor: colors.light.background,
   },
 });
 

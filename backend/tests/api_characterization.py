@@ -81,6 +81,8 @@ def _parameter_value(route, parameter, fixture_ids):
         return fixture_ids["notification"]
     if parameter == "group_id":
         return fixture_ids["private_group"]
+    if parameter == "post_id":
+        return fixture_ids["group_post"]
     if parameter == "invitation_id":
         return fixture_ids["invitation"]
     if parameter == "subscription_id":
@@ -508,6 +510,7 @@ def create_characterization_fixtures():
     Notification = model("Notification")
     ReadingGroup = model("ReadingGroup")
     GroupMembership = model("GroupMembership")
+    GroupPost = model("GroupPost")
     GroupInvitation = model("GroupInvitation")
     UserReadingPosition = model("UserReadingPosition")
     BibleBookmark = model("BibleBookmark")
@@ -678,6 +681,9 @@ def create_characterization_fixtures():
     )
     private_group.plans.add(owner_plan)
     GroupMembership.objects.create(group=private_group, user=owner, role="admin")
+    group_post = GroupPost.objects.create(
+        group=private_group, author=owner, title="Board contract", content="Plain text",
+    )
     invitation_group = ReadingGroup.objects.create(
         name="Characterization invitation group",
         creator=non_owner,
@@ -869,6 +875,7 @@ def create_characterization_fixtures():
         "hasena_summary_video_id": summary_video_id,
         "notification": owner_notification.id,
         "private_group": private_group.id,
+        "group_post": group_post.id,
         "invitation": invitation.id,
         "calendar_setting": calendar_setting.id,
         "bookmark": owner_bookmark.id,

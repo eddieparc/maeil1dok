@@ -5,6 +5,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthSession';
 import { navigationRef, type TabParamList } from '../navigation/navigationRef';
+import { useAppStack } from '../navigation/AppStackContext';
 import { useNativeTabBarInset } from '../navigation/NativeTabBar';
 import { NativeButton } from '../components/ui/NativeButton';
 import { NativeStateView } from '../components/ui/NativeStateView';
@@ -18,6 +19,7 @@ import type { GroupQuery } from '../api/togetherData';
 
 export default function TogetherScreen({ route }: BottomTabScreenProps<TabParamList, 'Together'>) {
   const { apiFetch, status, accessToken } = useAuth();
+  const { stack } = useAppStack();
   const colors = useNativeColors();
   const insets = useSafeAreaInsets();
   const tabInset = useNativeTabBarInset();
@@ -69,7 +71,11 @@ export default function TogetherScreen({ route }: BottomTabScreenProps<TabParamL
             : state.detailStatus === 'loading' ? <NativeStateView kind="loading" message="그룹을 불러오는 중" />
               : state.detailStatus === 'error' ? <NativeStateView kind="error" message={state.detailError} onRetry={() => { if (state.selectedId !== null) void model.openGroup(state.selectedId); }} />
                 : state.detail && <GroupDetail key={state.detail.id} group={state.detail} apiFetch={apiFetch} signedIn={status === 'signedIn'}
-                  actionError={state.actionError} />}
+                  actionError={state.actionError} onBoard={() => {
+                    if (state.detail && navigationRef.isReady()) {
+                      navigationRef.navigate('WebView', { url: `${stack.web}/groups/${state.detail.id}?tab=board` });
+                    }
+                  }} />}
       </ScrollView>
       {state.detail && <View style={[styles.footer, { paddingBottom: tabInset + 12, backgroundColor: colors.background }]}>
         <GroupJoinAction group={state.detail} signedIn={status === 'signedIn'} joining={state.joining}

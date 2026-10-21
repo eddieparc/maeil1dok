@@ -98,6 +98,8 @@ PROTECTED_ROUTE_NAMES = frozenset({
     "get_reading_settings",
     "get_user",
     "group-member-progress",
+    "group-posts",
+    "group-post-detail",
     "group-visibility",
     "hasena-record-list",
     "hasena-record-update",

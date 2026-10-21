@@ -150,11 +150,11 @@ if (!baseline) {
     assert.equal(count, 0);
     assert.deepEqual(button.props.accessibilityState, { disabled: true, selected: true });
   });
-  test('semantic palette follows OS mode and permits an explicit app mode', () => {
+  test('native shell stays light on a dark system while explicit dark mode is preserved', () => {
     scheme = 'dark';
     try {
-      const dark = NativeButton({ label: 'Fixture', onPress() {} });
-      const light = NativeButton({ label: 'Fixture', onPress() {}, mode: 'light' });
+      const light = NativeButton({ label: 'Fixture', onPress() {} });
+      const dark = NativeButton({ label: 'Fixture', onPress() {}, mode: 'dark' });
       assert.equal(style(dark.props.style({ pressed: false })).backgroundColor, colors.dark.surface);
       assert.equal(style(light.props.style({ pressed: false })).backgroundColor, colors.light.surface);
       assert.equal(colors.light.text, '#1F1A17');

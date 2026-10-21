@@ -1,7 +1,9 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -30,8 +32,8 @@ import * as SecureStore from 'expo-secure-store';
 import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import CookieManager from '@react-native-cookies/cookies';
-import { useRoute } from '@react-navigation/native';
-import type { RouteProp } from '@react-navigation/native';
+import { usePreventRemove, useRoute } from '@react-navigation/native';
+import type { NavigationAction, RouteProp } from '@react-navigation/native';
 import {
   BETA_STACK,
   PROD_STACK,
@@ -42,7 +44,7 @@ import { redactSensitiveUrl } from '../urlRedaction';
 import { csrfHeadersFrom } from '../csrfHeader';
 import { hasAuthCookies, runStoredSessionRestore } from '../sessionRestore';
 import { buildNativeClientObservationHeaders } from '../clientObservationHeaders';
-import { buildSessionBridgeConsumeUrl } from '../sessionBridgeNavigation';
+import { buildSessionBridgeConsumeUrl, resolveSessionBridgeNextUrl } from '../sessionBridgeNavigation';
 import { isFatalWebViewError, shouldAllowWebViewNavigation } from '../webviewNavigation';
 import {
   buildSocialSignupNavigation,
@@ -70,6 +72,14 @@ import { NativePushOperationError } from '../nativePushLifecycle';
 import { useAuth } from '../auth/AuthSession';
 import { createTokenStore } from '../api/authTokens';
 import { navigationRef, type RootStackParamList } from '../navigation/navigationRef';
+import { NativeButton } from '../components/ui/NativeButton';
+import { spacing, useNativeColors } from '../components/ui/tokens';
+import { useReadingSettings } from '../components/bible/ReadingSettingsProvider';
+import {
+  buildNativeWebFeatureBootstrap,
+  nativeWebFeatureOwnerId,
+  parseNativeWebFeatureReply,
+} from '../nativeWebFeatureBridge';
 
 /**
  * `decelerationRate` is typed Float by Fabric codegen. The documented `'normal'`
@@ -224,6 +234,14 @@ export function WebViewControllerProvider({
   const dnsRetryAvailableRef = useRef(true);
   const restoreGenerationRef = useRef(0);
   const restorePromiseRef = useRef<Promise<boolean> | null>(null);
+  const setWebViewMounted = useCallback((mounted: boolean) => {
+    webViewMountedRef.current = mounted;
+    if (!mounted) {
+      firstLoadDoneRef.current = false;
+      restoreGenerationRef.current += 1;
+      restorePromiseRef.current = null;
+    }
+  }, []);
 
   // Derived per render from the persisted beta flag. The constant-style names
   // are load-bearing: test harnesses extract these closures and inject the
@@ -249,14 +267,7 @@ export function WebViewControllerProvider({
       navigationRef.goBack();
     }
     if (webViewRef.current) {
-      webViewRef.current.injectJavaScript(`
-        if (window.history.length > 1) {
-          window.history.back();
-        } else {
-          window.location.href = '/';
-        }
-        true;
-      `);
+      webViewRef.current.injectJavaScript(buildLocationAssignmentScript(currentWebViewUrlRef.current));
     }
   };
 
@@ -502,9 +513,13 @@ export function WebViewControllerProvider({
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
     console.log('[WebView] NavigationState:', redactSensitiveUrl(navState.url), 'loading:', navState.loading);
-    currentWebViewUrlRef.current = navState.url;
+    const next = resolveSessionBridgeNextUrl(navState.url, WEB_APP_URL);
+    if (next !== '/' || navState.url === new URL('/', WEB_APP_URL).href) {
+      currentWebViewUrlRef.current = navState.url;
+    }
     setCanGoBack(navState.canGoBack);
-    if (navState.url.includes('/login') && navState.url.startsWith(WEB_APP_URL)) {
+    if (isPushBridgeOrigin(navState.url, WEB_APP_URL)
+      && /^\/login(?:\/|$)/.test(new URL(navState.url).pathname)) {
       showNativeLogin();
     }
   };
@@ -748,9 +763,7 @@ export function WebViewControllerProvider({
     bundleIdentity,
     webViewRef,
     isWebViewMounted: () => webViewMountedRef.current,
-    setWebViewMounted: (mounted: boolean) => {
-      webViewMountedRef.current = mounted;
-    },
+    setWebViewMounted,
     setPushToken,
     registerForPushNotifications,
     showNativeLogin,
@@ -782,6 +795,7 @@ export function WebViewControllerProvider({
 
 export default function WebViewScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useNativeColors();
   const route = useRoute<RouteProp<RootStackParamList, 'WebView'>>();
   const controller = useWebViewController();
   const {
@@ -801,16 +815,124 @@ export default function WebViewScreen() {
     consumePendingScript,
     queuePendingUrl,
     navigateToPendingUrl,
+    setWebViewMounted,
   } = controller;
   const { stack } = useAppStack();
   const WEB_APP_URL = stack.web;
+  const { sessionKey, settings, prepareWebFeature, applyWebSettings } = useReadingSettings();
+  const entryId = useId();
+  const scope = `${entryId}:${sessionKey ?? 'pending'}`;
+  const [preparedOwner, setPreparedOwner] = useState<string | null>(null);
+  const [preparationFailed, setPreparationFailed] = useState(false);
+  const [preparationAttempt, setPreparationAttempt] = useState(0);
+  const closingRef = useRef<{
+    requestId: string;
+    action: NavigationAction;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  const [closing, setClosing] = useState(false);
+  const closeSequence = useRef(0);
+  const currentScopeRef = useRef(scope);
+  currentScopeRef.current = scope;
+  const prepared = sessionKey !== null && preparedOwner === sessionKey;
+
+  useEffect(() => {
+    let current = true;
+    setPreparationFailed(false);
+    if (sessionKey) {
+      void prepareWebFeature().then(ok => {
+        if (!current) return;
+        if (ok) setPreparedOwner(sessionKey);
+        else setPreparationFailed(true);
+      });
+    }
+    return () => { current = false; };
+  }, [sessionKey, prepareWebFeature, preparationAttempt]);
+
+  useEffect(() => {
+    setClosing(false);
+    return () => {
+      const pending = closingRef.current;
+      if (pending) clearTimeout(pending.timer);
+      closingRef.current = null;
+    };
+  }, [scope]);
+
+  const failReturn = (action: NavigationAction) => {
+    const pending = closingRef.current;
+    if (pending) clearTimeout(pending.timer);
+    closingRef.current = null;
+    setClosing(false);
+    Alert.alert('설정 동기화 확인', '설정 저장을 확인하지 못했어요. 다시 시도하거나 저장 확인 없이 돌아갈 수 있어요.', [
+      { text: '취소', style: 'cancel' },
+      { text: '다시 시도', onPress: () => requestReturn(action) },
+      { text: '저장 확인 없이 돌아가기', onPress: () => navigationRef.dispatch(action) },
+    ]);
+  };
+  const requestReturn = (action: NavigationAction) => {
+    if (closingRef.current) return;
+    const requestId = `${scope}:${++closeSequence.current}`;
+    const requestedScope = scope;
+    closingRef.current = {
+      action, requestId,
+      timer: setTimeout(() => {
+        if (currentScopeRef.current === requestedScope) failReturn(action);
+      }, 15000),
+    };
+    setClosing(true);
+    webViewRef.current?.injectJavaScript(`
+      if (window.__maeilPrepareNativeReturn) {
+        void window.__maeilPrepareNativeReturn(${JSON.stringify(requestId)});
+      }
+      true;
+    `);
+  };
+  usePreventRemove(prepared, ({ data }) => requestReturn(data.action));
+
+  const handleFeatureMessage = (event: { nativeEvent: { data: string; url?: string } }) => {
+    const reply = parseNativeWebFeatureReply(event.nativeEvent.data);
+    if (!reply) { handleMessage(event); return; }
+    if (!isPushBridgeOrigin(event.nativeEvent.url, WEB_APP_URL) || reply.scope !== scope) return;
+    if (reply.kind === 'ready') return;
+    const pending = closingRef.current;
+    if (!pending || pending.requestId !== reply.requestId || !sessionKey) return;
+    if (reply.kind === 'confirming' || reply.kind === 'cancelled' || reply.kind === 'saving') {
+      clearTimeout(pending.timer);
+      if (reply.kind === 'cancelled') {
+        closingRef.current = null;
+        setClosing(false);
+      } else if (reply.kind === 'saving') {
+        pending.timer = setTimeout(() => {
+          if (currentScopeRef.current === scope) failReturn(pending.action);
+        }, 15000);
+      }
+      return;
+    }
+    if (reply.kind === 'error' || reply.userId !== nativeWebFeatureOwnerId(sessionKey)) {
+      failReturn(pending.action);
+      return;
+    }
+    clearTimeout(pending.timer);
+    // Keep the bounded deadline active while the native owner rereads/persists.
+    pending.timer = setTimeout(() => {
+      if (currentScopeRef.current === scope) failReturn(pending.action);
+    }, 15000);
+    void applyWebSettings(sessionKey, reply.settings).then(ok => {
+      if (closingRef.current !== pending || currentScopeRef.current !== scope) return;
+      if (!ok) { failReturn(pending.action); return; }
+      clearTimeout(pending.timer);
+      closingRef.current = null;
+      setClosing(false);
+      navigationRef.dispatch(pending.action);
+    });
+  };
 
   // The screen owns the mounted flag so controller.navigateToUrl can tell a
   // live WebView (inject) from an absent one (navigate with params).
   useEffect(() => {
-    controller.setWebViewMounted(true);
-    return () => controller.setWebViewMounted(false);
-  }, [controller]);
+    setWebViewMounted(prepared);
+    return () => setWebViewMounted(false);
+  }, [prepared, setWebViewMounted]);
 
   // A deep link that arrived while the WebView was not mounted lands here as a
   // route param; queue it so the first loadEnd navigates to it. The consumed
@@ -825,17 +947,29 @@ export default function WebViewScreen() {
     }
   }, [route.params?.url, queuePendingUrl, navigateToPendingUrl]);
 
-  if (isError) {
+  const returnHeader = (
+    <View style={[styles.featureHeader, { borderColor: colors.border, backgroundColor: colors.background }]}>
+      <NativeButton label={closing ? '설정 저장 확인 중' : '앱으로 돌아가기'} disabled={closing} onPress={() => {
+        if (navigationRef.isReady() && navigationRef.canGoBack()) navigationRef.goBack();
+      }} />
+    </View>
+  );
+
+  if (isError || preparationFailed) {
     return (
       <SafeAreaView style={styles.errorContainer}>
         <StatusBar barStyle="dark-content" backgroundColor="#faf8f6" />
+        {returnHeader}
         <View style={styles.errorContent}>
           <Text style={styles.errorEmoji}>📖</Text>
           <Text style={styles.errorTitle}>연결할 수 없습니다</Text>
           <Text style={styles.errorMessage}>
             인터넷 연결을 확인하고{'\n'}다시 시도해주세요
           </Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+          <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.accent }]} onPress={() => {
+            if (preparationFailed) setPreparationAttempt(value => value + 1);
+            else handleRetry();
+          }}>
             <Text style={styles.retryButtonText}>다시 시도</Text>
           </TouchableOpacity>
         </View>
@@ -846,8 +980,10 @@ export default function WebViewScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#faf8f6" />
-      <WebView
-        key={webViewKey}
+      {returnHeader}
+      <View style={styles.webContent}>
+      {!prepared ? <ActivityIndicator size="large" color={colors.accent} /> : <WebView
+        key={`${webViewKey}:${scope}`}
         ref={webViewRef}
         source={{ uri: WEB_APP_URL }}
         style={styles.webView}
@@ -861,8 +997,9 @@ export default function WebViewScreen() {
         onContentProcessDidTerminate={handleRetry}
         onNavigationStateChange={handleNavigationStateChange}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
-        onMessage={handleMessage}
+        onMessage={handleFeatureMessage}
         injectedJavaScriptBeforeContentLoaded={`
+          ${buildNativeWebFeatureBootstrap({ scope, sessionKey, webAppUrl: WEB_APP_URL, settings })}
           window.isReactNativeWebView = true;
           window.nativePushManaged = true;
           window.__shellBetaMode = true;
@@ -917,15 +1054,16 @@ export default function WebViewScreen() {
         `}
         renderLoading={() => (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4B9F7E" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         )}
-      />
+      />}
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#4B9F7E" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -938,6 +1076,14 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: '#faf8f6',
+  },
+  webContent: {
+    flex: 1,
+  },
+  featureHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   loadingContainer: {
     position: 'absolute',
@@ -988,7 +1134,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#4B9F7E',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,

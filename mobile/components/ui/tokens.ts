@@ -1,5 +1,3 @@
-import { useColorScheme } from 'react-native';
-
 export type NativeThemeMode = 'light' | 'dark';
 
 // Semantic counterparts of frontend/app/assets/css/themes.css.
@@ -48,8 +46,8 @@ export const typography = {
 
 export const geometry = { hitTarget: 48, buttonRadius: 12, sheetRadius: 24 } as const;
 
-// App theme is supplied by its owner; omission follows the OS without storing it.
+// Native shell chrome stays light until every native screen supports app theming.
+// Reading content and explicitly themed controls retain their own mode.
 export function useNativeColors(mode?: NativeThemeMode) {
-  const system = useColorScheme();
-  return colors[mode ?? system ?? 'light'];
+  return colors[mode ?? 'light'];
 }

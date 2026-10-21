@@ -84,6 +84,20 @@ eas build --profile production --platform ios
 eas build --profile production --platform android
 ```
 
+### iOS 빌드 SDK
+
+현재 Expo SDK 54 앱은 기존 AppDelegate 생명주기를 사용합니다.
+출하용 iOS 빌드는 `macos-sequoia-15.6-xcode-26.0` 이미지로 고정하며,
+`production-sim`도 같은 이미지와 `production` 환경 변수를 상속합니다.
+
+로컬 Xcode 27 SDK로 빌드한 앱은 iOS 27에서 UIScene 생명주기 미지원으로
+시작 직후 종료됩니다. iOS 27 검수는 출하 환경과 같은 시뮬레이터 빌드를 사용합니다.
+SDK 27로 전환할 때는 먼저 UIScene 생명주기와 소셜 로그인 콜백을 이식해야 합니다.
+
+```bash
+eas build --profile production-sim --platform ios
+```
+
 ### 앱스토어 제출
 
 ```bash

@@ -212,13 +212,15 @@ class LocalBuildChannelGuardTest(unittest.TestCase):
 class LocalSigningWorkflowTest(unittest.TestCase):
     """Local builds keep local versioning and store-compatible signing.
 
-    Two settings decide whether that path is coherent:
+    These settings keep the release path coherent:
 
     - `appVersionSource: local` makes `app.json` the single version truth. Under
       `remote`, EAS ignored the values `build.sh` writes, which is how versionCode
       ended up disagreeing three ways (app.json 8 / EAS remote 16 / device 17).
     - `credentialsSource: remote` uses the EAS-managed store upload key, including
       when the build itself runs locally.
+    - The release and simulator profiles share an explicit SDK image until the
+      Expo 54 AppDelegate adopts the scene lifecycle required by SDK 27.
     """
 
     def setUp(self) -> None:
@@ -244,6 +246,15 @@ class LocalSigningWorkflowTest(unittest.TestCase):
 
     def test_production_uses_store_matching_remote_credentials(self) -> None:
         self.assertEqual(self.eas["build"]["production"]["credentialsSource"], "remote")
+
+    def test_ios_release_and_simulator_share_the_supported_sdk_image(self) -> None:
+        image = self.eas["build"]["production"]["ios"].get("image")
+        self.assertEqual(image, "macos-sequoia-15.6-xcode-26.0")
+        self.assertEqual(self.eas["build"]["production"]["environment"], "production")
+        simulator = self.eas["build"]["production-sim"]
+        self.assertEqual(simulator["extends"], "production")
+        self.assertTrue(simulator["ios"]["simulator"])
+        self.assertEqual(simulator["ios"].get("image", image), image)
 
     def test_submit_config_carries_the_values_we_can_know(self) -> None:
         # Placeholders here fail at submission time, after a build has been made.

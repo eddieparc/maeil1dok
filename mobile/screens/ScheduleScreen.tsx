@@ -107,6 +107,15 @@ export default function ScheduleScreen() {
   const topVisible = useRef(false);
   const savingRef = useRef(false);
   const listRef = useRef<ScrollView>(null);
+  const monthRowRef = useRef<ScrollView>(null);
+  const monthOffsets = useRef<Record<number, number>>({});
+  const revealSelectedMonth = useCallback(() => {
+    const x = monthOffsets.current[cursor.month];
+    if (x !== undefined) {
+      monthRowRef.current?.scrollTo({ x: Math.max(x - 20, 0), animated: false });
+    }
+  }, [cursor.month]);
+  useEffect(revealSelectedMonth, [revealSelectedMonth]);
   const cardOffsets = useRef<Record<string, number>>({});
   const tabBarInset = useNativeTabBarInset();
   const identity = useMemo(() => ({}), [status, accessToken, apiFetch, stack.api, stack.web]);
@@ -514,9 +523,11 @@ export default function ScheduleScreen() {
         </View>
 
         <ScrollView
+          ref={monthRowRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.monthRow}
+          onContentSizeChange={revealSelectedMonth}
         >
           {MONTHS.map((month) => {
             const active = month === cursor.month;
@@ -531,7 +542,13 @@ export default function ScheduleScreen() {
             return (
               <TouchableOpacity
                 key={month}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active, disabled: saving }}
                 style={[styles.monthChip, active && styles.monthChipActive]}
+                onLayout={(event) => {
+                  monthOffsets.current[month] = event.nativeEvent.layout.x;
+                  if (active) revealSelectedMonth();
+                }}
                 onPress={() => {
                   navigationGeneration.current++;
                   pendingDate.current = null;
@@ -596,7 +613,9 @@ export default function ScheduleScreen() {
         <ScrollView
           ref={listRef}
           style={styles.list}
-          contentContainerStyle={[styles.listContent, { paddingBottom: tabBarInset }]}
+          contentContainerStyle={[styles.listContent, {
+            paddingBottom: tabBarInset + (bulkMode ? 96 : 0) + (showTop ? 68 : 0),
+          }]}
           scrollEventThrottle={16}
           onScroll={(event) => {
             const visible = event.nativeEvent.contentOffset.y > 300;
@@ -980,7 +999,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    minHeight: 32,
+    minHeight: 44,
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderWidth: 1,

@@ -9,19 +9,20 @@ const native = {
   View: 'View', Text: 'Text', TextInput: 'TextInput', Pressable: 'Pressable', Image: 'Image', ActivityIndicator: 'ActivityIndicator',
   StyleSheet: { create: (styles) => styles }, useColorScheme: () => 'light',
 };
-function load(relative) {
+function load(relative, overrides = {}) {
   const filename = path.resolve(__dirname, '..', relative);
   const instance = new Module(filename, module);
   instance.filename = filename;
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = instance.require.bind(instance);
   instance.require = (name) => {
+    if (Object.hasOwn(overrides, name)) return overrides[name];
     if (name === 'react-native') return native;
     if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
     if (!name.startsWith('.')) return original(name);
     const base = path.resolve(path.dirname(filename), name);
     const file = [`${base}.ts`, `${base}.tsx`].find(fs.existsSync);
-    return load(path.relative(path.resolve(__dirname, '..'), file));
+    return load(path.relative(path.resolve(__dirname, '..'), file), overrides);
   };
   instance._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
@@ -425,4 +426,52 @@ test('changing group or disposing session discards late leave acknowledgement', 
     assert.equal(model.state.selectedId, dispose ? 7 : 8);
     assert.equal(reads, dispose ? 1 : 2);
   }
+});
+
+test('actual native board button opens current group in current WebView stack and preserves local tab', async () => {
+  const navigations = [];
+  let ready = true;
+  let stack = { web: 'https://beta.maeil1dok.app' };
+  const model = new TogetherModel(async url => response({ success: true, group: group(url.endsWith('/23/') ? 23 : 17, { is_member: true }) }), true);
+  await model.openGroup(17);
+  // Native rendering is a host boundary; execute the shipped screen, detail,
+  // button and their handlers. Effects are excluded, not navigation handlers.
+  let values = [], cursor = 0;
+  const hooks = {
+    ...React,
+    useMemo: fn => fn(), useCallback: fn => fn, useEffect() {},
+    useSyncExternalStore: (_subscribe, snapshot) => snapshot(),
+    useState: initial => {
+      const index = cursor++;
+      if (!(index in values)) values[index] = typeof initial === 'function' ? initial() : initial;
+      return [values[index], value => { values[index] = value; }];
+    },
+  };
+  const overrides = {
+    react: hooks,
+    '@react-navigation/native': { useFocusEffect() {} },
+    '../auth/AuthSession': { useAuth: () => ({ apiFetch: async () => response({}), status: 'signedIn', accessToken: 'owner' }) },
+    '../navigation/AppStackContext': { useAppStack: () => ({ stack }) },
+    '../navigation/NativeTabBar': { useNativeTabBarInset: () => 84 },
+    '../navigation/navigationRef': { navigationRef: { isReady: () => ready, navigate: (...args) => navigations.push(args) } },
+    '../components/together/TogetherModel': { TogetherModel: class { constructor() { return model; } } },
+  };
+  const Screen = load('screens/TogetherScreen.tsx', overrides).default;
+  const render = () => { cursor = 0; return nodes(React.createElement(Screen, { route: {} })); };
+  const button = (tree, label) => tree.find(node => node.type === 'Pressable' && node.props.accessibilityLabel === label);
+  button(render(), '일정').props.onPress();
+  assert.equal(button(render(), '일정').props.accessibilityState.selected, true);
+  button(render(), '게시판').props.onPress();
+  assert.deepEqual(navigations, [['WebView', { url: 'https://beta.maeil1dok.app/groups/17?tab=board' }]]);
+  assert.equal(button(render(), '일정').props.accessibilityState.selected, true);
+  assert.equal(model.state.selectedId, 17);
+
+  stack = { web: 'https://maeil1dok.app' };
+  await model.openGroup(23);
+  button(render(), '게시판').props.onPress();
+  assert.deepEqual(navigations.at(-1), ['WebView', { url: 'https://maeil1dok.app/groups/23?tab=board' }]);
+  ready = false;
+  button(render(), '게시판').props.onPress();
+  assert.equal(navigations.length, 2);
+  assert.equal(render().some(node => node.type === 'WebView'), false);
 });

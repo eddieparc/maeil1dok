@@ -2992,6 +2992,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/todos/groups/{group_id}/posts/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["todos_groups_posts_list"];
+        put?: never;
+        post: operations["todos_groups_posts_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/todos/groups/{group_id}/posts/{post_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["todos_groups_posts_retrieve"];
+        put?: never;
+        post?: never;
+        delete: operations["todos_groups_posts_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["todos_groups_posts_partial_update"];
+        trace?: never;
+    };
     "/api/v1/todos/groups/{group_id}/visibility/": {
         parameters: {
             query?: never;
@@ -4524,6 +4556,9 @@ export interface components {
             /** Format: date-time */
             scheduled_deletion_at: string;
         };
+        DetailResponse: {
+            detail: string;
+        };
         /**
          * @description * `transcript_unavailable` - transcript_unavailable
          *     * `generation_failed` - generation_failed
@@ -4644,6 +4679,48 @@ export interface components {
             success: boolean;
             message: string;
             group?: components["schemas"]["ReadingGroupResponse"];
+        };
+        GroupPostAuthor: {
+            id: number;
+            nickname: string;
+        };
+        GroupPostEnvelope: {
+            success: boolean;
+            post: components["schemas"]["GroupPostResponse"];
+        };
+        GroupPostError: {
+            success: boolean;
+            error: string;
+            errors?: {
+                [key: string]: string[];
+            };
+        };
+        GroupPostListResponse: {
+            success: boolean;
+            count: number;
+            /** Format: uri */
+            next: string | null;
+            /** Format: uri */
+            previous: string | null;
+            posts: components["schemas"]["GroupPostResponse"][];
+        };
+        GroupPostResponse: {
+            id: number;
+            group_id: number;
+            title: string;
+            /** @description Plain text; never render as HTML. */
+            content: string;
+            author: components["schemas"]["GroupPostAuthor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            can_edit: boolean;
+            can_delete: boolean;
+        };
+        GroupPostWrite: {
+            title: string;
+            content: string;
         };
         GroupProgressDay: {
             schedule: components["schemas"]["GroupProgressSchedule"];
@@ -5444,6 +5521,10 @@ export interface components {
             readonly created_at?: string;
             /** Format: date-time */
             readonly updated_at?: string;
+        };
+        PatchedGroupPostWrite: {
+            title?: string;
+            content?: string;
         };
         PatchedNotificationSettings: {
             notifications_enabled?: boolean;
@@ -10140,6 +10221,249 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupMembersResponse"];
+                };
+            };
+        };
+    };
+    todos_groups_posts_list: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostListResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+        };
+    };
+    todos_groups_posts_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupPostWrite"];
+                "application/x-www-form-urlencoded": components["schemas"]["GroupPostWrite"];
+                "multipart/form-data": components["schemas"]["GroupPostWrite"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostEnvelope"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+        };
+    };
+    todos_groups_posts_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostEnvelope"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+        };
+    };
+    todos_groups_posts_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostEnvelope"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+        };
+    };
+    todos_groups_posts_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedGroupPostWrite"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedGroupPostWrite"];
+                "multipart/form-data": components["schemas"]["PatchedGroupPostWrite"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostEnvelope"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupPostError"];
                 };
             };
         };

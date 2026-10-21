@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from . import views, scoreboard_views, group_views, calendar_views, catchup_views, notification_views
 from .plan_summary_views import plan_summary
 from . import native_push_views
+from . import group_board_views
 
 router = DefaultRouter()
 router.register(r'bible-plans', views.BibleReadingPlanViewSet)
@@ -78,6 +79,8 @@ urlpatterns = [
     path('scoreboard/my-ranking/', scoreboard_views.get_my_ranking, name='my-ranking'),
     
     # 그룹 관련 URL
+    path('groups/<int:group_id>/posts/', group_board_views.group_posts, name='group-posts'),
+    path('groups/<int:group_id>/posts/<int:post_id>/', group_board_views.group_post_detail, name='group-post-detail'),
     path('groups/', group_views.get_groups, name='groups-list'),
     path('groups/create/', group_views.create_group, name='create-group'),
     path('groups/<int:group_id>/', group_views.get_group_detail, name='group-detail'),

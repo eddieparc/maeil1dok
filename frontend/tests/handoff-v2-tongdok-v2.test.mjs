@@ -137,6 +137,32 @@ test('bare bible hub does not reactivate persisted tongdok identity', async () =
   assert.equal(mode.tongdokMode.value, true); assert.equal(mode.tongdokScheduleId.value, 101)
 })
 
+for (const staleQuery of [{}, { plan: '9', schedule: '201', date: '2026-09-13' }]) {
+  test(`explicit false clears saved tongdok state with ${staleQuery.plan ? 'stale query' : 'no plan query'}`, async () => {
+    const runtime = tongdokRuntime({
+      query: { book: 'gen', chapter: '2' },
+      saved: { enabled: true, scheduleId: 101, planId: 7, scheduleDate: '2026-09-06', updatedAt: 'x' },
+    })
+    const { useTongdokMode } = await loadTongdok(runtime)
+    const mode = useTongdokMode(); mode.initTongdokMode()
+    assert.equal(mode.tongdokMode.value, true)
+    runtime.route.query = { book: 'gen', chapter: '2', tongdok: 'false', ...staleQuery }
+
+    mode.initTongdokMode()
+
+    assert.equal(mode.tongdokMode.value, false)
+    assert.equal(mode.tongdokPlanId.value, null)
+    assert.equal(mode.tongdokScheduleId.value, null)
+    assert.equal(mode.tongdokScheduleDate.value, null)
+    assert.equal(mode.activeTongdokContext.value, null)
+    assert.equal(runtime.localStorage.getItem('tongdokModeState'), null)
+    assert.deepEqual(runtime.calls, [['replace', { query: { book: 'gen', chapter: '2' } }]])
+    runtime.route.query = runtime.calls[0][1].query
+    mode.initTongdokMode()
+    assert.equal(mode.tongdokMode.value, false)
+  })
+}
+
 test('progress separates completed count from the current ordinal', async () => {
   const runtime = tongdokRuntime({ path: '/bible', query: { tongdok: 'true', plan: '7', schedule: '101' }, get: async () => detail({ chapter: 3, rows: [{ book: 'gen', book_kor: '창세기', start_chapter: 1, end_chapter: 3, schedule_id: 101, date: '2026-09-06', is_complete: false }] }) })
   const { useTongdokMode } = await loadTongdok(runtime); const mode = useTongdokMode(); mode.initTongdokMode(); await mode.loadReadingDetail(7, 'gen', 3)
