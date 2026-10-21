@@ -375,6 +375,8 @@ export default function HomeScreen() {
               <>
                 <TouchableOpacity
                   style={styles.headerIcon}
+                  accessibilityRole="button"
+                  accessibilityLabel="알림"
                   onPress={() => openWebPath(stack.web, '/notifications')}
                   hitSlop={8}
                 >
@@ -383,6 +385,9 @@ export default function HomeScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.avatar}
+                  accessibilityRole="button"
+                  accessibilityLabel="내 정보"
+                  hitSlop={8}
                   onPress={() => openTab('Profile')}
                 >
                   <Text style={styles.avatarText}>
@@ -392,11 +397,10 @@ export default function HomeScreen() {
               </>
             ) : (
               <>
-                <TouchableOpacity style={styles.headerIcon} hitSlop={8}>
-                  <Ionicons name="moon-outline" size={22} color={TEXT} />
-                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.headerIcon}
+                  accessibilityRole="button"
+                  accessibilityLabel="메뉴 열기"
                   onPress={() => setMenuOpen(true)}
                   hitSlop={8}
                 >

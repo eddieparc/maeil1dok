@@ -1930,6 +1930,7 @@ const styles = StyleSheet.create({
   gridCell: {
     width: '23%',
     minWidth: 72,
+    minHeight: 44,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',

@@ -156,7 +156,7 @@ function harness({ fetch, inset = 0 } = {}) {
     return node.props.onPress();
   };
   const list = () => nodes().find(n => n.type === 'ScrollView' && !n.props.horizontal);
-  const cards = () => nodes().filter(n => n.props.onLayout);
+  const cards = () => nodes().filter(n => n.type === 'View' && n.props.onLayout);
   const act = async fn => {
     await fn?.();
     await new Promise(setImmediate);
@@ -172,6 +172,29 @@ function harness({ fetch, inset = 0 } = {}) {
 
 test.beforeEach(t => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-22T12:00:00Z') });
+});
+
+test('month strip reveals the selected month when chip layout arrives', async t => {
+  const h = harness();
+  t.after(h.dispose);
+  await h.act();
+
+  h.button('9월').props.onLayout({ nativeEvent: { layout: { x: 600 } } });
+
+  assert.deepEqual(h.scrolls, [{ x: 580, animated: false }]);
+});
+
+test('month strip returns to an earlier selected month without waiting for new layout', async t => {
+  const h = harness();
+  t.after(h.dispose);
+  await h.act();
+  h.button('1월').props.onLayout({ nativeEvent: { layout: { x: 20 } } });
+  h.button('9월').props.onLayout({ nativeEvent: { layout: { x: 600 } } });
+  h.scrolls.length = 0;
+
+  await h.act(() => h.press('1월'));
+
+  assert.deepEqual(h.scrolls, [{ x: 0, animated: false }]);
 });
 
 test('S1 one tap crosses month and consumes pending date only after target layout', async t => {
@@ -480,6 +503,19 @@ test('S5 iOS top action and bulk bar sit above floating tab inset', async t => {
   assert.ok(Object.assign({}, ...top.parent.props.style).bottom > 97);
   await h.act(() => h.list().props.onScroll({ nativeEvent: { contentOffset: { y: 300 } } }));
   assert.equal(h.nodes().some(n => n.props.accessibilityLabel === '맨 위로'), false);
+});
+
+test('S5 last card clearance includes the visible floating top action', async t => {
+  const h = harness({ inset: 97 });
+  t.after(h.dispose);
+  await h.act();
+
+  await h.act(() => h.list().props.onScroll({ nativeEvent: { contentOffset: { y: 301 } } }));
+
+  const top = h.nodes().find(n => n.props.accessibilityLabel === '맨 위로');
+  const topOffset = Object.assign({}, ...top.parent.props.style).bottom;
+  const clearance = Object.assign({}, ...h.list().props.contentContainerStyle).paddingBottom;
+  assert.ok(clearance >= topOffset + 44, 'last row must clear the floating action target');
 });
 
 test('S4 a negative server acknowledgement rolls back and preserves selection', async t => {

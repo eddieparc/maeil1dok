@@ -966,7 +966,7 @@ export default function WebViewScreen() {
           <Text style={styles.errorMessage}>
             인터넷 연결을 확인하고{'\n'}다시 시도해주세요
           </Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => {
+          <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.accent }]} onPress={() => {
             if (preparationFailed) setPreparationAttempt(value => value + 1);
             else handleRetry();
           }}>
@@ -1054,13 +1054,13 @@ export default function WebViewScreen() {
         `}
         renderLoading={() => (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4B9F7E" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         )}
       />}
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#4B9F7E" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       )}
       </View>
@@ -1134,7 +1134,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#4B9F7E',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
