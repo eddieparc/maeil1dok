@@ -95,7 +95,7 @@ for (const hasNativeTabBar of [true, false]) {
   });
 }
 
-test('keeps Liquid Glass selection and the five-button Android fallback', () => {
+test('keeps native selection and the accessible five-button Android fallback', () => {
   const native = navigatorHarness(true).tabs.props.tabBar({});
   assert.equal(native.type, 'NativeTabBar');
   const { tabs } = navigatorHarness(false);
@@ -105,6 +105,13 @@ test('keeps Liquid Glass selection and the five-button Android fallback', () => 
   const fallback = tabs.props.tabBar({ state, navigation });
   const buttons = React.Children.toArray(fallback.type(fallback.props).props.children);
   assert.equal(buttons.length, 5);
+  for (const [index, button] of buttons.entries()) {
+    assert.equal(button.props.accessibilityRole, 'tab');
+    assert.equal(button.props.accessibilityState.selected, index === 0);
+    const [icon, label] = React.Children.toArray(button.props.children);
+    assert.equal(icon.props.color, index === 0 ? '#2A1111' : '#6B625B');
+    assert.equal(label.props.style[1].color, icon.props.color);
+  }
   buttons[3].props.onPress();
   buttons[4].props.onPress();
   assert.deepEqual(calls, ['Together', 'Profile']);

@@ -30,7 +30,7 @@ const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
 
 /**
  * 웹 BottomNavigation과 동일한 탭 바: 84px 콘텐츠 + safe-area inset,
- * 흰 배경, 상단 hairline, 11px 라벨, 활성 #2A1111 / 비활성 #9B928A.
+ * 흰 배경, 상단 hairline, 11px 라벨, 활성 #2A1111 / 비활성 #6B625B.
  */
 function WebTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -45,12 +45,15 @@ function WebTabBar({ state, navigation }: BottomTabBarProps) {
     <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 24) }]}>
       {state.routes.map((route, index) => {
         const focused = state.index === index;
-        const color = focused ? '#2A1111' : '#9B928A';
+        const color = focused ? '#2A1111' : '#6B625B';
         const name = route.name as keyof TabParamList;
         return (
           <TouchableOpacity
             key={route.key}
             style={styles.tabItem}
+            accessibilityRole="tab"
+            accessibilityLabel={labels[name]}
+            accessibilityState={{ selected: focused }}
             activeOpacity={0.7}
             onPress={() => {
               const event = navigation.emit({
