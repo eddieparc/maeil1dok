@@ -107,9 +107,12 @@ private struct TabBarContent: View {
 
   var body: some View {
     tabRow
-      .background(TabBarPalette.surface, in: Capsule())
+      .background {
+        Capsule()
+          .fill(TabBarPalette.surface)
+          .shadow(color: TabBarPalette.shadow.opacity(0.08), radius: 12, y: 4)
+      }
       .overlay(Capsule().strokeBorder(TabBarPalette.border, lineWidth: 1))
-      .shadow(color: TabBarPalette.shadow.opacity(0.08), radius: 12, y: 4)
       .environment(\.colorScheme, .light)
       .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: selectedIndex)
   }
