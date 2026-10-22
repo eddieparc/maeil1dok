@@ -6,10 +6,10 @@
  * 파싱해 `ReadingSettings`로 만든다 — 범위 밖 숫자·알 수 없는 enum·truthy
  * 문자열은 기본값으로 되돌리고, 모델 안에서는 재검증하지 않는다.
  *
- * 폰트: 서버 계약의 6개 family 중 앱에 번들된 것은 Pretendard와
- * NotoSerifKR뿐이다. `resolveNativeFontFamily`는 번들된 family만 실제
- * fontFamily 이름을 돌려주고, system·미번들 family는 null(RN 기본 폰트)을
- * 돌려준다. 미번들 family를 다른 폰트로 조용히 대체하지 않는다.
+ * 폰트: 웹의 5개 지정 family를 원본 글꼴로 번들한다.
+ * `resolveNativeFontFamily`는 등록된 face 이름을, system은 null을 돌려준다.
+ * RIDI는 원본 400 face만 제공하므로 모든 굵기에서 그 face를 사용한다.
+ * 출처·웹 굵기와 원본 굵기의 차이는 assets/fonts/README.md에 기록한다.
  */
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -79,32 +79,46 @@ const LEGACY_LINE_HEIGHTS: Record<string, number> = {
 interface NativeFontMeta {
   readonly label: string;
   readonly bundled: boolean;
-  /** weight → expo-font로 등록된 이름. 없는 weight는 가장 가까운 등록본으로. */
+  /** weight → expo-font 등록 이름. 단일 face인 RIDI는 normal을 사용한다. */
   readonly fonts: Readonly<Partial<Record<FontWeight, string>>>;
 }
 
 export const NATIVE_FONT_META: Record<FontFamily, NativeFontMeta> = {
+  'kopub-batang': {
+    label: 'KoPub 바탕',
+    bundled: true,
+    // 웹 CSS 400/500/600은 원본 Light(300)/Regular(400)/Bold(700)에 대응한다.
+    fonts: { normal: 'KoPubBatang-Light', medium: 'KoPubBatang-Regular', bold: 'KoPubBatang-Bold' },
+  },
+  'ridi-batang': {
+    label: 'RIDI 바탕',
+    bundled: true,
+    fonts: { normal: 'RIDIBatang' },
+  },
+  'noto-serif': {
+    label: 'Noto Serif KR',
+    bundled: true,
+    fonts: { normal: 'NotoSerifKR-Regular', medium: 'NotoSerifKR-Medium', bold: 'NotoSerifKR-SemiBold' },
+  },
   'pretendard': {
     label: 'Pretendard',
     bundled: true,
     fonts: { normal: 'Pretendard-Regular', medium: 'Pretendard-Medium', bold: 'Pretendard-SemiBold' },
   },
-  'noto-serif': {
-    label: 'Noto Serif KR',
+  'noto-sans': {
+    label: 'Noto Sans KR',
     bundled: true,
-    // NotoSerifKR-Medium 에셋이 없어 medium은 Regular로 렌더한다.
-    fonts: { normal: 'NotoSerifKR-Regular', medium: 'NotoSerifKR-Regular', bold: 'NotoSerifKR-Bold' },
+    fonts: { normal: 'NotoSansKR-Regular', medium: 'NotoSansKR-Medium', bold: 'NotoSansKR-SemiBold' },
   },
   'system': { label: '시스템 기본', bundled: true, fonts: {} },
-  'kopub-batang': { label: 'KoPub 바탕', bundled: false, fonts: {} },
-  'ridi-batang': { label: '리디바탕', bundled: false, fonts: {} },
-  'noto-sans': { label: 'Noto Sans KR', bundled: false, fonts: {} },
 };
 
-/** 시트에 노출할 순서 — 실제로 렌더 가능한 family만. */
-export const NATIVE_FONT_ORDER: readonly FontFamily[] = ['pretendard', 'noto-serif', 'system'];
+/** 웹 읽기 설정과 동일한 표시 순서. */
+export const NATIVE_FONT_ORDER: readonly FontFamily[] = [
+  'kopub-batang', 'ridi-batang', 'noto-serif', 'pretendard', 'noto-sans', 'system',
+];
 
-/** 번들된 family는 등록된 fontFamily 이름을, 그 외는 null(RN 기본 폰트)을 돌려준다. */
+/** 지정 family는 등록된 face를, system은 null(RN 기본 폰트)을 돌려준다. */
 export const resolveNativeFontFamily = (family: FontFamily, weight: FontWeight): string | null => {
   const meta = NATIVE_FONT_META[family];
   if (!meta.bundled) return null;
