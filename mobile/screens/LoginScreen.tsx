@@ -437,6 +437,7 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  autoCapitalize="none"
                   editable={!isSubmitting}
                 />
               </View>

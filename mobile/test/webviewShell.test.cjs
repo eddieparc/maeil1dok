@@ -86,7 +86,7 @@ test('retains the native navigator for explicitly opted-in local testing', () =>
   assert.equal(tree.props.onReady, onReady);
 });
 
-test('login measures safe areas inside its full-screen modal', () => {
+test('login protects modal safe areas and literal password input', () => {
   const Login = load('screens/LoginScreen.tsx', {
     react: {
       ...React, useCallback: callback => callback,
@@ -124,6 +124,16 @@ test('login measures safe areas inside its full-screen modal', () => {
   const tree = Login();
   assert.equal(tree.type, 'SafeAreaProvider');
   assert.equal(tree.props.children.type, 'SafeAreaView');
+  const nodes = [tree];
+  let password;
+  while (nodes.length) {
+    const node = nodes.shift();
+    if (!React.isValidElement(node)) continue;
+    if (node.props.secureTextEntry) password = node;
+    nodes.push(...React.Children.toArray(node.props.children));
+  }
+  assert.ok(password);
+  assert.equal(password.props.autoCapitalize, 'none');
 });
 
 for (const nativeUI of [false, true]) {
