@@ -71,7 +71,7 @@ function navigatorHarness(hasNativeTabBar, status = 'signedIn') {
   for (const [name, screen] of Object.entries(screens)) {
     dependencies[`../screens/${name}Screen`] = screen;
   }
-  const Root = load('navigation/RootNavigator.tsx', dependencies).default;
+  const Root = load('navigation/NativeRootNavigator.tsx', dependencies).default;
   const root = Root();
   if (status === 'loading') return { root };
   assert.equal(root.type, ReadingSettingsProviderBoundary);

@@ -109,7 +109,19 @@ All spacing derives from 4px.
 
 Buttons, chips, segments, badges and inputs use `--radius-pill: 999px`; small controls use `--radius-control: 10px`, calendar cells `--radius-cell: 4px`.
 
-### Native App Navigation
+### Mobile Rendering and Reference Fidelity
+
+- As of October 22, 2026, production primary screens use the existing full
+  WebView. `EXPO_PUBLIC_NATIVE_UI` is explicitly false in the production profile.
+  Native pages remain available for opted-in local parity work.
+- The existing web UI is the visual and interaction reference for the next
+  native release, including typography, content order, themes, icons, navigation
+  and state transitions. Match actual paired renders rather than approving the
+  native screens in isolation.
+- The historical native-only capsule/light-shell exceptions below do not
+  authorize divergence from that newer reference-fidelity requirement.
+
+### Historical Native App Navigation (Local Opt-In Only)
 
 - The native app shell uses the light palette consistently, including shared
   sheets and status-bar chrome, regardless of system appearance. An explicitly

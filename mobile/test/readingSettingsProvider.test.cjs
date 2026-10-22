@@ -10,7 +10,7 @@ const token = (id, revision = 1) => `e30.${Buffer.from(JSON.stringify({ user_id:
 const ok = json => ({ ok: true, status: 200, json: async () => json });
 const settingsResponse = settings => ok({ success: true, data: { settings } });
 
-// Execute the real navigator, screen, provider, sync and sheet. Only native host
+// Execute the real native navigator, screen, provider, sync and sheet. Only native host
 // components/navigation and external I/O are replaced. Hook slots are per instance.
 function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failPatch = false, tongdok = false, content, contentType = 'html', scheme = 'light' } = {}) {
   const instances = new Map(), cache = new Map(), listeners = new Set(), calls = [], writes = [], reads = [];
@@ -128,7 +128,7 @@ function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failP
     }).outputText, filename);
     cache.set(filename, m.exports); return m.exports;
   }
-  const Root = load(path.resolve(__dirname, '../navigation/RootNavigator.tsx')).default;
+  const Root = load(path.resolve(__dirname, '../navigation/NativeRootNavigator.tsx')).default;
   const provider = load(path.resolve(__dirname, '../components/bible/ReadingSettingsProvider.tsx'));
   let settingsValue;
   function visit(el, key = 'root') {

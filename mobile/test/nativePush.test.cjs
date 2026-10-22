@@ -257,6 +257,7 @@ for (const [origin, nextOrigin] of [
 test('a cold-start deep link is retained until native navigation is ready', () => {
   const pendingDeepLinkRef = { current: null };
   const handle = appClosure('handleDeepLink', {
+    NATIVE_UI_ENABLED: true,
     WEB_APP_URL: 'https://maeil1dok.app',
     APP_SCHEME: 'maeil1dok',
     navigationRef: { isReady: () => false },
@@ -275,6 +276,7 @@ test('a cold-start deep link is retained until native navigation is ready', () =
 test('a ready notification destination retains the requested chapter in the reader', () => {
   const destinations = [];
   const handle = appClosure('handleDeepLink', {
+    NATIVE_UI_ENABLED: true,
     WEB_APP_URL: 'https://maeil1dok.app',
     APP_SCHEME: 'maeil1dok',
     navigationRef: { isReady: () => true, navigate: (...args) => destinations.push(args) },
@@ -303,6 +305,7 @@ test('a cold notification is delivered once after native navigation becomes read
   const context = {
     WEB_APP_URL: origin,
     APP_SCHEME: 'maeil1dok',
+    NATIVE_UI_ENABLED: true,
     betaMode: true,
     currentWebViewUrlRef: { current: origin },
     pendingDeepLinkRef,
@@ -340,6 +343,28 @@ test('a cold notification is delivered once after native navigation becomes read
     cleanup();
   }
 });
+
+for (const pathname of ['/', '/bible', '/plan', '/groups', '/profile/42', '/login']) {
+  test(`the full web shell keeps the ${pathname} deep link out of native pages`, () => {
+    // Given: production uses the standalone web shell.
+    const destinations = [];
+    const url = `https://maeil1dok.app${pathname}`;
+    const handle = appClosure('handleDeepLink', {
+      NATIVE_UI_ENABLED: false,
+      WEB_APP_URL: 'https://maeil1dok.app',
+      APP_SCHEME: 'maeil1dok',
+      navigationRef: { isReady: () => true },
+      pendingDeepLinkRef: { current: null },
+      mapWebPathToRoute: () => { throw new Error('Web destinations must not enter native navigation'); },
+      controllerRef: { current: { navigateToUrl: target => destinations.push(target) } },
+      buildDeepLinkNavigationUrl: () => url,
+    });
+    // When: a trusted app destination arrives.
+    handle({ url });
+    // Then: the entire destination remains in the existing embedded web page.
+    assert.deepEqual(destinations, [url]);
+  });
+}
 
 test('beta toggle persists before remounting and clears the previous environment destination', { timeout: 5000 }, async () => {
   // Given: a cold-start destination is queued while durable storage is pending.
