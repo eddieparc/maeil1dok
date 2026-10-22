@@ -560,7 +560,6 @@ export function WebViewControllerProvider({
     const { nativeEvent } = syntheticEvent;
     console.log('[WebView] LoadEnd:', redactSensitiveUrl(nativeEvent?.url));
     setIsLoading(false);
-    setIsError(false);
     firstLoadDoneRef.current = true;
     SplashScreen.hideAsync();
     injectPushToken();
@@ -741,6 +740,7 @@ export function WebViewControllerProvider({
   };
 
   const handleRetry = () => {
+    if (!webViewRef.current) queuePendingUrl(currentWebViewUrlRef.current);
     setIsError(false);
     setIsLoading(true);
     firstLoadDoneRef.current = false;

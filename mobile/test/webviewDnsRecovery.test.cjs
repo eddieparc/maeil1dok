@@ -3,6 +3,64 @@ const test = require('node:test');
 
 const { instantiateClosure } = require('./helpers/appClosureHarness.cjs');
 
+test('failed Android loadEnd does not dismiss the terminal retry state', () => {
+  let isError = false;
+  const common = {
+    console: { log: () => {} },
+    redactSensitiveUrl: url => url,
+    setIsLoading: () => {},
+    setIsError: value => { isError = value; },
+    SplashScreen: { hideAsync: () => {} },
+  };
+  const handleError = instantiateClosure('handleError', {
+    ...common,
+    isFatalWebViewError: () => true,
+    WEBVIEW_POLICY: {},
+    Platform: { OS: 'android' },
+    dnsRetryAvailableRef: { current: true },
+  });
+  const handleLoadEnd = instantiateClosure('handleLoadEnd', {
+    ...common,
+    firstLoadDoneRef: { current: false },
+    injectPushToken: () => {},
+    navigateToPendingUrl: () => {},
+  });
+  const event = {
+    nativeEvent: {
+      code: -2, description: 'net::ERR_INTERNET_DISCONNECTED',
+      url: 'https://maeil1dok.app/bible?book=jhn&chapter=5',
+    },
+  };
+  // react-native-webview forwards the failed completion after onError.
+  handleError(event);
+  assert.equal(isError, true);
+  handleLoadEnd(event);
+  assert.equal(isError, true);
+});
+
+for (const mounted of [false, true]) {
+  test(`retry preserves the failed destination with WebView mounted=${mounted}`, () => {
+    const queued = [];
+    const errorStates = [];
+    const firstLoadDoneRef = { current: true };
+    let reloads = 0;
+    const url = 'https://maeil1dok.app/bible?book=jhn&chapter=5';
+    const retry = instantiateClosure('handleRetry', {
+      setIsError: value => errorStates.push(value),
+      setIsLoading: () => {},
+      firstLoadDoneRef,
+      currentWebViewUrlRef: { current: url },
+      queuePendingUrl: value => queued.push(value),
+      webViewRef: { current: mounted ? { reload: () => { reloads += 1; } } : null },
+    });
+    retry();
+    assert.deepEqual(errorStates, [false]);
+    assert.equal(firstLoadDoneRef.current, false);
+    assert.deepEqual(queued, mounted ? [] : [url]);
+    assert.equal(reloads, mounted ? 1 : 0);
+  });
+}
+
 test('first iOS main-frame DNS failure remounts once before showing terminal error', () => {
   const observations = {
     errorStates: [],
