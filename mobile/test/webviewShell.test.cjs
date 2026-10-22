@@ -86,6 +86,46 @@ test('retains the native navigator for explicitly opted-in local testing', () =>
   assert.equal(tree.props.onReady, onReady);
 });
 
+test('login measures safe areas inside its full-screen modal', () => {
+  const Login = load('screens/LoginScreen.tsx', {
+    react: {
+      ...React, useCallback: callback => callback,
+      useState: initial => [initial, () => {}],
+    },
+    'react-native': {
+      StyleSheet: { create: styles => styles }, Platform: { OS: 'ios' },
+      ...Object.fromEntries([
+        'View', 'StatusBar', 'Text', 'TouchableOpacity', 'TextInput', 'Image',
+        'KeyboardAvoidingView', 'ScrollView', 'Alert',
+      ].map(name => [name, name])),
+    },
+    'react-native-safe-area-context': {
+      SafeAreaProvider: 'SafeAreaProvider', SafeAreaView: 'SafeAreaView',
+    },
+    '@expo/vector-icons/Ionicons': 'Icon',
+    'expo-web-browser': {},
+    'expo-apple-authentication': {},
+    'expo-constants': { expoConfig: {} },
+    '@react-native-seoul/kakao-login': {},
+    '@react-navigation/native': { useFocusEffect: () => {}, useNavigation: () => ({}) },
+    '../clientObservationHeaders': { buildNativeClientObservationHeaders: () => ({}) },
+    '../nativeAuthError': {},
+    '../bundleIdentity': { formatBundleIdentityLabel: () => 'test' },
+    '../navigation/AppStackContext': {
+      useAppStack: () => ({ stack: { web: 'https://maeil1dok.app', api: 'https://api.maeil1dok.app' } }),
+    },
+    '../navigation/navigationRef': {},
+    '../navigation/appShell': { NATIVE_UI_ENABLED: false },
+    './WebViewScreen': { useWebViewController: () => ({}) },
+    '../auth/AuthSession': { useAuth: () => ({}) },
+    '../assets/logo.png': 1, '../assets/kakao-icon.png': 2, '../assets/google-icon.png': 3,
+  }).default;
+  // A native-stack modal owns a separate native frame, not the web route's frame.
+  const tree = Login();
+  assert.equal(tree.type, 'SafeAreaProvider');
+  assert.equal(tree.props.children.type, 'SafeAreaView');
+});
+
 for (const nativeUI of [false, true]) {
   test(`login without a back stack returns to the correct shell when native UI=${nativeUI}`, () => {
     // Given: login was opened without a previous route.
