@@ -12,7 +12,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -26,6 +26,7 @@ import { formatBundleIdentityLabel } from '../bundleIdentity';
 import type { SocialSignupProvider } from '../socialSignupNavigation';
 import { useAppStack } from '../navigation/AppStackContext';
 import { navigationRef, type RootStackParamList } from '../navigation/navigationRef';
+import { NATIVE_UI_ENABLED } from '../navigation/appShell';
 import { useWebViewController } from './WebViewScreen';
 import { useAuth } from '../auth/AuthSession';
 
@@ -79,7 +80,7 @@ export default function LoginScreen() {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else if (navigationRef.isReady()) {
-      navigationRef.reset({ index: 0, routes: [{ name: 'Main' }] });
+      navigationRef.reset({ index: 0, routes: [{ name: NATIVE_UI_ENABLED ? 'Main' : 'WebView' }] });
     }
   };
 
@@ -336,6 +337,7 @@ export default function LoginScreen() {
   const isSubmitDisabled = isSubmitting || !email.trim() || !password;
 
   return (
+    <SafeAreaProvider>
     <SafeAreaView style={styles.loginContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAF8F5" />
       <KeyboardAvoidingView
@@ -435,6 +437,7 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  autoCapitalize="none"
                   editable={!isSubmitting}
                 />
               </View>
@@ -482,6 +485,7 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

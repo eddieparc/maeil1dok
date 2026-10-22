@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
 
-for (const screen of ['WebViewScreen.tsx', 'WebViewTabScreen.tsx']) {
+for (const screen of ['WebViewScreen.tsx', 'WebViewTabScreen.tsx', 'StandaloneWebViewScreen.tsx']) {
   test(`${screen} exposes managed native push before page initialization`, () => {
     const file = path.join(__dirname, '../screens', screen);
     const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'),

@@ -20,6 +20,7 @@ import { initMobileTelemetry } from './sentryTelemetry';
 import { formatBundleIdentityLine, resolveBundleIdentity } from './bundleIdentity';
 import { buildDeepLinkNavigationUrl } from './deepLink';
 import { mapWebPathToRoute } from './navigation/routeMap';
+import { NATIVE_UI_ENABLED } from './navigation/appShell';
 import { navigationRef } from './navigation/navigationRef';
 import { AppStackProvider, useAppStack } from './navigation/AppStackContext';
 import { WebViewControllerProvider, useWebViewController } from './screens/WebViewScreen';
@@ -67,6 +68,11 @@ function ShellBody() {
     if (!target) return;
     if (!navigationRef.isReady()) {
       pendingDeepLinkRef.current = event.url;
+      return;
+    }
+
+    if (!NATIVE_UI_ENABLED) {
+      controllerRef.current.navigateToUrl(target);
       return;
     }
 

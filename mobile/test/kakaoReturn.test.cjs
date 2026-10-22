@@ -3,6 +3,30 @@ const test = require('node:test');
 
 const { instantiateClosure } = require('./helpers/appClosureHarness.cjs');
 
+for (const loading of [true, false]) {
+  test(`login navigation opens the overlay only for a committed page, loading=${loading}`, () => {
+    let opened = 0;
+    const handle = instantiateClosure('handleNavigationStateChange', {
+      console: { log: () => {} },
+      redactSensitiveUrl: url => url,
+      resolveSessionBridgeNextUrl: url => new URL(url).pathname,
+      WEB_APP_URL: 'https://maeil1dok.app',
+      currentWebViewUrlRef: { current: 'https://maeil1dok.app/' },
+      setCanGoBack: () => {},
+      isPushBridgeOrigin: url => new URL(url).origin === 'https://maeil1dok.app',
+      showNativeLogin: () => { opened += 1; },
+    });
+    // Android reports the departing /login URL as loading after the modal was
+    // dismissed toward forgot-password; it must not reopen over the next page.
+    handle({ url: 'https://maeil1dok.app/login', loading, canGoBack: true });
+    assert.equal(opened, loading ? 0 : 1);
+    handle({
+      url: 'https://maeil1dok.app/auth/forgot-password', loading: false, canGoBack: true,
+    });
+    assert.equal(opened, loading ? 0 : 1);
+  });
+}
+
 test('successful Kakao return navigates the issued session bridge immediately', async () => {
   const observations = {
     navigateCount: 0,
