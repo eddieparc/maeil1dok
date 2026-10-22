@@ -12,7 +12,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -337,6 +337,7 @@ export default function LoginScreen() {
   const isSubmitDisabled = isSubmitting || !email.trim() || !password;
 
   return (
+    <SafeAreaProvider>
     <SafeAreaView style={styles.loginContainer}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAF8F5" />
       <KeyboardAvoidingView
@@ -436,6 +437,7 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  autoCapitalize="none"
                   editable={!isSubmitting}
                 />
               </View>
@@ -483,6 +485,7 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
