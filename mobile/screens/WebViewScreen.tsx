@@ -518,7 +518,7 @@ export function WebViewControllerProvider({
       currentWebViewUrlRef.current = navState.url;
     }
     setCanGoBack(navState.canGoBack);
-    if (isPushBridgeOrigin(navState.url, WEB_APP_URL)
+    if (!navState.loading && isPushBridgeOrigin(navState.url, WEB_APP_URL)
       && /^\/login(?:\/|$)/.test(new URL(navState.url).pathname)) {
       showNativeLogin();
     }
