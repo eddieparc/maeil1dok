@@ -61,3 +61,7 @@ export function useReadingSettings(): ReadingSettingsValue {
   if (!value) throw new Error('useReadingSettings must be used inside ReadingSettingsProvider');
   return value;
 }
+
+export function useOptionalReadingSettings(): ReadingSettingsValue | null {
+  return useContext(ReadingSettingsContext);
+}

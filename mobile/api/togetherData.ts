@@ -55,7 +55,7 @@ export async function leaveGroup(apiFetch: ApiFetch, id: number): Promise<void> 
 export async function fetchCreationPlans(apiFetch: ApiFetch) {
   return array((await envelope(apiFetch, '/api/v1/todos/plans/')).plans, (entry) => {
     const plan = record(entry);
-    return { id: number(plan.id), name: text(plan.name) };
+    return { id: number(plan.id), name: text(plan.name), description: plan.description == null ? null : text(plan.description) };
   });
 }
 export async function fetchMembers(apiFetch: ApiFetch, id: number) {

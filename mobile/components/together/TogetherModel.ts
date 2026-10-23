@@ -47,6 +47,7 @@ export class TogetherModel {
   private createGeneration = 0;
   private alive = true;
   private query: GroupQuery | null = null;
+  private searchTimer: ReturnType<typeof setTimeout> | undefined;
   private listeners = new Set<() => void>();
   constructor(private readonly apiFetch: ApiFetch, readonly signedIn: boolean) {}
   subscribe = (listener: () => void) => {
@@ -60,9 +61,12 @@ export class TogetherModel {
     this.listeners.forEach((listener) => listener());
   }
   async loadList(query: GroupQuery) {
+    if (!this.alive) return;
+    clearTimeout(this.searchTimer);
     const generation = ++this.listGeneration;
     this.query = query;
-    this.update({ groups: [], listStatus: query.filter === 'mine' && !this.signedIn ? 'guest' : 'loading', listError: '' });
+    this.update({ ...(query.filter === 'mine' && !this.signedIn ? { groups: [] } : {}),
+      listStatus: query.filter === 'mine' && !this.signedIn ? 'guest' : 'loading', listError: '' });
     if (query.filter === 'mine' && !this.signedIn) return;
     try {
       const groups = await fetchGroups(this.apiFetch, query);
@@ -70,6 +74,16 @@ export class TogetherModel {
     } catch (error) {
       if (generation === this.listGeneration) this.update({ listStatus: 'error', listError: errorMessage(error) });
     }
+  }
+  changeQuery(query: GroupQuery) {
+    if (!this.alive) return;
+    const filterChanged = query.filter !== this.query?.filter;
+    clearTimeout(this.searchTimer);
+    // Invalidate before the debounce: an old request can finish while typing.
+    this.listGeneration++;
+    this.query = query;
+    if (filterChanged) void this.loadList(query);
+    else this.searchTimer = setTimeout(() => { void this.loadList(query); }, 300);
   }
   async openGroup(id: number) {
     this.createGeneration++;
@@ -182,6 +196,7 @@ export class TogetherModel {
   }
   activate() { this.alive = true; }
   dispose() {
+    clearTimeout(this.searchTimer);
     this.alive = false;
     this.listGeneration++;
     this.detailGeneration++;

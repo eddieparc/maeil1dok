@@ -72,6 +72,7 @@ test('html: emits the smallTitle section heading before its verse', () => {
   assert.equal(blocks[0].text, '천지 창조');
   assert.equal(blocks[1].type, 'verse');
   assert.equal(blocks[1].num, 1);
+  assert.deepEqual(blocks.map(block => block.type), ['heading', 'verse', 'verse', 'verse', 'verse']);
 });
 
 test('html: decodes entities and collapses whitespace', () => {

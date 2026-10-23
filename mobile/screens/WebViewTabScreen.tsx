@@ -77,7 +77,7 @@ export default function WebViewTabScreen({ path }: { readonly path: string }) {
   const route = useRoute<RouteProp<TabParamList, 'Together' | 'Profile'>>();
   const { stack, betaMode, setBetaMode } = useAppStack();
   const tokenStore = useMemo(() => createTokenStore(SecureStore, betaMode === true), [betaMode]);
-  const { signOut, pushRuntime, status: authStatus } = useAuth();
+  const { signOut, signInWithTokens, refreshTokens, pushRuntime, status: authStatus } = useAuth();
   const controller = useWebViewController();
   const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,7 +130,7 @@ export default function WebViewTabScreen({ path }: { readonly path: string }) {
     refreshToken: string,
   ): Promise<boolean> => {
     try {
-      await tokenStore.write({ access: accessToken, refresh: refreshToken });
+      await signInWithTokens(accessToken, refreshToken);
 
       const csrfCookies = await CookieManager.get(API_URL).catch(() => null);
       const issueResponse = await fetch(`${API_URL}/api/v1/auth/session/issue/`, {
@@ -160,21 +160,12 @@ export default function WebViewTabScreen({ path }: { readonly path: string }) {
       console.error('[WebViewTab] Session bridge failed:', error);
       return false;
     }
-  }, [API_URL, WEB_APP_URL, initialUrl, injectUrl, tokenStore]);
+  }, [API_URL, WEB_APP_URL, initialUrl, injectUrl, signInWithTokens]);
 
   const restoreStoredSession = useCallback((): Promise<boolean> => {
     const generation = restoreGenerationRef.current;
     return runStoredSessionRestore({
-      apiUrl: API_URL,
-      readRefreshToken: async () => (await tokenStore.read()).refresh,
-      readCsrfHeaders: async () => {
-        const refreshCookies = await CookieManager.get(API_URL).catch(() => null);
-        return {
-          ...NATIVE_CLIENT_OBSERVATION_HEADERS,
-          ...csrfHeadersFrom(refreshCookies),
-        };
-      },
-      fetchRefresh: (url, init) => fetch(url, init),
+      refreshSession: refreshTokens,
       initiateSessionBridge,
       navigateToPendingUrl: () => {
         const pending = pendingUrlRef.current;
@@ -190,7 +181,7 @@ export default function WebViewTabScreen({ path }: { readonly path: string }) {
       reportError: (error) => console.error('[WebViewTab] restore error:', error),
       isRestoreCurrent: () => restoreGenerationRef.current === generation,
     });
-  }, [API_URL, initiateSessionBridge, injectUrl, tokenStore]);
+  }, [initiateSessionBridge, injectUrl, refreshTokens]);
 
   const finishNativeLogout = useCallback(async () => {
     await signOut().catch((error) => {

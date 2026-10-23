@@ -49,9 +49,10 @@ test('creation transports beta JSON fields and parses acknowledgement; leave req
 test('creation plans use beta success envelope', async () => {
   const plans = await data.fetchCreationPlans(async (url) => {
     assert.equal(url, '/api/v1/todos/plans/');
-    return response({ success: true, plans: [{ id: 3, name: '일독', description: null }] });
+    return response({ success: true, plans: [{ id: 3, name: '일독', description: 'fixture-description' }] });
   });
   assert.equal(plans[0].id, 3);
+  assert.equal(plans[0].description, 'fixture-description');
   await assert.rejects(() => data.fetchCreationPlans(async () => response({ success: false })));
 });
 
@@ -61,6 +62,26 @@ test('list uses real groups envelope, deduplicates IDs, preserves nullable field
   assert.equal(groups[0].id, 7);
   assert.equal(groups[0].creator.profile_image, null);
   assert.equal(groups[0].is_member, false);
+});
+test('Kakao profile photos use HTTPS in group lists and member responses', async () => {
+  const creator = { ...group.creator, profile_image: 'http://k.kakaocdn.net/dn/photo/img.jpg' };
+  const groups = await data.fetchGroups(async () => response({ success: true, groups: [{ ...group, creator }] }), { search: '', filter: 'all' });
+  assert.equal(groups[0].creator.profile_image, 'https://k.kakaocdn.net/dn/photo/img.jpg');
+  const result = await data.fetchMembers(async () => response({
+    success: true, members: [{ user: creator, role: '관리자', joined_at: group.created_at }],
+    meta: { total_members: 1, has_more: false },
+  }), 7);
+  assert.equal(result.members[0].user.profile_image, 'https://k.kakaocdn.net/dn/photo/img.jpg');
+  const defaultImage = 'http://img1.kakaocdn.net/thumb/R640x640.q70/?fname=default.jpeg';
+  const members = await data.fetchMembers(async () => response({
+    success: true, members: [{ user: { ...creator, profile_image: defaultImage }, role: '멤버', joined_at: group.created_at }],
+    meta: { total_members: 1, has_more: false },
+  }), 7);
+  assert.equal(members.members[0].user.profile_image, defaultImage.replace('http:', 'https:'));
+  for (const profile_image of ['https://k.kakaocdn.net/dn/photo/img.jpg', 'https://example.test/avatar.jpg', 'http://example.test/avatar.jpg', 'http://img1.kakaocdn.net.example.test/avatar.jpg', null]) {
+    const parsed = await data.fetchGroup(async () => response({ success: true, group: { ...group, creator: { ...creator, profile_image } } }), 7);
+    assert.equal(parsed.creator.profile_image, profile_image);
+  }
 });
 test('search and exclusive filters reach the server as exact query parameters', async () => {
   const paths = [];
@@ -156,6 +177,7 @@ test('real apiFetch transports bearer auth, creation JSON, join and leave to a l
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }));
   const api = load('api/nativeApi.ts').createApiFetch({
     baseUrl: `http://127.0.0.1:${server.address().port}`, getAccessToken: () => 'fixture-token',
+    getSessionVersion: () => 0,
     fetchImpl: fetch, refresh: async () => null,
   });
   assert.equal((await data.fetchGroups(api, { search: '', filter: 'public' }))[0].id, 7);

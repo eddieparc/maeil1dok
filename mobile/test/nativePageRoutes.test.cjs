@@ -6,8 +6,9 @@ const Module = require('node:module');
 const ts = require('typescript');
 const React = require('react');
 
-function navigatorHarness(hasNativeTabBar, status = 'signedIn') {
+function navigatorHarness(hasNativeTabBar, status = 'signedIn', width = 390) {
   const screens = {};
+  const rootNavigations = [];
   const apiFetch = async () => { throw new Error('Navigation registration must not fetch'); };
   const api = 'https://api.example.test';
   const accessToken = `e30.${Buffer.from(JSON.stringify({ user_id: 42 })).toString('base64url')}.signature`;
@@ -15,6 +16,7 @@ function navigatorHarness(hasNativeTabBar, status = 'signedIn') {
   const native = {
     View: 'View', Text: 'Text', TouchableOpacity: 'TouchableOpacity',
     ActivityIndicator: 'ActivityIndicator',
+    useWindowDimensions: () => ({ width }),
     StyleSheet: { create: value => value, hairlineWidth: 1 },
   };
   function load(relative, dependencies) {
@@ -61,10 +63,14 @@ function navigatorHarness(hasNativeTabBar, status = 'signedIn') {
       createNativeStackNavigator: () => ({ Navigator: 'StackNavigator', Screen: 'StackScreen' }),
     },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 24 }) },
-    './navigationRef': { navigationRef: {} },
+    './navigationRef': { navigationRef: { isReady: () => true, navigate: (...args) => rootNavigations.push(args) } },
     '../auth/AuthSession': { useAuth: () => ({ status, accessToken, apiFetch }) },
     './AppStackContext': { useAppStack: () => ({ stack: { api } }) },
     '../components/bible/ReadingSettingsProvider': { ReadingSettingsProvider: ReadingSettingsProviderBoundary },
+    '../components/ui/tokens': {
+      useNativeTheme: () => 'light',
+      useNativeColors: () => ({ background: '#FAF8F5' }),
+    },
     '../api/moreData': {},
     './NativeTabBar': { hasNativeTabBar, NativeTabBar: 'NativeTabBar' },
   };
@@ -83,7 +89,7 @@ function navigatorHarness(hasNativeTabBar, status = 'signedIn') {
   assert.ok(navigation, 'Provider must wrap the actual navigation tree');
   const stack = React.Children.toArray(navigation.props.children.props.children);
   const tabs = stack.find(node => node.props.name === 'Main').props.component();
-  return { tabs, stack, screens };
+  return { tabs, stack, screens, rootNavigations };
 }
 
 for (const hasNativeTabBar of [true, false]) {
@@ -95,27 +101,27 @@ for (const hasNativeTabBar of [true, false]) {
   });
 }
 
-test('keeps native selection and the accessible five-button Android fallback', () => {
-  const native = navigatorHarness(true).tabs.props.tabBar({});
-  assert.equal(native.type, 'NativeTabBar');
-  const { tabs } = navigatorHarness(false);
+test('uses the shared native strip regardless of the previous iOS module availability', () => {
   const state = { index: 0, routes: ['Home', 'Bible', 'Schedule', 'Together', 'Profile'].map(name => ({ name, key: name })) };
-  const calls = [];
-  const navigation = { emit: () => ({ defaultPrevented: false }), navigate: name => calls.push(name) };
-  const fallback = tabs.props.tabBar({ state, navigation });
-  const buttons = React.Children.toArray(fallback.type(fallback.props).props.children);
-  assert.equal(buttons.length, 5);
-  for (const [index, button] of buttons.entries()) {
-    assert.equal(button.props.accessibilityRole, 'tab');
-    assert.equal(button.props.accessibilityState.selected, index === 0);
-    const [icon, label] = React.Children.toArray(button.props.children);
-    assert.equal(icon.props.color, index === 0 ? '#2A1111' : '#6B625B');
-    assert.equal(label.props.style[1].color, icon.props.color);
+  const navigation = {};
+  for (const available of [true, false]) {
+    const bar = navigatorHarness(available).tabs.props.tabBar({ state, navigation });
+    assert.equal(bar.type, 'NativeTabBar');
+    assert.equal(bar.props.state, state);
+    assert.equal(bar.props.navigation, navigation);
   }
-  buttons[3].props.onPress();
-  buttons[4].props.onPress();
-  assert.deepEqual(calls, ['Together', 'Profile']);
 });
+
+for (const [width, position] of [[1023, 'bottom'], [1024, 'left']]) {
+  test(`keeps the five native screens in one navigator with ${position} navigation at ${width}`, () => {
+    const { tabs, screens } = navigatorHarness(false, 'signedIn', width);
+    assert.equal(tabs.type, 'TabNavigator');
+    assert.equal(tabs.props.screenOptions.tabBarPosition, position);
+    const routes = React.Children.toArray(tabs.props.children);
+    assert.deepEqual(routes.map(route => route.props.name), ['Home', 'Bible', 'Schedule', 'Together', 'Profile']);
+    for (const route of routes) assert.equal(route.props.component, screens[route.props.name]);
+  });
+}
 
 test('preserves signed-out main tabs, auxiliary stack and auth loading gate', () => {
   const { stack, screens } = navigatorHarness(false, 'signedOut');
@@ -126,3 +132,32 @@ test('preserves signed-out main tabs, auxiliary stack and auth loading gate', ()
   const { root } = navigatorHarness(false, 'loading');
   assert.equal(root.props.children.type, 'ActivityIndicator');
 });
+
+for (const width of [1023, 1024]) {
+test(`guest profile opens login without switching the current page at ${width}`, () => {
+  const h = navigatorHarness(false, 'signedOut', width);
+  const profile = React.Children.toArray(h.tabs.props.children).find(node => node.props.name === 'Profile');
+  let prevented = 0;
+  profile.props.listeners.tabPress({ preventDefault: () => prevented++ });
+  assert.equal(prevented, 1);
+  assert.deepEqual(h.rootNavigations, [['Login']]);
+});
+
+test(`schedule opens the reader sheet only while a chapter is active at ${width}`, () => {
+  const h = navigatorHarness(false, 'signedIn', width);
+  const schedule = React.Children.toArray(h.tabs.props.children).find(node => node.props.name === 'Schedule');
+  for (const [name, readerActive, expected] of [['Home', false, false], ['Bible', false, false], ['Bible', true, true]]) {
+    const calls = [];
+    let prevented = 0;
+    const navigation = {
+      getState: () => ({ index: 0, routes: [{ name, params: { url: '/bible?book=jhn&chapter=3', readerActive } }] }),
+      navigate: (...args) => calls.push(args),
+    };
+    schedule.props.listeners({ navigation }).tabPress({ preventDefault: () => prevented++ });
+    assert.equal(prevented, expected ? 1 : 0);
+    assert.deepEqual(calls, expected ? [['Bible', {
+      url: '/bible?book=jhn&chapter=3', readerActive: true, openSchedule: true,
+    }]] : []);
+  }
+});
+}

@@ -7,6 +7,7 @@ export interface GroupPerson {
 export interface GroupPlan {
   readonly id: number;
   readonly name: string;
+  readonly description?: string | null;
 }
 export interface ReadingGroup {
   readonly id: number;
@@ -72,7 +73,12 @@ export function array<T>(value: unknown, parse: (entry: unknown) => T): T[] {
 }
 function person(value: unknown): GroupPerson {
   const raw = record(value);
-  return { id: number(raw.id), nickname: text(raw.nickname), profile_image: raw.profile_image == null ? null : text(raw.profile_image) };
+  // Kakao's legacy HTTP photo URLs are blocked by native transport security.
+  const image = raw.profile_image == null ? null : text(raw.profile_image);
+  return {
+    id: number(raw.id), nickname: text(raw.nickname),
+    profile_image: image?.replace(/^http:\/\/([a-z0-9-]+\.kakaocdn\.net\/)/i, 'https://$1') ?? null,
+  };
 }
 export function parseGroup(value: unknown): ReadingGroup {
   const raw = record(value);

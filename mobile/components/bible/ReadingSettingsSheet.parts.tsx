@@ -1,10 +1,11 @@
 /**
- * ReadingSettingsSheet의 서브 컴포넌트 — 미리보기, 칩 행, 스테퍼, 스위치 행.
+ * ReadingSettingsSheet의 서브 컴포넌트 — 미리보기, 칩 행, 스위치 행.
  * 모두 무상태 렌더 전용이며 상태는 시트(부모)가 소유한다.
  */
 
-import { Pressable, Switch, Text, View, type StyleProp, type TextStyle } from 'react-native';
-import { styles } from './ReadingSettingsSheet.styles';
+import { Pressable, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import { useNativeColors } from '../ui/tokens';
+import { useSettingsStyles } from './ReadingSettingsSheet.styles';
 
 export interface ChipOption<T extends string> {
   readonly value: T;
@@ -24,6 +25,7 @@ export function ChipRow<T extends string>({
   readonly groupLabel: string;
   readonly fontFor?: (value: T) => string | null;
 }) {
+  const styles = useSettingsStyles();
   return (
     <View style={styles.chipRow}>
       {options.map((option) => {
@@ -55,47 +57,6 @@ export function ChipRow<T extends string>({
   );
 }
 
-export function StepperRow({
-  label,
-  value,
-  atMin,
-  atMax,
-  onStep,
-}: {
-  readonly label: string;
-  readonly value: string;
-  readonly atMin: boolean;
-  readonly atMax: boolean;
-  readonly onStep: (delta: 1 | -1) => void;
-}) {
-  return (
-    <View style={styles.stepperRow}>
-      <Text style={styles.stepperLabel}>{label}</Text>
-      <Text style={styles.stepperValue}>{value}</Text>
-      <View style={styles.stepperButtons}>
-        <Pressable
-          style={styles.stepperButton}
-          onPress={() => onStep(-1)}
-          disabled={atMin}
-          accessibilityRole="button"
-          accessibilityLabel={`${label} 줄이기`}
-        >
-          <Text style={styles.stepperButtonText}>−</Text>
-        </Pressable>
-        <Pressable
-          style={styles.stepperButton}
-          onPress={() => onStep(1)}
-          disabled={atMax}
-          accessibilityRole="button"
-          accessibilityLabel={`${label} 키우기`}
-        >
-          <Text style={styles.stepperButtonText}>+</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 export function SwitchRow({
   label,
   value,
@@ -107,15 +68,19 @@ export function SwitchRow({
   readonly onChange: (value: boolean) => void;
   readonly separated?: boolean;
 }) {
+  const styles = useSettingsStyles();
+  const colors = useNativeColors();
   return (
-    <View style={[styles.switchRow, separated && styles.nameToggle]}>
+    <Pressable style={[styles.switchRow, separated && styles.nameToggle]}
+      accessibilityRole="switch" accessibilityLabel={label}
+      accessibilityState={{ checked: value }} onPress={() => onChange(!value)}>
       <Text style={styles.switchLabel}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        accessibilityLabel={label}
-      />
-    </View>
+      <View style={{ width: 40, height: 24, padding: 3, borderRadius: 12,
+        backgroundColor: value ? colors.accent : colors.border }}>
+        <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: colors.surface,
+          transform: [{ translateX: value ? 16 : 0 }] }} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -130,38 +95,38 @@ export function PreviewSection({
   readonly highlightNames: boolean;
   readonly textStyle: StyleProp<TextStyle>;
 }) {
-  // GAE Genesis 2:8,10 explicitly marks Eden with font.area.
-  const nameStyle = highlightNames ? styles.biblePlace : undefined;
+  const styles = useSettingsStyles();
+  const nameStyle = highlightNames ? styles.previewName : undefined;
   const verse1 = (
     <>
-      여호와 하나님이 동방의 <Text style={nameStyle}>에덴</Text>에 동산을 창설하시고 그 지으신 사람을 거기 두시니라
+      태초에 <Text testID="reading-preview-name" style={nameStyle}>하나님</Text>이 천지를 창조하시니라
     </>
   );
   const verse2 = (
     <>
-      강이 <Text style={nameStyle}>에덴</Text>에서 흘러 나와 동산을 적시고 거기서부터 갈라져 네 근원이 되었으니
+      땅이 혼돈하고 공허하며 흑암이 깊음 위에 있고 <Text testID="reading-preview-name" style={nameStyle}>하나님</Text>의 영은 수면 위에 운행하시니라
     </>
   );
   return (
     <View style={styles.previewSection}>
       <Text style={styles.previewLabel}>본문 미리보기</Text>
-      <Text style={styles.previewTitle}>창세기 2장 8, 10절</Text>
+      <Text style={styles.previewTitle}>창세기 1장</Text>
       <View style={styles.previewContent}>
         {verseJoining ? (
           <Text style={textStyle}>
-            {showVerseNumbers && <Text style={styles.verseNumber}>8 </Text>}
+            {showVerseNumbers && <Text style={styles.verseNumber}>1 </Text>}
             {verse1}{' '}
-            {showVerseNumbers && <Text style={styles.verseNumber}>10 </Text>}
+            {showVerseNumbers && <Text style={styles.verseNumber}>2 </Text>}
             {verse2}
           </Text>
         ) : (
           <>
             <View style={styles.previewVerse}>
-              {showVerseNumbers && <Text style={styles.verseNumber}>8</Text>}
+              {showVerseNumbers && <Text style={styles.verseNumber}>1</Text>}
               <Text style={[textStyle, styles.previewVerseText]}>{verse1}</Text>
             </View>
             <View style={styles.previewVerse}>
-              {showVerseNumbers && <Text style={styles.verseNumber}>10</Text>}
+              {showVerseNumbers && <Text style={styles.verseNumber}>2</Text>}
               <Text style={[textStyle, styles.previewVerseText]}>{verse2}</Text>
             </View>
           </>

@@ -9,15 +9,7 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReaderTab } from '../../api/readerTabs';
-
-const BG = '#FAF8F5';
-const CARD = '#FFFFFF';
-const TEXT = '#1F1A17';
-const SECONDARY = '#6B625B';
-const TERTIARY = '#9B928A';
-const BORDER = '#E9E4DE';
-const ACCENT = '#2A1111';
-const ACCENT_BG = '#F3EEEE';
+import { useNativeColors } from '../ui/tokens';
 
 interface ReaderTabsProps {
   readonly tabs: readonly ReaderTab[];
@@ -34,6 +26,8 @@ export default function ReaderTabs({
   onClose,
   onAdd,
 }: ReaderTabsProps) {
+  const colors = useNativeColors();
+  const styles = createStyles(colors);
   const lastTabProtected = tabs.length <= 1;
   return (
     <View style={styles.strip}>
@@ -74,7 +68,7 @@ export default function ReaderTabs({
                   <Ionicons
                     name="close"
                     size={13}
-                    color={active ? '#fff' : TERTIARY}
+                    color={active ? colors.onAccent : colors.textMuted}
                   />
                 </TouchableOpacity>
               )}
@@ -88,14 +82,17 @@ export default function ReaderTabs({
           accessibilityRole="button"
           hitSlop={8}
         >
-          <Ionicons name="add" size={18} color={SECONDARY} />
+          <Ionicons name="add" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useNativeColors>) => {
+const { background: BG, surface: CARD, text: TEXT, border: BORDER,
+  accent: ACCENT, accentSurface: ACCENT_BG } = colors;
+return StyleSheet.create({
   strip: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: BORDER,
@@ -135,7 +132,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   tabLabelActive: {
-    color: '#fff',
+    color: colors.onAccent,
   },
   tabClose: {
     marginLeft: 4,
@@ -153,3 +150,4 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT_BG,
   },
 });
+};

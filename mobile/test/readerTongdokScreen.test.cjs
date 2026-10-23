@@ -12,10 +12,18 @@ const rows = [
   { schedule_id: '102', book: 'exo', start_chapter: 3, end_chapter: 4, date: '2026-09-22', is_complete: false },
 ];
 const token = (id, nonce = 1) => `header.${Buffer.from(JSON.stringify({ user_id: id, nonce })).toString('base64url')}.signature`;
-function mount({ url, storage = Promise.resolve(null), update = null, detail = null, subscriptions = null, status = 'signedIn', autoComplete = false, schedules = [], nextPosition = { status: 'all_completed' } } = {}) {
+function mount({ url, storage = Promise.resolve(null), update = null, detail = null, subscriptions = null, status = 'signedIn', autoComplete = false, schedules = [], homeStats = null, nextPosition = { status: 'all_completed' } } = {}) {
   const slots = [], effects = [], listeners = new Set(), cache = new Map(), calls = [], scrolls = [], navigation = [];
   let cursor = 0, dirty = false, disposed = false, tree, readingContext;
   const route = { params: { url } };
+  const paramsWrites = [];
+  const tabListeners = new Set();
+  let focused = true;
+  const navigator = {
+    setParams(params) { paramsWrites.push(params); Object.assign(route.params, params); },
+    addListener(event, fn) { assert.equal(event, 'tabPress'); tabListeners.add(fn); return () => tabListeners.delete(fn); },
+    isFocused: () => focused,
+  };
   let accessToken = token(1), api = 'https://api.example.test';
   const changed = (a, b) => !a || !b || a.length !== b.length || a.some((x, i) => x !== b[i]);
   const hooks = { ...React,
@@ -59,11 +67,13 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
     if (url.endsWith('/plan/')) return subscriptions ? subscriptions(accessToken)
       : ok([{ id: 1, plan_id: 3, plan_name: 'Default 3', is_active: true, is_default: true }]);
     if (url.includes('/schedules/today')) return ok({ success: true, schedules: [] });
+    if (url.includes('/bible/home-stats/')) return ok(homeStats ?? { bookmarks: 0, notes: 0, highlights: 0, recent_records: [] });
     return ok({ success: true, position: null, read_chapters: [] });
   };
   const native = Object.fromEntries(['ActivityIndicator', 'FlatList', 'Modal', 'Pressable', 'ScrollView',
     'Text', 'TouchableOpacity', 'View'].map(n => [n, n]));
   native.StyleSheet = { create: x => x };
+  native.useColorScheme = () => 'light';
   const external = [];
   native.Linking = { openURL: async url => { external.push(url); } };
   function load(filename) {
@@ -73,8 +83,8 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
     m.require = name => {
       if (name === 'react') return hooks;
       if (name === 'react-native') return native;
-      if (name === 'react-native-safe-area-context') return { SafeAreaView: 'SafeAreaView', useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
-      if (name === '@react-navigation/native') return { useRoute: () => route };
+      if (name === 'react-native-safe-area-context') return { SafeAreaProvider: 'SafeAreaProvider', SafeAreaView: 'SafeAreaView', useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
+      if (name === '@react-navigation/native') return { useRoute: () => route, useNavigation: () => navigator };
       if (name === '@react-native-async-storage/async-storage') return { getItem: key => key === 'bibleReaderTabs' ? storage : Promise.resolve(null), setItem: async () => {} };
       if (name.includes('AuthSession')) return { useAuth: () => ({ status, accessToken, apiFetch }) };
       if (name.includes('AppStackContext')) return { useAppStack: () => ({ stack: { api, web: 'https://beta.example.test' } }) };
@@ -83,11 +93,14 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
       } };
       if (name.includes('NativeTabBar')) return { useNativeTabBarInset: () => 0 };
       if (name === '@expo/vector-icons/Ionicons') return { __esModule: true, default: 'Icon' };
-      if (name.includes('ReadingSettingsProvider')) return { useReadingSettings: () => ({
+      if (name.includes('ReadingSettingsProvider')) return { useOptionalReadingSettings: () => null, useReadingSettings: () => ({
         settings: { ...load(path.resolve(__dirname, '../api/readingSettings.ts')).DEFAULT_READING_SETTINGS,
           tongdokAutoComplete: autoComplete },
         update() {}, syncError: null, retry() {},
       }) };
+      if (name.endsWith('/ui/tokens')) return load(path.resolve(__dirname, '../components/ui/tokens.ts'));
+      if (name.endsWith('/BibleHomeTips')) return { BibleHomeTips: 'BibleHomeTips' };
+      if (name === './ScheduleScreen') return { __esModule: true, default: 'ScheduleScreen' };
       if (name.includes('/components/') && !name.includes('ReaderTongdok'))
         return { __esModule: true, default: name.split('/').at(-1) };
       if (name.startsWith('.')) {
@@ -119,7 +132,15 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
   }
   render();
   return {
-    calls, scrolls, external, navigation,
+    calls, scrolls, external, navigation, paramsWrites,
+    params: () => route.params,
+    openSchedule() { route.params.openSchedule = true; render(); },
+    tabPress(isFocused = true) {
+      focused = isFocused;
+      let prevented = false;
+      tabListeners.forEach(fn => fn({ preventDefault() { prevented = true; } }));
+      return prevented;
+    },
     get: id => tree.find(n => n.props.testID === id),
     nodes: () => tree,
     context: () => readingContext,
@@ -138,6 +159,20 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
   };
 }
 const route = '/bible?book=gen&chapter=1&version=KNT&plan=4&schedule=101&date=2026-09-22&tongdok=true';
+test('guest Bible home does not request protected account reading data', { timeout: 2500 }, async t => {
+  const h = mount({ status: 'signedOut' });
+  t.after(h.dispose);
+  await h.wait(() => h.params().readerActive === false);
+  assert.deepEqual(h.calls.filter(c => /reading-position|home-stats|\/todos\/plan\//.test(c.url)), []);
+});
+test('recent coded Psalm records open the actual chapter', { timeout: 2500 }, async t => {
+  const h = mount({ homeStats: { bookmarks: 0, notes: 0, highlights: 0, recent_records: [{ book: 'psa', chapter: 13 }] } });
+  t.after(h.dispose);
+  await h.wait(() => h.nodes().some(n => n.props.accessibilityLabel === '시편 13편'));
+  h.nodes().find(n => n.props.accessibilityLabel === '시편 13편').props.onPress();
+  await h.wait(() => h.calls.some(c => c.url === '/api/v1/bible-cache/GAE/psa/13/'));
+  assert.equal(h.params().readerActive, true);
+});
 const audioDetail = q => ok({ book: q.get('book'), chapter: q.get('chapter'), plan_id: q.get('plan_id'),
   plan_name: 'Plan 4', plan_date: '2026-09-22', plan_detail: rows,
   audio_link: 'https://youtu.be/abcdefghijk' });
@@ -500,12 +535,14 @@ test('native schedule overlay selects a row without a Bible WebView', { timeout:
     { id: 202, plan: 4, date: '2026-09-24', book: '요한복음', start_chapter: 3, end_chapter: 4 },
   ] }); t.after(h.dispose);
   await h.wait(() => h.get('reader-tongdok-complete')?.props.disabled === false);
-  h.get('reader-tongdok-schedule').props.onPress();
-  await h.wait(() => h.get('reader-tongdok-row-202'));
-  h.get('reader-tongdok-row-202').props.onPress();
+  h.openSchedule();
+  await h.wait(() => h.nodes().some(n => n.type === 'ScheduleScreen'));
+  h.nodes().find(n => n.type === 'ScheduleScreen').props.onRead(
+    '/bible?book=jhn&chapter=3&plan=4&schedule=202&date=2026-09-24&tongdok=true');
   await h.wait(() => h.calls.some(c => c.url.includes('/bible-cache/KNT/jhn/3/')));
   assert.ok(h.calls.some(c => c.url.includes('book=jhn&chapter=3&plan_id=4')));
-  assert.equal(h.get('reader-tongdok-row-202'), undefined);
+  assert.equal(h.get('reader-full-schedule'), undefined);
+  assert.equal(h.navigation.length, 0);
 });
 
 test('next unread button uses server-selected month and exact schedule', { timeout: 2500 }, async t => {
@@ -513,9 +550,81 @@ test('next unread button uses server-selected month and exact schedule', { timeo
     schedules: [{ id: 202, plan: 4, date: '2026-11-14', book: '요한복음', start_chapter: 3, end_chapter: 4 }] });
   t.after(h.dispose);
   await h.wait(() => h.get('reader-tongdok-complete')?.props.disabled === false);
+  h.nodes().find(n => n.props.accessibilityLabel === '더보기').props.onPress();
+  await h.wait(() => h.get('reader-tongdok-next'));
   h.get('reader-tongdok-next').props.onPress();
   await h.wait(() => h.calls.some(c => c.url.includes('/bible-cache/KNT/jhn/3/')));
   assert.ok(h.calls.some(c => c.url.includes('/schedules/month/?plan_id=4&month=11')));
+});
+
+test('reader state is published and home clears it through the real navigation hook', { timeout: 2500 }, async t => {
+  const h = mount({ url: '/bible?book=gen&chapter=1' }); t.after(h.dispose);
+  await h.wait(() => h.params().readerActive === true);
+  h.nodes().find(n => n.props.accessibilityLabel === '더보기').props.onPress();
+  await h.wait(() => h.nodes().some(n => n.props.accessibilityLabel === '성경 홈으로'));
+  h.nodes().find(n => n.props.accessibilityLabel === '성경 홈으로').props.onPress();
+  await h.wait(() => h.params().readerActive === false);
+  assert.deepEqual(h.paramsWrites.filter(value => 'readerActive' in value).at(-1), { readerActive: false });
+});
+
+test('regular reading consumes schedule requests once and accepts the selected native route', { timeout: 2500 }, async t => {
+  const h = mount({ url: '/bible?book=gen&chapter=1' }); t.after(h.dispose);
+  await h.wait(() => h.params().readerActive === true);
+  h.openSchedule();
+  await h.wait(() => h.get('reader-full-schedule'));
+  assert.equal(h.nodes().find(n => n.type === 'Modal' && n.props.presentationStyle === 'pageSheet').props.statusBarTranslucent, true);
+  assert.equal(h.nodes().filter(n => n.type === 'SafeAreaProvider').length, 1);
+  assert.equal(h.params().openSchedule, undefined);
+  const embedded = h.nodes().find(n => n.type === 'ScheduleScreen');
+  embedded.props.onRead('/bible?book=psa&chapter=23&version=HAN&plan=4&schedule=202&date=2026-09-24&tongdok=true');
+  await h.wait(() => h.calls.some(c => c.url.includes('/bible-cache/HAN/psa/23/')));
+  assert.equal(h.get('reader-full-schedule'), undefined);
+  assert.equal(h.context().context.planId, 4);
+  assert.equal(h.context().context.scheduleId, 202);
+  assert.equal(h.navigation.length, 0);
+});
+
+test('opening a regular chapter does not mark it read before the completion action', { timeout: 2500 }, async t => {
+  const h = mount({ url: '/bible?book=gen&chapter=1' }); t.after(h.dispose);
+  await h.wait(() => h.get('reader-mark-read'));
+  const writes = () => h.calls.filter(call => call.url.endsWith('/bible/personal-records/') && call.init?.method === 'POST');
+  assert.equal(writes().length, 0);
+  await h.get('reader-mark-read').props.onPress();
+  await h.wait(() => h.get('reader-mark-read').props.accessibilityState.selected);
+  assert.deepEqual(JSON.parse(writes()[0].init.body), { book: 'gen', chapter: 1 });
+});
+
+test('active Bible tab returns to landing but a tab switch preserves the reader', { timeout: 2500 }, async t => {
+  const h = mount({ url: '/bible?book=gen&chapter=1' }); t.after(h.dispose);
+  await h.wait(() => h.params().readerActive === true);
+  assert.equal(h.tabPress(false), false);
+  assert.equal(h.params().readerActive, true);
+  assert.equal(h.tabPress(true), true);
+  await h.wait(() => h.params().readerActive === false);
+  assert.equal(h.params().url, undefined);
+});
+
+test('embedded schedule Back closes only its modal', { timeout: 2500 }, async t => {
+  const h = mount({ url: route }); t.after(h.dispose);
+  await h.wait(() => h.params().readerActive === true);
+  h.openSchedule();
+  await h.wait(() => h.get('reader-full-schedule'));
+  h.nodes().find(n => n.type === 'ScheduleScreen').props.onClose();
+  await h.wait(() => !h.get('reader-full-schedule'));
+  assert.equal(h.params().readerActive, true);
+  assert.equal(h.navigation.length, 0);
+});
+
+test('verse secondary-feature bridge retains the original reading context', { timeout: 2500 }, async t => {
+  const h = mount({ url: route }); t.after(h.dispose);
+  await h.wait(() => h.nodes().some(n => n.type === 'ReaderBody'));
+  h.nodes().find(n => n.type === 'ReaderBody').props.onVersePress(7);
+  const query = new URL(h.navigation[0].params.url).searchParams;
+  assert.deepEqual(Object.fromEntries(query), {
+    book: 'gen', chapter: '1', version: 'KNT', tongdok: 'true', verse: '7',
+    plan: '4', schedule: '101', date: '2026-09-22',
+  });
+  assert.equal(h.params().readerActive, true);
 });
 
 test('guest completion renders login action and never writes', { timeout: 2500 }, async t => {

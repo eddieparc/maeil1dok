@@ -20,22 +20,81 @@ const plans = [
   { id: 1, plan_id: 3, plan_name: 'Plan A', is_active: true, is_default: true },
   { id: 2, plan_id: 4, plan_name: 'Plan B', is_active: true },
 ];
+const token = id => `header.${Buffer.from(JSON.stringify({ user_id: id })).toString('base64url')}.signature`;
+const palette = {
+  light: { background: '#FAF8F5', surface: '#FFFFFF', surfaceMuted: '#F1EFED',
+    text: '#1F1A17', textSecondary: '#6B625B', textMuted: '#9B928A', border: '#E9E4DE',
+    accent: '#2A1111', accentSurface: '#F3EEEE', onAccent: '#FFFFFF', error: '#B3261E', scrim: '#00000077' },
+  dark: { background: '#1a1a1a', surface: '#242424', surfaceMuted: '#2d2d2d',
+    text: '#f3f4f6', textSecondary: '#d1d5db', textMuted: '#9ca3af', border: '#3d3d3d',
+    accent: '#F3EEEE', accentSurface: '#3A2A2A', onAccent: '#1F1A17', error: '#F28B82', scrim: '#000000aa' },
+};
+const year = (months = []) => ({ success: true, monthly_progress: months });
+
+test('embedded schedule returns selected reading and closes without changing the root tab', async t => {
+  const readings = [];
+  let closed = 0;
+  const h = harness({ onRead: url => readings.push(url), onClose: () => closed++ });
+  t.after(h.dispose);
+  await h.act();
+  await h.act(() => h.press('출애굽기 1–2장'));
+  await h.act(() => h.get('schedule-dialog-confirm').props.onPress());
+  assert.equal(new URL(readings[0], 'https://test').searchParams.get('schedule'), '12');
+  await h.act(() => h.nodes().find(n => n.props.accessibilityLabel === '뒤로 가기').props.onPress());
+  assert.equal(closed, 1);
+  assert.deepEqual(h.navigations, []);
+});
+
+test('iOS reading selection waits for confirmation dismissal before closing its parent', async t => {
+  const readings = [];
+  const h = harness({ inset: 34, onRead: url => readings.push(url) });
+  t.after(h.dispose);
+  await h.act();
+  await h.act(() => h.press('출애굽기 1–2장'));
+  const modal = h.nodes().find(n => n.type === 'Modal' && n.props.onDismiss);
+  await h.act(() => h.get('schedule-dialog-confirm').props.onPress());
+  assert.deepEqual(readings, []);
+  assert.ok(modal, 'confirmation owns a native dismissal callback');
+  await h.act(() => modal.props.onDismiss());
+  assert.equal(readings.length, 1);
+  await h.act(() => modal.props.onDismiss());
+  assert.equal(readings.length, 1);
+});
+
+for (const initialPlanId of [3, null]) {
+  test(`embedded plan ${initialPlanId} takes precedence over a stale reader URL`, async t => {
+    const h = harness({ url: '/bible?book=gen&chapter=1&plan=4', initialPlanId, storedPlan: '3' });
+    t.after(h.dispose);
+    await h.act();
+    const requests = h.calls.filter(call => call.url.includes('/schedules/month/'));
+    assert.ok(requests.length > 0);
+    assert.equal(new URL(requests.at(-1).url, 'https://test').searchParams.get('plan_id'), '3');
+    assert.equal(requests.some(call => new URL(call.url, 'https://test').searchParams.get('plan_id') === '4'), false);
+  });
+}
 
 // The TSX and its callbacks execute unchanged. Only native host components,
 // navigation and the hook dispatcher are replaced (no renderer is installed).
 // act drains the current event-loop turn, not a timed sleep or polling loop.
-function harness({ fetch, inset = 0 } = {}) {
+function harness({ fetch, inset = 0, status = 'signedIn', storedPlan = '3', url, theme = 'light', onRead, onClose, initialPlanId } = {}) {
   const slots = [];
   let index = 0, queued = false, tree, mounted = true, focused = true;
   let effects = [];
   const alerts = [], navigations = [], scrolls = [], calls = [];
-  const auth = { status: 'signedIn', accessToken: 'account-a' };
+  const auth = { status, accessToken: status === 'signedIn' ? token(1) : null };
   const stack = { api: 'https://api.test', web: 'https://web.test' };
+  const route = { params: { url } };
+  const storage = new Map([
+    ['schedule:selectedPlan:https://api.test:1', storedPlan],
+    ['schedule:selectedPlan:https://api.test:2', '4'],
+    ['schedule:selectedPlan:https://beta-api.test:1', '4'],
+  ]);
   auth.apiFetch = (url, init) => {
     calls.push({ url, init });
     if (fetch) return fetch(url, init);
     if (init?.method === 'POST') return Promise.resolve(ok({ success: true }));
     if (url.endsWith('/plan/')) return Promise.resolve(ok(plans));
+    if (url.includes('/stats/progress/')) return Promise.resolve(ok(year()));
     return Promise.resolve(ok([
       row(11, '2026-09-17'), row(12, '2026-09-17'), row(13, '2026-09-18'),
     ]));
@@ -94,9 +153,18 @@ function harness({ fetch, inset = 0 } = {}) {
       if (name === 'react') return hooks;
       if (name === 'react-native') return native;
       if (name === '@expo/vector-icons/Ionicons') return { __esModule: true, default: 'Icon' };
+      if (name === 'react-native-svg') return { __esModule: true, default: 'Svg', Circle: 'Circle', Path: 'Path', Rect: 'Rect' };
+      if (name === '@react-native-async-storage/async-storage') return {
+        __esModule: true, default: {
+          getItem: async key => storage.get(key) ?? null,
+          setItem: async (key, value) => { storage.set(key, value); },
+        },
+      };
+      if (name.endsWith('/ui/tokens')) return { colors: palette, useNativeColors: () => palette[theme] };
       if (name === 'react-native-safe-area-context') return { SafeAreaView: 'SafeAreaView' };
       if (name === '@react-navigation/native') return {
         useFocusEffect: fn => hooks.useEffect(() => focused ? fn() : undefined, [fn, focused]),
+        useRoute: () => route,
       };
       if (name.endsWith('/AuthSession')) return { useAuth: () => auth };
       if (name.endsWith('/AppStackContext')) return { useAppStack: () => ({ stack }) };
@@ -123,6 +191,7 @@ function harness({ fetch, inset = 0 } = {}) {
   function resolve(el, parent = null) {
     if (!React.isValidElement(el)) return el;
     if (typeof el.type === 'function') return resolve(el.type(el.props), parent);
+    if (el.type === 'Modal' && el.props.visible === false) return null;
     const node = { type: el.type, props: el.props, parent, children: [] };
     if (el.type === 'ScrollView' && el.props.ref) el.props.ref.current = {
       scrollTo: options => scrolls.push(options),
@@ -132,7 +201,7 @@ function harness({ fetch, inset = 0 } = {}) {
   }
   function render() {
     index = 0;
-    tree = resolve(Screen());
+    tree = resolve(Screen({ onRead, onClose, initialPlanId }));
     const pending = effects;
     effects = [];
     pending.forEach(fn => fn());
@@ -155,15 +224,22 @@ function harness({ fetch, inset = 0 } = {}) {
     assert.equal(Boolean(node.props.disabled), false, `${label} is enabled`);
     return node.props.onPress();
   };
-  const list = () => nodes().find(n => n.type === 'ScrollView' && !n.props.horizontal);
-  const cards = () => nodes().filter(n => n.type === 'View' && n.props.onLayout);
+  const get = id => nodes().find(n => n.props.testID === id);
+  const list = () => get('schedule-list');
+  const cards = () => nodes().filter(n => n.props.testID?.startsWith('schedule-day-'));
+  const layoutList = (height = 500) => list().props.onLayout({ nativeEvent: { layout: { height } } });
+  const layoutCard = (card, y, height = 74) => card.props.onLayout({ nativeEvent: { layout: { y, height } } });
+  const layoutMonthStrip = (width = 400) => nodes().find(n => n.props.horizontal)
+    .props.onLayout({ nativeEvent: { layout: { width } } });
   const act = async fn => {
     await fn?.();
     await new Promise(setImmediate);
   };
   render();
   return {
-    act, nodes, text, button, press, list, cards, alerts, navigations, scrolls, calls, auth, stack,
+    act, nodes, text, button, press, get, list, cards, layoutList, layoutCard, layoutMonthStrip,
+    alerts, navigations, scrolls, calls, auth, stack, storage, route,
+    setTheme: value => { theme = value; render(); },
     focus: value => { focused = value; render(); },
     render,
     dispose() { mounted = false; slots.forEach(s => s.cleanup?.()); },
@@ -179,22 +255,24 @@ test('month strip reveals the selected month when chip layout arrives', async t 
   t.after(h.dispose);
   await h.act();
 
-  h.button('9월').props.onLayout({ nativeEvent: { layout: { x: 600 } } });
+  h.layoutMonthStrip();
+  h.button('9월').props.onLayout({ nativeEvent: { layout: { x: 600, width: 56 } } });
 
-  assert.deepEqual(h.scrolls, [{ x: 580, animated: false }]);
+  assert.deepEqual(h.scrolls, [{ x: 428, animated: false }]);
 });
 
 test('month strip returns to an earlier selected month without waiting for new layout', async t => {
   const h = harness();
   t.after(h.dispose);
   await h.act();
-  h.button('1월').props.onLayout({ nativeEvent: { layout: { x: 20 } } });
-  h.button('9월').props.onLayout({ nativeEvent: { layout: { x: 600 } } });
+  h.layoutMonthStrip();
+  h.button('1월').props.onLayout({ nativeEvent: { layout: { x: 20, width: 56 } } });
+  h.button('9월').props.onLayout({ nativeEvent: { layout: { x: 600, width: 56 } } });
   h.scrolls.length = 0;
 
   await h.act(() => h.press('1월'));
 
-  assert.deepEqual(h.scrolls, [{ x: 0, animated: false }]);
+  assert.deepEqual(h.scrolls.filter(s => s.x !== undefined), [{ x: 0, animated: false }]);
 });
 
 test('S1 one tap crosses month and consumes pending date only after target layout', async t => {
@@ -207,14 +285,15 @@ test('S1 one tap crosses month and consumes pending date only after target layou
   } });
   t.after(h.dispose);
   await h.act();
+  h.layoutList();
   await h.act(() => h.press('마지막 미완료'));
   assert.equal(h.scrolls.length, 0);
   await h.act(() => august.resolve(ok([row(11, '2026-08-17')])));
   assert.equal(h.scrolls.length, 0);
-  await h.act(() => h.cards()[0].props.onLayout({ nativeEvent: { layout: { y: 420 } } }));
+  await h.act(() => h.layoutCard(h.cards()[0], 420));
   assert.equal(h.scrolls.length, 1);
-  assert.equal(h.scrolls[0].y, 412);
-  await h.act(() => h.cards()[0].props.onLayout({ nativeEvent: { layout: { y: 430 } } }));
+  assert.equal(h.scrolls[0].y, 207);
+  await h.act(() => h.layoutCard(h.cards()[0], 430));
   assert.equal(h.scrolls.length, 1);
 });
 
@@ -266,12 +345,11 @@ test('S3 second row confirms then navigates with its own native reader context',
   await h.act();
   await h.act(() => h.press('출애굽기 1–2장'));
   assert.equal(h.navigations.length, 0);
-  assert.equal(h.alerts.length, 1);
-  const buttons = h.alerts[0][2];
-  buttons.find(b => b.style === 'cancel').onPress?.();
+  assert.ok(h.get('schedule-dialog-confirm'));
+  await h.act(() => h.get('schedule-dialog-cancel').props.onPress());
   assert.equal(h.navigations.length, 0);
   await h.act(() => h.press('출애굽기 1–2장'));
-  h.alerts[1][2].find(b => b.style !== 'cancel').onPress();
+  await h.act(() => h.get('schedule-dialog-confirm').props.onPress());
   assert.equal(h.navigations[0][0], 'Main');
   assert.equal(h.navigations[0][1].screen, 'Bible');
   const params = new URL(h.navigations[0][1].params.url, 'https://test').searchParams;
@@ -340,11 +418,13 @@ test('S1 today jumps back from another month after the September layout', async 
     : url.includes('month=9&') ? [row(11, '2026-09-22')] : [])) });
   t.after(h.dispose);
   await h.act();
+  h.layoutList();
   await h.act(() => h.press('8월'));
+  h.scrolls.length = 0;
   await h.act(() => h.press('오늘'));
   assert.equal(h.scrolls.length, 0);
-  await h.act(() => h.cards()[0].props.onLayout({ nativeEvent: { layout: { y: 550 } } }));
-  assert.equal(h.scrolls.at(-1).y, 542);
+  await h.act(() => h.layoutCard(h.cards()[0], 550));
+  assert.equal(h.scrolls.at(-1).y, 337);
 });
 
 test('S1 manual month selection supersedes an in-flight position lookup', async t => {
@@ -357,19 +437,23 @@ test('S1 manual month selection supersedes an in-flight position lookup', async 
   await h.act(() => h.press('10월'));
   await h.act(() => position.resolve(ok({ status: 'next_incomplete', date: '2026-08-17' })));
   assert.ok(h.nodes().some(n => h.text(n) === '2026년 10월'));
-  assert.equal(h.scrolls.length, 0);
+  assert.deepEqual(h.scrolls, [{ y: 0, animated: false }]);
 });
 
 test('S2 same-month responses from a previous year cannot replace the new year', async t => {
   const oldSeptember = deferred();
+  let refreshing = false;
   const h = harness({ fetch: url => {
     if (url.endsWith('/plan/')) return Promise.resolve(ok(plans));
     if (url.includes('next-position')) return Promise.resolve(ok({ status: 'next_incomplete', date: '2025-09-17' }));
-    if (url.includes('month=9&year=2026')) return oldSeptember.promise;
+    if (url.includes('month=9&year=2026')) return refreshing ? oldSeptember.promise : Promise.resolve(ok([]));
     return Promise.resolve(ok(url.includes('month=9&year=2025') ? [row(20, '2025-09-17')] : []));
   } });
   t.after(h.dispose);
   await h.act();
+  await h.act(() => h.focus(false));
+  refreshing = true;
+  await h.act(() => h.focus(true));
   await h.act(() => h.press('마지막 미완료'));
   await h.act(() => oldSeptember.resolve(ok([row(11, '2026-09-17')])));
   assert.ok(h.nodes().some(n => h.text(n) === '2025년 9월'));
@@ -377,22 +461,22 @@ test('S2 same-month responses from a previous year cannot replace the new year',
   assert.equal(h.nodes().some(n => h.text(n) === '9/17(목)'), false);
 });
 
-test('S2 new plan hides old dots and discards a prefetch JSON completion', async t => {
+test('S2 new plan hides old dots and discards an annual summary JSON completion', async t => {
   const lateJson = deferred(), planB = deferred();
   const h = harness({ fetch: url => {
     if (url.endsWith('/plan/')) return Promise.resolve(ok(plans));
     if (url.includes('plan_id=4')) return planB.promise;
-    if (url.includes('month=2&')) return Promise.resolve({ ok: true, json: () => lateJson.promise });
+    if (url.includes('/stats/progress/')) return Promise.resolve({ ok: true, json: () => lateJson.promise });
     return Promise.resolve(ok([row(11, '2026-09-17', { is_completed: true })]));
   } });
   t.after(h.dispose);
   await h.act();
   const dot = month => h.button(`${month}월`).children.some(n => n?.type === 'View');
-  assert.equal(dot(1), true);
+  assert.equal(dot(9), true);
   await h.act(() => h.press('Plan A'));
   await h.act(() => h.press('Plan B'));
-  assert.equal(dot(1), false);
-  await h.act(() => lateJson.resolve([row(14, '2026-02-01', { is_completed: true })]));
+  assert.equal(dot(9), false);
+  await h.act(() => lateJson.resolve(year([{ month: 2, done: 1, total: 1 }])));
   assert.equal(dot(2), false);
   await h.act(() => planB.resolve(ok([row(41, '2026-09-19', { plan: 4 })])));
   assert.ok(h.nodes().some(n => h.text(n) === '9/19(토)'));
@@ -411,7 +495,7 @@ for (const change of ['account', 'stack']) {
     await h.act();
     await h.act(() => {
       replaced = true;
-      if (change === 'account') h.auth.accessToken = 'account-b';
+      if (change === 'account') h.auth.accessToken = token(2);
       else h.stack.api = 'https://beta-api.test';
       h.render();
     });
@@ -461,11 +545,12 @@ test('S3 group date confirms first row and stale confirmation cannot navigate', 
   t.after(h.dispose);
   await h.act();
   await h.act(() => h.press('9/17(목)'));
-  h.alerts[0][2].find(b => b.style !== 'cancel').onPress();
+  await h.act(() => h.get('schedule-dialog-confirm').props.onPress());
   assert.equal(new URL(h.navigations[0][1].params.url, 'https://test').searchParams.get('schedule'), '11');
   await h.act(() => h.press('출애굽기 1–2장'));
+  const confirm = h.get('schedule-dialog-confirm').props.onPress;
   await h.act(() => h.press('10월'));
-  h.alerts[1][2].find(b => b.style !== 'cancel').onPress();
+  await h.act(confirm);
   assert.equal(h.navigations.length, 1);
 });
 
@@ -486,7 +571,7 @@ test('S4 plan change clears range and late failed writes cannot roll back anothe
   await h.act(() => h.press('9/17(목)'));
   await h.act(() => h.press('9/18(금)'));
   await h.act(() => h.press('읽음'));
-  await h.act(() => { h.auth.accessToken = 'account-b'; h.render(); });
+  await h.act(() => { h.auth.accessToken = token(2); h.render(); });
   await h.act(() => write.resolve({ ok: false, status: 500 }));
   assert.equal(h.alerts.length, 0);
   assert.ok(h.button('일괄수정'));
@@ -544,8 +629,192 @@ test('S2 old account plan response cannot replace newly loaded subscriptions', a
   } });
   t.after(h.dispose);
   await h.act();
-  await h.act(() => { h.auth.accessToken = 'account-b'; h.render(); });
+  await h.act(() => { h.auth.accessToken = token(2); h.render(); });
   await h.act(() => oldPlans.resolve(ok([plans[0]])));
   assert.equal(h.nodes().some(n => h.text(n) === 'Plan A'), false);
   assert.ok(h.button('Plan B'));
+});
+
+test('initial guest load centers today only when both row and viewport layouts exist', async t => {
+  const h = harness({ status: 'signedOut', fetch: url => Promise.resolve(ok(
+    url.endsWith('/plan/') ? plans : url.includes('/stats/progress/') ? year()
+      : [row(1, '2026-09-22')])) });
+  t.after(h.dispose);
+  await h.act();
+
+  h.layoutCard(h.cards()[0], 900);
+  assert.equal(h.scrolls.length, 0);
+  h.layoutList(500);
+
+  assert.deepEqual(h.scrolls, [{ y: 687, animated: false }]);
+  assert.ok(h.get('schedule-guest-notice'));
+  h.layoutCard(h.cards()[0], 910);
+  assert.equal(h.scrolls.length, 1);
+});
+
+test('auth initialization issues no plan request and shows no fabricated selected plan', async t => {
+  const h = harness({ status: 'loading' });
+  t.after(h.dispose);
+  await h.act();
+
+  assert.equal(h.calls.length, 0);
+  assert.ok(h.get('schedule-loading'));
+  assert.equal(h.get('schedule-guest-notice'), undefined);
+  assert.equal(h.get('schedule-plan-selector').props.disabled, true);
+  assert.equal(h.get('schedule-header-action').props.disabled, true);
+});
+
+test('signed-in first visit requires a plan choice and persists the chosen active plan', async t => {
+  const h = harness({ storedPlan: null });
+  t.after(h.dispose);
+  await h.act();
+  assert.ok(h.get('schedule-no-plan'));
+  assert.equal(h.calls.some(c => c.url.includes('/schedules/')), false);
+
+  await h.act(() => h.get('schedule-plan-selector').props.onPress());
+  await h.act(() => h.get('schedule-plan-4').props.onPress());
+
+  assert.equal(h.storage.get('schedule:selectedPlan:https://api.test:1'), '4');
+  assert.ok(h.calls.some(c => c.url.includes('/schedules/month/?plan_id=4')));
+  assert.equal(h.get('schedule-plan-4'), undefined);
+});
+
+test('explicit route plan wins over remembered selection and remains selected on focus', async t => {
+  const h = harness({ url: '/plan?plan=4' });
+  t.after(h.dispose);
+  await h.act();
+  assert.ok(h.calls.some(c => c.url.includes('/schedules/month/?plan_id=4')));
+  await h.act(() => h.get('schedule-plan-selector').props.onPress());
+  await h.act(() => h.get('schedule-plan-3').props.onPress());
+
+  await h.act(() => h.focus(false));
+  await h.act(() => h.focus(true));
+
+  assert.equal(h.storage.get('schedule:selectedPlan:https://api.test:1'), '3');
+  assert.ok(h.calls.filter(c => c.url.includes('/schedules/month/')).at(-1).url.includes('plan_id=3'));
+});
+
+test('guest checkbox confirms login without recording or replaying completion', async t => {
+  const h = harness({ status: 'signedOut' });
+  t.after(h.dispose);
+  await h.act();
+  await h.act(() => h.get('schedule-check-2026-09-17').props.onPress());
+  assert.equal(h.navigations.length, 0);
+
+  await h.act(() => h.get('schedule-dialog-confirm').props.onPress());
+
+  assert.deepEqual(h.navigations, [['Login']]);
+  assert.equal(h.calls.some(c => c.init?.method === 'POST'), false);
+});
+
+test('guest login confirmation is discarded when identity changes before confirmation', async t => {
+  const h = harness({ status: 'signedOut' });
+  t.after(h.dispose);
+  await h.act();
+  await h.act(() => h.get('schedule-header-action').props.onPress());
+  const confirm = h.get('schedule-dialog-confirm').props.onPress;
+
+  await h.act(() => { h.auth.status = 'signedIn'; h.auth.accessToken = token(1); h.render(); });
+  await h.act(confirm);
+
+  assert.equal(h.navigations.length, 0);
+  assert.equal(h.calls.some(c => c.init?.method === 'POST'), false);
+});
+
+test('empty plan collection stays unselected and the sheet has a working management destination', async t => {
+  const h = harness({ status: 'signedOut', fetch: () => Promise.resolve(ok([])) });
+  t.after(h.dispose);
+  await h.act();
+  assert.ok(h.get('schedule-no-plan'));
+  assert.equal(h.get('schedule-guest-notice'), undefined);
+  assert.equal(h.calls.length, 1);
+  await h.act(() => h.get('schedule-plan-selector').props.onPress());
+
+  await h.act(() => h.press('플랜 관리'));
+
+  assert.deepEqual(h.navigations, [['WebView', { url: 'https://web.test/plans' }]]);
+});
+
+for (const resource of ['plans', 'month']) {
+  test(`${resource} failure and malformed payload stay errors until a successful retry`, async t => {
+    let bad = true;
+    const h = harness({ fetch: url => {
+      if (url.includes('/stats/progress/')) return Promise.resolve(ok(year()));
+      if (url.endsWith('/plan/')) return Promise.resolve(ok(resource === 'plans' && bad ? {} : plans));
+      return Promise.resolve(bad ? { ok: false, status: 503 } : ok([]));
+    } });
+    t.after(h.dispose);
+    await h.act();
+    assert.ok(h.get('schedule-error'));
+    assert.equal(h.get('schedule-empty'), undefined);
+    assert.equal(h.get('schedule-no-plan'), undefined);
+
+    bad = false;
+    await h.act(() => h.press('다시 시도'));
+
+    assert.equal(h.get('schedule-error'), undefined);
+    assert.ok(h.get('schedule-empty'));
+  });
+}
+
+test('expired session is not represented as an empty month or automatic write success', async t => {
+  const h = harness({ fetch: url => Promise.resolve(
+    url.endsWith('/plan/') ? ok(plans) : { ok: false, status: 401 }) });
+  t.after(h.dispose);
+  await h.act();
+  assert.ok(h.get('schedule-error'));
+  assert.equal(h.get('schedule-empty'), undefined);
+
+  await h.act(() => h.press('로그인'));
+
+  assert.deepEqual(h.navigations, [['Login']]);
+});
+
+test('annual progress uses one request and a partially completed day still counts individual rows in its dot', async t => {
+  const h = harness({ fetch: url => Promise.resolve(ok(
+    url.endsWith('/plan/') ? plans
+      : url.includes('/stats/progress/') ? year([{ month: 9, done: 0, total: 2 }, { month: 11, done: 0, total: 1 }])
+      : [row(11, '2026-09-17', { is_completed: true }), row(12, '2026-09-17')])) });
+  t.after(h.dispose);
+  await h.act();
+
+  assert.equal(h.calls.filter(c => c.url.includes('/schedules/month/')).length, 1);
+  assert.equal(h.calls.filter(c => c.url.includes('/stats/progress/')).length, 1);
+  assert.equal(h.get('schedule-check-2026-09-17').props.accessibilityState.checked, 'mixed');
+  const progress = h.nodes().find(n => n.props.accessibilityRole === 'progressbar');
+  assert.deepEqual(progress.props.accessibilityValue, { min: 0, max: 1, now: 0 });
+  const dot = h.get('schedule-month-9').children.find(n => n?.type === 'View');
+  assert.equal(Object.assign({}, ...dot.props.style).opacity, 0.7);
+
+  await h.act(() => h.get('schedule-next-month').props.onPress());
+
+  assert.equal(h.get('schedule-month-11').props.accessibilityState.selected, true);
+});
+
+test('a missing annual summary does not assert that the plan has ended', async t => {
+  const h = harness({ fetch: url => Promise.resolve(url.includes('/stats/progress/')
+    ? { ok: false, status: 500 } : ok(url.endsWith('/plan/') ? plans : [row(11, '2026-09-17')])) });
+  t.after(h.dispose);
+  await h.act();
+
+  assert.equal(h.get('schedule-next-month'), undefined);
+  assert.equal(h.get('schedule-error'), undefined);
+  assert.equal(h.cards().length, 1);
+  assert.equal(h.get('schedule-month-11').children.some(n => n?.type === 'View'), false);
+});
+
+test('common theme changes reach rows, controls and an already-open native plan sheet', async t => {
+  const h = harness();
+  t.after(h.dispose);
+  await h.act();
+  await h.act(() => h.get('schedule-plan-selector').props.onPress());
+
+  await h.act(() => h.setTheme('dark'));
+
+  const card = Object.assign({}, ...h.cards()[0].props.style);
+  assert.equal(card.backgroundColor, palette.dark.surface);
+  const selected = Object.assign({}, ...h.get('schedule-plan-3').props.style);
+  assert.equal(selected.backgroundColor, palette.dark.accentSurface);
+  assert.equal(selected.borderColor, palette.dark.accent);
+  assert.equal(h.get('schedule-plan-3').props.accessibilityState.checked, true);
 });

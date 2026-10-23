@@ -51,6 +51,11 @@ new Function('module', 'exports', compiledSessionRestore)(
   sessionRestoreModule.exports,
 );
 const { runStoredSessionRestore } = sessionRestoreModule.exports;
+const apiModule = { exports: {} };
+new Function('module', 'exports', 'require', ts.transpileModule(
+  readFileSync(path.join(mobileRoot, 'api/nativeApi.ts'), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+).outputText)(apiModule, apiModule.exports, () => tokenModule.exports);
 
 const createRestoreHarness = ({
   betaMode = false,
@@ -146,6 +151,7 @@ module.exports = { restoreStoredSession };`,
     'restorePromiseRef',
     'NATIVE_CLIENT_OBSERVATION_HEADERS',
     'tokenStore',
+    'refreshTokens',
     compiled,
   );
   instantiate(
@@ -170,6 +176,17 @@ module.exports = { restoreStoredSession };`,
       'X-App-Version': '1.2.3',
     },
     tokenModule.exports.createTokenStore(SecureStore, betaMode),
+    async () => {
+      if (!refreshToken) return null;
+      await CookieManager.get();
+      const { pair } = await apiModule.exports.requestTokenRefresh(
+        betaMode ? 'https://beta.maeil1dok.app' : 'https://api.maeil1dok.app',
+        refreshToken,
+        fetch,
+        { ...csrfHeadersFrom(), 'X-Client': 'shell', 'X-App-Platform': 'android', 'X-App-Version': '1.2.3' },
+      );
+      return pair;
+    },
   );
 
   return {

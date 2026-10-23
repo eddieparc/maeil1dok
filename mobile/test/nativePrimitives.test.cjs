@@ -9,6 +9,7 @@ const React = require('react');
 // Execute real component functions/JSX; only the unavailable native host is
 // substituted. This is a render-contract test, not a native mount or focus test.
 let scheme = 'light';
+let readingTheme = null;
 const insets = { top: 24, bottom: 34, left: 12, right: 20 };
 const native = {
   Modal: 'Modal', Pressable: 'Pressable', ScrollView: 'ScrollView',
@@ -28,6 +29,9 @@ function load(relative) {
   instance.require = (name) => {
     if (name === 'react-native') return native;
     if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => insets };
+    if (name.endsWith('/ReadingSettingsProvider')) return {
+      useOptionalReadingSettings: () => readingTheme === null ? null : { settings: { theme: readingTheme } },
+    };
     if (name.startsWith('.')) {
       const resolved = path.resolve(path.dirname(filename), name);
       const file = [resolved, `${resolved}.ts`, `${resolved}.tsx`].find((candidate) => fs.existsSync(candidate));
@@ -150,7 +154,7 @@ if (!baseline) {
     assert.equal(count, 0);
     assert.deepEqual(button.props.accessibilityState, { disabled: true, selected: true });
   });
-  test('native shell stays light on a dark system while explicit dark mode is preserved', () => {
+  test('without a settings owner the shell defaults light and preserves explicit dark mode', () => {
     scheme = 'dark';
     try {
       const light = NativeButton({ label: 'Fixture', onPress() {} });
@@ -162,6 +166,24 @@ if (!baseline) {
       assert.deepEqual(Object.keys(colors.light), Object.keys(colors.dark));
     } finally { scheme = 'light'; }
   });
+  for (const [preference, device, expected] of [
+    ['dark', 'light', 'dark'],
+    ['light', 'dark', 'light'],
+    ['system', 'dark', 'dark'],
+  ]) {
+    test(`native controls follow saved theme=${preference} with device=${device}`, () => {
+      readingTheme = preference;
+      scheme = device;
+      try {
+        const button = NativeButton({ label: 'Fixture', onPress() {} });
+        assert.equal(style(button.props.style({ pressed: false })).backgroundColor,
+          colors[expected].surface);
+        const explicit = NativeButton({ label: 'Fixture', onPress() {}, mode: 'light' });
+        assert.equal(style(explicit.props.style({ pressed: false })).backgroundColor,
+          colors.light.surface);
+      } finally { readingTheme = null; scheme = 'light'; }
+    });
+  }
   for (const kind of ['loading', 'empty', 'error']) {
     test(`${kind} state exposes busy/error semantics and only errors offer retry`, () => {
       let retries = 0;

@@ -44,10 +44,12 @@ export interface ApiFetchInit {
 export interface ApiFetchDependencies {
   readonly baseUrl: string;
   readonly getAccessToken: () => string | null;
+  readonly getSessionVersion: () => number | null;
   readonly fetchImpl: (url: string, init: ApiFetchInit) => Promise<ApiFetchResponse>;
   /**
    * Redeem the stored refresh token for a new pair. Returns null when there is
-   * no refresh token or the server rejects it — both mean the session is over.
+   * recovery is unavailable. The session owner distinguishes a definitive
+   * rejection from a transient failure and owns credential cleanup.
    */
   readonly refresh: () => Promise<TokenPair | null>;
 }
@@ -66,15 +68,20 @@ export const createApiFetch = (deps: ApiFetchDependencies): ApiFetch => {
     });
 
   return async (path, init = {}) => {
+    const session = deps.getSessionVersion();
+    if (session === null) throw new AuthExpiredError();
     const first = await send(path, init, deps.getAccessToken());
+    if (deps.getSessionVersion() !== session) throw new AuthExpiredError();
     if (!shouldRefresh(first.status)) return first;
 
     const pair = await deps.refresh();
+    if (deps.getSessionVersion() !== session) throw new AuthExpiredError();
     if (!pair) {
       throw new AuthExpiredError();
     }
 
     const retry = await send(path, init, pair.access);
+    if (deps.getSessionVersion() !== session) throw new AuthExpiredError();
     if (shouldRefresh(retry.status)) {
       throw new AuthExpiredError();
     }
@@ -85,8 +92,8 @@ export const createApiFetch = (deps: ApiFetchDependencies): ApiFetch => {
 /**
  * The one-shot refresh call shared by the session provider and apiFetch's
  * 401 recovery. Returns the rotated pair, or null when the session cannot be
- * continued. A definitive rejection (response received, not ok) is
- * distinguished from a network failure by `rejected`.
+ * continued. Only authentication rejections set `rejected`; rate limiting,
+ * server errors and network failures preserve credentials for later recovery.
  */
 export const requestTokenRefresh = async (
   baseUrl: string,
@@ -101,7 +108,7 @@ export const requestTokenRefresh = async (
       body: buildRefreshBody(refreshToken),
     });
     if (!response.ok) {
-      return { pair: null, rejected: true };
+      return { pair: null, rejected: [400, 401, 403].includes(response.status) };
     }
     return { pair: parseTokenPair(await response.json()), rejected: false };
   } catch {

@@ -191,7 +191,8 @@ const parseStandardHtml = (html: string): BibleBlock[] => {
     const bodyStart = numSpanClose === -1 ? match.index + match[0].length : numSpanClose + '</span>'.length;
     const nextToken = tokenRe.exec(scope);
     const bodyEnd = nextToken ? nextToken.index : scope.length;
-    if (nextToken) tokenRe.lastIndex = nextToken.index;
+    // A failed global exec resets lastIndex to zero; do not rescan headings.
+    tokenRe.lastIndex = nextToken ? nextToken.index : scope.length;
 
     let body = scope.slice(bodyStart, bodyEnd);
     const footnotes = footnotesIn(body, false);

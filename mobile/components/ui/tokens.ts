@@ -1,3 +1,6 @@
+import { useColorScheme } from 'react-native';
+import { useOptionalReadingSettings } from '../bible/ReadingSettingsProvider';
+
 export type NativeThemeMode = 'light' | 'dark';
 
 // Semantic counterparts of frontend/app/assets/css/themes.css.
@@ -20,7 +23,7 @@ export const colors = {
   },
   dark: {
     background: '#1a1a1a',
-    surface: '#242424',
+    surface: '#2a2a2a',
     surfaceMuted: '#2d2d2d',
     surfacePressed: '#3D3D3D',
     text: '#f3f4f6',
@@ -29,7 +32,7 @@ export const colors = {
     border: '#3d3d3d',
     accent: '#F3EEEE',
     accentSurface: '#3A2A2A',
-    accentPressed: '#4A3636',
+    accentPressed: '#E6DCDC',
     onAccent: '#1F1A17',
     error: '#F28B82',
     scrim: 'rgba(0, 0, 0, 0.65)',
@@ -46,8 +49,14 @@ export const typography = {
 
 export const geometry = { hitTarget: 48, buttonRadius: 12, sheetRadius: 24 } as const;
 
-// Native shell chrome stays light until every native screen supports app theming.
-// Reading content and explicitly themed controls retain their own mode.
+export function useNativeTheme(): NativeThemeMode {
+  const settings = useOptionalReadingSettings();
+  const system = useColorScheme();
+  const preference = settings?.settings.theme ?? 'light';
+  return preference === 'system' ? (system === 'dark' ? 'dark' : 'light') : preference;
+}
+
 export function useNativeColors(mode?: NativeThemeMode) {
-  return colors[mode ?? 'light'];
+  const theme = useNativeTheme();
+  return colors[mode ?? theme];
 }

@@ -111,6 +111,7 @@ const originals = [
   ['NotoSerifKR-Regular', 'otf', 400, '5ea012e15cb7eacc1f680aee1703f3b164791b1443ea3e52b65080cca5d179cf'],
   ['NotoSerifKR-Medium', 'otf', 500, '4635a54699624f9235ff4511e932dd8229edce678bdb00d43f46b4668b151062'],
   ['NotoSerifKR-SemiBold', 'otf', 600, 'a63051d299d7219132a98ff3c2b76a62022344e50e9f3b50fdb9b0ee4560f583'],
+  ['NotoSerifKR-Bold', 'ttf', 700, '9a6dbb18ee4c88b8f1df0bf892baca9af901ef5a3c82de210f2413cc4fed08f9'],
   ['Pretendard-Regular', 'otf', 400, '3ffbacde6ab8411f1d2db54bb9b1f0b3ee2a738932033722cf0388c06aed1c93'],
   ['Pretendard-Medium', 'otf', 500, 'd39e50e4bb52b4993b6a4eeb821a171254745bd824446af01e1f616b89fface0'],
   ['Pretendard-SemiBold', 'otf', 600, 'c89bc43027dc7cde5726e96223376f8eec09302b2fc1f8147fd5b57cfc376118'],
@@ -136,14 +137,23 @@ test('app startup registers each original face or documented static instance', {
 test('every persisted font and weight reaches a registered face in the real reader', { timeout: 3000 }, async () => {
   const fonts = await registeredFonts();
   const ReaderBody = load('components/bible/ReaderBody.tsx', {
-    'react-native': { Text: 'Text', View: 'View', useColorScheme: () => 'light' },
+    'react-native': { Text: 'Text', View: 'View', useColorScheme: () => 'light',
+      Platform: { OS: 'ios' },
+      useWindowDimensions: () => ({ width: 440, height: 956 }) },
     '../../api/readingSettings': settings,
+    '../ui/tokens': {
+      useNativeColors: () => ({ background: '#FAF8F5', text: '#1F1A17', textSecondary: '#6B625B', accent: '#2A1111' }),
+      useNativeTheme: () => 'light',
+    },
   }).default;
   for (const family of settings.NATIVE_FONT_ORDER) {
     for (const weight of ['normal', 'medium', 'bold']) {
       const model = settings.parseReadingSettings({ font_family: family, font_weight: weight });
       const tree = ReaderBody({ blocks: [{ type: 'verse', num: 1, text: '태초에 하나님이' }], settings: model });
-      const style = tree.props.children[0].props.style.at(-1);
+      const nodes = element => Array.isArray(element) ? element.flatMap(nodes) : React.isValidElement(element)
+        ? [element, ...nodes(element.props.children)] : [];
+      const paragraph = nodes(tree).find(node => node.props.testID === 'reader-verse-paragraph');
+      const style = Object.assign({}, ...paragraph.props.style.flat(Infinity));
       if (family === 'system') {
         assert.equal(style.fontFamily, undefined);
         assert.equal(style.fontWeight, settings.FONT_WEIGHTS[weight]);

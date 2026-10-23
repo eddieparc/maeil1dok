@@ -12,9 +12,10 @@ const settingsResponse = settings => ok({ success: true, data: { settings } });
 
 // Execute the real native navigator, screen, provider, sync and sheet. Only native host
 // components/navigation and external I/O are replaced. Hook slots are per instance.
-function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failPatch = false, tongdok = false, content, contentType = 'html', scheme = 'light' } = {}) {
+function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failPatch = false, tongdok = false, realSchedule = false, content, contentType = 'html', scheme = 'light' } = {}) {
   const instances = new Map(), cache = new Map(), listeners = new Set(), calls = [], writes = [], reads = [];
   let active, cursor, dirty = false, disposed = false, tree = [], effects = [];
+  let renderedInstances = new Set(), scheduleMounts = 0;
   const auth = { status, accessToken: token(id), apiFetch };
   const stack = { api: 'https://api.example.test', web: 'https://example.test' };
   const changed = (a, b) => !a || !b || a.length !== b.length || a.some((v, i) => v !== b[i]);
@@ -59,6 +60,26 @@ function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failP
   };
   async function apiFetch(url, init) {
     calls.push({ url, init });
+    if (realSchedule && url.endsWith('/todos/plan/')) return ok([
+      { id: 3, plan_id: 3, plan_name: 'Plan3', is_active: true, is_default: true },
+      { id: 4, plan_id: 4, plan_name: 'Plan4', is_active: true },
+    ]);
+    if (realSchedule && url.includes('/schedules/month/')) {
+      const plan = Number(new URL(url, stack.api).searchParams.get('plan_id'));
+      const chapter = plan === 3 ? 2 : 1;
+      return ok([{ id: plan * 10 + 1, plan, date: '2026-09-22',
+        book: 'gen', start_chapter: chapter, end_chapter: chapter, is_completed: false }]);
+    }
+    if (realSchedule && url.includes('/stats/progress/')) return ok({ success: true, monthly_progress: [] });
+    if (realSchedule && url.includes('/detail/')) {
+      const params = new URL(url, stack.api).searchParams;
+      const plan = Number(params.get('plan_id')), chapter = Number(params.get('chapter'));
+      return ok({
+        book: 'gen', chapter, plan_id: plan, plan_name: `Plan${plan}`, plan_date: '2026-09-22',
+        plan_detail: [{ schedule_id: plan * 10 + 1, book: 'gen', start_chapter: chapter, end_chapter: chapter,
+          date: '2026-09-22', is_complete: false }], fallback_audio_links: [],
+      });
+    }
     if (url.endsWith('/reading-settings/')) return settingsResponse(server);
     if (url.endsWith('/reading-settings/update/')) {
       if (failPatch) return { ok: false, status: 503 };
@@ -84,13 +105,16 @@ function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failP
     return ok({ success: true, position: null, read_chapters: [] });
   }
   const native = Object.fromEntries(['ActivityIndicator', 'FlatList', 'Modal', 'Pressable', 'ScrollView',
-    'Text', 'TouchableOpacity', 'View', 'Switch'].map(name => [name, name]));
+    'Text', 'TextInput', 'TouchableOpacity', 'View', 'Switch', 'StatusBar'].map(name => [name, name]));
   native.StyleSheet = { create: x => x, hairlineWidth: 1 };
   native.useColorScheme = () => scheme;
+  native.useWindowDimensions = () => ({ width: 440, height: 956 });
+  native.Platform = { OS: 'ios' };
   const navigator = {
     Navigator: ({ children }) => children,
     Screen: ({ name, component }) => ['Main', 'Bible'].includes(name) ? React.createElement(component) : null,
   };
+  const screenNavigation = { setParams() {}, addListener: () => () => {}, isFocused: () => true };
   function load(filename) {
     if (cache.has(filename)) return cache.get(filename);
     const m = new Module(filename, module);
@@ -98,10 +122,12 @@ function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failP
     m.require = name => {
       if (name === 'react') return hooks;
       if (name === 'react-native') return native;
-      if (name === 'react-native-safe-area-context') return { SafeAreaView: 'SafeAreaView', useSafeAreaInsets: () => ({ bottom: 0 }) };
+      if (name === 'react-native-safe-area-context') return { SafeAreaProvider: 'SafeAreaProvider', SafeAreaView: 'SafeAreaView', useSafeAreaInsets: () => ({ top: 62, bottom: 0 }) };
       if (name === '@react-navigation/native') return {
         NavigationContainer: ({ children }) => children,
         useRoute: () => ({ params: { url: `/bible?book=gen&chapter=1${tongdok ? '&tongdok=true&plan=4' : ''}` } }),
+        useNavigation: () => screenNavigation,
+        useFocusEffect: fn => hooks.useEffect(fn, [fn]),
       };
       if (name === '@react-navigation/bottom-tabs') return { createBottomTabNavigator: () => navigator };
       if (name === '@react-navigation/native-stack') return { createNativeStackNavigator: () => navigator };
@@ -114,7 +140,9 @@ function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failP
       if (name.includes('navigationRef')) return { navigationRef: { isReady: () => true, navigate() {} } };
       if (name.includes('NativeTabBar')) return { useNativeTabBarInset: () => 0 };
       if (name === '@expo/vector-icons/Ionicons') return { __esModule: true, default: 'Icon' };
+      if (name === 'react-native-svg') return { __esModule: true, default: 'Svg', Circle: 'Circle', Path: 'Path', Rect: 'Rect' };
       if (name.includes('/screens/') && !name.endsWith('/BibleScreen')) return { __esModule: true, default: () => null };
+      if (name === './ScheduleScreen' && !realSchedule) return { __esModule: true, default: () => null };
       if (/Reader(Tabs|AudioPlayer|TongdokControls|TongdokSchedule)$/.test(name))
         return { __esModule: true, default: name.split('/').at(-1) };
       if (name.startsWith('.')) {
@@ -123,9 +151,15 @@ function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failP
       }
       return require(name);
     };
-    m._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+    const compiled = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
-    }).outputText, filename);
+    }).outputText;
+    const clock = realSchedule && filename.endsWith('/ScheduleScreen.tsx')
+      ? `const Date = class extends globalThis.Date {
+          constructor(...args) { super(...(args.length ? args : ['2026-09-22T03:00:00.000Z'])); }
+          static now() { return globalThis.Date.parse('2026-09-22T03:00:00.000Z'); }
+        };\n` : '';
+    m._compile(clock + compiled, filename);
     cache.set(filename, m.exports); return m.exports;
   }
   const Root = load(path.resolve(__dirname, '../navigation/NativeRootNavigator.tsx')).default;
@@ -144,6 +178,8 @@ function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failP
     }
     if (typeof el.type === 'function') {
       const instance = `${key}:${el.type.name}:${el.key ?? ''}`;
+      if (!instances.has(instance) && el.type.name === 'ScheduleScreen') scheduleMounts++;
+      renderedInstances.add(instance);
       active = instances.get(instance) ?? [];
       instances.set(instance, active); cursor = 0;
       const result = el.type(el.props);
@@ -155,13 +191,21 @@ function mount({ status = 'signedIn', id = 42, stored = null, server = {}, failP
   function render() {
     if (disposed) return;
     dirty = false;
+    renderedInstances = new Set();
     tree = visit(React.createElement(Root));
+    for (const [instance, slots] of instances) {
+      if (!renderedInstances.has(instance)) {
+        slots.forEach(slot => slot?.cleanup?.());
+        instances.delete(instance);
+      }
+    }
     effects.splice(0).forEach(fn => fn());
     listeners.forEach(fn => fn());
   }
   render();
   return {
     calls, writes, reads, auth, stack,
+    get scheduleMounts() { return scheduleMounts; },
     get value() { return settingsValue; },
     nodes: () => tree,
     get: id => tree.find(n => n.props.testID === id),
@@ -186,9 +230,34 @@ test('actual navigator hydrates reader and sheet through the provider', { timeou
   assert.ok(h.nodes().some(n => n.type?.name === 'ReadingSettingsProvider'), 'Provider must participate in the rendered navigator');
   await h.wait(() => h.sheet()?.props.settings.fontSize === 23);
   const verse = h.nodes().find(n => n.type === 'Text' && React.Children.toArray(n.props.children).includes('First verse'));
-  assert.equal(verse.props.style.at(-1).fontSize, 23);
-  assert.equal(verse.props.style.at(-1).fontFamily, 'Pretendard-Medium');
+  const renderedStyle = Object.assign({}, ...verse.props.style.flat(Infinity));
+  assert.equal(renderedStyle.fontSize, 23);
+  assert.equal(renderedStyle.fontFamily, 'Pretendard-Medium');
   assert.equal(h.reads.includes('readingSettings'), false);
+});
+
+test('actual navigator preserves the web shell safe-area chrome across saved and system themes', { timeout: 3000 }, async t => {
+  const h = mount({ server: { theme: 'dark', font_size: 23 } });
+  t.after(h.dispose);
+  await h.wait(() => h.value?.settings.fontSize === 23);
+  const bar = () => h.nodes().find(node => node.type === 'StatusBar');
+  assert.ok(bar());
+  assert.equal(bar().props.barStyle, 'dark-content');
+  assert.equal(bar().props.backgroundColor, '#FAF8F5');
+  assert.equal(h.nodes().find(node => node.props?.testID === 'native-safe-top').props.style[1].height, 62);
+
+  const light = h.wait(() => bar()?.props.barStyle === 'dark-content');
+  await h.value.update('theme', 'light');
+  await light;
+  assert.equal(bar().props.backgroundColor, '#FAF8F5');
+
+  const system = h.wait(() => h.value?.settings.theme === 'system');
+  await h.value.update('theme', 'system');
+  await system;
+  h.scheme('dark');
+  assert.equal(bar().props.barStyle, 'dark-content');
+  h.scheme('light');
+  assert.equal(bar().props.barStyle, 'dark-content');
 });
 
 test('sheet edits PATCH dirty fields only and retry failed sync without local writes', { timeout: 3000 }, async t => {
@@ -247,20 +316,20 @@ test('rendered sheet controls update body typography and numbers and supported s
   h.nodes().find(n => n.props.accessibilityLabel === '더보기').props.onPress();
   await h.wait(() => h.nodes().some(n => n.props.accessibilityLabel === '읽기 설정'));
   h.nodes().find(n => n.props.accessibilityLabel === '읽기 설정').props.onPress();
-  await h.wait(() => h.nodes().some(n => n.props.accessibilityLabel === '글자 크기 키우기'));
-  h.nodes().find(n => n.props.accessibilityLabel === '글자 크기 키우기').props.onPress();
+  await h.wait(() => h.get('reading-range-font'));
+  h.get('reading-range-font').props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } });
   await h.wait(() => h.value.settings.fontSize === 21);
   const verse = h.nodes().find(n => n.type === 'Text' && React.Children.toArray(n.props.children).includes('First verse'));
   for (const [key, value] of Object.entries({
     fontFamily: undefined, fontWeight: 600, fontSize: 21, lineHeight: 42, textAlign: 'justify',
-  })) assert.equal(verse.props.style.at(-1)[key], value, key);
-  const switches = h.nodes().filter(n => n.type === 'Switch');
+  })) assert.equal(Object.assign({}, ...verse.props.style.flat(Infinity))[key], value, key);
+  const switches = h.nodes().filter(n => n.props.accessibilityRole === 'switch');
   for (const label of ['절 붙임 (통독 모드)', '시편 머리말 (새한글)', '교차 참조 (새한글)', '각주 (새한글)']) {
     const control = switches.find(n => n.props.accessibilityLabel === label);
     assert.notEqual(control.props.disabled, true, label);
-    assert.equal(typeof control.props.onValueChange, 'function', label);
+    assert.equal(typeof control.props.onPress, 'function', label);
   }
-  switches.find(n => n.props.accessibilityLabel === '절 번호 표시').props.onValueChange(false);
+  switches.find(n => n.props.accessibilityLabel === '절 번호 표시').props.onPress();
   await h.wait(() => h.value.settings.showVerseNumbers === false);
   const changed = h.nodes().find(n => n.type === 'Text' && React.Children.toArray(n.props.children).includes('First verse'));
   assert.deepEqual(React.Children.toArray(changed.props.children), ['First verse']);
@@ -271,6 +340,26 @@ const textOf = el => {
   if (Array.isArray(el)) return el.map(textOf).join('');
   return React.isValidElement(el) ? textOf(el.props.children) : '';
 };
+test('reading sheet exposes the same three font choices as the web and applies each face', { timeout: 3000 }, async t => {
+  const h = mount(); t.after(h.dispose);
+  await h.wait(() => h.get('reader-body'));
+  h.nodes().find(n => n.props.accessibilityLabel === '더보기').props.onPress();
+  await h.wait(() => h.nodes().some(n => n.props.accessibilityLabel === '읽기 설정'));
+  h.nodes().find(n => n.props.accessibilityLabel === '읽기 설정').props.onPress();
+  await h.wait(() => h.get('reading-range-font'));
+  const families = ['pretendard', 'kopub-batang', 'ridi-batang'];
+  const faces = ['Pretendard-Medium', 'KoPubBatang-Regular', 'RIDIBatang'];
+  const controls = () => h.nodes().filter(n => n.props.accessibilityLabel?.startsWith('글꼴 '));
+  assert.equal(controls().length, families.length);
+  for (const [index, family] of families.entries()) {
+    controls()[index].props.onPress();
+    await h.wait(() => h.value.settings.fontFamily === family);
+    assert.equal(h.value.settings.fontSize, 16);
+    assert.equal(controls()[index].props.accessibilityState.selected, true);
+    const paragraph = h.nodes().find(n => n.props.testID === 'reader-verse-paragraph');
+    assert.equal(Object.assign({}, ...paragraph.props.style.flat(Infinity)).fontFamily, faces[index]);
+  }
+});
 const bodyText = h => textOf(h.get('reader-body'));
 const kntSettingsFixture = JSON.stringify({ found: true, content:
   '<p class="s">Section</p><p class="d">Superscription<span class="f"><span class="fr">1:1</span><span class="ft">Description footnote</span></span></p>'
@@ -343,7 +432,7 @@ test('body theme changes foreground/background and system appearance without res
   await h.value.update('theme', 'dark');
   await h.wait(() => h.value.settings.theme === 'dark');
   assert.equal(h.get('reader-body').props.style.backgroundColor, '#1a1a1a');
-  assert.equal(h.nodes().find(n => n.props.testID === 'reader-verse-paragraph').props.style.at(-1).color, '#e5e5e5');
+  assert.equal(Object.assign({}, ...h.nodes().find(n => n.props.testID === 'reader-verse-paragraph').props.style.flat(Infinity)).color, '#e5e5e5');
   await h.value.update('theme', 'system');
   await h.wait(() => h.value.settings.theme === 'system');
   assert.equal(h.get('reader-body').props.style.backgroundColor, '#FAF8F5');
@@ -351,6 +440,84 @@ test('body theme changes foreground/background and system appearance without res
   assert.equal(h.get('reader-body').props.style.backgroundColor, '#1a1a1a');
   assert.equal(h.value.settings.fontSize, 23);
   assert.equal(h.value.settings.audioPlaybackRate, 1.5);
+});
+
+test('native book sheet searches a passage and keeps the chosen version in the content request', { timeout: 3000 }, async t => {
+  const h = mount(); t.after(h.dispose);
+  await h.wait(() => h.get('reader-body'));
+  h.nodes().find(n => n.props.accessibilityLabel === '성경 선택').props.onPress();
+  await h.wait(() => h.nodes().some(n => n.type === 'TextInput'));
+  for (const grow of [7, 3]) {
+    const column = h.nodes().find(n => n.type === 'ScrollView'
+      && Object.assign({}, ...[n.props.style].flat(Infinity)).flexGrow === grow);
+    assert.ok(column);
+    assert.equal(Object.assign({}, ...[column.props.style].flat(Infinity)).flexBasis, 0);
+  }
+  const version = h.nodes().find(n => n.type === 'Pressable'
+    && n.props.accessibilityState && textOf(n) === '새한글');
+  version.props.onPress();
+  await h.wait(() => h.calls.some(c => c.url.includes('/bible-cache/KNT/gen/1/')));
+  h.nodes().find(n => n.type === 'TextInput').props.onChangeText('시편 23');
+  await h.wait(() => h.nodes().some(n => n.type === 'TextInput' && n.props.value === '시편 23'));
+  h.nodes().find(n => n.type === 'TextInput').props.onSubmitEditing();
+  await h.wait(() => h.calls.some(c => c.url.includes('/bible-cache/KNT/psa/23/')));
+  assert.equal(h.nodes().some(n => n.type === 'TextInput'), false);
+});
+
+test('real reader and remounted schedule keep a newly selected plan instead of the original URL', { timeout: 5000 }, async t => {
+  const h = mount({ tongdok: true, realSchedule: true }); t.after(h.dispose);
+  await h.wait(() => h.get('reader-body'));
+  const lastPlan = () => {
+    const request = h.calls.filter(call => call.url.includes('/schedules/month/')).at(-1);
+    return request ? new URL(request.url, h.stack.api).searchParams.get('plan_id') : null;
+  };
+  const openSchedule = async () => {
+    const menu = h.wait(() => h.nodes().some(node => node.props.accessibilityLabel === '성경 통독표'));
+    h.nodes().find(node => node.props.accessibilityLabel === '더보기').props.onPress();
+    await menu;
+    const opened = h.wait(() => h.get('schedule-list') && !h.get('schedule-loading'));
+    h.nodes().find(node => node.props.accessibilityLabel === '성경 통독표').props.onPress();
+    await opened;
+  };
+  await openSchedule();
+  assert.equal(lastPlan(), '4');
+  assert.equal(h.scheduleMounts, 1);
+  const choices = h.wait(() => h.get('schedule-plan-3'));
+  h.get('schedule-plan-selector').props.onPress();
+  await choices;
+  const selected = h.wait(() => lastPlan() === '3' && h.get('schedule-read-31') && !h.get('schedule-loading'));
+  h.get('schedule-plan-3').props.onPress();
+  await selected;
+  const confirmation = h.wait(() => h.get('schedule-dialog-confirm'));
+  h.get('schedule-read-31').props.onPress();
+  await confirmation;
+  const reading = h.wait(() => !h.get('schedule-list')
+    && h.calls.some(call => call.url === '/api/v1/bible-cache/GAE/gen/2/'));
+  const dialog = h.nodes().find(node => node.type === 'Modal' && node.props.onDismiss);
+  h.get('schedule-dialog-confirm').props.onPress();
+  assert.equal(h.scheduleMounts, 1);
+  dialog.props.onDismiss();
+  await reading;
+  await openSchedule();
+  assert.equal(h.scheduleMounts, 2, 'the modal must mount a fresh actual ScheduleScreen');
+  assert.equal(lastPlan(), '3');
+  assert.equal(h.calls.some(call => call.url.includes('/reading/update/')), false);
+});
+
+test('reading range accessibility actions stay within bounds and preserve decimal steps', { timeout: 3000 }, async t => {
+  const h = mount({ server: { font_size: 24, line_height: 1.4 } }); t.after(h.dispose);
+  await h.wait(() => h.value?.settings.fontSize === 24);
+  h.nodes().find(n => n.props.accessibilityLabel === '더보기').props.onPress();
+  await h.wait(() => h.nodes().some(n => n.props.accessibilityLabel === '읽기 설정'));
+  h.nodes().find(n => n.props.accessibilityLabel === '읽기 설정').props.onPress();
+  await h.wait(() => h.get('reading-range-font'));
+  h.get('reading-range-font').props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } });
+  assert.equal(h.value.settings.fontSize, 24);
+  h.get('reading-range-line').props.onAccessibilityAction({ nativeEvent: { actionName: 'decrement' } });
+  assert.equal(h.value.settings.lineHeight, 1.4);
+  h.get('reading-range-line').props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } });
+  await h.wait(() => h.value.settings.lineHeight === 1.5);
+  assert.equal(h.get('reading-range-line').props.accessibilityValue.now, 1.5);
 });
 
 for (const enabled of [true, false]) {
@@ -366,11 +533,11 @@ for (const enabled of [true, false]) {
     h.nodes().find(n => n.props.accessibilityLabel === '더보기').props.onPress();
     await h.wait(() => h.nodes().some(n => n.props.accessibilityLabel === '읽기 설정'));
     h.nodes().find(n => n.props.accessibilityLabel === '읽기 설정').props.onPress();
-    await h.wait(() => h.nodes().some(n => n.type === 'Switch'));
-    const control = h.nodes().find(n => n.type === 'Switch'
+    await h.wait(() => h.nodes().some(n => n.props.accessibilityRole === 'switch'));
+    const control = h.nodes().find(n => n.props.accessibilityRole === 'switch'
       && n.props.accessibilityLabel === '통독모드 자동 완료');
     assert.notEqual(control.props.disabled, true);
-    await control.props.onValueChange(enabled);
+    await control.props.onPress();
     await h.wait(() => h.value.settings.tongdokAutoComplete === enabled);
     assert.deepEqual(JSON.parse(h.calls.filter(c => c.init?.method === 'PATCH').at(-1).init.body),
       { tongdok_auto_complete: enabled });

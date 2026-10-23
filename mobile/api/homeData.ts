@@ -286,9 +286,13 @@ const WEEK_LABELS = ['월', '화', '수', '목', '금', '토', '일'] as const;
 
 /** HTTP and application failures must never become empty data or zero stats. */
 export async function readHomeResponse(response: ApiFetchResponse): Promise<unknown> {
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const json = await response.json();
-  if (isRecord(json) && json.success === false) throw new Error('Unsuccessful home response');
+  if (!response.ok || (isRecord(json) && json.success === false)) {
+    const message = isRecord(json)
+      ? asString(json.error) ?? asString(json.detail) ?? asString(json.message)
+      : null;
+    throw new Error(message ?? '읽기 기록을 불러오지 못했습니다.');
+  }
   return json;
 }
 

@@ -1,7 +1,6 @@
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { ActivityIndicator, StatusBar, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { navigationRef, type RootStackParamList, type TabParamList } from './navigationRef';
@@ -15,85 +14,57 @@ import WebViewScreen from '../screens/WebViewScreen';
 import TogetherScreen from '../screens/TogetherScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LoginScreen from '../screens/LoginScreen';
-import { hasNativeTabBar, NativeTabBar } from './NativeTabBar';
+import { NativeTabBar } from './NativeTabBar';
+import { useNativeColors } from '../components/ui/tokens';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
-  Home: 'home-outline',
-  Bible: 'book-outline',
-  Schedule: 'calendar-outline',
-  Together: 'people-outline',
-  Profile: 'person-circle-outline',
-};
-
-/**
- * 웹 BottomNavigation과 동일한 탭 바: 84px 콘텐츠 + safe-area inset,
- * 흰 배경, 상단 hairline, 11px 라벨, 활성 #2A1111 / 비활성 #6B625B.
- */
-function WebTabBar({ state, navigation }: BottomTabBarProps) {
+function WebMatchedChrome() {
   const insets = useSafeAreaInsets();
-  const labels: Record<keyof TabParamList, string> = {
-    Home: '홈',
-    Bible: '성경',
-    Schedule: '통독표',
-    Together: '함께',
-    Profile: '내 정보',
-  };
+  // The existing WebView shell keeps its outer safe areas cream in both themes.
   return (
-    <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-      {state.routes.map((route, index) => {
-        const focused = state.index === index;
-        const color = focused ? '#2A1111' : '#6B625B';
-        const name = route.name as keyof TabParamList;
-        return (
-          <TouchableOpacity
-            key={route.key}
-            style={styles.tabItem}
-            accessibilityRole="tab"
-            accessibilityLabel={labels[name]}
-            accessibilityState={{ selected: focused }}
-            activeOpacity={0.7}
-            onPress={() => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!focused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
-            }}
-          >
-            <Ionicons name={TAB_ICONS[name]} size={22} color={color} />
-            <Text
-              style={[
-                styles.tabLabel,
-                { color, fontFamily: focused ? 'Pretendard-SemiBold' : 'Pretendard-Medium' },
-              ]}
-            >
-              {labels[name]}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#FAF8F5" />
+      <View testID="native-safe-top" pointerEvents="none"
+        style={[styles.safeTop, { height: insets.top }]} />
+    </>
   );
 }
 
 function MainTabs() {
+  const { status } = useAuth();
+  const { width } = useWindowDimensions();
+  const colors = useNativeColors();
   return (
     <Tab.Navigator
       // eslint-disable-next-line react/no-unstable-nested-components
-      tabBar={(props) => hasNativeTabBar ? <NativeTabBar {...props} /> : <WebTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <NativeTabBar {...props} />}
+      screenOptions={{ headerShown: false, tabBarPosition: width >= 1024 ? 'left' : 'bottom',
+        sceneStyle: { backgroundColor: colors.background } }}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: '홈' }} />
       <Tab.Screen name="Bible" component={BibleScreen} options={{ title: '성경' }} />
-      <Tab.Screen name="Schedule" component={ScheduleScreen} options={{ title: '통독표' }} />
+      <Tab.Screen name="Schedule" component={ScheduleScreen} options={{ title: '통독표' }}
+        listeners={({ navigation }) => ({
+          tabPress: (event) => {
+            const state = navigation.getState();
+            const current = state.routes[state.index];
+            if (current.name !== 'Bible' || !current.params
+              || !('readerActive' in current.params) || current.params.readerActive !== true) return;
+            event.preventDefault();
+            navigation.navigate('Bible', { ...current.params, openSchedule: true });
+          },
+        })} />
       <Tab.Screen name="Together" component={TogetherScreen} options={{ title: '함께' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: '내 정보' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: '내 정보' }}
+        listeners={{
+          tabPress: (event) => {
+            if (status !== 'signedOut') return;
+            event.preventDefault();
+            if (navigationRef.isReady()) navigationRef.navigate('Login');
+          },
+        }} />
     </Tab.Navigator>
   );
 }
@@ -150,37 +121,24 @@ export default function NativeRootNavigator({ onReady }: { readonly onReady?: ()
         />
       </Stack.Navigator>
     </NavigationContainer>
+    <WebMatchedChrome />
     </ReadingSettingsProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  safeTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+    backgroundColor: '#FAF8F5',
+  },
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FAF8F5',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E9E4DE',
-    paddingTop: 6,
-    paddingHorizontal: 8,
-    height: 60 + 24,
-  },
-  tabItem: {
-    flex: 1,
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    minHeight: 44,
-  },
-  tabLabel: {
-    fontSize: 11,
-    letterSpacing: -0.4,
-    lineHeight: 11,
   },
 });

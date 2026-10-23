@@ -6,6 +6,7 @@ const Module = require('node:module');
 const ts = require('typescript');
 const React = require('react');
 const cache = new Map();
+let theme = 'light';
 const native = {
   View: 'View', Text: 'Text', Pressable: 'Pressable', ScrollView: 'ScrollView',
   ActivityIndicator: 'ActivityIndicator', Image: 'Image', TextInput: 'TextInput',
@@ -23,7 +24,12 @@ function load(relative) {
   instance.require = name => {
     if (name === 'react-native') return native;
     if (name === '@expo/vector-icons/Ionicons') return { __esModule: true, default: 'Icon' };
-    if (name === 'react-native-svg') return { __esModule: true, default: 'Svg', Circle: 'Circle' };
+    if (name === 'react-native-svg') return { __esModule: true, default: 'Svg', Circle: 'Circle', Path: 'Path' };
+    if (name.endsWith('/ReadingSettingsProvider')) return { useReadingSettings: () => ({ settings: { theme } }) };
+    if (name.endsWith('/tokens')) {
+      const actual = load('components/ui/tokens.ts');
+      return { ...actual, useNativeColors: mode => actual.colors[mode ?? theme] };
+    }
     if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }) };
     if (name.startsWith('.')) {
       const target = path.resolve(path.dirname(filename), name);
@@ -140,6 +146,7 @@ test('profile access denials preserve their category instead of falling back to 
 test('native API expired authentication remains unauthorized, not a generic load error', async () => {
   const { createApiFetch } = load('api/nativeApi.ts');
   const apiFetch = createApiFetch({ baseUrl: 'https://example.test', getAccessToken: () => 'expired',
+    getSessionVersion: () => 0,
     fetchImpl: async () => ({ ...ok({}), ok: false, status: 401 }), refresh: async () => null });
   const c = createProfileController({ apiFetch, status: 'signedIn', targetId: 8, month: '2026-09' });
   await c.start();
@@ -174,6 +181,7 @@ test('guest public profile uses native API without bearer and has no edit/follow
   const group = { id: 5, name: '함께', description: '', plans: [], is_public: true,
     member_count: 2, max_members: 10, my_role: null, show_in_profile: false };
   const apiFetch = createApiFetch({ baseUrl: 'https://example.test', getAccessToken: () => null,
+    getSessionVersion: () => 0,
     refresh: async () => { throw Error('public endpoints must not refresh'); },
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
@@ -309,7 +317,7 @@ test('native ready view exposes tab actions and floating inset without a WebView
   tree.find(n => n.props.testID === 'profile-edit').props.onPress();
   assert.equal(c.getSnapshot().editor.is_public, true);
 });
-test('native editor input and switch reach PUT, then successful response closes the sheet', async () => {
+test('native editor input and checkbox reach PUT, then successful response closes the sheet', async () => {
   let written;
   const c = controller((p, init) => {
     if (init?.method === 'PUT') {
@@ -322,7 +330,7 @@ test('native editor input and switch reach PUT, then successful response closes 
   c.openEdit();
   const render = () => nodes(ProfileView({ state: c.getSnapshot(), controller: c, onLogin() {}, onRead() {}, bottomInset: 0 }));
   render().find(n => n.props.testID === 'profile-bio').props.onChangeText('새 소개');
-  render().find(n => n.type === 'Switch').props.onValueChange(false);
+  render().find(n => n.props.testID === 'profile-public').props.onPress();
   await c.save();
   assert.deepEqual(written, { bio: '새 소개', is_public: false });
   assert.equal(c.getSnapshot().profile.bio, '새 소개');
@@ -407,4 +415,154 @@ test('native calendar day opens both schedules and reading action retains select
   assert.equal(new URL(opened, 'https://example.test').searchParams.get('schedule'), '12');
   assert.equal(new URL(opened, 'https://example.test').searchParams.get('chapter'), '3');
   assert.equal(c.getSnapshot().selectedDate, null);
+  assert.equal(new URL(opened, 'https://example.test').searchParams.get('from'), 'profile/7');
+});
+
+test('profile quicklinks and sharing invoke separate actions only on the own profile', async () => {
+  // Given
+  const c = controller();
+  await c.start();
+  const actions = [];
+  const props = { controller: c, onLogin() {}, onRead() {}, onProfile() {}, onGroups() {}, bottomInset: 0,
+    onSettings: () => actions.push('account'), onNotificationSettings: () => actions.push('notifications'),
+    onShare: () => actions.push('share') };
+  const tree = nodes(ProfileView({ ...props, state: c.getSnapshot() }));
+  // When
+  for (const id of ['profile-settings', 'profile-notification-settings', 'profile-share']) {
+    tree.find(n => n.props.testID === id).props.onPress();
+  }
+  // Then
+  assert.deepEqual(actions, ['account', 'notifications', 'share']);
+  const other = nodes(ProfileView({ ...props, state: { ...c.getSnapshot(), isOwnProfile: false, viewerId: null } }));
+  assert.equal(other.some(n => ['profile-edit', 'profile-settings', 'profile-notification-settings', 'profile-follow'].includes(n.props.testID)), false);
+  assert.ok(other.some(n => n.props.testID === 'profile-share'));
+});
+
+test('metrics preserve server counts and match the web 365-day completion rate', async () => {
+  // Given
+  const supplied = { ...profile, total_completed_days: 10, current_streak: 0, longest_streak: 6 };
+  const c = controller(p => p.endsWith('/profile/7/') ? Promise.resolve(wrapped({ profile: supplied })) : fetcher(p));
+  await c.start();
+  // When
+  const tree = nodes(ProfileView({ state: c.getSnapshot(), controller: c, onLogin() {}, onRead() {}, bottomInset: 0 }));
+  // Then: assert data output and geometry primitives, not explanatory prose.
+  for (const [key, count] of [['days', 10], ['current', 0], ['longest', 6]]) {
+    const metric = tree.find(n => n.props.testID === `profile-metric-${key}`);
+    assert.ok(nodes(metric).some(n => n.type === 'Text' && n.props.children === count));
+  }
+  const ring = tree.find(n => n.props.testID === 'profile-completion-rate');
+  assert.deepEqual(ring.props.accessibilityValue, { min: 0, max: 100, now: 3 });
+  assert.equal(nodes(ring).filter(n => n.type === 'Circle').length, 2);
+  assert.equal(nodes(ring).find(n => n.props.strokeDashoffset !== undefined).props.strokeDashoffset, 2 * Math.PI * 44 * 0.97);
+  const complete = nodes(ProfileView({
+    state: { ...c.getSnapshot(), profile: { ...supplied, total_completed_days: 400 } },
+    controller: c, onLogin() {}, onRead() {}, bottomInset: 0,
+  })).find(n => n.props.testID === 'profile-completion-rate');
+  assert.equal(complete.props.accessibilityValue.now, 100);
+});
+
+test('dark palette reaches profile cards, outlined actions and calendar cells', async () => {
+  // Given
+  const c = controller();
+  await c.start();
+  theme = 'dark';
+  const flatten = style => Array.isArray(style) ? Object.assign({}, ...style.map(flatten)) : style ?? {};
+  try {
+    // When
+    const tree = nodes(ProfileView({ state: c.getSnapshot(), controller: c, onLogin() {}, onRead() {}, onShare() {}, bottomInset: 0 }));
+    // Then
+    const edit = tree.find(n => n.props.testID === 'profile-edit');
+    assert.equal(flatten(edit.props.style({ pressed: false })).backgroundColor, 'transparent');
+    assert.equal(flatten(edit.props.style({ pressed: false })).borderColor, '#F3EEEE');
+    assert.ok(tree.some(n => flatten(n.props.style).backgroundColor === '#2a2a2a'));
+    const outside = tree.find(n => n.props.testID === 'profile-day-2026-08-30');
+    assert.equal(outside.props.disabled, true);
+    assert.equal(outside.props.accessibilityElementsHidden, true);
+    assert.equal(flatten(outside.props.style({ pressed: false })).opacity, 0);
+  } finally { theme = 'light'; }
+});
+
+test('refresh keeps existing data and selected tab on failure and deduplicates concurrent refresh', async () => {
+  // Given
+  const pending = deferred();
+  let refreshing = false, profileReads = 0;
+  const c = controller(p => {
+    if (refreshing && p.endsWith('/profile/7/')) { profileReads++; return pending.promise; }
+    if (p.includes('/achievements/')) return Promise.resolve(wrapped({ achievements: [] }));
+    return fetcher(p);
+  });
+  await c.start();
+  await c.changeMonth(-1);
+  await c.selectTab('achievements');
+  refreshing = true;
+  // When
+  const first = c.refresh();
+  await c.refresh();
+  assert.equal(c.getSnapshot().refreshing, true);
+  assert.equal(c.getSnapshot().profile.user.id, 7);
+  pending.resolve({ ...ok({}), ok: false, status: 500 });
+  await first;
+  // Then
+  assert.equal(profileReads, 1);
+  assert.equal(c.getSnapshot().kind, 'ready');
+  assert.equal(c.getSnapshot().refreshing, false);
+  assert.equal(c.getSnapshot().month, '2026-08');
+  assert.equal(c.getSnapshot().tab, 'achievements');
+  assert.ok(c.getSnapshot().actionError);
+});
+
+test('refresh applies authoritative metrics without resetting the current month or tab', async () => {
+  // Given
+  let changed = false;
+  const calls = [];
+  const c = controller(p => {
+    calls.push(p);
+    if (p.endsWith('/profile/7/')) return Promise.resolve(wrapped({ profile: { ...profile, current_streak: changed ? 4 : 3 } }));
+    if (p.includes('/groups/')) return Promise.resolve(ok({ success: true, groups: [] }));
+    return fetcher(p);
+  });
+  await c.start();
+  await c.changeMonth(-1);
+  await c.selectTab('groups');
+  changed = true;
+  // When
+  await c.refresh();
+  // Then
+  assert.equal(c.getSnapshot().profile.current_streak, 4);
+  assert.equal(c.getSnapshot().month, '2026-08');
+  assert.equal(c.getSnapshot().tab, 'groups');
+  assert.equal(c.getSnapshot().refreshing, false);
+  assert.equal(calls.at(-1), '/api/v1/auth/profile/7/calendar/?year=2026&month=8');
+});
+
+test('profile made private during refresh removes previously visible data', async () => {
+  // Given
+  let hidden = false;
+  const c = controller(p => hidden && p.endsWith('/profile/7/')
+    ? Promise.resolve({ ...ok({}), ok: false, status: 404 }) : fetcher(p));
+  await c.start();
+  hidden = true;
+  // When
+  await c.refresh();
+  // Then
+  assert.equal(c.getSnapshot().kind, 'unavailable');
+  assert.equal(c.getSnapshot().profile, undefined);
+});
+
+test('achievement category selection exposes only its API items and plan filters remain disabled', async () => {
+  // Given
+  const achievement = { id: null, achievement_type: 'streak_7', title: 'A', description: '', icon: 'flame',
+    order: 1, unlocked: false, unlockedAt: null, milestone_value: 7 };
+  const c = controller(p => p.includes('/achievements/') ? Promise.resolve(wrapped({
+    achievements: [achievement, { ...achievement, achievement_type: 'hasena_7' }],
+  })) : p.includes('/calendar/') ? Promise.resolve(wrapped({ calendar: [], plans: [{ id: 3, name: 'P', color: '#000' }] })) : fetcher(p));
+  await c.start();
+  await c.selectTab('achievements');
+  const render = () => nodes(ProfileView({ state: c.getSnapshot(), controller: c, onLogin() {}, onRead() {}, bottomInset: 0 }));
+  assert.equal(render().find(n => n.props.testID === 'profile-achievement-plan-3').props.disabled, true);
+  // When
+  render().find(n => n.props.testID === 'profile-achievement-tab-hasena').props.onPress();
+  // Then
+  assert.equal(render().some(n => n.props.testID === 'achievement-streak_7'), false);
+  assert.equal(render().some(n => n.props.testID === 'achievement-hasena_7'), true);
 });

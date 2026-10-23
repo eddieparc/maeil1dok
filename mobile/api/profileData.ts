@@ -98,19 +98,20 @@ export function calendarCells(month: string, rows: readonly CalendarEntry[], tod
     const date = localDate(day);
     const current = date.startsWith(`${month}-`);
     const schedules = current ? rows.filter(row => row.date === date) : [];
-    const state = !current ? 'outside'
+    const state: 'outside' | 'completed' | 'today' | 'empty' | 'future' | 'missed' = !current ? 'outside'
       : schedules.length > 0 && schedules.every(row => row.is_completed) ? 'completed'
         : date === today ? 'today'
-          : schedules.length === 0 ? 'empty'
-            : date > today ? 'future' : 'missed';
+          : date > today ? 'future'
+            : schedules.length === 0 ? 'empty' : 'missed';
     return { date, day: day.getDate(), current, schedules, state };
   });
 }
-export function readingUrl(row: CalendarEntry): string | null {
+export function readingUrl(row: CalendarEntry, profileUserId?: number): string | null {
   const book = resolveBibleBookCode(row.book);
   if (!book) return null;
   return `/bible?${new URLSearchParams({
     book, chapter: String(row.start_chapter), plan: String(row.plan_id),
     schedule: String(row.schedule_id), date: row.date, tongdok: 'true',
+    ...(profileUserId === undefined ? {} : { from: `profile/${profileUserId}` }),
   })}`;
 }

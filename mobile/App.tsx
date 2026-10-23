@@ -212,6 +212,7 @@ function AppContent() {
           'NotoSerifKR-Regular': require('./assets/fonts/NotoSerifKR-Regular.otf'),
           'NotoSerifKR-Medium': require('./assets/fonts/NotoSerifKR-Medium.otf'),
           'NotoSerifKR-SemiBold': require('./assets/fonts/NotoSerifKR-SemiBold.otf'),
+          'NotoSerifKR-Bold': require('./assets/fonts/NotoSerifKR-Bold.ttf'),
           'Pretendard-Regular': require('./assets/fonts/Pretendard-Regular.otf'),
           'Pretendard-Medium': require('./assets/fonts/Pretendard-Medium.otf'),
           'Pretendard-SemiBold': require('./assets/fonts/Pretendard-SemiBold.otf'),
