@@ -58,7 +58,9 @@ const decodeEntities = (text: string): string =>
       return Number.isFinite(n) && n > 0 ? String.fromCodePoint(n) : '';
     });
 
-const stripTags = (html: string): string => html.replace(/<[^>]*>/g, ' ');
+const stripTags = (html: string): string => html
+  .replace(/<br\b[^>]*>|<\/?(?:div|p)\b[^>]*>/gi, ' ')
+  .replace(/<[^>]*>/g, '');
 
 /** 태그 제거 + 엔티티 디코딩 + 공백 정규화. */
 const cleanText = (html: string): string =>
