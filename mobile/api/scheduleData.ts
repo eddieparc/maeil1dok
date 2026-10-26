@@ -85,6 +85,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const toPositiveInt = (value: unknown): number | null => {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
@@ -243,6 +244,78 @@ export const normalizeSubscriptions = (json: unknown): PlanSubscription[] => {
   return out;
 };
 
+/** Strict screen boundaries keep failed/malformed reads distinct from empty lists. */
+export class ScheduleDataError extends Error {}
+
+export const parseSchedulePlans = (json: unknown): PlanSubscription[] => {
+  if (!Array.isArray(json)) throw new ScheduleDataError('Expected plan collection');
+  const plans = normalizeSubscriptions(json);
+  if (plans.length !== json.length || plans.some(plan => !plan.plan_name.trim())) {
+    throw new ScheduleDataError('Invalid plan');
+  }
+  return plans.filter(plan => plan.is_active);
+};
+
+const isScheduleDate = (date: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+};
+
+export const parseScheduleMonth = (json: unknown): ScheduleEntry[] => {
+  if (!Array.isArray(json)) throw new ScheduleDataError('Expected schedule collection');
+  const rows = normalizeMonthSchedules(json);
+  if (rows.length !== json.length || rows.some(row =>
+    !isScheduleDate(row.date) || !resolveBibleBookCode(row.book)
+    || row.start_chapter < 1 || row.end_chapter < row.start_chapter)) {
+    throw new ScheduleDataError('Invalid schedule');
+  }
+  return rows;
+};
+
+export type MonthProgress = Readonly<{ done: number; total: number }>;
+
+export const parseScheduleYear = (json: unknown): Record<number, MonthProgress> => {
+  if (!isRecord(json) || json.success !== true || !Array.isArray(json.monthly_progress)) {
+    throw new ScheduleDataError('Expected yearly progress');
+  }
+  const months: Record<number, MonthProgress> = {};
+  for (const row of json.monthly_progress) {
+    if (!isRecord(row) || typeof row.month !== 'number' || !Number.isInteger(row.month)
+      || row.month < 1 || row.month > 12 || typeof row.done !== 'number'
+      || typeof row.total !== 'number' || !Number.isInteger(row.done)
+      || !Number.isInteger(row.total) || row.done < 0 || row.total < row.done) {
+      throw new ScheduleDataError('Invalid monthly progress');
+    }
+    months[row.month] = { done: row.done, total: row.total };
+  }
+  return months;
+};
+
+export const planFromScheduleUrl = (url: string | undefined): number | null => {
+  if (!url) return null;
+  try {
+    return toPositiveInt(new URL(url, 'https://maeil1dok.app').searchParams.get('plan'));
+  } catch {
+    return null;
+  }
+};
+
+/** Cache scope only; AuthSession, not these unverified claims, owns authentication. */
+export const scheduleSelectionKey = (api: string, token: string | null): string | null => {
+  const payload = token?.split('.')[1];
+  if (!payload) return null;
+  try {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const claims: unknown = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+    if (!isRecord(claims)) return null;
+    const id = toPositiveInt(claims.user_id);
+    return id === null ? null : `schedule:selectedPlan:${api}:${id}`;
+  } catch {
+    return null;
+  }
+};
+
 export interface NextPosition {
   readonly status: string;
   readonly date: string | null;
@@ -267,6 +340,16 @@ export const normalizeNextPosition = (json: unknown): NextPosition | null => {
     date: toStringOrNull(json.date),
     message: toStringOrNull(json.message),
   };
+};
+
+export const parseSchedulePosition = (json: unknown): NextPosition => {
+  const position = normalizeNextPosition(json);
+  if (!position || (isRecord(json) && json.success === false && position.status !== 'no_schedule')
+    || (position.date !== null && !isScheduleDate(position.date))
+    || (!position.date && position.status !== 'all_completed' && position.status !== 'no_schedule')) {
+    throw new ScheduleDataError('Invalid next position');
+  }
+  return position;
 };
 
 const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'] as const;
@@ -339,8 +422,7 @@ const bookOrder = (book: string): number =>
   BOOK_ORDER.get(book) ?? BOOK_ORDER_BY_NAME.get(book) ?? Number.MAX_SAFE_INTEGER;
 
 /**
- * 날짜 오름차순 → 성경 권 순서 → id 내림차순. 같은 날 같은 책의 여러 일정은
- * 나중에 추가된(큰 id) 행을 먼저 보여준다 — 웹 통독표의 표시 순서와 동일.
+ * 날짜 오름차순 → 성경 권 순서 → id 오름차순. 웹 통독표의 표시 순서를 따른다.
  */
 export const sortSchedules = (
   schedules: readonly ScheduleEntry[],
@@ -349,5 +431,5 @@ export const sortSchedules = (
     if (a.date !== b.date) return a.date < b.date ? -1 : 1;
     const orderDiff = bookOrder(a.book) - bookOrder(b.book);
     if (orderDiff !== 0) return orderDiff;
-    return b.id - a.id;
+    return a.id - b.id;
   });

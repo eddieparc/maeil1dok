@@ -164,6 +164,7 @@ module.exports = { initiateSessionBridge };`,
     'currentWebViewUrlRef',
     'NATIVE_CLIENT_OBSERVATION_HEADERS',
     'tokenStore',
+    'signInWithTokens',
     compiled,
   )(
     instance,
@@ -192,6 +193,7 @@ module.exports = { initiateSessionBridge };`,
       'X-App-Version': '1.2.3',
     },
     { write: async () => {} },
+    async () => {},
   );
 
   // When: native login/restore issues the one-time WebView session code.

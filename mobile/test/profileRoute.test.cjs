@@ -23,7 +23,7 @@ function deferred() {
 // Execute the actual screen with a deterministic hook boundary. This verifies
 // route/controller/navigation wiring, not React or a native renderer's lifecycle.
 function screenHarness(status = 'signedIn', api) {
-  const calls = [], navigations = [];
+  const calls = [], navigations = [], shares = [];
   const auth = { status, accessToken: status === 'signedIn' ? 'token-A' : null,
     apiFetch: async (p, init) => {
       calls.push(p);
@@ -34,7 +34,7 @@ function screenHarness(status = 'signedIn', api) {
       return wrapped({ profile: profile(id) });
     } };
   const stack = { api: 'https://api.example.test', web: 'https://beta.example.test' };
-  let cursor = 0, effectCursor = 0, store, getSnapshot;
+  let cursor = 0, effectCursor = 0, store, getSnapshot, tree, canGoBack = false;
   const memos = [], effects = [], queued = [];
   const same = (a, b) => a && a.length === b.length && a.every((x, i) => Object.is(x, b[i]));
   const hooks = {
@@ -68,7 +68,7 @@ function screenHarness(status = 'signedIn', api) {
     instance.require = name => {
       if (name === 'react') return hooks;
       if (name === 'react-native') return {
-        View: 'View', Text: 'Text', Share: { share: async () => {} }, StyleSheet: { create: v => v },
+        View: 'View', Text: 'Text', Pressable: 'Pressable', Share: { share: async data => { shares.push(data); } }, StyleSheet: { create: v => v },
       };
       if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
       if (name.endsWith('/AuthSession')) return { useAuth: () => auth };
@@ -76,7 +76,9 @@ function screenHarness(status = 'signedIn', api) {
       if (name.endsWith('/NativeTabBar')) return { useNativeTabBarInset: () => 0 };
       if (name.endsWith('/navigationRef')) return { navigationRef: {
         isReady: () => true, navigate: (...args) => navigations.push(args),
+        canGoBack: () => canGoBack, goBack: () => navigations.push(['back']),
       } };
+      if (name.endsWith('/ProfilePrimitives')) return { ProfileIcon: 'ProfileIcon', profileText: {}, useProfileColors: () => ({}) };
       if (name.endsWith('/ProfileView')) return { ProfileView: 'ProfileView' };
       if (name.endsWith('/tokens')) return { spacing: {}, typography: {}, useNativeColors: () => ({}) };
       if (name.startsWith('.')) {
@@ -94,11 +96,13 @@ function screenHarness(status = 'signedIn', api) {
   }
   const Screen = load(path.resolve(__dirname, '../screens/ProfileScreen.tsx')).default;
   return {
-    auth, stack, calls, navigations,
+    auth, stack, calls, navigations, shares,
+    setCanGoBack(value) { canGoBack = value; },
+    headerButton(id) { return React.Children.toArray(React.Children.toArray(tree.props.children)[0].props.children).find(n => n.props.testID === id); },
     render(url) {
       cursor = 0;
       effectCursor = 0;
-      const tree = Screen({ route: { params: url === undefined ? undefined : { url } } });
+      tree = Screen({ route: { params: url === undefined ? undefined : { url } } });
       return React.Children.toArray(tree.props.children).find(child => child.type === 'ProfileView').props;
     },
     commit() { queued.splice(0).forEach(effect => effect()); },
@@ -188,5 +192,45 @@ test('target, token and API stack changes synchronously replace the screen snaps
     assert.equal(h.render('/profile/9').state.kind, 'loading');
     h.commit();
     await h.until(s => s.kind === 'ready' && s.calendar.kind === 'ready');
+  } finally { h.dispose(); }
+});
+
+test('profile settings use the web-feature bridge, share the target and retain reading context', { timeout: 2000 }, async () => {
+  // Given
+  const h = screenHarness();
+  try {
+    h.render();
+    const ready = h.until(s => s.kind === 'ready' && s.calendar.kind === 'ready');
+    h.commit();
+    await ready;
+    const view = h.render();
+    // When
+    h.headerButton('profile-header-settings').props.onPress();
+    view.onSettings();
+    view.onNotificationSettings();
+    view.onShare();
+    view.onRead('/bible?book=gen&chapter=3&plan=2&schedule=5&date=2026-10-22&tongdok=true&from=profile%2F7');
+    // Then
+    assert.deepEqual(h.navigations, [
+      ['WebView', { url: 'https://beta.example.test/account/settings' }],
+      ['WebView', { url: 'https://beta.example.test/account/settings' }],
+      ['WebView', { url: 'https://beta.example.test/notifications/settings' }],
+      ['Main', { screen: 'Bible', params: { url: 'https://beta.example.test/bible?book=gen&chapter=3&plan=2&schedule=5&date=2026-10-22&tongdok=true&from=profile%2F7' } }],
+    ]);
+    assert.equal(h.shares[0].url, 'https://beta.example.test/profile/7');
+  } finally { h.dispose(); }
+});
+
+test('profile back uses history when present and Home only as a fallback', () => {
+  // Given
+  const h = screenHarness('signedOut');
+  try {
+    h.render();
+    // When
+    h.headerButton('profile-back').props.onPress();
+    h.setCanGoBack(true);
+    h.headerButton('profile-back').props.onPress();
+    // Then
+    assert.deepEqual(h.navigations, [['Main', { screen: 'Home' }], ['back']]);
   } finally { h.dispose(); }
 });

@@ -50,6 +50,9 @@ function findVariableInitializer(name) {
 function instantiateClosure(name, dependencies) {
   const bindings = {
     ...dependencies,
+    signInWithTokens: dependencies.signInWithTokens ?? ((access, refresh) =>
+      tokenModule.exports.createTokenStore(dependencies.SecureStore, dependencies.betaMode === true)
+        .write({ access, refresh })),
     tokenStore: dependencies.tokenStore
       ?? tokenModule.exports.createTokenStore(dependencies.SecureStore, dependencies.betaMode === true),
   };

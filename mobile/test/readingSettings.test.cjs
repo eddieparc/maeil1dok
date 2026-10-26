@@ -274,18 +274,39 @@ test('bundled fonts resolve to installed asset names per weight', () => {
   assert.equal(resolveNativeFontFamily('pretendard', 'medium'), 'Pretendard-Medium');
   assert.equal(resolveNativeFontFamily('pretendard', 'bold'), 'Pretendard-SemiBold');
   assert.equal(resolveNativeFontFamily('noto-serif', 'normal'), 'NotoSerifKR-Regular');
-  assert.equal(resolveNativeFontFamily('noto-serif', 'bold'), 'NotoSerifKR-Bold');
+  assert.equal(resolveNativeFontFamily('noto-serif', 'medium'), 'NotoSerifKR-Medium');
+  assert.equal(resolveNativeFontFamily('noto-serif', 'bold'), 'NotoSerifKR-SemiBold');
 });
 
-test('system and unbundled families resolve to null (RN default font)', () => {
-  assert.equal(resolveNativeFontFamily('system', 'normal'), null);
-  assert.equal(resolveNativeFontFamily('kopub-batang', 'normal'), null);
-  assert.equal(resolveNativeFontFamily('ridi-batang', 'bold'), null);
-  assert.equal(resolveNativeFontFamily('noto-sans', 'medium'), null);
+test('default settings resolve to the original KoPub Regular face instead of platform sans', () => {
+  const settings = parseReadingSettings({});
+  const font = resolveNativeFontFamily(settings.fontFamily, settings.fontWeight);
+  assert.equal(font, 'KoPubBatang-Regular');
 });
 
-test('sheet font order lists only natively renderable families', () => {
-  assert.deepEqual([...NATIVE_FONT_ORDER], ['pretendard', 'noto-serif', 'system']);
+for (const [weight, kopub, sans] of [
+  ['normal', 'Light', 'Regular'],
+  ['medium', 'Regular', 'Medium'],
+  ['bold', 'Bold', 'SemiBold'],
+]) {
+  test(`web ${weight} resolves to its KoPub and Noto Sans faces`, () => {
+    assert.equal(resolveNativeFontFamily('kopub-batang', weight), `KoPubBatang-${kopub}`);
+    assert.equal(resolveNativeFontFamily('noto-sans', weight), `NotoSansKR-${sans}`);
+  });
+
+  test(`RIDI ${weight} uses the only original face without inventing a weight`, () => {
+    assert.equal(resolveNativeFontFamily('ridi-batang', weight), 'RIDIBatang');
+  });
+
+  test(`system ${weight} retains the platform font`, () => {
+    assert.equal(resolveNativeFontFamily('system', weight), null);
+  });
+}
+
+test('sheet font order follows the web including all original families', () => {
+  assert.deepEqual([...NATIVE_FONT_ORDER], [
+    'kopub-batang', 'ridi-batang', 'noto-serif', 'pretendard', 'noto-sans', 'system',
+  ]);
 });
 
 test('font weight map matches the web contract', () => {

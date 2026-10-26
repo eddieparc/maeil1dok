@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
 const ts = require('typescript');
+const React = require('react');
 
 test('Together consumes a new same-URL intent but preserves internal state on tab return', async () => {
   const slots = [];
@@ -27,10 +28,21 @@ test('Together consumes a new same-URL intent but preserves internal state on ta
   const hooks = {
     useMemo: memo,
     useCallback: (fn, deps) => memo(() => fn, deps),
-    useState: (initial) => memo(() => [initial, () => {}], []),
+    useRef: (initial) => memo(() => ({ current: initial }), []),
+    useState: (initial) => {
+      const value = memo(() => ({ current: initial }), []);
+      return [value.current, (next) => { value.current = next; }];
+    },
     useSyncExternalStore: (_subscribe, snapshot) => snapshot(),
     useEffect(fn, deps) {
-      memo(() => { pending.push(fn); }, deps);
+      const index = cursor++;
+      const previous = slots[index];
+      if (!previous || deps.some((value, i) => !Object.is(value, previous.deps[i]))) {
+        pending.push(() => {
+          previous?.cleanup?.();
+          slots[index] = { deps, cleanup: fn() };
+        });
+      }
     },
   };
   const auth = { status: 'signedIn', accessToken: 'fixture', apiFetch: async (url) => {
@@ -63,9 +75,10 @@ test('Together consumes a new same-URL intent but preserves internal state on ta
       if (name.endsWith('/AppStackContext')) return { useAppStack: () => ({
         stack: { web: 'https://beta.example.test', api: 'https://api-beta.example.test' },
       }) };
-      if (name.endsWith('/navigationRef')) return { navigationRef: {} };
+      if (name.endsWith('/navigationRef')) return { navigationRef: { isReady: () => false } };
       if (name.endsWith('/NativeTabBar')) return { useNativeTabBarInset: () => 0 };
       if (name.endsWith('/tokens')) return { typography: {}, useNativeColors: () => ({}) };
+      if (name.endsWith('/GroupDetail')) return { GroupDetail: 'GroupDetail' };
       if (name.includes('/ui/') || name.includes('/Group')) return {};
       if (!name.startsWith('.')) return require(name);
       const base = path.resolve(path.dirname(filename), name);
@@ -88,9 +101,10 @@ test('Together consumes a new same-URL intent but preserves internal state on ta
   const Screen = load(path.resolve(__dirname, '../screens/TogetherScreen.tsx')).default;
   const render = (params) => {
     cursor = 0;
-    Screen({ route: { params } });
+    const tree = Screen({ route: { params } });
     const effects = pending; pending = [];
     effects.forEach((fn) => fn());
+    return tree;
   };
   const settle = async () => { await Promise.all(jobs.splice(0)); };
   const first = { url: 'https://beta.example.test/groups/5' };
@@ -110,10 +124,20 @@ test('Together consumes a new same-URL intent but preserves internal state on ta
   render(repeated);
   assert.equal(model.state.selectedId, 8, 'ordinary tab return preserves locally selected group');
   assert.equal(detailReads, 3, 'renders and focus return must not refetch');
+  auth.accessToken = 'replacement-owner';
+  render(repeated); await settle(); render(repeated);
+  assert.equal(model.state.selectedId, 8, 'an auth replacement reloads the local group, not the old URL');
+  assert.equal(detailReads, 4);
+  const calendar = { url: '/groups/8?tab=calendar' };
+  render(calendar); await settle();
+  const flatten = (element) => React.isValidElement(element)
+    ? [element, ...React.Children.toArray(element.props.children).flatMap(flatten)] : [];
+  assert.equal(flatten(render(calendar)).find((node) => node.type === 'GroupDetail').props.tab, 'calendar');
+  assert.equal(detailReads, 5);
   const list = { url: '/groups' };
   render(list); render(list);
   assert.equal(model.state.selectedId, null);
-  assert.equal(detailReads, 3);
+  assert.equal(detailReads, 5);
   focusCleanup?.();
   model.dispose();
 });

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Linking,
   Modal,
   Pressable,
@@ -12,9 +11,10 @@ import {
   View,
 } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRoute } from '@react-navigation/native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../auth/AuthSession';
@@ -23,10 +23,13 @@ import { navigationRef, type TabParamList } from '../navigation/navigationRef';
 import { useNativeTabBarInset } from '../navigation/NativeTabBar';
 import ReaderTabs from '../components/bible/ReaderTabs';
 import ReaderTongdokControls from '../components/bible/ReaderTongdokControls';
-import ReaderTongdokSchedule from '../components/bible/ReaderTongdokSchedule';
+import ScheduleScreen from './ScheduleScreen';
+import { useNativeColors, useNativeTheme } from '../components/ui/tokens';
 import { createReaderTongdok } from '../api/readerTongdok';
 import ReadingSettingsSheet from '../components/bible/ReadingSettingsSheet';
 import ReaderBody from '../components/bible/ReaderBody';
+import ReaderBookSheet from '../components/bible/ReaderBookSheet';
+import { BibleHomeTips } from '../components/bible/BibleHomeTips';
 import { useReadingSettings } from '../components/bible/ReadingSettingsProvider';
 import ReaderAudioPlayer from '../components/bible/ReaderAudioPlayer';
 import { parseReaderAudioResponse, selectReaderAudioLink, PLAYBACK_RATES } from '../api/readerAudio';
@@ -53,7 +56,7 @@ import {
   nextChapter,
   parseBibleReaderRoute,
   prevChapter,
-  type BibleBook,
+  resolveBibleBookCode,
   type ChapterRef,
   type BibleReaderRoute,
 } from '../api/bibleBooks';
@@ -66,14 +69,6 @@ import {
 import { readerScrollProgress } from '../api/readerProgress';
 import { normalizeSubscriptions, pickDefaultPlan, type PlanSubscription } from '../api/scheduleData';
 
-const BG = '#FAF8F5';
-const CARD = '#FFFFFF';
-const TEXT = '#1F1A17';
-const SECONDARY = '#6B625B';
-const TERTIARY = '#9B928A';
-const BORDER = '#E9E4DE';
-const ACCENT = '#2A1111';
-const ACCENT_BG = '#F3EEEE';
 const SERIF = 'NotoSerifKR-Regular';
 const SERIF_BOLD = 'NotoSerifKR-Bold';
 const VERSE_BLUE = '#3B5BA9';
@@ -193,8 +188,13 @@ export default function BibleScreen() {
   const { status, accessToken, apiFetch } = useAuth();
   const { stack } = useAppStack();
   const route = useRoute<RouteProp<TabParamList, 'Bible'>>();
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList, 'Bible'>>();
+  const colors = useNativeColors();
+  const theme = useNativeTheme();
+  const { text: TEXT, textSecondary: SECONDARY, textMuted: TERTIARY,
+    border: BORDER, accent: ACCENT } = colors;
+  const styles = useMemo(() => createStyles(colors, theme), [colors, theme]);
   const tabBarInset = useNativeTabBarInset();
-  const safeInsets = useSafeAreaInsets();
   // Cache identity only; AuthSession/server still own token validation.
   // Match the settings boundary without resetting on access-token rotation.
   let accountId: string | null = null;
@@ -237,15 +237,25 @@ export default function BibleScreen() {
   }, [tongdok]);
 
   const [viewMode, setViewMode] = useState<ViewMode>('home');
+  useEffect(() => {
+    navigation.setParams({ readerActive: viewMode === 'reader' });
+  }, [navigation, viewMode]);
+  useEffect(() => {
+    if (!route.params?.openSchedule) return;
+    setScheduleOpen(true);
+    navigation.setParams({ openSchedule: undefined });
+  }, [navigation, route.params?.openSchedule]);
   const [location, setLocation] = useState<ChapterRef>(DEFAULT_LOCATION);
   const [version, setVersion] = useState<string>(DEFAULT_VERSION);
   const [blocks, setBlocks] = useState<readonly BibleBlock[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [reloadToken, setReloadToken] = useState(0);
-  const [picker, setPicker] = useState<'none' | 'book' | 'chapter' | 'version'>('none');
-  const [pickerBook, setPickerBook] = useState<BibleBook | null>(null);
+  const [picker, setPicker] = useState<'none' | 'book'>('none');
   const [versions, setVersions] = useState<readonly BibleVersion[]>(FALLBACK_VERSIONS);
   const [readChapters, setReadChapters] = useState<ReadonlySet<number>>(new Set());
+  const [markingRead, setMarkingRead] = useState(false);
+  const [readError, setReadError] = useState(false);
+  const markInFlight = useRef(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [audioOpen, setAudioOpen] = useState(false);
@@ -261,6 +271,8 @@ export default function BibleScreen() {
 
   // 홈 뷰 데이터
   const [homeLoading, setHomeLoading] = useState(true);
+  const [homeError, setHomeError] = useState(false);
+  const [planReady, setPlanReady] = useState(false);
   const [lastPosition, setLastPosition] = useState<SavedPosition | null>(null);
   const [stats, setStats] = useState<HomeStats | null>(null);
   const [todaySchedules, setTodaySchedules] = useState<TodaySchedule[]>([]);
@@ -335,6 +347,21 @@ export default function BibleScreen() {
     },
     [apiFetch],
   );
+
+  useEffect(() => navigation.addListener('tabPress', event => {
+    if (viewMode !== 'reader' || !navigation.isFocused()) return;
+    event.preventDefault();
+    if (signedInRef.current) savePosition(locationRef.current, versionRef.current, scrollFraction.current);
+    setLastPosition({ ...locationRef.current, version: versionRef.current, scrollPosition: scrollFraction.current });
+    activeAudio.current = null;
+    setAudioOpen(false);
+    setScheduleOpen(false);
+    setSettingsOpen(false);
+    setMoreOpen(false);
+    setPicker('none');
+    setViewMode('home');
+    navigation.setParams({ url: undefined, openSchedule: undefined });
+  }), [navigation, viewMode, savePosition]);
 
   // --- 리더 탭: 현재 리더 상태 → 스냅샷 ---
   const currentTabSnapshot = useCallback(
@@ -525,11 +552,17 @@ export default function BibleScreen() {
   // --- 홈 뷰 데이터: 읽기 위치 + 활동 통계 + 오늘 일정 ---
   const loadHome = useCallback(async () => {
     setHomeLoading(true);
+    setHomeError(false);
+    setPlanReady(false);
     setLastPosition(null);
     setStats(null);
     setTodaySchedules([]);
     setPlanName(null);
     try {
+      if (!signedIn) {
+        setHomePlan({ controller: tongdok, id: null });
+        return;
+      }
       const posRes = await apiFetch('/api/v1/todos/bible/reading-position/');
       const posJson: unknown = await posRes.json().catch(() => null);
       if (tongdokRef.current !== tongdok) return;
@@ -538,14 +571,7 @@ export default function BibleScreen() {
           ? parseSavedPosition(posJson.position)
           : null;
       setLastPosition(position);
-
-      if (!signedIn) {
-        setStats(null);
-        setTodaySchedules([]);
-        setPlanName(null);
-        setHomePlan({ controller: tongdok, id: null });
-        return;
-      }
+      if (signedIn && !posRes.ok) setHomeError(true);
 
       const [statsRes, subsRes] = await Promise.all([
         apiFetch('/api/v1/todos/bible/home-stats/'),
@@ -555,6 +581,8 @@ export default function BibleScreen() {
       const subs = subsRes.ok ? normalizeSubscriptions(await subsRes.json()) : [];
       if (tongdokRef.current !== tongdok) return;
       setStats(loadedStats);
+      setPlanReady(subsRes.ok);
+      if (!statsRes.ok || !subsRes.ok) setHomeError(true);
       const active = subs.filter((s: PlanSubscription) => s.is_active);
       const primary = active.find((s) => s.is_default) ?? active[0] ?? null;
       setPlanName(primary?.plan_name ?? null);
@@ -565,12 +593,14 @@ export default function BibleScreen() {
         );
         const schedules = todayRes.ok ? parseTodaySchedules(await todayRes.json()) : [];
         if (tongdokRef.current !== tongdok) return;
+        if (!todayRes.ok) setHomeError(true);
         setTodaySchedules(schedules);
       } else {
         setTodaySchedules([]);
       }
     } catch (error) {
       console.warn('[Bible] home load failed:', error);
+      if (tongdokRef.current === tongdok) setHomeError(true);
     } finally {
       if (tongdokRef.current === tongdok) setHomeLoading(false);
     }
@@ -614,19 +644,18 @@ export default function BibleScreen() {
     })();
   }, [viewMode, location, version, reloadToken, apiFetch]);
 
-  // --- 장 변경 시: 위치 저장 + 읽음 기록 (로그인만, fire-and-forget) ---
+  // Opening a chapter saves its position; only the completion action marks it read.
   useEffect(() => {
     if (!signedIn || viewMode !== 'reader' || loadState !== 'ready') return;
     savePosition(location, version, scrollFraction.current);
-    apiFetch('/api/v1/todos/bible/personal-records/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ book: location.book, chapter: location.chapter }),
-    }).catch((error) => console.warn('[Bible] personal-record save failed:', error));
   }, [signedIn, viewMode, loadState, location, version, apiFetch, savePosition]);
 
   // --- 책별 읽은 장 (장 선택 그리드 표시용, 로그인만) ---
   useEffect(() => {
+    setReadChapters(new Set());
+    setReadError(false);
+    setMarkingRead(false);
+    markInFlight.current = false;
     if (!signedIn) {
       setReadChapters(new Set());
       return;
@@ -650,7 +679,7 @@ export default function BibleScreen() {
     return () => {
       cancelled = true;
     };
-  }, [signedIn, location.book, apiFetch]);
+  }, [signedIn, location.book, apiFetch, tongdok]);
 
   // --- 역본 목록 (보이는 한국어 역본만) ---
   useEffect(() => {
@@ -695,6 +724,32 @@ export default function BibleScreen() {
     setLocation(ref);
     setViewMode('reader');
   }, []);
+
+  const markAsRead = async () => {
+    if (!signedIn) { openWebPath(stack.web, '/login'); return; }
+    if (markInFlight.current || readChapters.has(location.chapter)) return;
+    markInFlight.current = true;
+    setMarkingRead(true);
+    setReadError(false);
+    const target = location;
+    try {
+      const response = await apiFetch('/api/v1/todos/bible/personal-records/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(target),
+      });
+      if (!response.ok) throw new Error(`Reading record HTTP ${response.status}`);
+      if (tongdokRef.current === tongdok && locationRef.current.book === target.book)
+        setReadChapters(previous => new Set([...previous, target.chapter]));
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+      if (tongdokRef.current === tongdok && locationRef.current.book === target.book) setReadError(true);
+    } finally {
+      if (tongdokRef.current === tongdok && locationRef.current.book === target.book) {
+        markInFlight.current = false;
+        setMarkingRead(false);
+      }
+    }
+  };
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -745,11 +800,6 @@ export default function BibleScreen() {
     [versions, version],
   );
 
-  const openChapterPicker = useCallback((book: BibleBook) => {
-    setPickerBook(book);
-    setPicker('chapter');
-  }, []);
-
   const continueReading = useCallback(() => {
     if (!lastPosition) return;
     pendingScrollFraction.current = lastPosition.scrollPosition;
@@ -775,6 +825,7 @@ export default function BibleScreen() {
     if (!target.location) return;
     explicitEntry.current = true;
     tongdok.enter(target);
+    if (target.version) setVersion(target.version);
     setScheduleOpen(false);
     goTo(target.location);
     // Same passage can belong to a newly selected day; location alone is not a load trigger.
@@ -785,6 +836,21 @@ export default function BibleScreen() {
     const target = await tongdok.next();
     if (target) enterSchedule(target);
   }, [tongdok, enterSchedule]);
+
+  const openReaderFeatures = (verse?: number) => {
+    const context = readingContext.context;
+    const query = new URLSearchParams({
+      book: location.book, chapter: String(location.chapter), version,
+      tongdok: context.enabled ? 'true' : 'false',
+    });
+    if (verse !== undefined) query.set('verse', String(verse));
+    if (context.enabled) {
+      if (context.planId !== null) query.set('plan', String(context.planId));
+      if (context.scheduleId !== null) query.set('schedule', String(context.scheduleId));
+      if (context.date !== null) query.set('date', context.date);
+    }
+    openWebPath(stack.web, `/bible?${query}`);
+  };
 
   const todayCompleted = todaySchedules.filter((s) => s.is_completed).length;
   const tongdokState =
@@ -817,6 +883,7 @@ export default function BibleScreen() {
 
   const showWelcomeGuide =
     !homeLoading &&
+    !homeError &&
     !lastPosition &&
     todaySchedules.length === 0 &&
     (stats?.recent_records.length ?? 0) === 0 &&
@@ -888,11 +955,11 @@ export default function BibleScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => setPicker('book')}
+            onPress={() => setSettingsOpen(true)}
             hitSlop={8}
-            accessibilityLabel="성경 목차"
+            accessibilityLabel="읽기 설정"
           >
-            <Ionicons name="list" size={22} color={TEXT} />
+            <Ionicons name="options-outline" size={20} color={TEXT} />
           </TouchableOpacity>
         </View>
       </View>
@@ -903,19 +970,26 @@ export default function BibleScreen() {
         </View>
       ) : (
         <>
+          {homeError && <View style={styles.todayCard} accessibilityRole="alert">
+            <Text style={styles.featureName}>일부 정보를 불러오지 못했어요</Text>
+            <Text style={styles.featureDesc}>연결 상태를 확인한 뒤 다시 시도해 주세요.</Text>
+            <Pressable onPress={() => void loadHome()} style={styles.chapterAction} accessibilityRole="button">
+              <Text style={styles.secondaryButtonText}>다시 시도</Text>
+            </Pressable>
+          </View>}
           {showWelcomeGuide && (
             <View style={styles.welcomeCard}>
               <View style={styles.welcomeIconWrap}>
                 <Ionicons name="book-outline" size={28} color={ACCENT} />
               </View>
               <Text style={styles.welcomeTitle}>매일일독에 오신 것을 환영합니다</Text>
-              <Text style={styles.welcomeDesc}>성경을 읽고, 묵상하고, 기록해보세요.</Text>
+              <Text style={styles.welcomeDesc} lineBreakStrategyIOS="hangul-word">성경을 읽고, 묵상하고, 기록해보세요.</Text>
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={() => setPicker('book')}
                 activeOpacity={0.85}
               >
-                <Ionicons name="list" size={18} color="#fff" />
+                <Ionicons name="list" size={18} color={colors.onAccent} />
                 <Text style={styles.primaryButtonText}>성경 목차에서 시작하기</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -968,7 +1042,7 @@ export default function BibleScreen() {
                 <Ionicons
                   name={tongdokState === 'completed' ? 'checkmark-circle' : 'play'}
                   size={18}
-                  color={tongdokState === 'completed' ? ACCENT : '#fff'}
+                  color={tongdokState === 'completed' ? ACCENT : colors.onAccent}
                 />
                 <Text
                   style={[
@@ -1010,6 +1084,18 @@ export default function BibleScreen() {
             </>
           )}
 
+          {!showWelcomeGuide && planReady && !homeError && todaySchedules.length === 0 && (
+            <View style={styles.todayCard}>
+              <Text style={styles.featureName}>{planName ? '오늘은 예정된 통독이 없어요' : '플랜을 구독하면 매일 통독 일정을 받을 수 있어요'}</Text>
+              {planName && <Text style={styles.todayPlan}>{planName}</Text>}
+              <Pressable style={styles.chapterAction} accessibilityRole="button"
+                onPress={() => planName ? setScheduleOpen(true) : openWebPath(stack.web, '/plans')}>
+                <Text style={styles.secondaryButtonText}>{planName ? '통독표 보기' : '플랜 보기'}</Text>
+                <Ionicons name="chevron-forward" size={16} color={ACCENT} />
+              </Pressable>
+            </View>
+          )}
+
           {!showWelcomeGuide && (stats || !signedIn) && (
             <>
               <Text style={styles.sectionTitle}>내 성경 활동</Text>
@@ -1043,10 +1129,12 @@ export default function BibleScreen() {
               <Text style={styles.sectionTitle}>최근 읽은 성경</Text>
               <View style={styles.groupedCard}>
                 {stats!.recent_records.map((r, i) => {
-                  const code = bookCode(r.book);
+                  const code = resolveBibleBookCode(r.book);
                   return (
                     <TouchableOpacity
                       key={`${r.book}-${r.chapter}-${i}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={chapterLabel(code ?? r.book, r.chapter)}
                       style={[styles.recentRow, i > 0 && styles.featureRowBorder]}
                       onPress={() => {
                         if (code && isBibleBook(code)) {
@@ -1056,8 +1144,7 @@ export default function BibleScreen() {
                       activeOpacity={0.8}
                     >
                       <Text style={styles.recentText}>
-                        {r.book} {r.chapter}
-                        {r.book === '시편' ? '편' : '장'}
+                        {chapterLabel(code ?? r.book, r.chapter)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -1065,6 +1152,9 @@ export default function BibleScreen() {
               </View>
             </>
           )}
+
+          {!showWelcomeGuide && !homeError && <BibleHomeTips bookmarks={stats?.bookmarks ?? 0}
+            notes={stats?.notes ?? 0} highlights={stats?.highlights ?? 0} />}
 
           <TouchableOpacity
             style={styles.tocButton}
@@ -1086,14 +1176,25 @@ export default function BibleScreen() {
         <TouchableOpacity
           style={styles.readerTitleButton}
           onPress={() => setPicker('book')}
+          accessibilityRole="button"
+          accessibilityLabel="성경 선택"
         >
-          <Text style={styles.readerTitle}>
+          <Text numberOfLines={1} style={styles.readerTitle}>
             {chapterLabel(location.book, location.chapter)}
           </Text>
           <Ionicons name="chevron-down" size={14} color={TERTIARY} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setPicker('version')} hitSlop={8}>
-          <Text style={styles.readerVersion}>{versionName}</Text>
+        <TouchableOpacity style={{ flex: 1, minWidth: 0 }}
+          onPress={() => readingContext.context.enabled ? setScheduleOpen(true) : setPicker('book')} hitSlop={8}>
+          {readingContext.context.enabled && <Text numberOfLines={1} style={styles.readerPlan}>
+            {readingContext.detail?.name}
+          </Text>}
+          <Text numberOfLines={1} style={styles.readerVersion}>
+            {readingContext.context.enabled
+              ? [readingContext.detail?.date?.slice(5).replace('-', '/'),
+                readingContext.detail?.rows.map(row => `${BIBLE_BOOKS.find(book => book.id === row.book)?.name ?? row.book} ${row.start}${row.end === row.start ? '' : `-${row.end}`}${chapterUnit(row.book)}`).join(' · ')].filter(Boolean).join(' · ')
+              : versionName}
+          </Text>
         </TouchableOpacity>
         <View style={styles.readerActions}>
           <TouchableOpacity
@@ -1134,20 +1235,6 @@ export default function BibleScreen() {
         </View>
       </View>
 
-      <ReaderTongdokControls
-        state={readingContext}
-        onToggle={() => tongdok.toggle(signedIn)}
-        onRetry={() => {
-          if (readingContext.error === 'update')
-            return tongdok.retryUpdate(signedIn, readingSettings.tongdokAutoComplete);
-          if (readingContext.error === 'next') return nextSchedule();
-          return tongdok.load();
-        }}
-        onNext={() => { void nextSchedule(); }}
-        onSchedule={() => setScheduleOpen(true)}
-        onExit={() => { tongdok.exit(); setScheduleOpen(false); }}
-        onLogin={() => openWebPath(stack.web, '/login')}
-      />
       {readerTabs.barVisible && (
         <ReaderTabs
           tabs={readerTabs.tabs}
@@ -1189,7 +1276,27 @@ export default function BibleScreen() {
             restoreScroll();
           }}
         >
-          <ReaderBody blocks={blocks} settings={readingSettings} />
+          <ReaderBody blocks={blocks} settings={readingSettings} onVersePress={openReaderFeatures} />
+          <View style={styles.chapterActions}>
+            <Pressable accessibilityRole="button" disabled={!prev}
+              onPress={() => prev && goTo(prev)} style={styles.chapterAction}>
+              <Ionicons name="chevron-back" size={16} color={SECONDARY} />
+              <Text style={styles.chapterActionText}>이전 장</Text>
+            </Pressable>
+            {!readingContext.context.enabled && <Pressable testID="reader-mark-read"
+              accessibilityRole="button" accessibilityState={{ disabled: markingRead, selected: readChapters.has(location.chapter) }}
+              disabled={markingRead} onPress={markAsRead} style={styles.chapterAction}>
+              <Ionicons name={readChapters.has(location.chapter) ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                size={16} color={ACCENT} />
+              <Text style={styles.chapterActionText}>{markingRead ? '저장 중' : '완료'}</Text>
+            </Pressable>}
+            <Pressable accessibilityRole="button" disabled={!next}
+              onPress={() => next && goTo(next)} style={styles.chapterAction}>
+              <Text style={styles.chapterActionText}>다음 장</Text>
+              <Ionicons name="chevron-forward" size={16} color={SECONDARY} />
+            </Pressable>
+          </View>
+          {readError && <Text accessibilityRole="alert" style={styles.errorText}>읽음 표시를 저장하지 못했어요. 다시 시도해 주세요.</Text>}
         </ScrollView>
       )}
 
@@ -1208,6 +1315,20 @@ export default function BibleScreen() {
             color={prev ? SECONDARY : BORDER}
           />
         </TouchableOpacity>
+        <ReaderTongdokControls
+          state={readingContext}
+          onToggle={() => tongdok.toggle(signedIn)}
+          onRetry={() => {
+            if (readingContext.error === 'update')
+              return tongdok.retryUpdate(signedIn, readingSettings.tongdokAutoComplete);
+            if (readingContext.error === 'next') return nextSchedule();
+            return tongdok.load();
+          }}
+          onNext={() => { void nextSchedule(); }}
+          onSchedule={() => setScheduleOpen(true)}
+          onExit={() => { tongdok.exit(); setScheduleOpen(false); }}
+          onLogin={() => openWebPath(stack.web, '/login')}
+        />
         <TouchableOpacity
           accessibilityLabel="다음 장"
           disabled={!next}
@@ -1226,143 +1347,17 @@ export default function BibleScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAF8F5' }} edges={['top']}>
+      <View style={styles.container}>
       {viewMode === 'home' ? renderHome() : renderReader()}
+      </View>
 
-      {/* 책 선택 모달 (구약/신약 66권 그리드) */}
-      <Modal
-        visible={picker === 'book'}
-        animationType="slide"
-        onRequestClose={() => setPicker('none')}
-      >
-        <View style={[styles.modalContainer, { paddingTop: safeInsets.top }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>책 선택</Text>
-            <Pressable onPress={() => setPicker('none')} hitSlop={12}>
-              <Text style={styles.modalClose}>닫기</Text>
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={styles.modalScroll}>
-            {(['old', 'new'] as const).map((testament) => (
-              <View key={testament}>
-                <Text style={styles.sectionLabel}>
-                  {testament === 'old' ? '구약' : '신약'}
-                </Text>
-                <View style={styles.grid}>
-                  {BIBLE_BOOKS.filter((b) => b.testament === testament).map((b) => (
-                    <Pressable
-                      key={b.id}
-                      style={[
-                        styles.gridCell,
-                        b.id === location.book && styles.gridCellActive,
-                      ]}
-                      onPress={() => openChapterPicker(b)}
-                    >
-                      <Text
-                        style={[
-                          styles.gridCellText,
-                          b.id === location.book && styles.gridCellTextActive,
-                        ]}
-                      >
-                        {b.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* 장 선택 모달 */}
-      <Modal
-        visible={picker === 'chapter'}
-        animationType="slide"
-        onRequestClose={() => setPicker('book')}
-      >
-        <View style={[styles.modalContainer, { paddingTop: safeInsets.top }]}>
-          <View style={styles.modalHeader}>
-            <Pressable onPress={() => setPicker('book')} hitSlop={12}>
-              <Text style={styles.modalBack}>‹ 책</Text>
-            </Pressable>
-            <Text style={styles.modalTitle}>{pickerBook?.name ?? ''}</Text>
-            <Pressable onPress={() => setPicker('none')} hitSlop={12}>
-              <Text style={styles.modalClose}>닫기</Text>
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={styles.modalScroll}>
-            <View style={styles.grid}>
-              {pickerBook &&
-                Array.from({ length: pickerBook.chapters }, (_, i) => i + 1).map(
-                  (ch) => {
-                    const isCurrent =
-                      pickerBook.id === location.book && ch === location.chapter;
-                    const isRead = readChapters.has(ch);
-                    return (
-                      <Pressable
-                        key={ch}
-                        style={[styles.gridCell, isCurrent && styles.gridCellActive]}
-                        onPress={() => {
-                          setPicker('none');
-                          goTo({ book: pickerBook.id, chapter: ch });
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.gridCellText,
-                            isCurrent && styles.gridCellTextActive,
-                          ]}
-                        >
-                          {ch}
-                        </Text>
-                        {isRead && <View style={styles.readDot} />}
-                      </Pressable>
-                    );
-                  },
-                )}
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* 역본 선택 모달 */}
-      <Modal
-        visible={picker === 'version'}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPicker('none')}
-      >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setPicker('none')}>
-          <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>역본 선택</Text>
-            {versions.map((v) => (
-              <Pressable
-                key={v.code}
-                style={styles.sheetRow}
-                onPress={() => {
-                  setPicker('none');
-                  if (v.code !== version) {
-                    pendingScrollFraction.current = null;
-                    scrollFraction.current = 0;
-                    setVersion(v.code);
-                  }
-                }}
-              >
-                <Text
-                  style={[
-                    styles.sheetRowText,
-                    v.code === version && styles.sheetRowTextActive,
-                  ]}
-                >
-                  {v.name}
-                </Text>
-                {v.code === version && <Text style={styles.sheetCheck}>✓</Text>}
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+      <ReaderBookSheet visible={picker === 'book'} location={location} version={version}
+        versions={versions} readChapters={readChapters}
+        onClose={() => setPicker('none')}
+        onSelect={target => { setPicker('none'); goTo(target); }}
+        onVersion={value => { pendingScrollFraction.current = null; scrollFraction.current = 0; setVersion(value); }}
+        onCompare={() => { setPicker('none'); openReaderFeatures(); }} />
 
       {/* 더보기 시트 */}
       <Modal
@@ -1376,7 +1371,11 @@ export default function BibleScreen() {
             {[
               { label: '읽기 설정', settings: true },
               { label: '웹에서 비교·기록·공유', webReader: true },
-              ...(readingContext.context.enabled ? [{ label: '성경 통독표', schedule: true }] : []),
+              { label: '성경 통독표', schedule: true },
+              ...(readingContext.context.enabled ? [
+                { label: '다음 미완료 일정', nextSchedule: true },
+                { label: '통독 모드 종료', exit: true },
+              ] : []),
               { label: '북마크', path: '/bible/bookmarks' },
               { label: '묵상노트', path: '/bible/notes' },
               { label: '하이라이트', path: '/bible/highlights' },
@@ -1388,26 +1387,16 @@ export default function BibleScreen() {
                 style={styles.sheetRow}
                 accessibilityRole="button"
                 accessibilityLabel={item.label}
-                testID={'webReader' in item ? 'reader-web-features' : undefined}
+                testID={'webReader' in item ? 'reader-web-features'
+                  : 'schedule' in item ? 'reader-tongdok-schedule'
+                    : 'nextSchedule' in item ? 'reader-tongdok-next' : undefined}
                 onPress={() => {
                   setMoreOpen(false);
                   if ('settings' in item && item.settings) setSettingsOpen(true);
-                  else if ('webReader' in item && item.webReader) {
-                    const context = readingContext.context;
-                    const query = new URLSearchParams({
-                      book: location.book,
-                      chapter: String(location.chapter),
-                      version,
-                      tongdok: context.enabled ? 'true' : 'false',
-                    });
-                    if (context.enabled) {
-                      if (context.planId !== null) query.set('plan', String(context.planId));
-                      if (context.scheduleId !== null) query.set('schedule', String(context.scheduleId));
-                      if (context.date !== null) query.set('date', context.date);
-                    }
-                    openWebPath(stack.web, `/bible?${query}`);
-                  }
+                  else if ('webReader' in item && item.webReader) openReaderFeatures();
                   else if ('schedule' in item && item.schedule) setScheduleOpen(true);
+                  else if ('nextSchedule' in item) void nextSchedule();
+                  else if ('exit' in item) tongdok.exit();
                   else if ('home' in item && item.home) setViewMode('home');
                   else if (item.path) openWebPath(stack.web, item.path);
                 }}
@@ -1418,12 +1407,16 @@ export default function BibleScreen() {
           </View>
         </Pressable>
       </Modal>
-      {scheduleOpen && readingContext.context.enabled && <ReaderTongdokSchedule
-        key={`${readingContext.context.planId}-${readingContext.context.scheduleId}`}
-        controller={tongdok}
-        onSelect={enterSchedule}
-        onClose={() => setScheduleOpen(false)}
-      />}
+      <Modal visible={scheduleOpen} animationType="slide" presentationStyle="pageSheet" statusBarTranslucent
+        onRequestClose={() => setScheduleOpen(false)}>
+        {scheduleOpen && <SafeAreaProvider style={styles.container}>
+          <View style={styles.container} testID="reader-full-schedule">
+          <ScheduleScreen initialPlanId={readingContext.context.enabled ? readingContext.context.planId : null}
+            onRead={url => enterSchedule(parseBibleReaderRoute(url))}
+            onClose={() => setScheduleOpen(false)} />
+          </View>
+        </SafeAreaProvider>}
+      </Modal>
       <ReadingSettingsSheet
         visible={settingsOpen}
         settings={readingSettings}
@@ -1460,7 +1453,10 @@ export default function BibleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useNativeColors>, theme: ReturnType<typeof useNativeTheme>) => {
+const { background: BG, surface: CARD, text: TEXT, textSecondary: SECONDARY,
+  textMuted: TERTIARY, border: BORDER, accent: ACCENT, accentSurface: ACCENT_BG } = colors;
+return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG,
@@ -1468,6 +1464,9 @@ const styles = StyleSheet.create({
   // --- 홈 ---
   homeScroll: { flex: 1 },
   homeContent: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
     paddingHorizontal: 20,
     paddingBottom: 24,
   },
@@ -1479,7 +1478,7 @@ const styles = StyleSheet.create({
   },
   homeTitle: {
     fontFamily: 'Pretendard-Bold',
-    fontSize: 22,
+    fontSize: 20,
     color: TEXT,
     letterSpacing: -0.4,
   },
@@ -1488,8 +1487,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1502,14 +1501,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     borderRadius: 16,
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 32,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#1F1A17',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    marginTop: 4,
+    marginBottom: 20,
+    boxShadow: theme === 'light' ? '0 1px 2px rgba(0, 0, 0, 0.04)' : 'none',
   },
   welcomeIconWrap: {
     width: 56,
@@ -1518,21 +1515,24 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT_BG,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   welcomeTitle: {
     fontFamily: 'Pretendard-Bold',
-    fontSize: 17,
+    fontSize: 20,
+    lineHeight: 28,
     color: TEXT,
-    marginBottom: 6,
+    marginBottom: 8,
     letterSpacing: -0.4,
     textAlign: 'center',
   },
   welcomeDesc: {
+    alignSelf: 'stretch',
     fontFamily: 'Pretendard-Regular',
     fontSize: 14,
     color: SECONDARY,
-    marginBottom: 20,
+    marginBottom: 24,
+    lineHeight: 21,
     letterSpacing: -0.4,
     textAlign: 'center',
   },
@@ -1550,7 +1550,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 15,
-    color: '#fff',
+    color: colors.onAccent,
     letterSpacing: -0.4,
   },
   secondaryButton: {
@@ -1577,11 +1577,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginTop: 8,
     marginBottom: 20,
-    shadowColor: '#1F1A17',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    boxShadow: theme === 'light' ? '0 1px 2px rgba(0, 0, 0, 0.04)' : 'none',
   },
   todayHeader: {
     flexDirection: 'row',
@@ -1593,6 +1589,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 12,
     color: ACCENT,
+    backgroundColor: ACCENT_BG,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 99,
     letterSpacing: -0.4,
   },
   todayDate: {
@@ -1603,7 +1603,8 @@ const styles = StyleSheet.create({
   },
   todayLocation: {
     fontFamily: 'Pretendard-Bold',
-    fontSize: 18,
+    fontSize: 22,
+    lineHeight: 28.6,
     color: TEXT,
     letterSpacing: -0.4,
   },
@@ -1653,13 +1654,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     borderRadius: 16,
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    minHeight: 72,
     marginBottom: 20,
-    shadowColor: '#1F1A17',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    boxShadow: theme === 'light' ? '0 1px 2px rgba(0, 0, 0, 0.04)' : 'none',
   },
   rowIcon: {
     width: 36,
@@ -1674,7 +1673,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   continueLocation: {
-    fontFamily: 'Pretendard-SemiBold',
+    fontFamily: 'Pretendard-Bold',
     fontSize: 15,
     color: TEXT,
     letterSpacing: -0.4,
@@ -1692,17 +1691,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 20,
     overflow: 'hidden',
-    shadowColor: '#1F1A17',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    boxShadow: theme === 'light' ? '0 1px 2px rgba(0, 0, 0, 0.04)' : 'none',
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 14,
+    gap: 12,
+    minHeight: 56,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
   },
   featureRowBorder: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -1715,7 +1712,7 @@ const styles = StyleSheet.create({
   },
   featureName: {
     fontFamily: 'Pretendard-SemiBold',
-    fontSize: 14,
+    fontSize: 15,
     color: TEXT,
     letterSpacing: -0.4,
   },
@@ -1727,12 +1724,15 @@ const styles = StyleSheet.create({
   featureDesc: {
     fontFamily: 'Pretendard-Regular',
     fontSize: 12,
-    color: SECONDARY,
+    color: TERTIARY,
+    lineHeight: 18,
     letterSpacing: -0.4,
   },
   recentRow: {
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 20,
+    minHeight: 56,
+    justifyContent: 'center',
   },
   recentText: {
     fontFamily: 'Pretendard-Medium',
@@ -1760,8 +1760,8 @@ const styles = StyleSheet.create({
   readerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    height: 48,
+    paddingHorizontal: 8,
+    height: 44,
     gap: 4,
     position: 'relative',
   },
@@ -1769,26 +1769,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    maxWidth: '42%',
+    flexShrink: 1,
   },
   readerTitle: {
     fontFamily: 'Pretendard-Bold',
     fontSize: 20,
+    flexShrink: 1,
     color: TEXT,
     letterSpacing: -0.4,
   },
   readerVersion: {
-    fontFamily: 'Pretendard-Medium',
-    fontSize: 13,
+    fontFamily: 'Pretendard-SemiBold',
+    fontSize: 12,
     color: SECONDARY,
     letterSpacing: -0.4,
     marginLeft: 4,
   },
   readerActions: {
-    flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
+  readerPlan: { fontFamily: 'Pretendard-Regular', color: TERTIARY, fontSize: 10, marginLeft: 4 },
   readerActionText: {
     fontFamily: 'Pretendard-Medium',
     fontSize: 14,
@@ -1828,11 +1831,17 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontFamily: 'Pretendard-Medium',
     fontSize: 15,
-    color: '#fff',
+    color: colors.onAccent,
   },
   content: {
     flexGrow: 1,
   },
+  chapterActions: { flexDirection: 'row', justifyContent: 'center', gap: 8, width: '100%',
+    maxWidth: 420, alignSelf: 'center', marginTop: 16, paddingHorizontal: 16, paddingTop: 32, paddingBottom: 40 },
+  chapterAction: { flex: 1, minWidth: 0, minHeight: 44, paddingVertical: 12, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: BORDER, borderRadius: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  chapterActionText: { fontFamily: 'Pretendard-SemiBold', fontSize: 13, color: TEXT, letterSpacing: -0.13 },
   heading: {
     fontFamily: SERIF_BOLD,
     fontSize: 17,
@@ -1870,7 +1879,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: BORDER,
-    backgroundColor: BG,
+    backgroundColor: CARD,
   },
   footerButton: {
     width: 44,
@@ -1950,7 +1959,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   gridCellTextActive: {
-    color: '#fff',
+    color: colors.onAccent,
   },
   readDot: {
     position: 'absolute',
@@ -2005,3 +2014,4 @@ const styles = StyleSheet.create({
     color: ACCENT,
   },
 });
+};

@@ -2,7 +2,7 @@ import { createNavigationContainerRef } from '@react-navigation/native';
 
 export type TabParamList = {
   Home: { url?: string } | undefined;
-  Bible: { url?: string } | undefined;
+  Bible: { url?: string; readerActive?: boolean; openSchedule?: boolean } | undefined;
   Schedule: { url?: string } | undefined;
   Together: { url?: string } | undefined;
   Profile: { url?: string } | undefined;

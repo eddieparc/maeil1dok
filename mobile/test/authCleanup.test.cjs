@@ -126,6 +126,8 @@ test('native logout removes only Maeil1Dok auth cookies', async () => {
       'apiFetch',
       'pushRuntime',
       'tokenStore',
+      'session',
+      'commitSessionWrite',
     ],
     [
       (fn) => fn,
@@ -142,6 +144,8 @@ test('native logout removes only Maeil1Dok auth cookies', async () => {
       async () => assert.fail('a signed-out session must not call the API'),
       { suspend: async () => assert.fail('a signed-out session must not change push ownership') },
       tokenModule.exports.createTokenStore(SecureStore),
+      { active: true, generation: 0, login: 0, refresh: null },
+      async (_generation, write) => write(),
     ],
   );
 
@@ -213,6 +217,8 @@ test('native logout drains push before server revocation and local credential cl
   const accessTokenRef = { current: 'authenticated-owner' };
   const dependencies = {
     useCallback: fn => fn,
+    session: { active: true, generation: 0, login: 0, refresh: null },
+    commitSessionWrite: async (_generation, write) => write(),
     accessTokenRef,
     pushRuntime: { async suspend() { events.push('suspend'); await suspended; } },
     CookieManager: { async get() { return { beta_csrftoken: 'beta-csrf' }; } },

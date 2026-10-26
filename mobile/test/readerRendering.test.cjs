@@ -7,12 +7,20 @@ const ts = require('typescript');
 const React = require('react');
 
 const cache = new Map();
+let readingTheme = 'light';
+let viewportWidth = 440;
+let platformOS = 'ios';
 function load(filename) {
   if (cache.has(filename)) return cache.get(filename);
   const m = new Module(filename, module);
   m.filename = filename; m.paths = Module._nodeModulePaths(path.dirname(filename));
   m.require = name => {
+    if (name.endsWith('/ReadingSettingsProvider')) return {
+      useOptionalReadingSettings: () => ({ settings: { theme: readingTheme } }),
+    };
     if (name === 'react-native') return { Text: 'Text', View: 'View', useColorScheme: () => 'light',
+      Platform: { get OS() { return platformOS; } },
+      useWindowDimensions: () => ({ width: viewportWidth, height: 956 }),
       StyleSheet: { create: value => value } };
     if (name.startsWith('.')) {
       const p = path.resolve(path.dirname(filename), name);
@@ -33,7 +41,10 @@ const nodes = el => Array.isArray(el) ? el.flatMap(nodes) : React.isValidElement
   ? [el, ...nodes(el.props.children)] : [];
 const text = el => Array.isArray(el) ? el.map(text).join('') : React.isValidElement(el)
   ? text(el.props.children) : typeof el === 'string' || typeof el === 'number' ? String(el) : '';
-const render = (blocks, settings = {}) => Body({ blocks, settings: { ...DEFAULT_READING_SETTINGS, ...settings } });
+const render = (blocks, settings = {}) => {
+  readingTheme = settings.theme ?? 'light';
+  return Body({ blocks, settings: { ...DEFAULT_READING_SETTINGS, ...settings } });
+};
 
 // Verbatim excerpts, 2026-09-22, HTTP 200:
 // https://beta.maeil1dok.app/api/v1/bible-cache/GAE/gen/2/
@@ -93,13 +104,63 @@ test('joined poetry removes line breaks but remains split at a following heading
 test('dark body owns its padding so reader margins cannot remain a light gutter', () => {
   const body = render([], { theme: 'dark' });
   assert.equal(body.props.style.backgroundColor, '#1a1a1a');
-  assert.equal(body.props.style.paddingHorizontal, 20);
+  assert.equal(body.props.style.paddingHorizontal, 5);
   assert.equal(body.props.style.flexGrow, 1);
 });
+test('reader gutter follows the web 768px breakpoint without constraining body width', () => {
+  for (const [width, padding] of [[767, 5], [768, 5], [769, 16], [820, 16], [1032, 16]]) {
+    viewportWidth = width;
+    const body = render([]);
+    assert.equal(body.props.style.paddingHorizontal, padding);
+    assert.equal(body.props.style.maxWidth, undefined);
+  }
+  viewportWidth = 440;
+});
+test('both verse layouts keep Korean words together on iOS', () => {
+  for (const verseJoining of [false, true]) {
+    const paragraphs = nodes(render([{ type: 'verse', num: 1, text: '하나님이 보시기에 좋았더라' }], { verseJoining }))
+      .filter(node => node.props.testID === 'reader-verse-paragraph');
+    assert.equal(paragraphs.length, 1);
+    assert.equal(paragraphs[0].props.lineBreakStrategyIOS, 'hangul-word');
+  }
+});
+test('Android justified text uses zero tracking without changing alignment or verse presses', () => {
+  const blocks = [{ type: 'verse', num: 1, text: '첫째 절' }, { type: 'verse', num: 2, text: '둘째 절' }];
+  for (const os of ['ios', 'android']) {
+    platformOS = os;
+    for (const textAlign of ['left', 'justify']) {
+      const selected = [];
+      const body = Body({ blocks, settings: { ...DEFAULT_READING_SETTINGS, fontSize: 19,
+        verseJoining: true, textAlign }, onVersePress: verse => selected.push(verse) });
+      const paragraph = nodes(body).find(n => n.props.testID === 'reader-verse-paragraph');
+      const style = Object.assign({}, ...[paragraph.props.style].flat(Infinity));
+      assert.equal(style.textAlign, textAlign);
+      assert.equal(style.letterSpacing, os === 'android' && textAlign === 'justify' ? 0 : -0.38);
+      nodes(paragraph).filter(n => n.props.onPress)[1].props.onPress();
+      assert.deepEqual(selected, [2]);
+    }
+  }
+  platformOS = 'ios';
+});
 
-test('preview emphasis uses a source-marked place rather than inferring a name', () => {
+test('block verses reserve a number column while joining uses a single native text layout', () => {
+  const blocks = [{ type: 'verse', num: 1, text: 'first' }, { type: 'verse', num: 2, text: 'second' }];
+  const separate = nodes(render(blocks, { verseJoining: false }));
+  assert.equal(separate.filter(n => n.props.testID === 'reader-verse-row').length, 2);
+  const joined = nodes(render(blocks, { verseJoining: true }));
+  assert.equal(joined.filter(n => n.props.testID === 'reader-verse-row').length, 0);
+  assert.equal(joined.filter(n => n.props.testID === 'reader-verse-paragraph').length, 1);
+  const hidden = nodes(render(blocks, { showVerseNumbers: false }));
+  assert.equal(hidden.filter(n => n.props.testID === 'reader-verse-number').length, 0);
+});
+
+test('preview emphasis follows the toggle without changing the sample text', () => {
   const { PreviewSection } = load(path.resolve(__dirname, '../components/bible/ReadingSettingsSheet.parts.tsx'));
   const preview = PreviewSection({ verseJoining: true, showVerseNumbers: false, highlightNames: true, textStyle: {} });
-  const emphasized = nodes(preview).filter(n => n.type === 'Text' && n.props.style?.textDecorationLine === 'underline');
-  assert.deepEqual(emphasized.map(text), ['에덴', '에덴']);
+  const emphasized = nodes(preview).filter(n => n.props.testID === 'reading-preview-name');
+  const plain = PreviewSection({ verseJoining: true, showVerseNumbers: false, highlightNames: false, textStyle: {} });
+  assert.equal(emphasized.length, 2);
+  assert.ok(emphasized.every(n => typeof n.props.style.color === 'string'));
+  assert.ok(nodes(plain).filter(n => n.props.testID === 'reading-preview-name').every(n => n.props.style === undefined));
+  assert.equal(text(preview), text(plain));
 });

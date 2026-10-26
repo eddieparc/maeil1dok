@@ -121,7 +121,33 @@ Buttons, chips, segments, badges and inputs use `--radius-pill: 999px`; small co
 - The historical native-only capsule/light-shell exceptions below do not
   authorize divergence from that newer reference-fidelity requirement.
 
-### Historical Native App Navigation (Local Opt-In Only)
+### Current Native Reference Contract
+
+- Primary native pages follow the existing web layout and the saved reading
+  theme. The outer OS safe areas remain cream in both themes.
+- Below 1024px, use the full-width flat bottom navigation in layout flow:
+  60pt content height, or 56pt while a Bible chapter is active, plus the bottom
+  safe area. Do not render the historical floating capsule.
+- At 1024px and above, use a 240px left sidebar with the same navigation state,
+  tab-press cancellation and active-tab reselection behavior. General pages,
+  including headers, are centered within 760px; Bible reader text stays fluid.
+- Wide Home uses a main column up to 760px, a 300px secondary column and a 28px
+  gap. The container has 36px vertical and 40px horizontal padding.
+- Reader text uses 5px horizontal gutters through 768px and 16px above it.
+  Korean words stay together in iOS text layout. Book and chapter selection
+  columns use a zero basis and a 7:3 ratio.
+- Android justified text uses zero tracking to keep platform justification
+  measurement and painting consistent; negative tracking clips trailing glyphs
+  on the validated Android 36.1 runtime. Alignment and the selected font remain
+  unchanged. Other platform/alignment combinations retain web tracking.
+- Reader sheets are centered with a 768px maximum width. The visible reading
+  font options match the web: Pretendard, KoPub Batang and RIDI Batang, in that
+  order. Previously stored additional font families remain supported.
+- Guest Profile opens Login without changing the active tab. Schedule from an
+  active chapter opens the full schedule sheet and restores the chapter when
+  closed. Re-selecting the active Bible tab returns to the Bible home.
+
+### Historical Native App Navigation (Superseded)
 
 - The native app shell uses the light palette consistently, including shared
   sheets and status-bar chrome, regardless of system appearance. An explicitly

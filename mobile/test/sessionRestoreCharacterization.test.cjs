@@ -64,8 +64,7 @@ test('successful stored-session restore bridges rotated tokens then navigates', 
   assert.equal(observations.navigateCount, 1);
 
   const request = observations.fetchCalls[0];
-  assert.equal(request.url, 'https://api.maeil1dok.app/api/v1/auth/token/refresh/');
-  assert.equal(request.options.credentials, 'include');
+  assert.equal(request.url, 'https://api.maeil1dok.app/api/v1/auth/refresh/');
   assert.equal(request.options.headers['X-CSRFToken'], 'csrf-value');
   assert.equal(request.options.headers['X-Client'], 'shell');
   assert.equal(request.options.headers['X-App-Platform'], 'android');

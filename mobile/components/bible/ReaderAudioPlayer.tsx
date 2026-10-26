@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useNativeColors } from '../ui/tokens';
 import {
   PLAYBACK_RATES, buildReaderAudioHtml, extractYouTubeVideoId, parseReaderAudioEvent,
   type PlaybackRate, type ReaderAudioSource,
@@ -36,6 +37,8 @@ function AudioSession({
   audioLink, title, contextKey = '', initialRate = 1, onRateChange, onOpenExternal,
   onClose, onEnded, onRetry,
 }: ReaderAudioPlayerProps & { readonly onRetry: () => void }) {
+  const colors = useNativeColors();
+  const styles = createStyles(colors);
   const [source] = useState<ReaderAudioSource>(() => ({ link: audioLink ?? '', contextKey, generation: ++generation }));
   const [document] = useState(() => ({ html: buildReaderAudioHtml(source, initialRate), baseUrl: 'https://www.youtube.com' }));
   const [rate, setRate] = useState(initialRate);
@@ -131,8 +134,8 @@ function AudioSession({
             <Pressable testID="audio-play" style={styles.button} disabled={!enabled}
               accessibilityRole="button" accessibilityLabel={playing ? '오디오 일시정지' : '오디오 재생'}
               accessibilityState={{ disabled: !enabled }} onPress={() => command(playing ? 'pause' : 'play')}>
-              {!ready && !failed ? <ActivityIndicator color="#2A1111" /> :
-                <Ionicons name={playing ? 'pause' : 'play'} size={18} color="#2A1111" />}
+              {!ready && !failed ? <ActivityIndicator color={colors.accent} /> :
+                <Ionicons name={playing ? 'pause' : 'play'} size={18} color={colors.accent} />}
             </Pressable>
             <Pressable testID="audio-seek" style={styles.seek} disabled={!enabled || time.duration <= 0}
               accessibilityRole="adjustable" accessibilityLabel={`${title ?? '오디오'} 재생 위치`}
@@ -164,7 +167,7 @@ function AudioSession({
         )}
         <Pressable testID="audio-close" style={styles.button} onPress={close}
           accessibilityRole="button" accessibilityLabel="오디오 닫기">
-          <Ionicons name="close" size={20} color="#6B625B" />
+          <Ionicons name="close" size={20} color={colors.textSecondary} />
         </Pressable>
       </View>
       {failed && <View style={styles.row}>
@@ -184,17 +187,17 @@ function AudioSession({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { backgroundColor: '#FFFFFF', borderTopWidth: 1, borderColor: '#E9E4DE', paddingHorizontal: 8 },
+const createStyles = (colors: ReturnType<typeof useNativeColors>) => StyleSheet.create({
+  container: { backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border, paddingHorizontal: 8 },
   row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   button: { minWidth: 48, minHeight: 48, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
   seek: { flex: 1, minWidth: 48, minHeight: 48, justifyContent: 'center' },
-  track: { height: 4, backgroundColor: '#E9E4DE', borderRadius: 2, overflow: 'hidden' },
-  fill: { height: 4, backgroundColor: '#2A1111' },
+  track: { height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden' },
+  fill: { height: 4, backgroundColor: colors.accent },
   media: { position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden' },
-  time: { color: '#6B625B', fontSize: 11, fontVariant: ['tabular-nums'], marginHorizontal: 4 },
-  text: { color: '#6B625B', fontSize: 13 },
-  selected: { color: '#2A1111', fontWeight: '700' },
+  time: { color: colors.textSecondary, fontSize: 11, fontVariant: ['tabular-nums'], marginHorizontal: 4 },
+  text: { color: colors.textSecondary, fontSize: 13 },
+  selected: { color: colors.accent, fontWeight: '600' },
   rates: { flexDirection: 'row', flexWrap: 'wrap' },
   fallback: { flex: 1 },
 });

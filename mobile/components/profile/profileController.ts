@@ -56,7 +56,7 @@ export function createProfileController(options: {
       const profile = await loadProfile(options.apiFetch, id);
       if (!current(g)) return;
       emit({ kind: 'ready', profile, viewerId, isOwnProfile: viewerId === profile.user.id,
-        avatarFailed: false, tab: 'calendar', month: options.month,
+        avatarFailed: false, refreshing: false, tab: 'calendar', month: options.month,
         calendar: { kind: 'loading' }, achievements: null, groups: null,
         selectedDate: null, achievementTab: 'bible', showHiddenGroups: false,
         editor: null, people: null, pendingGroup: null, pendingPerson: null, actionError: null });
@@ -69,6 +69,28 @@ export function createProfileController(options: {
         else if (status === 404) emit({ kind: 'unavailable' });
         else emit({ kind: 'error', message: message(error) });
       }
+    }
+  }
+  async function refresh() {
+    if (!active || state.kind !== 'ready' || state.refreshing || state.pendingPerson !== null
+      || state.pendingGroup !== null || state.editor?.saving) return;
+    const g = generation;
+    const id = state.profile.user.id;
+    patch({ refreshing: true, actionError: null });
+    try {
+      const profile = await loadProfile(options.apiFetch, id);
+      if (!current(g)) return;
+      patch({ profile });
+      await calendar(state.month);
+    } catch (error) {
+      if (!current(g)) return;
+      const status = error instanceof AuthExpiredError ? 401 : error instanceof ProfileDataError ? error.status : undefined;
+      if (status === 401) emit({ kind: 'unauthorized' });
+      else if (status === 403) emit({ kind: 'forbidden' });
+      else if (status === 404) emit({ kind: 'unavailable' });
+      else patch({ actionError: message(error) });
+    } finally {
+      if (current(g)) patch({ refreshing: false });
     }
   }
   async function selectTab(tab: ProfileTab, retry = false) {
@@ -95,7 +117,7 @@ export function createProfileController(options: {
     }
   }
   async function save() {
-    if (!active || state.kind !== 'ready' || !state.isOwnProfile || !state.editor || state.editor.saving) return;
+    if (!active || state.kind !== 'ready' || state.refreshing || !state.isOwnProfile || !state.editor || state.editor.saving) return;
     const g = generation;
     const draft = state.editor;
     const id = state.profile.user.id;
@@ -108,7 +130,7 @@ export function createProfileController(options: {
     }
   }
   async function visibility(id: number) {
-    if (!active || state.kind !== 'ready' || !state.isOwnProfile || state.pendingGroup !== null || state.groups?.kind !== 'ready') return;
+    if (!active || state.kind !== 'ready' || state.refreshing || !state.isOwnProfile || state.pendingGroup !== null || state.groups?.kind !== 'ready') return;
     const group = state.groups.data.find(row => row.id === id);
     if (!group) return;
     const g = generation;
@@ -138,7 +160,7 @@ export function createProfileController(options: {
     }
   }
   async function follow(id: number) {
-    if (!active || state.kind !== 'ready' || state.viewerId === null || state.pendingPerson !== null) return;
+    if (!active || state.kind !== 'ready' || state.refreshing || state.viewerId === null || state.pendingPerson !== null) return;
     const person = id === state.profile.user.id ? { id, is_following: state.profile.is_following }
       : state.people?.result.kind === 'ready' ? state.people.result.data.find(row => row.id === id) : undefined;
     if (!person || person.id === state.viewerId) return;
@@ -165,7 +187,7 @@ export function createProfileController(options: {
   return {
     getSnapshot: () => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    start,
+    start, refresh,
     activate: () => { active = true; },
     dispose: () => { active = false; generation++; calendarGeneration++; peopleGeneration++; },
     selectTab, save, visibility, people, follow,
@@ -176,7 +198,7 @@ export function createProfileController(options: {
       }
     },
     openEdit: () => {
-      if (active && state.kind === 'ready' && state.isOwnProfile) patch({
+      if (active && state.kind === 'ready' && !state.refreshing && state.isOwnProfile) patch({
         editor: { bio: state.profile.bio, is_public: state.profile.is_public, saving: false, error: null },
       });
     },

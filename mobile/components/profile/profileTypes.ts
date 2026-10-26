@@ -71,6 +71,7 @@ export interface ReadyProfile {
   readonly viewerId: number | null;
   readonly isOwnProfile: boolean;
   readonly avatarFailed: boolean;
+  readonly refreshing: boolean;
   readonly tab: ProfileTab;
   readonly month: string;
   readonly calendar: Resource<CalendarData>;

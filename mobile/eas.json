@@ -44,7 +44,7 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_NATIVE_UI": "false"
+        "EXPO_PUBLIC_NATIVE_UI": "true"
       },
       "credentialsSource": "remote"
     },

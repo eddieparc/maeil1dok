@@ -18,6 +18,8 @@ function load(relative, overrides = {}) {
   instance.require = (name) => {
     if (Object.hasOwn(overrides, name)) return overrides[name];
     if (name === 'react-native') return native;
+    if (name.endsWith('ReadingSettingsProvider')) return { useOptionalReadingSettings: () => null };
+    if (name === '@expo/vector-icons/Feather') return { default: 'Icon' };
     if (name === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) };
     if (!name.startsWith('.')) return original(name);
     const base = path.resolve(path.dirname(filename), name);
@@ -45,6 +47,130 @@ const deferred = () => {
 };
 const query = (search = '') => ({ search, filter: 'all' });
 const members = { success: true, members: [], meta: { has_more: false, offset: 0, limit: 100, total_members: 0, returned_members: 0 } };
+
+function nextState(model, predicate, t) {
+  return new Promise((resolve) => {
+    const unsubscribe = model.subscribe(() => {
+      if (predicate(model.state)) { unsubscribe(); resolve(model.state); }
+    });
+    t.after(unsubscribe);
+  });
+}
+
+test('search debounces for 300ms and retains cards until the latest result arrives', { timeout: 5000 }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = deferred();
+  const calls = [];
+  const model = new TogetherModel(async (url) => {
+    calls.push(url);
+    return calls.length === 1 ? response({ success: true, groups: [group(7)] }) : pending.promise;
+  }, true);
+  t.after(() => model.dispose());
+  await model.loadList(query());
+  model.changeQuery(query('a'));
+  t.mock.timers.tick(200);
+  model.changeQuery(query('ab'));
+  t.mock.timers.tick(299);
+  assert.equal(calls.length, 1);
+  assert.equal(model.state.listStatus, 'ready');
+  const ready = nextState(model, (state) => state.listStatus === 'ready', t);
+  t.mock.timers.tick(1);
+  assert.equal(calls.length, 2);
+  assert.equal(new URL(calls[1], 'https://example.test').searchParams.get('search'), 'ab');
+  assert.equal(model.state.listStatus, 'loading');
+  const { GroupList } = load('components/together/GroupList.tsx');
+  let opened;
+  const rendered = nodes(React.createElement(GroupList, {
+    state: model.state, query: query('ab'), signedIn: true, onQuery() {}, onCreate() {}, onRetry() {}, onLogin() {},
+    onOpen: (id) => { opened = id; },
+  }));
+  rendered.filter((node) => node.type === 'Pressable').at(-1).props.onPress();
+  assert.equal(opened, 7, 'existing card stays usable during the replacement request');
+  assert.equal(rendered.filter((node) => node.props.accessibilityElementsHidden).length, 0);
+  pending.resolve(response({ success: true, groups: [group(8)] }));
+  await ready;
+  assert.deepEqual(model.state.groups.map((entry) => entry.id), [8]);
+});
+
+test('typing invalidates an in-flight response before the debounce expires', { timeout: 5000 }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const old = deferred();
+  const model = new TogetherModel(async (url) => url.includes('old') ? old.promise : response({ success: true, groups: [group(8)] }), true);
+  t.after(() => model.dispose());
+  await model.loadList(query());
+  const job = model.loadList(query('old'));
+  model.changeQuery(query('new'));
+  old.resolve(response({ success: true, groups: [group(7)] }));
+  await job;
+  assert.deepEqual(model.state.groups.map((entry) => entry.id), [8]);
+  const ready = nextState(model, (state) => state.listStatus === 'ready', t);
+  t.mock.timers.tick(300);
+  await ready;
+  assert.deepEqual(model.state.groups.map((entry) => entry.id), [8]);
+});
+
+test('filter change cancels pending search and immediately uses the latest input', { timeout: 5000 }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const calls = [];
+  const model = new TogetherModel(async (url) => { calls.push(url); return response({ success: true, groups: [] }); }, true);
+  t.after(() => model.dispose());
+  await model.loadList(query());
+  model.changeQuery(query('faith'));
+  const ready = nextState(model, (state) => state.listStatus === 'ready', t);
+  model.changeQuery({ search: 'faith', filter: 'public' });
+  assert.equal(calls.length, 2);
+  await ready;
+  t.mock.timers.tick(300);
+  assert.equal(calls.length, 2);
+  const url = new URL(calls[1], 'https://example.test');
+  assert.equal(url.searchParams.get('only_public'), 'true');
+  assert.equal(url.searchParams.get('search'), 'faith');
+});
+
+test('disposing a query scope cancels its debounced request', { timeout: 5000 }, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let calls = 0;
+  const model = new TogetherModel(async () => { calls++; return response({ success: true, groups: [] }); }, true);
+  await model.loadList(query());
+  model.changeQuery(query('next'));
+  model.dispose();
+  t.mock.timers.tick(300);
+  assert.equal(calls, 1);
+});
+
+test('list creation action and authenticated empty state both dispatch creation', async () => {
+  const { GroupList } = load('components/together/GroupList.tsx');
+  const model = new TogetherModel(async () => response({ success: true, groups: [] }), true);
+  await model.loadList(query());
+  let creates = 0;
+  const render = (signedIn, search = '') => nodes(React.createElement(GroupList, {
+    state: model.state, query: query(search), signedIn, onQuery() {}, onOpen() {}, onRetry() {}, onLogin() {},
+    onCreate: () => { creates++; },
+  })).filter((node) => node.type === 'Pressable');
+  const signedIn = render(true);
+  signedIn.find((node) => node.props.accessibilityLabel === '그룹 생성').props.onPress();
+  signedIn.at(-1).props.onPress();
+  assert.equal(creates, 2);
+  assert.equal(render(false).length, 4, 'guest empty state has no authenticated-only first-create CTA');
+  assert.equal(render(true, 'none').length, 4, 'search empty state has no first-create CTA');
+});
+
+test('detail failure exposes retry and list return while loading stays busy', () => {
+  const { GroupDetailError, GroupDetailLoading } = load('components/together/GroupDetailState.tsx');
+  let retries = 0;
+  let returns = 0;
+  const rendered = nodes(React.createElement(GroupDetailError, {
+    message: 'fixture-error', onRetry: () => { retries++; }, onBack: () => { returns++; },
+  }));
+  const buttons = rendered.filter((node) => node.type === 'Pressable');
+  buttons[0].props.onPress();
+  buttons[1].props.onPress();
+  assert.deepEqual([retries, returns], [1, 1]);
+  assert.equal(rendered.filter((node) => node.props.accessibilityRole === 'alert').length, 1);
+  const pending = nodes(React.createElement(GroupDetailLoading));
+  assert.equal(pending.filter((node) => node.props.accessibilityState?.busy).length, 1);
+  assert.equal(pending.filter((node) => node.type === 'Pressable').length, 0);
+});
 
 test('pending list is loading rather than an empty result', async () => {
   const pending = deferred();
@@ -166,14 +292,14 @@ test('native list buttons, search input, and card dispatch real feature callback
   let selected;
   let opened;
   const tree = nodes(React.createElement(GroupList, {
-    state: model.state, query: query(), onQuery: (value) => { selected = value; },
-    onOpen: (id) => { opened = id; }, onRetry() {}, onLogin() {},
+    state: model.state, query: query(), signedIn: true, onQuery: (value) => { selected = value; },
+    onOpen: (id) => { opened = id; }, onRetry() {}, onLogin() {}, onCreate() {},
   }));
   tree.find((node) => node.type === 'TextInput').props.onChangeText('new');
   assert.deepEqual(selected, { search: 'new', filter: 'all' });
   const buttons = tree.filter((node) => node.type === 'Pressable');
-  assert.equal(buttons[0].props.accessibilityState.selected, true);
-  buttons[1].props.onPress();
+  assert.equal(buttons.find((node) => node.props.accessibilityLabel === '전체').props.accessibilityState.selected, true);
+  buttons.find((node) => node.props.accessibilityLabel === '공개').props.onPress();
   assert.deepEqual(selected, { search: '', filter: 'public' });
   buttons.at(-1).props.onPress();
   assert.equal(opened, 7);
@@ -185,17 +311,18 @@ test('native list distinguishes loading, error retry, guest login, and empty sta
   let retries = 0;
   let logins = 0;
   const render = (listStatus) => nodes(React.createElement(GroupList, {
-    state: { ...model.state, listStatus, listError: 'fixture-error' }, query: query(),
-    onQuery() {}, onOpen() {}, onRetry: () => { retries++; }, onLogin: () => { logins++; },
+    state: { ...model.state, listStatus, listError: 'fixture-error' }, query: query(), signedIn: false,
+    onQuery() {}, onOpen() {}, onCreate() {}, onRetry: () => { retries++; }, onLogin: () => { logins++; },
   }));
-  assert.equal(render('loading').filter((node) => node.type === 'ActivityIndicator').length, 1);
+  assert.equal(render('loading').filter((node) => node.props.accessibilityState?.busy).length, 1);
+  assert.equal(render('loading').filter((node) => node.props.accessibilityElementsHidden).length, 4);
   const errors = render('error');
   assert.equal(errors.filter((node) => node.props.accessibilityRole === 'alert').length, 1);
   errors.filter((node) => node.type === 'Pressable').at(-1).props.onPress();
   assert.equal(retries, 1);
   render('guest').filter((node) => node.type === 'Pressable').at(-1).props.onPress();
   assert.equal(logins, 1);
-  assert.equal(render('ready').filter((node) => node.type === 'Pressable').length, 3);
+  assert.equal(render('ready').filter((node) => node.type === 'Pressable').length, 4);
 });
 test('native join CTA routes guest to login, member to unavailable chat, and blocks full or pending joins', () => {
   const { GroupJoinAction } = load('components/together/GroupJoinAction.tsx');
@@ -440,6 +567,7 @@ test('actual native board button opens current group in current WebView stack an
   const hooks = {
     ...React,
     useMemo: fn => fn(), useCallback: fn => fn, useEffect() {},
+    useRef: () => ({ current: null }),
     useSyncExternalStore: (_subscribe, snapshot) => snapshot(),
     useState: initial => {
       const index = cursor++;

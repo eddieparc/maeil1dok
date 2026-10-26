@@ -27,6 +27,7 @@ export type AuthSessionValue = {
   readonly status: AuthStatus;
   readonly accessToken: string | null;
   readonly apiFetch: ApiFetch;
+  readonly refreshTokens: () => Promise<TokenPair | null>;
   readonly pushRuntime: NativePushRuntime;
   readonly signInWithTokens: (access: string, refresh: string) => Promise<void>;
   readonly signOut: () => Promise<void>;
@@ -47,44 +48,92 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const accessTokenRef = useRef<string | null>(null);
+  const session = useMemo<{
+    active: boolean;
+    generation: number;
+    login: number;
+    refresh: Promise<TokenPair | null> | null;
+    writes: Promise<void>;
+  }>(() => ({ active: true, generation: 0, login: 0, refresh: null, writes: Promise.resolve() }), [apiUrl, tokenStore]);
+
+  useEffect(() => {
+    session.active = true;
+    return () => { session.active = false; session.generation++; session.refresh = null; };
+  }, [session]);
+
+  const commitSessionWrite = useCallback((generation: number, write: () => Promise<void>) => {
+    const commit = async () => {
+      if (session.active && session.generation === generation) await write();
+    };
+    const operation = session.writes.then(commit, commit);
+    session.writes = operation;
+    return operation;
+  }, [session]);
 
   const applyTokens = useCallback(async (pair: TokenPair | null) => {
-    if (pair) {
-      await tokenStore.write(pair);
-      accessTokenRef.current = pair.access;
-      setAccessToken(pair.access);
-      setStatus('signedIn');
-    } else {
+    if (!session.active) return;
+    const generation = ++session.generation;
+    session.refresh = null;
+    if (pair) session.login++;
+    else {
       accessTokenRef.current = null;
       setAccessToken(null);
       setStatus('signedOut');
     }
-  }, [tokenStore]);
-
-  const refreshTokens = useCallback(async (): Promise<TokenPair | null> => {
-    const stored = await tokenStore.read();
-    if (!stored.refresh) return null;
-    const { pair } = await requestTokenRefresh(
-      apiUrl,
-      stored.refresh,
-      (url, init) => fetch(url, init),
-      NATIVE_CLIENT_OBSERVATION_HEADERS,
-    );
-    if (pair) {
-      await tokenStore.write(pair);
+    await commitSessionWrite(generation, () => pair ? tokenStore.write(pair) : tokenStore.clear());
+    if (pair && session.active && session.generation === generation) {
       accessTokenRef.current = pair.access;
       setAccessToken(pair.access);
+      setStatus('signedIn');
     }
-    return pair;
-  }, [apiUrl, tokenStore]);
+  }, [commitSessionWrite, session, tokenStore]);
+
+  const refreshTokens = useCallback((): Promise<TokenPair | null> => {
+    if (!session.active) return Promise.resolve(null);
+    if (session.refresh) return session.refresh;
+    const generation = session.generation;
+    const operation = (async () => {
+      await session.writes;
+      if (!session.active || session.generation !== generation) return null;
+      const stored = await tokenStore.read();
+      if (!session.active || session.generation !== generation) return null;
+      if (!stored.refresh) {
+        await applyTokens(null);
+        return null;
+      }
+      const cookies = await CookieManager.get(apiUrl).catch(() => null);
+      if (!session.active || session.generation !== generation) return null;
+      const { pair, rejected } = await requestTokenRefresh(
+        apiUrl, stored.refresh, (url, init) => fetch(url, init),
+        { ...NATIVE_CLIENT_OBSERVATION_HEADERS, ...csrfHeadersFrom(cookies) },
+      );
+      if (!session.active || session.generation !== generation) return null;
+      if (pair) {
+        await commitSessionWrite(generation, () => tokenStore.write(pair));
+        if (!session.active || session.generation !== generation) return null;
+        accessTokenRef.current = pair.access;
+        setAccessToken(pair.access);
+        setStatus('signedIn');
+      } else if (rejected) {
+        await applyTokens(null);
+      }
+      return pair;
+    })();
+    const shared = operation.finally(() => { if (session.refresh === shared) session.refresh = null; });
+    session.refresh = shared;
+    return shared;
+  }, [apiUrl, applyTokens, commitSessionWrite, session, tokenStore]);
 
   // On mount: load the stored pair, then validate by redeeming the refresh
   // token once. A definitive rejection clears the stored pair; a network
   // failure leaves it — the WebView's own restore may still succeed later.
   useEffect(() => {
     let cancelled = false;
+    const generation = session.generation;
     (async () => {
+      await session.writes;
       const stored = await tokenStore.read();
+      if (cancelled || !session.active || session.generation !== generation) return;
       if (!stored.refresh) {
         if (!cancelled) {
           accessTokenRef.current = stored.access;
@@ -93,22 +142,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
-      const { pair, rejected } = await requestTokenRefresh(
-        apiUrl,
-        stored.refresh,
-        (url, init) => fetch(url, init),
-        NATIVE_CLIENT_OBSERVATION_HEADERS,
-      );
-      if (cancelled) return;
-      if (pair) {
-        await tokenStore.write(pair);
-        accessTokenRef.current = pair.access;
-        setAccessToken(pair.access);
-        setStatus('signedIn');
-      } else {
-        if (rejected) {
-          await tokenStore.clear();
-        }
+      const pair = await refreshTokens();
+      if (cancelled || !session.active || session.generation !== generation) return;
+      if (!pair) {
         accessTokenRef.current = null;
         setAccessToken(null);
         setStatus('signedOut');
@@ -120,14 +156,15 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, tokenStore]);
+  }, [refreshTokens, session, tokenStore]);
 
   const apiFetch = useMemo<ApiFetch>(() => createApiFetch({
     baseUrl: apiUrl,
     getAccessToken: () => accessTokenRef.current,
+    getSessionVersion: () => session.active ? session.generation : null,
     fetchImpl: (url, init) => fetch(url, init),
     refresh: refreshTokens,
-  }), [apiUrl, refreshTokens]);
+  }), [apiUrl, refreshTokens, session]);
 
   const pushRuntime = useMemo(() => createNativePushRuntime({
     apiFetch,
@@ -157,6 +194,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   }), [registerTransition, pushRuntime]);
 
   const signInWithTokens = useCallback(async (access: string, refresh: string) => {
+    if (accessTokenRef.current === access) return;
     if (accessTokenRef.current) await pushRuntime.suspend();
     await applyTokens({ access, refresh });
     void pushRuntime.resume().catch((error: unknown) => {
@@ -165,6 +203,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   }, [applyTokens, pushRuntime]);
 
   const signOut = useCallback(async () => {
+    if (!session.active) return;
+    const login = session.login;
     if (accessTokenRef.current) {
       try {
         await pushRuntime.suspend();
@@ -185,7 +225,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     }
     // Same cleanup as the WebView logout path: SecureStore tokens plus the
     // shared cookie store, so the WebView session dies with the native one.
-    await clearMobileAuth({
+    if (!session.active || session.login !== login) return;
+    const generation = ++session.generation;
+    session.refresh = null;
+    await commitSessionWrite(generation, () => clearMobileAuth({
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
       apiUrl,
       cookieNames: tokenStore.cookieNames,
@@ -208,20 +251,22 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       deleteSecureValue: (key) => SecureStore.deleteItemAsync(key),
     }).catch((error) => {
       console.error('[AuthSession] signOut cleanup failed:', error);
-    });
+    }));
+    if (!session.active || session.generation !== generation) return;
     accessTokenRef.current = null;
     setAccessToken(null);
     setStatus('signedOut');
-  }, [apiUrl, webAppUrl, apiFetch, pushRuntime, tokenStore]);
+  }, [apiUrl, webAppUrl, apiFetch, commitSessionWrite, pushRuntime, session, tokenStore]);
 
   const value = useMemo<AuthSessionValue>(() => ({
     status,
     accessToken,
     apiFetch,
+    refreshTokens,
     pushRuntime,
     signInWithTokens,
     signOut,
-  }), [status, accessToken, apiFetch, pushRuntime, signInWithTokens, signOut]);
+  }), [status, accessToken, apiFetch, refreshTokens, pushRuntime, signInWithTokens, signOut]);
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
 }

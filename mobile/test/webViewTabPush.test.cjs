@@ -54,23 +54,23 @@ test('profile tab delegates push to the native owner and replies on its own WebV
   assert.deepEqual(JSON.parse(await replied), state);
 });
 
-test('profile tab restores the environment-scoped refresh token', async () => {
+test('profile tab restores through the scoped native session owner', async () => {
   const restore = tabClosure('restoreStoredSession', {
     restoreGenerationRef: { current: 0 },
     API_URL: 'https://beta.maeil1dok.app',
-    tokenStore: { async read() { return { refresh: 'beta-refresh' }; } },
+    refreshTokens: async () => ({ access: 'beta-access', refresh: 'beta-refresh' }),
     SecureStore: { async getItemAsync() { return 'production-refresh'; } },
-    runStoredSessionRestore: deps => deps.readRefreshToken(),
+    runStoredSessionRestore: deps => deps.refreshSession(),
     initiateSessionBridge() {},
     injectUrl() {},
   });
-  assert.equal(await restore(), 'beta-refresh');
+  assert.deepEqual(await restore(), { access: 'beta-access', refresh: 'beta-refresh' });
 });
 
-test('profile tab saves session tokens through the scoped token store', async () => {
+test('profile tab saves session tokens through the native session owner', async () => {
   const stored = [];
   const bridge = tabClosure('initiateSessionBridge', {
-    tokenStore: { async write(pair) { stored.push(pair); } },
+    signInWithTokens: async (access, refresh) => { stored.push({ access, refresh }); },
     SecureStore: { async setItemAsync() { stored.push('unscoped'); } },
     CookieManager: { async get() { return {}; } },
     API_URL: 'https://beta.maeil1dok.app',

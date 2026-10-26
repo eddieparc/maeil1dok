@@ -205,12 +205,21 @@ function AppContent() {
     const loadFonts = async () => {
       try {
         await Font.loadAsync({
+          'KoPubBatang-Light': require('./assets/fonts/KoPubBatang-Light.ttf'),
+          'KoPubBatang-Regular': require('./assets/fonts/KoPubBatang-Regular.ttf'),
+          'KoPubBatang-Bold': require('./assets/fonts/KoPubBatang-Bold.ttf'),
+          'RIDIBatang': require('./assets/fonts/RIDIBatang.otf'),
+          'NotoSerifKR-Regular': require('./assets/fonts/NotoSerifKR-Regular.otf'),
+          'NotoSerifKR-Medium': require('./assets/fonts/NotoSerifKR-Medium.otf'),
+          'NotoSerifKR-SemiBold': require('./assets/fonts/NotoSerifKR-SemiBold.otf'),
+          'NotoSerifKR-Bold': require('./assets/fonts/NotoSerifKR-Bold.ttf'),
           'Pretendard-Regular': require('./assets/fonts/Pretendard-Regular.otf'),
           'Pretendard-Medium': require('./assets/fonts/Pretendard-Medium.otf'),
           'Pretendard-SemiBold': require('./assets/fonts/Pretendard-SemiBold.otf'),
           'Pretendard-Bold': require('./assets/fonts/Pretendard-Bold.otf'),
-          'NotoSerifKR-Bold': require('./assets/fonts/NotoSerifKR-Bold.ttf'),
-          'NotoSerifKR-Regular': require('./assets/fonts/NotoSerifKR-Regular.ttf'),
+          'NotoSansKR-Regular': require('./assets/fonts/NotoSansKR-Regular.ttf'),
+          'NotoSansKR-Medium': require('./assets/fonts/NotoSansKR-Medium.ttf'),
+          'NotoSansKR-SemiBold': require('./assets/fonts/NotoSansKR-SemiBold.ttf'),
         });
       } catch (error) {
         console.warn('[App] font load failed:', error);

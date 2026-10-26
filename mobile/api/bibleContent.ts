@@ -58,7 +58,9 @@ const decodeEntities = (text: string): string =>
       return Number.isFinite(n) && n > 0 ? String.fromCodePoint(n) : '';
     });
 
-const stripTags = (html: string): string => html.replace(/<[^>]*>/g, ' ');
+const stripTags = (html: string): string => html
+  .replace(/<br\b[^>]*>|<\/?(?:div|p)\b[^>]*>/gi, ' ')
+  .replace(/<[^>]*>/g, '');
 
 /** 태그 제거 + 엔티티 디코딩 + 공백 정규화. */
 const cleanText = (html: string): string =>
@@ -191,7 +193,8 @@ const parseStandardHtml = (html: string): BibleBlock[] => {
     const bodyStart = numSpanClose === -1 ? match.index + match[0].length : numSpanClose + '</span>'.length;
     const nextToken = tokenRe.exec(scope);
     const bodyEnd = nextToken ? nextToken.index : scope.length;
-    if (nextToken) tokenRe.lastIndex = nextToken.index;
+    // A failed global exec resets lastIndex to zero; do not rescan headings.
+    tokenRe.lastIndex = nextToken ? nextToken.index : scope.length;
 
     let body = scope.slice(bodyStart, bodyEnd);
     const footnotes = footnotesIn(body, false);

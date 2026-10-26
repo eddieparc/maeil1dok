@@ -82,6 +82,7 @@ test('apiFetch attaches the bearer token to the request', async () => {
   const apiFetch = createApiFetch({
     baseUrl: 'https://api.maeil1dok.app',
     getAccessToken: () => 'tok-1',
+    getSessionVersion: () => 0,
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
       return response(200, { ok: true });
@@ -102,6 +103,7 @@ test('apiFetch refreshes once on 401 and retries with the new token', async () =
   const apiFetch = createApiFetch({
     baseUrl: 'https://api.maeil1dok.app',
     getAccessToken: () => token,
+    getSessionVersion: () => 0,
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
       return response(calls.length === 1 ? 401 : 200);
@@ -124,6 +126,7 @@ test('apiFetch throws AuthExpiredError when the retry is also 401', async () => 
   const apiFetch = createApiFetch({
     baseUrl: 'https://api.maeil1dok.app',
     getAccessToken: () => 'tok',
+    getSessionVersion: () => 0,
     fetchImpl: async () => response(401),
     refresh: async () => {
       refreshCalls += 1;
@@ -139,6 +142,7 @@ test('apiFetch throws AuthExpiredError when the refresh itself fails', async () 
   const apiFetch = createApiFetch({
     baseUrl: 'https://api.maeil1dok.app',
     getAccessToken: () => 'tok',
+    getSessionVersion: () => 0,
     fetchImpl: async () => response(401),
     refresh: async () => null,
   });
@@ -151,6 +155,7 @@ test('apiFetch does not refresh on non-401 failures', async () => {
   const apiFetch = createApiFetch({
     baseUrl: 'https://api.maeil1dok.app',
     getAccessToken: () => 'tok',
+    getSessionVersion: () => 0,
     fetchImpl: async () => response(500),
     refresh: async () => {
       refreshCalls += 1;

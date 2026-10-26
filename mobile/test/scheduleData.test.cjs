@@ -54,6 +54,13 @@ const {
   monthSummary,
   sortSchedules,
   scheduleReaderUrl,
+  parseSchedulePlans,
+  parseScheduleMonth,
+  parseScheduleYear,
+  parseSchedulePosition,
+  planFromScheduleUrl,
+  scheduleSelectionKey,
+  ScheduleDataError,
 } = loadTsModule('api/scheduleData.ts');
 
 const entry = (overrides = {}) => ({
@@ -372,7 +379,7 @@ test('sortSchedules orders by date then canonical book order then id', () => {
     entry({ id: 2, date: '2026-09-01', book: '출애굽기' }),
     entry({ id: 4, date: '2026-09-01', book: '창세기' }),
   ]);
-  assert.deepEqual(out.map((s) => s.id), [4, 1, 2, 3]);
+  assert.deepEqual(out.map((s) => s.id), [1, 4, 2, 3]);
 });
 
 test('scheduleReaderUrl preserves the selected schedule and plan context', () => {
@@ -382,4 +389,50 @@ test('scheduleReaderUrl preserves the selected schedule and plan context', () =>
     date: '2026-09-19', tongdok: 'true', from: 'plan',
   });
   assert.equal(scheduleReaderUrl(entry({ book: 'unknown' }), 3), null);
+});
+
+test('strict Schedule reads distinguish empty results from malformed responses', () => {
+  for (const parser of [parseSchedulePlans, parseScheduleMonth]) {
+    assert.deepEqual(parser([]), []);
+    for (const payload of [null, {}, { success: false }, { results: [] }, [null]]) {
+      assert.throws(() => parser(payload), ScheduleDataError);
+    }
+  }
+  assert.throws(() => parseSchedulePlans([{ plan_id: 3 }]), ScheduleDataError);
+  assert.deepEqual(parseSchedulePlans([
+    { plan_id: 3, plan_name: 'A', is_active: false },
+    { plan_id: 4, plan_name: 'B' },
+  ]).map(plan => plan.plan_id), [4]);
+  for (const invalid of [
+    { date: '2026-02-30' }, { date: 'bad' }, { book: 'unknown' },
+    { start_chapter: 0 }, { start_chapter: 4, end_chapter: 2 },
+  ]) assert.throws(() => parseScheduleMonth([entry(invalid)]), ScheduleDataError);
+});
+
+test('year summary keeps partial row progress and rejects unavailable summaries', () => {
+  const input = { success: true, monthly_progress: [{ month: 9, done: 1, total: 2 }] };
+  assert.deepEqual(parseScheduleYear(input), { 9: { done: 1, total: 2 } });
+  for (const payload of [{}, { success: false }, { success: true, monthly_progress: [
+    { month: 9, done: 3, total: 2 },
+  ] }]) assert.throws(() => parseScheduleYear(payload), ScheduleDataError);
+});
+
+test('position errors cannot masquerade as a terminal empty schedule', () => {
+  for (const input of [{ status: 'error' }, { success: false, status: 'today', date: '2026-09-22' },
+    { status: 'today' }, { status: 'today', date: '2026-02-30' }]) {
+    assert.throws(() => parseSchedulePosition(input), ScheduleDataError);
+  }
+  assert.equal(parseSchedulePosition({ success: false, status: 'no_schedule' }).date, null);
+});
+
+test('remembered plan keys isolate accounts and stacks without storing credentials', () => {
+  const token = id => `header.${Buffer.from(JSON.stringify({ user_id: id })).toString('base64url')}.signature`;
+  assert.equal(scheduleSelectionKey('api-a', token(1)), 'schedule:selectedPlan:api-a:1');
+  assert.notEqual(scheduleSelectionKey('api-a', token(1)), scheduleSelectionKey('api-b', token(1)));
+  assert.notEqual(scheduleSelectionKey('api-a', token(1)), scheduleSelectionKey('api-a', token(2)));
+  assert.equal(scheduleSelectionKey('api-a', 'invalid'), null);
+  assert.equal(planFromScheduleUrl('/plan?plan=4'), 4);
+  for (const url of [undefined, '/plan?plan=0', '/plan?plan=nan']) {
+    assert.equal(planFromScheduleUrl(url), null);
+  }
 });

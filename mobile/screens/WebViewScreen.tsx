@@ -215,7 +215,7 @@ export function WebViewControllerProvider({
 }) {
   const { stack, betaMode, setBetaMode } = useAppStack();
   const tokenStore = useMemo(() => createTokenStore(SecureStore, betaMode === true), [betaMode]);
-  const { signOut, pushRuntime, status: authStatus } = useAuth();
+  const { signOut, signInWithTokens, refreshTokens, pushRuntime, status: authStatus } = useAuth();
   const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
@@ -276,7 +276,7 @@ export function WebViewControllerProvider({
 
     try {
       console.log('[SessionBridge] Saving to SecureStore...');
-      await tokenStore.write({ access: accessToken, refresh: refreshToken });
+      await signInWithTokens(accessToken, refreshToken);
       console.log('[SessionBridge] SecureStore save success');
 
       console.log('[SessionBridge] Calling session/issue...');
@@ -446,18 +446,7 @@ export function WebViewControllerProvider({
       }
 
       return runStoredSessionRestore({
-        apiUrl: API_URL,
-        readRefreshToken: async () => (await tokenStore.read()).refresh,
-        readCsrfHeaders: async () => {
-          // 본문 토큰을 제시하므로 서버는 이 요청에 CSRF 를 요구하지 않는다. 그래도
-          // 헤더를 싣는다 — 서버 정책이 다시 조여지면 셸이 조용히 403 으로 죽는다.
-          const refreshCookies = await CookieManager.get(API_URL).catch(() => null);
-          return {
-            ...NATIVE_CLIENT_OBSERVATION_HEADERS,
-            ...csrfHeadersFrom(refreshCookies),
-          };
-        },
-        fetchRefresh: (url, init) => fetch(url, init),
+        refreshSession: refreshTokens,
         initiateSessionBridge,
         navigateToPendingUrl,
         abandonRestore,

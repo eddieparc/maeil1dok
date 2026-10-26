@@ -1,17 +1,13 @@
 import { StyleSheet } from 'react-native';
+import { useNativeColors } from '../ui/tokens';
 
-export const COLORS = {
-  bg: '#FAF8F5',
-  card: '#FFFFFF',
-  text: '#1F1A17',
-  secondary: '#6B625B',
-  tertiary: '#9B928A',
-  border: '#E9E4DE',
-  accent: '#2A1111',
-  accentBg: '#F3EEEE',
-} as const;
-
-export const styles = StyleSheet.create({
+export function useSettingsStyles() {
+const colors = useNativeColors();
+const dark = colors.background === '#1a1a1a';
+const COLORS = { bg: colors.background, card: colors.surface, text: colors.text,
+  secondary: colors.textSecondary, tertiary: colors.textMuted, border: colors.border,
+  accent: colors.accent, accentBg: colors.accentSurface };
+return StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -21,22 +17,25 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
-    backgroundColor: COLORS.bg,
+    width: '100%',
+    maxWidth: 768,
+    alignSelf: 'center',
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '88%',
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 18,
     paddingBottom: 8,
   },
   title: {
-    fontFamily: 'Pretendard-SemiBold',
-    fontSize: 17,
+    fontFamily: 'Pretendard-Bold',
+    fontSize: 18,
     color: COLORS.text,
   },
   done: {
@@ -48,7 +47,7 @@ export const styles = StyleSheet.create({
     flexGrow: 0,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingBottom: 8,
   },
   previewSection: {
@@ -84,11 +83,7 @@ export const styles = StyleSheet.create({
     width: 18,
     textAlign: 'right',
   },
-  biblePlace: {
-    color: '#5a6e54',
-    textDecorationLine: 'underline',
-    textDecorationStyle: 'dotted',
-  },
+  previewName: { color: COLORS.accent },
   sectionTitle: {
     fontFamily: 'Pretendard-SemiBold',
     fontSize: 13,
@@ -99,9 +94,11 @@ export const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 20,
   },
   chip: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: 0,
     minHeight: 44,
     paddingHorizontal: 4,
     borderWidth: 1,
@@ -111,9 +108,11 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  help: { color: COLORS.secondary, fontFamily: 'Pretendard-Regular', fontSize: 12 },
   chipActive: {
-    backgroundColor: COLORS.accentBg,
+    backgroundColor: dark ? COLORS.card : COLORS.accentBg,
     borderColor: COLORS.accent,
+    borderWidth: dark ? 1.5 : 1,
   },
   chipText: {
     fontFamily: 'Pretendard-Regular',
@@ -123,45 +122,6 @@ export const styles = StyleSheet.create({
   chipTextActive: {
     color: COLORS.accent,
     fontFamily: 'Pretendard-SemiBold',
-  },
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 12,
-  },
-  stepperLabel: {
-    flex: 1,
-    fontFamily: 'Pretendard-SemiBold',
-    fontSize: 13,
-    color: COLORS.secondary,
-  },
-  stepperValue: {
-    fontFamily: 'Pretendard-SemiBold',
-    fontSize: 13,
-    color: COLORS.accent,
-    minWidth: 40,
-    textAlign: 'right',
-    fontVariant: ['tabular-nums'],
-  },
-  stepperButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  stepperButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperButtonText: {
-    fontFamily: 'Pretendard-SemiBold',
-    fontSize: 18,
-    color: COLORS.text,
   },
   nameToggle: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -173,12 +133,16 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 44,
+    minHeight: 56,
+    gap: 12,
     paddingVertical: 4,
   },
   switchLabel: {
-    fontFamily: 'Pretendard-Regular',
-    fontSize: 14,
+    flex: 1,
+    fontFamily: 'Pretendard-SemiBold',
+    fontSize: 15,
+    lineHeight: 22.5,
     color: COLORS.text,
   },
 });
+}

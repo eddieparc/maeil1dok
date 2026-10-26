@@ -59,6 +59,9 @@ function harness() {
         StyleSheet: { create: x => x, absoluteFillObject: {} },
       };
       if (name === 'react-native-webview') return { WebView: 'WebView' };
+      if (name === '../ui/tokens') return { useNativeColors: () => ({
+        surface: '#fff', border: '#ddd', accent: '#2A1111', textSecondary: '#6B625B',
+      }) };
       if (name.startsWith('@expo/vector-icons')) return { __esModule: true, default: 'Icon' };
       if (name.startsWith('.')) return load(path.relative(path.join(__dirname, '..'), path.resolve(path.dirname(file), name + '.ts')));
       return require(name);

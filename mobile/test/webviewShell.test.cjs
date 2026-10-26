@@ -158,13 +158,13 @@ for (const nativeUI of [false, true]) {
   });
 }
 
-test('the production profile explicitly prevents remote native opt-in', () => {
+test('the production profile explicitly enables the verified native shell', () => {
   // Given/When: resolve the actual machine-consumed release setting.
   const profiles = JSON.parse(fs.readFileSync(path.join(__dirname, '../eas.json'), 'utf8'));
   const mode = shellMode(profiles.build.production.env);
-  // Then: a production build selects web rendering.
-  assert.equal(mode.NATIVE_UI_ENABLED, false);
-  assert.equal(profiles.build.production.env.EXPO_PUBLIC_NATIVE_UI, 'false');
+  // Then: a production build selects the verified native primary screens.
+  assert.equal(mode.NATIVE_UI_ENABLED, true);
+  assert.equal(profiles.build.production.env.EXPO_PUBLIC_NATIVE_UI, 'true');
 });
 
 function standaloneHarness({ url, isError = false } = {}) {

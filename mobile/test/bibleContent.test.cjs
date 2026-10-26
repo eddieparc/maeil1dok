@@ -72,6 +72,7 @@ test('html: emits the smallTitle section heading before its verse', () => {
   assert.equal(blocks[0].text, '천지 창조');
   assert.equal(blocks[1].type, 'verse');
   assert.equal(blocks[1].num, 1);
+  assert.deepEqual(blocks.map(block => block.type), ['heading', 'verse', 'verse', 'verse', 'verse']);
 });
 
 test('html: decodes entities and collapses whitespace', () => {
@@ -85,6 +86,27 @@ test('html: keeps translator additions (font size=1) inside verse text', () => {
   const html = `<div id="tdBible1"><span><span class="number">16&nbsp;&nbsp;&nbsp;</span>하나님이 두 큰 광명체를 만드사 <font size='1'>만드시고</font> 별들을 주관하게 하시고</span><br /></div>`;
   const verses = parseBibleContent(html, 'html').filter((b) => b.type === 'verse');
   assert.equal(verses[0].text, '하나님이 두 큰 광명체를 만드사 만드시고 별들을 주관하게 하시고');
+});
+
+test('html: preserves word boundaries around actual GAE origin and translator tags', () => {
+  // GAE 1sa/5: origin names are intentionally not name/place annotations.
+  const html = `<div id="tdBible1"><span><span class="number">3&nbsp;</span><font class="area">아스돗</font> 사람들이 <font class="orgin">다곤</font>을 일으켜</span><br /><span><span class="number">4&nbsp;</span><font class="orgin">다곤</font>의 <font size='1'>몸뚱이</font>만 남았더라</span></div>`;
+  const verses = parseBibleContent(html, 'html').filter(block => block.type === 'verse');
+  assert.deepEqual(verses.map(verse => verse.text), ['아스돗 사람들이 다곤을 일으켜', '다곤의 몸뚱이만 남았더라']);
+  assert.equal(verses[0].inline.map(part => part.text).join(''), verses[0].text);
+  assert.equal(verses[0].inline.find(part => part.kind === 'place').text, '아스돗');
+});
+
+test('html: inline tags join text while line and block boundaries separate it', () => {
+  const html = `<div id="tdBible1"><span class="number">1&nbsp;</span>말<span>씀</span><a href="#">이</a><br />첫 줄<div>둘째 줄</div><p>셋째 줄</p>끝</div>`;
+  const verse = parseBibleContent(html, 'html').find(block => block.type === 'verse');
+  assert.equal(verse.text, '말씀이 첫 줄 둘째 줄 셋째 줄 끝');
+});
+
+test('json: USX inline emphasis does not split a word', () => {
+  const content = JSON.stringify({ found: true, content: `<p class="p"><span class="v">1</span>하나<span class="nd">님</span>이 말씀하셨다.</p>` });
+  const verse = parseBibleContent(content, 'json').find(block => block.type === 'verse');
+  assert.equal(verse.text, '하나님이 말씀하셨다.');
 });
 
 test('html: strips footnotes from every verse, not just the first', () => {

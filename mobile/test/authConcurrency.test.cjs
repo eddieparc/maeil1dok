@@ -61,17 +61,10 @@ test('logout invalidates a refresh response that completes later', async () => {
   };
 
   const restore = runStoredSessionRestore({
-    apiUrl: 'https://api.maeil1dok.app',
-    readRefreshToken: async () => 'stored-refresh',
-    readCsrfHeaders: async () => ({}),
-    fetchRefresh: async () => {
+    refreshSession: async () => {
       signalFetchStarted();
       await fetchBarrier;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ access: 'late-access', refresh: 'late-refresh' }),
-      };
+      return { access: 'late-access', refresh: 'late-refresh' };
     },
     initiateSessionBridge: async () => {
       observations.bridgeCalls += 1;

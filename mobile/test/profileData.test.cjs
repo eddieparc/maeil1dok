@@ -136,3 +136,23 @@ test('public groups use the requested user endpoint and preserve viewer membersh
   }, 8);
   assert.deepEqual(result, [group]);
 });
+
+test('future calendar days retain future styling even without scheduled rows', () => {
+  // Given / When
+  const cells = api.calendarCells('2026-10', [], '2026-10-22');
+  // Then
+  assert.equal(cells.find(c => c.date === '2026-10-23').state, 'future');
+  assert.equal(cells.find(c => c.date === '2026-10-22').state, 'today');
+  assert.equal(cells.find(c => c.date === '2026-10-21').state, 'empty');
+  assert.equal(cells.find(c => c.date === '2026-09-30').state, 'outside');
+});
+
+test('calendar reading links preserve profile origin alongside schedule and plan identity', () => {
+  // Given / When
+  const url = new URL(api.readingUrl(row, 8), 'https://example.test');
+  // Then
+  assert.equal(url.searchParams.get('from'), 'profile/8');
+  assert.equal(url.searchParams.get('plan'), '3');
+  assert.equal(url.searchParams.get('schedule'), '11');
+  assert.equal(url.searchParams.get('date'), '2026-09-21');
+});

@@ -43,6 +43,9 @@ const {
   pickEffectivePlanId,
   summarizeToday,
   parseHomeStats,
+  readHomeResponse,
+  recentCompleted,
+  buildWeek,
 } = loadModule('api/homeData.ts');
 
 // --- normalizeSchedule -----------------------------------------------------
@@ -246,4 +249,45 @@ test('parseHomeStats drops malformed recent records and non-numeric counts', () 
   assert.equal(stats.highlights, 0);
   assert.equal(stats.recentRecords.length, 1);
   assert.equal(stats.recentRecords[0].book, 'gen');
+});
+
+test('Home preserves API error detail for HTTP and application failures', async () => {
+  for (const [ok, status, json] of [
+    [false, 404, { error: 'PLAN_NOT_FOUND' }],
+    [true, 200, { success: false, detail: 'PLAN_NOT_FOUND' }],
+  ]) {
+    await assert.rejects(
+      readHomeResponse({ ok, status, json: async () => json }),
+      { message: 'PLAN_NOT_FOUND' },
+    );
+  }
+});
+
+test('recent records exclude future and unfinished dates then order schedule ties', () => {
+  const entries = [
+    { date: '2026-09-24', schedule_id: 10, is_completed: true },
+    { date: '2026-09-24', schedule_id: 12, is_completed: true },
+    { date: '2026-09-25', schedule_id: 13, is_completed: true },
+    { date: '2026-09-23', schedule_id: 9, is_completed: false },
+    { date: '2026-09-22', schedule_id: 8, is_completed: true },
+    { date: '2026-09-21', schedule_id: 7, is_completed: true },
+  ];
+  const recent = recentCompleted(entries, '2026-09-24');
+  assert.deepEqual(recent.map(e => e.schedule_id), [12, 10, 8]);
+  assert.equal(entries[0].schedule_id, 10);
+});
+
+test('week crosses month boundary and requires all assignments complete for a read day', () => {
+  const week = buildWeek('2026-10-01', [
+    { date: '2026-09-28', is_completed: true },
+    { date: '2026-09-28', is_completed: false },
+    { date: '2026-09-29', is_completed: true },
+  ]);
+  assert.deepEqual(week.map(d => d.date), [
+    '2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01',
+    '2026-10-02', '2026-10-03', '2026-10-04',
+  ]);
+  assert.deepEqual(week.map(d => d.state), [
+    'missed', 'read', 'missed', 'today', 'upcoming', 'upcoming', 'upcoming',
+  ]);
 });
