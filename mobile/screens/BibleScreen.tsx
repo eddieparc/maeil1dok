@@ -284,8 +284,10 @@ export default function BibleScreen() {
 
   const signedIn = status === 'signedIn';
   const audioSession = useMemo(() => ({
-    key: JSON.stringify([stack.api, accountId, status, readingContext.context,
-      location.book, location.chapter, version, ++audioGeneration.current]),
+    key: JSON.stringify([stack.api, accountId, status, viewMode,
+      readingContext.context.enabled, readingContext.context.planId,
+      readingContext.context.date ?? readingContext.context.scheduleId,
+      readingContext.context.enabled ? null : [location.book, location.chapter, version], audioLink, audioGeneration.current]),
     ended: false,
   }), [tongdok, viewMode, route.params?.url, location.book, location.chapter, version,
     readingContext.context.enabled, readingContext.context.planId, readingContext.context.date,
@@ -296,9 +298,11 @@ export default function BibleScreen() {
   autoCompleteRef.current = readingSettings.tongdokAutoComplete;
   useEffect(() => () => { activeAudio.current = null; }, []);
   useEffect(() => {
-    setAudioOpen(false);
-    setAudioLink(null);
-    if (viewMode !== 'reader') return;
+    if (viewMode !== 'reader') {
+      setAudioOpen(false);
+      setAudioLink(null);
+      return;
+    }
     let cancelled = false;
     const query = new URLSearchParams({ book: location.book, chapter: String(location.chapter) });
     if (readingContext.context.enabled && readingContext.context.planId !== null)
@@ -717,7 +721,6 @@ export default function BibleScreen() {
 
   const goTo = useCallback((ref: ChapterRef) => {
     activeAudio.current = null;
-    setAudioOpen(false);
     pendingScrollFraction.current = null;
     scrollFraction.current = 0;
     setReaderProgress(0);
@@ -1447,7 +1450,7 @@ export default function BibleScreen() {
         title={chapterLabel(location.book, location.chapter)}
         initialRate={PLAYBACK_RATES.find((rate) => rate === readingSettings.audioPlaybackRate) ?? 1}
         onRateChange={(rate) => updateReadingSetting('audioPlaybackRate', rate)}
-        onClose={() => { activeAudio.current = null; setAudioOpen(false); }}
+        onClose={() => { activeAudio.current = null; audioGeneration.current++; setAudioOpen(false); }}
       />}
     </SafeAreaView>
   );

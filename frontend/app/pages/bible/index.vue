@@ -517,7 +517,12 @@ const readerContextKey = computed(() => JSON.stringify([
   tongdokScheduleId.value, tongdokScheduleDate.value, currentBook.value,
   currentChapter.value, currentVersion.value,
 ]));
-const audioContextKey = computed(() => `${readerContextKey.value}|${tongdokAudioLink.value ?? ''}`);
+const audioContextKey = computed(() => JSON.stringify([
+  viewMode.value, auth.user.value?.id, isTongdokMode.value, tongdokPlanId.value,
+  tongdokScheduleDate.value ?? tongdokScheduleId.value,
+  isTongdokMode.value ? null : [currentBook.value, currentChapter.value, currentVersion.value],
+  tongdokAudioLink.value,
+]));
 const tongdokProgress = computed(() => {
   // Chapter marks are owned by the mode service's active-session Set.
   progressRevision.value;
@@ -1226,10 +1231,8 @@ let pendingResumeScroll: number | null = null;
 
 const applyReaderRoute = async (restorePosition = false) => {
   const generation = ++routeGeneration;
-  const wasAudioOpen = showTongdokAudioPlayer.value;
   await saveCurrentReadingPosition(true);
   readerReady.value = false;
-  showTongdokAudioPlayer.value = false;
   showShareSheet.value = false;
   showGuideSheet.value = false;
   showScheduleModal.value = false;
@@ -1275,8 +1278,7 @@ const applyReaderRoute = async (restorePosition = false) => {
     scrollToTop();
   }
   readerReady.value = true;
-  // 오디오가 켜진 채로 장을 넘기면 새 장의 오디오를 이어서 연다.
-  if (wasAudioOpen && tongdokAudioLink.value) showTongdokAudioPlayer.value = true;
+  if (!tongdokAudioLink.value) showTongdokAudioPlayer.value = false;
   enablePositionSaving();
 };
 onMounted(async () => {

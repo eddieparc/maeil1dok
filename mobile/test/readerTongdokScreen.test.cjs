@@ -190,6 +190,22 @@ const ended = (player, generation = 1) => player.onEnded({
   link: player.audioLink, contextKey: player.contextKey, generation,
 });
 
+test('same daily recording keeps its mounted media identity while moving to the next chapter', { timeout: 2500 }, async t => {
+  // Given an open recording shared by the day's chapters.
+  const h = mount({ url: route, detail: audioDetail });
+  t.after(h.dispose);
+  const before = await openAudio(h);
+  // When the real screen advances within the same recording.
+  h.nodes().find(n => n.props.accessibilityLabel === '다음 장').props.onPress();
+  await h.wait(() => h.calls.some(c => c.url.includes('/bible-cache/KNT/gen/2/')) && !h.context().loading);
+
+  // Then no new playback identity is assigned to the same daily video.
+  const after = h.nodes().find(n => n.type === 'ReaderAudioPlayer');
+  assert.ok(after, 'the open player must survive chapter navigation');
+  assert.equal(after.props.audioLink, before.audioLink);
+  assert.equal(after.props.contextKey, before.contextKey);
+});
+
 for (const [url, expected] of [
   [route, { book: 'gen', chapter: '1', version: 'KNT', tongdok: 'true',
     plan: '4', schedule: '101', date: '2026-09-22' }],
