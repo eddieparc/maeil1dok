@@ -259,7 +259,16 @@ export default function BibleScreen() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [audioOpen, setAudioOpen] = useState(false);
-  const [audioLink, setAudioLink] = useState<string | null>(null);
+  const audioOwnerKey = JSON.stringify([stack.api, accountId, status, viewMode,
+    readingContext.context.enabled, readingContext.context.planId,
+    readingContext.context.date ?? readingContext.context.scheduleId]);
+  const [audioDetail, setAudioDetail] = useState<{
+    readonly ownerKey: string; readonly link: string | null;
+    readonly book: string; readonly chapter: number; readonly shared: boolean;
+  } | null>(null);
+  const audioLink = audioDetail?.ownerKey === audioOwnerKey &&
+    (audioDetail.shared || (audioDetail.book === location.book && audioDetail.chapter === location.chapter))
+    ? audioDetail.link : null;
   const audioGeneration = useRef(0);
   const {
     settings: readingSettings, update: updateReadingSetting, syncError, retry: retrySettings,
@@ -284,12 +293,10 @@ export default function BibleScreen() {
 
   const signedIn = status === 'signedIn';
   const audioSession = useMemo(() => ({
-    key: JSON.stringify([stack.api, accountId, status, viewMode,
-      readingContext.context.enabled, readingContext.context.planId,
-      readingContext.context.date ?? readingContext.context.scheduleId,
+    key: JSON.stringify([audioOwnerKey,
       readingContext.context.enabled ? null : [location.book, location.chapter, version], audioLink, audioGeneration.current]),
     ended: false,
-  }), [tongdok, viewMode, route.params?.url, location.book, location.chapter, version,
+  }), [audioOwnerKey, tongdok, viewMode, route.params?.url, location.book, location.chapter, version,
     readingContext.context.enabled, readingContext.context.planId, readingContext.context.date,
     readingContext.context.scheduleId, audioOpen, audioLink]);
   const activeAudio = useRef<typeof audioSession | null>(audioSession);
@@ -300,7 +307,7 @@ export default function BibleScreen() {
   useEffect(() => {
     if (viewMode !== 'reader') {
       setAudioOpen(false);
-      setAudioLink(null);
+      setAudioDetail(null);
       return;
     }
     let cancelled = false;
@@ -311,13 +318,15 @@ export default function BibleScreen() {
       .then(async (response) => {
         if (!response.ok) throw new Error(`Audio detail HTTP ${response.status}`);
         const detail = parseReaderAudioResponse(await response.json());
-        if (!cancelled) setAudioLink(selectReaderAudioLink({
-          ...detail, book: location.book, chapter: location.chapter,
-        }));
+        if (!cancelled) setAudioDetail({
+          ownerKey: audioOwnerKey, book: location.book, chapter: location.chapter,
+          shared: readingContext.context.enabled && detail.audioLink !== null,
+          link: selectReaderAudioLink({ ...detail, book: location.book, chapter: location.chapter }),
+        });
       })
       .catch((error) => console.warn('[Bible] audio detail failed:', error));
     return () => { cancelled = true; };
-  }, [viewMode, location.book, location.chapter, readingContext.context.enabled,
+  }, [audioOwnerKey, viewMode, location.book, location.chapter, readingContext.context.enabled,
     readingContext.context.planId, route.params?.url, tongdok, apiFetch]);
   const listRef = useRef<ScrollView>(null);
   const pendingScrollFraction = useRef<number | null>(null);
