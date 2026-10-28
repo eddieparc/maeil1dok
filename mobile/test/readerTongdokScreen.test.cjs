@@ -190,6 +190,74 @@ const ended = (player, generation = 1) => player.onEnded({
   link: player.audioLink, contextKey: player.contextKey, generation,
 });
 
+test('same daily recording keeps its mounted media identity while moving to the next chapter', { timeout: 2500 }, async t => {
+  // Given an open recording shared by the day's chapters.
+  const h = mount({ url: route, detail: audioDetail });
+  t.after(h.dispose);
+  const before = await openAudio(h);
+  // When the real screen advances within the same recording.
+  h.nodes().find(n => n.props.accessibilityLabel === '다음 장').props.onPress();
+  await h.wait(() => h.calls.some(c => c.url.includes('/bible-cache/KNT/gen/2/')) && !h.context().loading);
+
+  // Then no new playback identity is assigned to the same daily video.
+  const after = h.nodes().find(n => n.type === 'ReaderAudioPlayer');
+  assert.ok(after, 'the open player must survive chapter navigation');
+  assert.equal(after.props.audioLink, before.audioLink);
+  assert.equal(after.props.contextKey, before.contextKey);
+});
+
+test('pending new-plan audio cannot reuse the previous recording to complete the new plan', { timeout: 10000 }, async t => {
+  // Given different recordings and a delayed audio request for the next plan.
+  const pending = deferred(), requested = deferred();
+  const h = mount({ url: route, autoComplete: true, detail: q => {
+    if (q.get('plan_id') === '5' && !q.has('schedule_id')) {
+      requested.resolve();
+      return pending.promise;
+    }
+    return ok({ book: q.get('book'), chapter: q.get('chapter'), plan_id: q.get('plan_id'),
+      plan_date: '2026-09-22', plan_detail: [{ ...rows[0], end_chapter: 1 }],
+      audio_link: q.get('plan_id') === '5' ? 'https://youtu.be/BBBBBBBBBBB' : 'https://youtu.be/AAAAAAAAAAA' });
+  } });
+  t.after(h.dispose);
+  await openAudio(h);
+
+  // When schedule proof arrives before the new recording's detail.
+  h.route(route.replace('plan=4', 'plan=5'));
+  await requested.promise;
+  await h.wait(() => h.context().context.planId === 5 && !h.context().loading && h.context().detail);
+  const current = h.nodes().find(n => n.type === 'ReaderAudioPlayer');
+  if (current) await ended(current.props);
+
+  // Then even a current callback cannot authorize completion with old media.
+  assert.deepEqual(audioWrites(h), []);
+  assert.equal(current, undefined);
+});
+
+test('chapter-specific fallback is hidden while the next chapter audio is pending', { timeout: 10000 }, async t => {
+  // Given chapter-specific clips instead of one shared daily recording.
+  const pending = deferred(), requested = deferred();
+  const h = mount({ url: route, autoComplete: true, detail: q => {
+    if (q.get('chapter') === '2' && !q.has('schedule_id')) {
+      requested.resolve();
+      return pending.promise;
+    }
+    return ok({ book: q.get('book'), chapter: Number(q.get('chapter')), plan_id: q.get('plan_id'),
+      plan_date: '2026-09-22', plan_detail: [rows[0]], audio_link: null,
+      fallback_audio_links: [{ book: 'gen', chapter: Number(q.get('chapter')), url: 'https://youtu.be/AAAAAAAAAAA' }] });
+  } });
+  t.after(h.dispose);
+  await openAudio(h);
+  // When schedule proof is ready but the next chapter's clip is not.
+  h.nodes().find(n => n.props.accessibilityLabel === '다음 장').props.onPress();
+  await requested.promise;
+  await h.wait(() => !h.context().loading && h.calls.some(c => c.url.includes('/bible-cache/KNT/gen/2/')));
+  const current = h.nodes().find(n => n.type === 'ReaderAudioPlayer');
+  if (current) await ended(current.props);
+  // Then the previous chapter's clip cannot complete the newly displayed one.
+  assert.deepEqual(audioWrites(h), []);
+  assert.equal(current, undefined);
+});
+
 for (const [url, expected] of [
   [route, { book: 'gen', chapter: '1', version: 'KNT', tongdok: 'true',
     plan: '4', schedule: '101', date: '2026-09-22' }],

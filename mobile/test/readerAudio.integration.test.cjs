@@ -6,7 +6,7 @@ const ts = require('typescript');
 const test = require('node:test');
 
 // Native host boundary only. This is not a React mount or device rendering test.
-function harness() {
+function harness(platform = 'ios') {
   let slots = [], cursor = 0, effects = [], previousKey;
   const injections = [];
   const react = {
@@ -55,6 +55,7 @@ function harness() {
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx, Fragment: 'Fragment' };
       if (name === 'react-native') return {
         View: 'View', Text: 'Text', Modal: 'Modal', Pressable: 'Pressable',
+        Platform: { OS: platform },
         TouchableOpacity: 'TouchableOpacity', ActivityIndicator: 'ActivityIndicator',
         StyleSheet: { create: x => x, absoluteFillObject: {} },
       };
@@ -63,6 +64,7 @@ function harness() {
         surface: '#fff', border: '#ddd', accent: '#2A1111', textSecondary: '#6B625B',
       }) };
       if (name.startsWith('@expo/vector-icons')) return { __esModule: true, default: 'Icon' };
+      if (name.endsWith('.json')) return require(path.resolve(path.dirname(file), name));
       if (name.startsWith('.')) return load(path.relative(path.join(__dirname, '..'), path.resolve(path.dirname(file), name + '.ts')));
       return require(name);
     };
@@ -293,4 +295,21 @@ test('non-YouTube fallback stays native and navigation policy blocks Bible pages
   }
   assert.equal(policy({ url: 'https://www.youtube.com/embed/dQw4w9WgXcQ' }), true);
   actual.dispose();
+});
+
+test('media HTML identifies the installed app without allowing other top-level pages', () => {
+  // Given each platform's registered app identifier.
+  const app = require('../app.json').expo;
+  for (const [platform, appId] of [['ios', app.ios.bundleIdentifier], ['android', app.android.package]]) {
+    const h = harness(platform);
+    const view = h.render(props);
+    // When the media document is loaded into its native WebView.
+    const origin = new URL(view.web.props.source.baseUrl);
+    // Then YouTube receives our app identity, not YouTube's own identity.
+    assert.equal(origin.protocol, 'https:');
+    assert.equal(origin.hostname, appId);
+    assert.equal(view.web.props.onShouldStartLoadWithRequest({ url: origin.href }), true);
+    assert.equal(view.web.props.onShouldStartLoadWithRequest({ url: origin.href + 'bible' }), false);
+    h.dispose();
+  }
 });

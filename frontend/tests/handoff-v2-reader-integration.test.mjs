@@ -455,6 +455,25 @@ test('completion includes an eligible highlight beyond the first account-wide pa
   assert.deepEqual(view.state.modal.stack.value.at(-1).options.props.highlights.map(h => h.id), [70]);
 });
 
+test('same daily recording stays open with the same media identity when advancing a chapter', { timeout: 10000 }, async t => {
+  // Given a playing daily recording covering both chapters.
+  const view = await mount('/bible?book=gen&chapter=49&plan=7&schedule=1&tongdok=true&date=2026-09-06');
+  t.after(view.close); await view.ready();
+  view.state.showTongdokAudioPlayer.value = true;
+  const identity = view.state.audioContextKey.value;
+  const openChanges = [];
+  const stop = Vue.watch(view.state.showTongdokAudioPlayer, value => openChanges.push(value), { flush: 'sync' });
+  t.after(stop);
+
+  // When the reader advances within the same recording.
+  await view.state.goToNextChapter(); await settled();
+
+  // Then the player is never closed or rebound to a new media session.
+  assert.equal(view.state.currentChapter.value, 50);
+  assert.deepEqual(openChanges, []);
+  assert.equal(view.state.audioContextKey.value, identity);
+});
+
 test('audio carries complete source identity, plain ended never persists, and stale ended cannot affect next context', { timeout: 10000 }, async t => {
   const view = await mount('/bible?book=gen&chapter=49'); t.after(view.close); await view.ready();
   await view.state.handleTongdokAudioEnded({ audioLink: view.state.tongdokAudioLink.value, audioContextKey: view.state.audioContextKey?.value }); assert.equal(r.writes.filter(([p]) => p.endsWith('/reading/update/')).length, 0); assert.equal(r.messages.at(-1)?.kind, 'info');

@@ -1,8 +1,9 @@
 /** Inline native controls; the WebView contains YouTube media only. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import appConfig from '../../app.json';
 import { useNativeColors } from '../ui/tokens';
 import {
   PLAYBACK_RATES, buildReaderAudioHtml, extractYouTubeVideoId, parseReaderAudioEvent,
@@ -23,6 +24,8 @@ interface ReaderAudioPlayerProps {
 }
 
 let generation = 0;
+const mediaOrigin = `https://${Platform.OS === 'ios'
+  ? appConfig.expo.ios.bundleIdentifier : appConfig.expo.android.package}`;
 const formatTime = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
@@ -40,7 +43,7 @@ function AudioSession({
   const colors = useNativeColors();
   const styles = createStyles(colors);
   const [source] = useState<ReaderAudioSource>(() => ({ link: audioLink ?? '', contextKey, generation: ++generation }));
-  const [document] = useState(() => ({ html: buildReaderAudioHtml(source, initialRate), baseUrl: 'https://www.youtube.com' }));
+  const [document] = useState(() => ({ html: buildReaderAudioHtml(source, initialRate), baseUrl: mediaOrigin }));
   const [rate, setRate] = useState(initialRate);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -97,7 +100,7 @@ function AudioSession({
             mediaPlaybackRequiresUserAction={false} allowsInlineMediaPlayback
             scrollEnabled={false} bounces={false}
             onShouldStartLoadWithRequest={request => {
-              if (request.url === 'about:blank') return true;
+              if (request.url === 'about:blank' || request.url === `${mediaOrigin}/`) return true;
               try {
                 const url = new URL(request.url);
                 return url.protocol === 'https:' && url.hostname === 'www.youtube.com' &&
