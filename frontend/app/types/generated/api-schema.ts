@@ -5613,6 +5613,7 @@ export interface components {
             readonly plan_id: number;
             readonly plan_name: string;
             is_active?: boolean;
+            readonly plan_is_active: boolean;
             readonly is_default: boolean;
             /** Format: date */
             readonly start_date: string;

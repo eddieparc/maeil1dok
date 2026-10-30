@@ -10224,6 +10224,9 @@ components:
           readOnly: true
         is_active:
           type: boolean
+        plan_is_active:
+          type: boolean
+          readOnly: true
         is_default:
           type: boolean
           readOnly: true
@@ -10235,6 +10238,7 @@ components:
       - id
       - is_default
       - plan_id
+      - plan_is_active
       - plan_name
       - start_date
     PlanSubscriptionListResponse:

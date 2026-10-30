@@ -37,13 +37,14 @@ const renderer = Vue.createRenderer({
   parentNode: () => null, nextSibling: () => null,
 });
 
-test('home derives each card and remaining days from progress without downloading schedules', { timeout: 5000 }, async () => {
-  // Given three active plans with distinct end dates and progress values.
+test('home only requests stats for subscriptions whose parent plans are active', { timeout: 5000 }, async () => {
+  // Given an active subscription to an inactive parent and one current active plan.
   const calls = [];
   runtime.auth = { isAuthenticated: Vue.ref(true), user: Vue.ref({ id: 7 }) };
-  runtime.plans = { available_plans: [], subscriptions: [1, 2, 3].map(id => ({
-    id, plan_id: id, plan_name: `Plan ${id}`, is_active: true, is_default: id === 1,
-  })) };
+  runtime.plans = { available_plans: [], subscriptions: [
+    { id: 1, plan_id: 1, plan_name: 'Historical plan', is_active: true, plan_is_active: false, is_default: true },
+    { id: 2, plan_id: 2, plan_name: 'Current plan', is_active: true, plan_is_active: true, is_default: false },
+  ] };
   runtime.api = {
     path: (template, params) => template.replace('{user_id}', String(params.user_id)),
     GET: async (path, options) => {
@@ -51,12 +52,12 @@ test('home derives each card and remaining days from progress without downloadin
       if (path.includes('/calendar/')) return { data: { success: true, data: { calendar: [] } } };
       if (path.includes('/profile/')) return { data: { success: true, data: { profile: { current_streak: 4 } } } };
       if (path === '/api/v1/todos/stats/progress/') return { data: {
-        success: true, user_progress: options.params.plan_id * 12,
-        end_date: `2026-09-${24 + options.params.plan_id}`,
+        success: true, user_progress: 42,
+        end_date: '2026-09-19',
       } };
       // A faithful old schedules response lets the baseline finish, not fail
       // accidentally from a missing API fixture.
-      if (path === '/api/v1/todos/schedules/') return { data: [{ date: `2026-09-${24 + options.params.plan_id}` }] };
+      if (path === '/api/v1/todos/schedules/') return { data: [{ date: '2026-09-19' }] };
       throw new Error(`Unexpected API: ${path}`);
     },
   };
@@ -74,11 +75,12 @@ test('home derives each card and remaining days from progress without downloadin
     await new Promise(resolve => {
       stop = Vue.watch(state.loading, value => { if (!value) resolve(); }, { immediate: true });
     });
-    // Then the displayed values are correct with one small response per plan.
+    // Then the inactive parent's stats are never requested and the current card renders.
     assert.equal(state.error.value, '');
-    assert.equal(state.remainingDays.value, 7);
-    assert.deepEqual(state.planCards.value.map(card => [card.progress, card.remainingDays]), [[12, 7], [24, 8], [36, 9]]);
-    assert.equal(calls.filter(path => path === '/api/v1/todos/stats/progress/').length, 3);
+    assert.equal(state.planCards.value.length, 1);
+    assert.deepEqual(state.planCards.value.map(card => [card.planId, card.planName, card.progress]), [[2, 'Current plan', 42]]);
+    assert.equal(state.remainingDays.value, 1);
+    assert.deepEqual(calls.filter(path => path === '/api/v1/todos/stats/progress/'), ['/api/v1/todos/stats/progress/']);
     assert.equal(calls.filter(path => path === '/api/v1/todos/schedules/').length, 0);
   } finally {
     stop?.();

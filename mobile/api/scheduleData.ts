@@ -237,7 +237,8 @@ export const normalizeSubscriptions = (json: unknown): PlanSubscription[] => {
       plan_id: planId,
       plan_name: toStringOrEmpty(raw.plan_name),
       is_default: raw.is_default === true,
-      is_active: typeof raw.is_active === 'boolean' ? raw.is_active : true,
+      is_active: raw.plan_is_active !== false
+        && (typeof raw.is_active === 'boolean' ? raw.is_active : true),
       start_date: toStringOrEmpty(raw.start_date),
     });
   }

@@ -1,7 +1,7 @@
 name: CI
 
 on:
-  # 수동 배포 트리거 (품질 잡은 push/PR 에서만; dispatch 는 곧장 deploy-oci)
+  # 수동 배포도 품질 검사와 플랜 교차 계약 게이트를 통과해야 한다.
   workflow_dispatch:
   push:
     branches: [main]
@@ -19,6 +19,9 @@ on:
       - 'tests/test_frontend_deployment_config.py'
       - 'tests/test_backend_ci_config.py'
       - 'tests/test_mobile_ci_config.py'
+      - 'tests/test_live_plan_smoke.py'
+      - 'tests/test_documentation_integrity.py'
+      - 'scripts/check_live_plans.py'
       - 'tests/test_observability_deployment_config.py'
       - 'tests/test_ops_alert_probe.py'
       - '.github/workflows/ci.yml'
@@ -42,6 +45,9 @@ on:
       - 'tests/test_frontend_deployment_config.py'
       - 'tests/test_backend_ci_config.py'
       - 'tests/test_mobile_ci_config.py'
+      - 'tests/test_live_plan_smoke.py'
+      - 'tests/test_documentation_integrity.py'
+      - 'scripts/check_live_plans.py'
       - 'tests/test_observability_deployment_config.py'
       - 'tests/test_ops_alert_probe.py'
       - '.github/workflows/ci.yml'
@@ -89,9 +95,11 @@ jobs:
               - 'tests/test_frontend_deployment_config.py'
               - 'tests/test_backend_ci_config.py'
               - 'tests/test_mobile_ci_config.py'
+              - 'tests/test_live_plan_smoke.py'
+              - 'tests/test_documentation_integrity.py'
+              - 'scripts/check_live_plans.py'
               - 'tests/test_observability_deployment_config.py'
               - 'tests/test_ops_alert_probe.py'
-              - 'tests/test_documentation_integrity.py'
               - '.github/workflows/ci.yml'
               - '.github/workflows/uptime.yml'
               - '.github/known_hosts.oci'
@@ -173,6 +181,75 @@ jobs:
       - name: Backend tests (full suite)
         run: python manage.py test accounts todos tests bible_cache
 
+  plan-flow-ci:
+    needs: changes
+    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false))
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: maeil1dok_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -uroot -proot --silent"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      SECRET_KEY: ci-secret-key
+      DJANGO_SETTINGS_MODULE: config.test_settings
+      KAKAO_CLIENT_ID: ci-kakao-client
+      KAKAO_REDIRECT_URI: http://localhost/auth/kakao/callback
+      GOOGLE_CLIENT_ID: ci-google-client
+      GOOGLE_CLIENT_SECRET: ci-google-secret
+      GOOGLE_REDIRECT_URI: http://localhost/auth/google/callback
+      APPLE_CLIENT_ID: ci.apple.client
+      REDIS_TEST_URL: redis://127.0.0.1:6379/15
+      TEST_DB_ENGINE: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: maeil1dok_ci
+      PLAN_FLOW_FIXTURE_PATH: ${{ runner.temp }}/plan-flow.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+      - name: Install MySQL build libraries
+        run: sudo apt-get update && sudo apt-get install -y pkg-config default-libmysqlclient-dev
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Export real plan API fixture
+        working-directory: backend
+        run: python manage.py test tests.test_plan_read_contract
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+      - name: Mobile plan flow tests against real API fixture
+        working-directory: mobile
+        run: node --test test/homeScreen.test.cjs test/scheduleScreen.test.cjs test/readerTongdokScreen.test.cjs
+        env:
+          PLAN_FLOW_FIXTURE_PATH: ${{ runner.temp }}/plan-flow.json
+
   deployment-config-ci:
     needs: changes
     if: (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deployment == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.operations == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
@@ -190,6 +267,7 @@ jobs:
           tests.test_frontend_deployment_config
           tests.test_backend_ci_config
           tests.test_mobile_ci_config
+          tests.test_live_plan_smoke
           tests.test_observability_deployment_config
           tests.test_ops_alert_probe
           tests.test_documentation_integrity
@@ -293,7 +371,7 @@ jobs:
   # main push 에서 관련 품질 잡이 모두 성공하면 OCI VM 에 rsync → compose build/up → 라이브 스모크.
   # 시크릿: OCI_HOST / OCI_SSH_USER / OCI_SSH_KEY. .env.oci·.env.frontend.oci·cloudflared 설정은 VM 에 상주.
   deploy-oci:
-    needs: [changes, backend-ci, frontend-ci, frontend-e2e, deployment-config-ci, mobile-ci]
+    needs: [changes, backend-ci, frontend-ci, frontend-e2e, deployment-config-ci, mobile-ci, plan-flow-ci]
     if: >-
       !cancelled() && !failure() &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main' &&
@@ -380,6 +458,9 @@ jobs:
             sleep 10
           done
           echo "SMOKE FAILED"; exit 1
+
+      - name: Verify public plan read APIs
+        run: python3 scripts/check_live_plans.py https://api.maeil1dok.app
 
       - name: Seed backup and wait for logging readiness
         run: |

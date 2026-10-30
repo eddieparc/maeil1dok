@@ -251,7 +251,7 @@ class ObservabilityDeploymentConfigTests(unittest.TestCase):
 
         self.assertIn(
             "needs: [changes, backend-ci, frontend-ci, frontend-e2e, "
-            "deployment-config-ci, mobile-ci]",
+            "deployment-config-ci, mobile-ci, plan-flow-ci]",
             self.workflow,
         )
         self.assertIn("!cancelled() && !failure()", self.workflow)
