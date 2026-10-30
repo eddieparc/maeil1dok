@@ -63,6 +63,10 @@ class BackendCiConfigTest(unittest.TestCase):
 
     def test_deploy_requires_plan_flow_gate_success(self) -> None:
         self.assertIn("plan-flow-ci", self.config["jobs"]["deploy-oci"]["needs"])
+        self.assertIn(
+            "needs.plan-flow-ci.result == 'success'",
+            self.config["jobs"]["deploy-oci"]["if"],
+        )
 
     def test_backend_test_command_includes_bible_cache(self) -> None:
         self.assertIn(

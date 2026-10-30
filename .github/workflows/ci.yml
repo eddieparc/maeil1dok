@@ -373,7 +373,7 @@ jobs:
   deploy-oci:
     needs: [changes, backend-ci, frontend-ci, frontend-e2e, deployment-config-ci, mobile-ci, plan-flow-ci]
     if: >-
-      !cancelled() && !failure() &&
+      !cancelled() && !failure() && needs.plan-flow-ci.result == 'success' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main' &&
         (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' ||
          needs.changes.outputs.operations == 'true')) ||
