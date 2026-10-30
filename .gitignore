@@ -166,3 +166,5 @@ maeil1dok-poc/mobile/app.json
 artifacts/
 .beta-edge/origin.pem
 .beta-edge/origin.key
+# herdr 웹 UI 붙여넣기 이미지 (로컬 전용)
+.herdr-web-ui/
