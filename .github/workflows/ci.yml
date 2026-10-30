@@ -219,7 +219,6 @@ jobs:
       DB_USER: root
       DB_PASSWORD: root
       DB_NAME: maeil1dok_ci
-      PLAN_FLOW_FIXTURE_PATH: ${{ runner.temp }}/plan-flow.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -236,6 +235,8 @@ jobs:
       - name: Export real plan API fixture
         working-directory: backend
         run: python manage.py test tests.test_plan_read_contract
+        env:
+          PLAN_FLOW_FIXTURE_PATH: ${{ runner.temp }}/plan-flow.json
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -271,6 +272,11 @@ jobs:
           tests.test_observability_deployment_config
           tests.test_ops_alert_probe
           tests.test_documentation_integrity
+
+      - name: Validate workflow expressions
+        run: >-
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7
+          .github/workflows/ci.yml
 
       - name: Validate compose and observability configs
         run: |

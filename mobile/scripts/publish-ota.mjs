@@ -187,7 +187,7 @@ async function main() {
   }
 
   const command = [
-    'eas',
+    'eas-cli',
     'update',
     '--channel',
     args.channel,

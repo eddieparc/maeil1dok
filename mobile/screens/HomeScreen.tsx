@@ -279,51 +279,51 @@ export default function HomeScreen() {
               ? { ...card, status: 'loading', error: null } : card),
           }));
           try {
-          const progRes = await apiFetch(`/api/v1/todos/stats/progress/?plan_id=${sub.plan_id}`);
-          const progressJson = await readHomeResponse(progRes);
-          if (!progressJson || typeof progressJson !== 'object' || !('user_progress' in progressJson)
-            || typeof progressJson.user_progress !== 'number') throw new Error('Invalid progress');
-          const progress = parseProgress(progressJson);
-          const finalDate = 'end_date' in progressJson && typeof progressJson.end_date === 'string'
-            ? progressJson.end_date : null;
-          const remaining = finalDate
-            ? Math.max(
-                0,
-                Math.ceil(
-                  (Date.parse(`${finalDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /
-                    86400000,
-                ),
-              )
-            : null;
-          const todayEntry = calendar.find(
-            (e) => e.plan_id === sub.plan_id && e.date === today,
-          );
-          const unit = todayEntry?.book === '시편' ? '편' : '장';
-          const passage = todayEntry
-            ? `${todayEntry.book} ${todayEntry.start_chapter === todayEntry.end_chapter ? todayEntry.start_chapter : `${todayEntry.start_chapter}-${todayEntry.end_chapter}`}${unit}`
-            : '';
-          const chapters = todayEntry
-            ? todayEntry.end_chapter - todayEntry.start_chapter + 1
-            : 0;
-          const card: PlanCardData = {
-            subscriptionId: sub.id,
-            planId: sub.plan_id,
-            planName: sub.plan_name ?? '',
-            status: 'ready',
-            error: null,
-            progress,
-            passage,
-            description: todayEntry
-              ? `총 ${chapters}${unit} · 오늘의 통독`
-              : '오늘 예정된 본문이 없어요',
-            remainingDays: remaining,
-            route: todayEntry ? assignmentUrl(todayEntry) : null,
-          };
-          if (generation.current !== request) return;
-          setData(previous => previous && ({
-            ...previous,
-            planCards: previous.planCards.map(existing => existing.planId === sub.plan_id ? card : existing),
-          }));
+            const progRes = await apiFetch(`/api/v1/todos/stats/progress/?plan_id=${sub.plan_id}`);
+            const progressJson = await readHomeResponse(progRes);
+            if (!progressJson || typeof progressJson !== 'object' || !('user_progress' in progressJson)
+              || typeof progressJson.user_progress !== 'number') throw new Error('Invalid progress');
+            const progress = parseProgress(progressJson);
+            const finalDate = 'end_date' in progressJson && typeof progressJson.end_date === 'string'
+              ? progressJson.end_date : null;
+            const remaining = finalDate
+              ? Math.max(
+                  0,
+                  Math.ceil(
+                    (Date.parse(`${finalDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /
+                      86400000,
+                  ),
+                )
+              : null;
+            const todayEntry = calendar.find(
+              (e) => e.plan_id === sub.plan_id && e.date === today,
+            );
+            const unit = todayEntry?.book === '시편' ? '편' : '장';
+            const passage = todayEntry
+              ? `${todayEntry.book} ${todayEntry.start_chapter === todayEntry.end_chapter ? todayEntry.start_chapter : `${todayEntry.start_chapter}-${todayEntry.end_chapter}`}${unit}`
+              : '';
+            const chapters = todayEntry
+              ? todayEntry.end_chapter - todayEntry.start_chapter + 1
+              : 0;
+            const card: PlanCardData = {
+              subscriptionId: sub.id,
+              planId: sub.plan_id,
+              planName: sub.plan_name ?? '',
+              status: 'ready',
+              error: null,
+              progress,
+              passage,
+              description: todayEntry
+                ? `총 ${chapters}${unit} · 오늘의 통독`
+                : '오늘 예정된 본문이 없어요',
+              remainingDays: remaining,
+              route: todayEntry ? assignmentUrl(todayEntry) : null,
+            };
+            if (generation.current !== request) return;
+            setData(previous => previous && ({
+              ...previous,
+              planCards: previous.planCards.map(existing => existing.planId === sub.plan_id ? card : existing),
+            }));
           } catch (error) {
             if (generation.current !== request) return;
             setData(previous => previous && ({

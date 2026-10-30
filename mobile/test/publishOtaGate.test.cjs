@@ -79,7 +79,7 @@ test('the rehearsal and the hotfix can publish by waiving the web dependency', (
   ]);
   assert.equal(result.ok, true, 'a shell-only change must remain publishable');
   assert.match(result.stdout, /web dependency waived/);
-  assert.match(result.stdout, /check-only: would run npx eas update/);
+  assert.match(result.stdout, /check-only: would run npx eas-cli update/);
   assert.match(result.stdout, /--platform android/);
 });
 

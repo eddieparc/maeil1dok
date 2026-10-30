@@ -49,7 +49,7 @@ class BackendCiConfigTest(unittest.TestCase):
         self.assertEqual(backend["run"], "python manage.py test tests.test_plan_read_contract")
         self.assertEqual(backend["working-directory"], "backend")
         self.assertEqual(
-            job["env"]["PLAN_FLOW_FIXTURE_PATH"],
+            backend["env"]["PLAN_FLOW_FIXTURE_PATH"],
             "${{ runner.temp }}/plan-flow.json",
         )
         self.assertEqual(
@@ -67,6 +67,13 @@ class BackendCiConfigTest(unittest.TestCase):
             "needs.plan-flow-ci.result == 'success'",
             self.config["jobs"]["deploy-oci"]["if"],
         )
+
+    def test_workflow_expressions_are_validated_before_deployment(self) -> None:
+        steps = self.config["jobs"]["deployment-config-ci"]["steps"]
+        validator = next(step for step in steps
+                         if step.get("name") == "Validate workflow expressions")
+        self.assertIn("rhysd/actionlint:1.7.7", validator["run"])
+        self.assertIn(".github/workflows/ci.yml", validator["run"])
 
     def test_backend_test_command_includes_bible_cache(self) -> None:
         self.assertIn(
