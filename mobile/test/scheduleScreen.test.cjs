@@ -31,6 +31,18 @@ const palette = {
 };
 const year = (months = []) => ({ success: true, monthly_progress: months });
 
+for (const storedPlan of [null, '99999']) {
+  test(`cold signed-in schedule picks the active default with stored choice ${storedPlan}`, async t => {
+    const h = harness({ storedPlan });
+    t.after(h.dispose);
+    await h.act();
+    const request = h.calls.find(call => call.url.includes('/schedules/month/'));
+    assert.ok(request, 'a usable initial plan actually requests its month');
+    assert.equal(new URL(request.url, 'https://test').searchParams.get('plan_id'), '3');
+    assert.ok(h.cards().length > 0);
+  });
+}
+
 test('embedded schedule returns selected reading and closes without changing the root tab', async t => {
   const readings = [];
   let closed = 0;
@@ -249,6 +261,33 @@ function harness({ fetch, inset = 0, status = 'signedIn', storedPlan = '3', url,
 test.beforeEach(t => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-22T12:00:00Z') });
 });
+
+if (process.env.PLAN_FLOW_FIXTURE_PATH) {
+  test('Django reading collection opens the default schedule and carries its real row into Reader', async t => {
+    const fixture = require('./helpers/planFlowFixture.cjs').planFlowFixture();
+    t.mock.timers.setTime(new Date(`${fixture.today}T12:00:00Z`).getTime());
+    const h = harness({ storedPlan: null, fetch: fixture.fetch });
+    t.after(h.dispose);
+    await h.act();
+    const rows = fixture.responses[
+      `/api/v1/todos/schedules/month/?plan_id=${fixture.ids.activePlan}&month=9&year=2026`
+    ].body;
+    assert.equal(h.cards().length, rows.length);
+    assert.equal(h.get('schedule-error'), undefined);
+    await h.act(() => h.get('schedule-plan-selector').props.onPress());
+    assert.ok(h.get(`schedule-plan-${fixture.ids.secondaryPlan}`));
+    assert.equal(h.get(`schedule-plan-${fixture.ids.inactivePlan}`), undefined);
+    await h.act(() => h.get(`schedule-plan-${fixture.ids.activePlan}`).props.onPress());
+    await h.act(() => h.get(`schedule-read-${rows[0].id}`).props.onPress());
+    await h.act(() => h.get('schedule-dialog-confirm').props.onPress());
+    const target = h.navigations.at(-1);
+    assert.equal(target[0], 'Main');
+    assert.equal(target[1].screen, 'Bible');
+    const query = new URL(target[1].params.url, 'https://test').searchParams;
+    assert.equal(query.get('schedule'), String(rows[0].id));
+    assert.equal(query.get('plan'), String(fixture.ids.activePlan));
+  });
+}
 
 test('month strip reveals the selected month when chip layout arrives', async t => {
   const h = harness();
@@ -664,12 +703,12 @@ test('auth initialization issues no plan request and shows no fabricated selecte
   assert.equal(h.get('schedule-header-action').props.disabled, true);
 });
 
-test('signed-in first visit requires a plan choice and persists the chosen active plan', async t => {
+test('signed-in first visit loads the default and persists a subsequent explicit choice', async t => {
   const h = harness({ storedPlan: null });
   t.after(h.dispose);
   await h.act();
-  assert.ok(h.get('schedule-no-plan'));
-  assert.equal(h.calls.some(c => c.url.includes('/schedules/')), false);
+  assert.equal(h.get('schedule-no-plan'), undefined);
+  assert.ok(h.calls.some(c => c.url.includes('/schedules/month/?plan_id=3')));
 
   await h.act(() => h.get('schedule-plan-selector').props.onPress());
   await h.act(() => h.get('schedule-plan-4').props.onPress());

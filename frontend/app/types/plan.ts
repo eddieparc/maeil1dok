@@ -28,6 +28,7 @@ export interface Subscription {
   plan_name: string;
   start_date: string;
   is_active: boolean;
+  plan_is_active?: boolean;
   is_default: boolean;
 }
 

@@ -135,7 +135,7 @@ onMounted(() => {
       calendar.value = calendarResponses.flatMap(response => response.data.data.calendar);
       availablePlans.value = plans.available_plans;
 
-      const activeSubs = plans.subscriptions.filter(s => s.is_active);
+      const activeSubs = plans.subscriptions.filter(s => s.is_active && s.plan_is_active !== false);
       if (!activeSubs.length) return;
 
       // Primary plan for stats (first active, preferring default)

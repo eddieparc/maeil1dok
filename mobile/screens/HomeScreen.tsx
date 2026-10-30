@@ -152,7 +152,9 @@ interface PlanCardData {
   readonly subscriptionId: number;
   readonly planId: number;
   readonly planName: string;
-  readonly progress: number;
+  readonly progress: number | null;
+  readonly status: 'loading' | 'ready' | 'error';
+  readonly error: string | null;
   readonly passage: string;
   readonly description: string;
   readonly remainingDays: number | null;
@@ -190,6 +192,7 @@ export default function HomeScreen() {
   const submitting = useMemo(() => ({ subscribe: false, resend: false, active: true }),
     [status, stack, accessToken, apiFetch]);
   const generation = useRef(0);
+  const planRetries = useRef(new Map<number, () => Promise<void>>());
   const [retry, setRetry] = useState(0);
   const [unread, setUnread] = useState(0);
   const tabBarInset = useNativeTabBarInset();
@@ -205,6 +208,7 @@ export default function HomeScreen() {
     }
     setLoading(true);
     setError(null);
+    planRetries.current.clear();
     setData(previous => previous && {
       ...previous, streak: null, calendar: [], planCards: [], primaryPlanId: null,
     });
@@ -254,57 +258,86 @@ export default function HomeScreen() {
       );
       const primaryPlanId = pickEffectivePlanId(activeSubs);
       if (generation.current !== request) return;
-      const partial = { ...initial, streak, calendar, availablePlans, primaryPlanId };
-      setData(partial);
       const cardSubs = activeSubs.slice(0, 3);
-      const cardResults = await Promise.all(
-        cardSubs.map(async (sub) => {
-          const progRes = await apiFetch(`/api/v1/todos/stats/progress/?plan_id=${sub.plan_id}`);
-          const progressJson = await readHomeResponse(progRes);
-          if (!progressJson || typeof progressJson !== 'object' || !('user_progress' in progressJson)
-            || typeof progressJson.user_progress !== 'number') throw new Error('Invalid progress');
-          const progress = parseProgress(progressJson);
-          const finalDate = 'end_date' in progressJson && typeof progressJson.end_date === 'string'
-            ? progressJson.end_date : null;
-          const remaining = finalDate
-            ? Math.max(
-                0,
-                Math.ceil(
-                  (Date.parse(`${finalDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /
-                    86400000,
-                ),
-              )
-            : null;
-          const todayEntry = calendar.find(
-            (e) => e.plan_id === sub.plan_id && e.date === today,
-          );
-          const unit = todayEntry?.book === '시편' ? '편' : '장';
-          const passage = todayEntry
-            ? `${todayEntry.book} ${todayEntry.start_chapter === todayEntry.end_chapter ? todayEntry.start_chapter : `${todayEntry.start_chapter}-${todayEntry.end_chapter}`}${unit}`
-            : '';
-          const chapters = todayEntry
-            ? todayEntry.end_chapter - todayEntry.start_chapter + 1
-            : 0;
-          return {
-            subscriptionId: sub.id,
-            planId: sub.plan_id,
-            planName: sub.plan_name ?? '',
-            progress,
-            passage,
-            description: todayEntry
-              ? `총 ${chapters}${unit} · 오늘의 통독`
-              : '오늘 예정된 본문이 없어요',
-            remainingDays: remaining,
-            route: todayEntry ? assignmentUrl(todayEntry) : null,
-          } satisfies PlanCardData;
-        }),
-      );
-
-      if (generation.current !== request) return;
+      const primarySub = activeSubs.find(sub => sub.plan_id === primaryPlanId);
+      const fetchedSubs = primarySub && !cardSubs.includes(primarySub) ? [...cardSubs, primarySub] : cardSubs;
       setData({
-        ...partial,
-        planCards: cardResults,
+        ...initial, streak, calendar, availablePlans, primaryPlanId,
+        planCards: fetchedSubs.map(sub => ({
+          subscriptionId: sub.id, planId: sub.plan_id, planName: sub.plan_name ?? '',
+          status: 'loading', error: null, progress: null, passage: '',
+          description: '', remainingDays: null, route: null,
+        })),
       });
+      setLoading(false);
+      await Promise.all(fetchedSubs.map(sub => {
+        const loadCard = async () => {
+          if (generation.current !== request) return;
+          setData(previous => previous && ({
+            ...previous,
+            planCards: previous.planCards.map(card => card.planId === sub.plan_id
+              ? { ...card, status: 'loading', error: null } : card),
+          }));
+          try {
+            const progRes = await apiFetch(`/api/v1/todos/stats/progress/?plan_id=${sub.plan_id}`);
+            const progressJson = await readHomeResponse(progRes);
+            if (!progressJson || typeof progressJson !== 'object' || !('user_progress' in progressJson)
+              || typeof progressJson.user_progress !== 'number') throw new Error('Invalid progress');
+            const progress = parseProgress(progressJson);
+            const finalDate = 'end_date' in progressJson && typeof progressJson.end_date === 'string'
+              ? progressJson.end_date : null;
+            const remaining = finalDate
+              ? Math.max(
+                  0,
+                  Math.ceil(
+                    (Date.parse(`${finalDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /
+                      86400000,
+                  ),
+                )
+              : null;
+            const todayEntry = calendar.find(
+              (e) => e.plan_id === sub.plan_id && e.date === today,
+            );
+            const unit = todayEntry?.book === '시편' ? '편' : '장';
+            const passage = todayEntry
+              ? `${todayEntry.book} ${todayEntry.start_chapter === todayEntry.end_chapter ? todayEntry.start_chapter : `${todayEntry.start_chapter}-${todayEntry.end_chapter}`}${unit}`
+              : '';
+            const chapters = todayEntry
+              ? todayEntry.end_chapter - todayEntry.start_chapter + 1
+              : 0;
+            const card: PlanCardData = {
+              subscriptionId: sub.id,
+              planId: sub.plan_id,
+              planName: sub.plan_name ?? '',
+              status: 'ready',
+              error: null,
+              progress,
+              passage,
+              description: todayEntry
+                ? `총 ${chapters}${unit} · 오늘의 통독`
+                : '오늘 예정된 본문이 없어요',
+              remainingDays: remaining,
+              route: todayEntry ? assignmentUrl(todayEntry) : null,
+            };
+            if (generation.current !== request) return;
+            setData(previous => previous && ({
+              ...previous,
+              planCards: previous.planCards.map(existing => existing.planId === sub.plan_id ? card : existing),
+            }));
+          } catch (error) {
+            if (generation.current !== request) return;
+            setData(previous => previous && ({
+              ...previous,
+              planCards: previous.planCards.map(card => card.planId === sub.plan_id ? {
+                ...card, status: 'error', progress: null, remainingDays: null,
+                error: error instanceof Error ? error.message : '플랜을 불러오지 못했습니다.',
+              } : card),
+            }));
+          }
+        };
+        planRetries.current.set(sub.plan_id, loadCard);
+        return loadCard();
+      }));
     } catch (error) {
       if (generation.current === request) {
         setError(error instanceof Error ? error.message : '읽기 기록을 불러오지 못했습니다.');
@@ -549,18 +582,32 @@ export default function HomeScreen() {
             data.planCards.slice(0, 3).map((card) => (
               <View key={card.subscriptionId} style={styles.card}>
                 <View style={styles.cardRow}>
-                  <ProgressRing progress={card.progress} />
+                  {card.status === 'ready' && card.progress !== null
+                    ? <ProgressRing progress={card.progress} />
+                    : card.status === 'loading' ? <HomeSkeleton width={88} height={88} circle /> : null}
                   <View style={styles.cardCopy}>
                     <Text style={styles.cardLabel}>
                       {card.planName || '성경통독'} · 오늘 읽을 본문
                     </Text>
-                    <Text style={[styles.cardPassage, SERIF_STYLE]}>
+                    {card.status === 'ready' && <Text style={[styles.cardPassage, SERIF_STYLE]}>
                       {card.passage || '통독표를 확인해보세요'}
-                    </Text>
-                    <Text style={styles.cardDesc}>{card.description}</Text>
+                    </Text>}
+                    {card.status === 'ready' && <Text style={styles.cardDesc}>{card.description}</Text>}
                   </View>
                 </View>
-                <TouchableOpacity
+                {card.status === 'loading' ? (
+                  <View testID={`home-plan-loading-${card.planId}`} accessibilityState={{ busy: true }}>
+                    <HomeSkeleton width="100%" height={44} />
+                  </View>
+                ) : card.status === 'error' ? (
+                  <View testID={`home-plan-error-${card.planId}`} accessibilityRole="alert">
+                    <Text style={styles.errorText}>{card.error}</Text>
+                    <TouchableOpacity testID={`home-plan-retry-${card.planId}`} accessibilityRole="button"
+                      style={styles.secondaryButton} onPress={() => { void planRetries.current.get(card.planId)?.(); }}>
+                      <Text style={styles.secondaryButtonText}>다시 시도</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : <TouchableOpacity
                   testID={`home-read-${card.planId}`}
                   accessibilityRole="button"
                   style={styles.primaryButton}
@@ -576,7 +623,7 @@ export default function HomeScreen() {
                   <Text style={styles.primaryButtonText}>
                     {card.route ? '오늘 본문 읽기' : '통독표 보기'}
                   </Text>
-                </TouchableOpacity>
+                </TouchableOpacity>}
               </View>
             ))
           ) : (

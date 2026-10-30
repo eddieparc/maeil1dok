@@ -12,7 +12,7 @@ const rows = [
   { schedule_id: '102', book: 'exo', start_chapter: 3, end_chapter: 4, date: '2026-09-22', is_complete: false },
 ];
 const token = (id, nonce = 1) => `header.${Buffer.from(JSON.stringify({ user_id: id, nonce })).toString('base64url')}.signature`;
-function mount({ url, storage = Promise.resolve(null), update = null, detail = null, subscriptions = null, status = 'signedIn', autoComplete = false, schedules = [], homeStats = null, nextPosition = { status: 'all_completed' } } = {}) {
+function mount({ url, storage = Promise.resolve(null), update = null, detail = null, subscriptions = null, status = 'signedIn', autoComplete = false, schedules = [], homeStats = null, nextPosition = { status: 'all_completed' }, planApi = null } = {}) {
   const slots = [], effects = [], listeners = new Set(), cache = new Map(), calls = [], scrolls = [], navigation = [];
   let cursor = 0, dirty = false, disposed = false, tree, readingContext;
   const route = { params: { url } };
@@ -51,6 +51,9 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
   };
   const apiFetch = async (url, init) => {
     calls.push({ url, init });
+    if (planApi && /\/todos\/(?:detail\/|plan\/|schedules\/|next-position\/)/.test(url)) {
+      return planApi(url);
+    }
     if (url.includes('reading/update')) return update ? update(url, init) : ok({
       success: true, plan_id: 4, schedule_ids: [101, 102], is_completed: JSON.parse(init.body).action === 'complete',
     });
@@ -159,6 +162,30 @@ function mount({ url, storage = Promise.resolve(null), update = null, detail = n
   };
 }
 const route = '/bible?book=gen&chapter=1&version=KNT&plan=4&schedule=101&date=2026-09-22&tongdok=true';
+if (process.env.PLAN_FLOW_FIXTURE_PATH) {
+  test('Django schedule detail reaches the actual tongdok Reader and its next chapter', { timeout: 5000 }, async t => {
+    const fixture = require('./helpers/planFlowFixture.cjs').planFlowFixture();
+    const row = fixture.responses[
+      `/api/v1/todos/schedules/month/?plan_id=${fixture.ids.activePlan}&month=9&year=2026`
+    ].body[0];
+    const query = new URLSearchParams({
+      book: 'gen', chapter: '1', version: 'KNT', tongdok: 'true',
+      plan: String(fixture.ids.activePlan), schedule: String(row.id), date: row.date,
+    });
+    const h = mount({ url: `/bible?${query}`, planApi: fixture.fetch });
+    t.after(h.dispose);
+    await h.wait(() => h.context()?.detail && !h.context().loading);
+    assert.equal(h.context().context.planId, fixture.ids.activePlan);
+    assert.equal(h.context().detail.rows[0].id, row.id);
+    assert.equal(h.context().error, null);
+    h.nodes().find(n => n.props.accessibilityLabel === '다음 장').props.onPress();
+    await h.wait(() => h.context()?.location.chapter === 2 && !h.context().loading);
+    assert.equal(h.context().error, null);
+    assert.equal(h.context().context.planId, fixture.ids.activePlan);
+    assert.ok(h.nodes().some(n => n.props.testID === 'reader-tongdok-complete'));
+    assert.equal(h.calls.some(c => c.url.includes('/reading/update/') && c.init?.method === 'POST'), false);
+  });
+}
 test('guest Bible home does not request protected account reading data', { timeout: 2500 }, async t => {
   const h = mount({ status: 'signedOut' });
   t.after(h.dispose);

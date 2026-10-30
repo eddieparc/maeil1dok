@@ -46,6 +46,13 @@ const MARKER_PATH = '/_build-marker.json'
 const PLATFORMS = new Set(['ios', 'android'])
 const MOBILE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
+export function verifyReleaseChecks(run = execFileSync) {
+  run('npm', ['run', 'typecheck'], { cwd: MOBILE_ROOT, stdio: 'inherit' })
+  run('npm', ['test'], { cwd: MOBILE_ROOT, stdio: 'inherit' })
+  run('python3', [resolve(MOBILE_ROOT, '../scripts/check_live_plans.py'),
+    process.env.API_ORIGIN || 'https://api.maeil1dok.app'], { cwd: MOBILE_ROOT, stdio: 'inherit' })
+}
+
 /** Thin HTTP layer; the decision above is what carries the coverage. */
 async function fetchServedUpdateId({ projectId, platform, runtimeVersion, channel }) {
   try {
@@ -180,7 +187,7 @@ async function main() {
   }
 
   const command = [
-    'eas',
+    'eas-cli',
     'update',
     '--channel',
     args.channel,
@@ -215,6 +222,8 @@ async function main() {
     process.stdout.write(`check-only: would run npx ${command.join(' ')}\n`)
     return
   }
+
+  verifyReleaseChecks()
 
   const query = {
     projectId: target.projectId,

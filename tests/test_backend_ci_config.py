@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -10,11 +12,68 @@ class BackendCiConfigTest(unittest.TestCase):
         self.workflow = (repo_root / ".github" / "workflows" / "ci.yml").read_text(
             encoding="utf-8",
         )
+        parsed = subprocess.check_output(
+            [
+                "ruby",
+                "-e",
+                "require 'yaml'; require 'json'; puts JSON.generate(YAML.load_file(ARGV.fetch(0), aliases: true))",
+                str(repo_root / ".github" / "workflows" / "ci.yml"),
+            ],
+            text=True,
+        )
+        self.config = json.loads(parsed)
 
     def test_backend_ci_job_is_defined(self) -> None:
         self.assertIn("backend-ci:", self.workflow)
         self.assertIn("needs.changes.outputs.backend == 'true'", self.workflow)
         self.assertIn("working-directory: backend", self.workflow)
+
+    def test_plan_flow_gate_runs_on_all_active_event_types(self) -> None:
+        job = self.config["jobs"]["plan-flow-ci"]
+        self.assertEqual(job["needs"], "changes")
+        self.assertIn("workflow_dispatch", job["if"])
+        self.assertIn("github.event_name == 'push'", job["if"])
+        self.assertIn("pull_request.draft == false", job["if"])
+
+    def test_plan_flow_gate_exports_shared_fixture_and_runs_both_stacks(self) -> None:
+        job = self.config["jobs"]["plan-flow-ci"]
+        steps = job["steps"]
+        backend = next(
+            step for step in steps if step.get("name") == "Export real plan API fixture"
+        )
+        mobile = next(
+            step
+            for step in steps
+            if step.get("name") == "Mobile plan flow tests against real API fixture"
+        )
+        self.assertEqual(backend["run"], "python manage.py test tests.test_plan_read_contract")
+        self.assertEqual(backend["working-directory"], "backend")
+        self.assertEqual(
+            backend["env"]["PLAN_FLOW_FIXTURE_PATH"],
+            "${{ runner.temp }}/plan-flow.json",
+        )
+        self.assertEqual(
+            mobile["run"],
+            "node --test test/homeScreen.test.cjs test/scheduleScreen.test.cjs test/readerTongdokScreen.test.cjs",
+        )
+        self.assertEqual(
+            mobile["env"]["PLAN_FLOW_FIXTURE_PATH"],
+            "${{ runner.temp }}/plan-flow.json",
+        )
+
+    def test_deploy_requires_plan_flow_gate_success(self) -> None:
+        self.assertIn("plan-flow-ci", self.config["jobs"]["deploy-oci"]["needs"])
+        self.assertIn(
+            "needs.plan-flow-ci.result == 'success'",
+            self.config["jobs"]["deploy-oci"]["if"],
+        )
+
+    def test_workflow_expressions_are_validated_before_deployment(self) -> None:
+        steps = self.config["jobs"]["deployment-config-ci"]["steps"]
+        validator = next(step for step in steps
+                         if step.get("name") == "Validate workflow expressions")
+        self.assertIn("rhysd/actionlint:1.7.7", validator["run"])
+        self.assertIn(".github/workflows/ci.yml", validator["run"])
 
     def test_backend_test_command_includes_bible_cache(self) -> None:
         self.assertIn(

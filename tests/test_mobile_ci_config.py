@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import json
 import unittest
 from pathlib import Path
@@ -11,6 +12,16 @@ class MobileCiConfigTest(unittest.TestCase):
         self.workflow = (repo_root / ".github" / "workflows" / "ci.yml").read_text(
             encoding="utf-8",
         )
+        parsed = subprocess.check_output(
+            [
+                "ruby",
+                "-e",
+                "require 'yaml'; require 'json'; puts JSON.generate(YAML.load_file(ARGV.fetch(0), aliases: true))",
+                str(repo_root / ".github" / "workflows" / "ci.yml"),
+            ],
+            text=True,
+        )
+        self.config = json.loads(parsed)
 
     def test_mobile_ci_job_is_defined(self) -> None:
         self.assertIn("mobile-ci:", self.workflow)
@@ -46,6 +57,19 @@ class MobileCiConfigTest(unittest.TestCase):
 
     def test_deployment_lane_runs_mobile_contract_test(self) -> None:
         self.assertIn("tests.test_mobile_ci_config", self.workflow)
+
+    def test_plan_flow_gate_runs_mobile_regressions_with_backend_fixture(self) -> None:
+        job = self.config["jobs"]["plan-flow-ci"]
+        step = next(
+            item for item in job["steps"]
+            if item.get("name") == "Mobile plan flow tests against real API fixture"
+        )
+        self.assertEqual(step["working-directory"], "mobile")
+        self.assertEqual(
+            step["run"],
+            "node --test test/homeScreen.test.cjs test/scheduleScreen.test.cjs test/readerTongdokScreen.test.cjs",
+        )
+        self.assertEqual(step["env"]["PLAN_FLOW_FIXTURE_PATH"], "${{ runner.temp }}/plan-flow.json")
 
 
 if __name__ == "__main__":

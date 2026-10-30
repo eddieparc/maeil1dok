@@ -193,14 +193,15 @@ class PlanSubscriptionSerializer(serializers.ModelSerializer):
     plan_id = serializers.IntegerField(source='plan.id', read_only=True)
     plan_name = serializers.CharField(source='plan.name', read_only=True)
     is_default = serializers.BooleanField(source='plan.is_default', read_only=True)
+    plan_is_active = serializers.BooleanField(source='plan.is_active', read_only=True)
     
     class Meta:
         model = PlanSubscription
         fields = [
             'id', 'plan_id', 'plan_name', 
-            'is_active', 'is_default', 'start_date'
+            'is_active', 'plan_is_active', 'is_default', 'start_date'
         ]
-        read_only_fields = ['id', 'plan_id', 'plan_name', 'is_default', 'start_date']
+        read_only_fields = ['id', 'plan_id', 'plan_name', 'plan_is_active', 'is_default', 'start_date']
 
 
 class PlanSubscriptionUpdateSerializer(serializers.ModelSerializer):

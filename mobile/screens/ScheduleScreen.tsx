@@ -160,7 +160,8 @@ export default function ScheduleScreen({ onRead: onReadSelection, onClose, initi
       const current = initial ? null : liveContext.current.plan;
       const selected = subs.find(sub => sub.plan_id === urlPlan)
         ?? subs.find(sub => sub.plan_id === current)
-        ?? (status === 'signedIn' ? subs.find(sub => sub.plan_id === remembered) : pickDefaultPlan(subs));
+        ?? (status === 'signedIn' ? subs.find(sub => sub.plan_id === remembered) : undefined)
+        ?? pickDefaultPlan(subs);
       plansIdentity.current = identity;
       handledUrl.current = route.params?.url;
       setSubscriptions(subs);

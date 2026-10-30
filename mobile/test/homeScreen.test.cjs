@@ -135,6 +135,69 @@ const ok = json => ({ ok: true, status: 200, json: async () => json });
 const failure = status => ({ ok: false, status, json: async () => ({ success: false }) });
 const today = () => '2026-09-24';
 const has = id => nodes => nodes.some(n => n.props.testID === id);
+test('inactive parent plan cannot block the readable Home dashboard', { timeout: 2000 }, async t => {
+  const calls = [];
+  const base = fixtures({ subscriptions: [
+    { id: 1, plan_id: 8, is_active: true, plan_is_active: false },
+    { id: 2, plan_id: 3, is_active: true, is_default: true, plan_is_active: true },
+  ] });
+  const h = mount(p => {
+    calls.push(p);
+    return p.includes('plan_id=8') ? Promise.resolve(failure(404)) : base(p);
+  });
+  t.after(h.dispose);
+  await h.settle();
+  assert.ok(h.get('home-read-3'));
+  assert.equal(h.get('home-error'), undefined);
+  assert.equal(calls.some(p => p.includes('plan_id=8')), false);
+});
+
+test('one failed or pending plan keeps other cards and calendar usable', { timeout: 2000 }, async t => {
+  const slow = deferred();
+  const base = fixtures({ subscriptions: [
+    { id: 1, plan_id: 3, is_active: true, is_default: true },
+    { id: 2, plan_id: 4, is_active: true },
+    { id: 3, plan_id: 5, is_active: true },
+  ] });
+  let fail = true;
+  const h = mount(p => p.includes('plan_id=4') && fail ? Promise.resolve(failure(500))
+    : p.includes('plan_id=5') ? slow.promise : base(p));
+  t.after(() => { slow.resolve(ok({ success: true, user_progress: 12 })); h.dispose(); });
+  // Subscribe to the real screen state before releasing the outstanding response.
+  await h.wait(has('home-plan-error-4'));
+  assert.ok(h.get('home-read-3'));
+  assert.ok(h.get('home-plan-loading-5'));
+  assert.equal(h.get('home-error'), undefined);
+  assert.equal(h.get('home-stats').props.accessibilityValue.text, '0/7');
+  fail = false;
+  const recovered = h.wait(has('home-read-4'));
+  h.get('home-plan-retry-4').props.onPress();
+  await recovered;
+  assert.ok(h.get('home-read-3'));
+  assert.equal(h.get('home-plan-error-4'), undefined);
+});
+
+if (process.env.PLAN_FLOW_FIXTURE_PATH) {
+  test('Django mixed-plan responses render the actual Home without unavailable plans', { timeout: 5000 }, async t => {
+    const fixture = require('./helpers/planFlowFixture.cjs').planFlowFixture();
+    const h = mount(fixture.fetch);
+    t.after(h.dispose);
+    await h.settle();
+    assert.ok(h.get(`home-read-${fixture.ids.activePlan}`));
+    assert.ok(h.get(`home-read-${fixture.ids.secondaryPlan}`));
+    assert.equal(h.get(`home-read-${fixture.ids.inactivePlan}`), undefined);
+    assert.equal(h.get('home-error'), undefined);
+    assert.equal(h.all().some(n => n.props.testID?.startsWith('home-plan-error-')), false);
+    const progressCalls = fixture.calls.filter(path => path.includes('/stats/progress/'));
+    assert.deepEqual(progressCalls.map(path => Number(new URL(path, 'https://test').searchParams.get('plan_id'))).sort(),
+      [fixture.ids.activePlan, fixture.ids.secondaryPlan].sort());
+    h.get(`home-read-${fixture.ids.activePlan}`).props.onPress();
+    assert.equal(h.navigations.at(-1)[1].screen, 'Bible');
+    assert.equal(new URL(h.navigations.at(-1)[1].params.url, 'https://test').searchParams.get('plan'),
+      String(fixture.ids.activePlan));
+  });
+}
+
 function fixtures({ subscriptions = [], calendar = [] } = {}) {
   return async p => {
     if (p === '/api/v1/auth/user/') return ok({ id: 7, nickname: '독자', email: 'r@example.test', has_usable_password_flag: true });
@@ -192,8 +255,9 @@ test('progress failure preserves known profile with unavailable plan statistics 
   let fail = true;
   const h = mount(p => fail && p.includes('/stats/progress/') ? Promise.resolve(failure(500)) : base(p));
   t.after(() => h.dispose());
-  await h.wait(has('home-error'));
-  assert.equal(h.get('home-stats').props.accessibilityValue.text, '-/7');
+  await h.wait(has('home-plan-error-3'));
+  assert.equal(h.get('home-error'), undefined);
+  assert.equal(h.get('home-stats').props.accessibilityValue.text, '0/7');
   assert.equal(h.get('home-stat-flame-outline').props.accessibilityValue.text, '3일');
   assert.equal(h.get('home-stat-book-outline').props.accessibilityValue.text, '-일');
   assert.equal(h.all().filter(n => n.props.testID?.startsWith('home-day-')).length, 7);
@@ -201,7 +265,7 @@ test('progress failure preserves known profile with unavailable plan statistics 
   assert.equal(h.get('home-read-3'), undefined);
   fail = false;
   const ready = h.wait(has('home-read-3'));
-  h.get('home-retry').props.onPress();
+  h.get('home-plan-retry-3').props.onPress();
   await ready;
   assert.equal(h.get('home-error'), undefined);
   assert.equal(h.get('home-stat-book-outline').props.accessibilityValue.text, '0일');

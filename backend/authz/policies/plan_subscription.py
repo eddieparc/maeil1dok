@@ -56,7 +56,8 @@ def _view_subscriptions(subject, resource):
     subscriptions = PlanSubscription.objects.filter(
         user_id=subject.user_id,
         is_active=True,
-    ).distinct()
+        plan__is_active=True,
+    ).select_related("plan").distinct()
     return Decision.allow(
         PlanSubscriptionCollectionResult(
             items=subscriptions,

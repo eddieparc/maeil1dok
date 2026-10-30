@@ -305,7 +305,8 @@ export function parseHomePlans(json: unknown) {
       throw new Error('Invalid subscription');
     }
     return { id: raw.id, plan_id: raw.plan_id, plan_name: asString(raw.plan_name) ?? '',
-      is_default: raw.is_default === true, is_active: raw.is_active === true };
+      is_default: raw.is_default === true,
+      is_active: raw.is_active === true && raw.plan_is_active !== false };
   });
   const availablePlans = json.available_plans.map(raw => {
     if (!isRecord(raw) || typeof raw.id !== 'number' || typeof raw.name !== 'string') {
