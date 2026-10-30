@@ -43,17 +43,21 @@ maeil1dok 은 `maeil1dok_default` 네트워크만 사용하고, 외부 노출은
    수동 실행마다 실제 MySQL 8/Redis API fixture를 만들고 모바일 홈·통독표·리더 테스트에 전달)
 2. `deploy-oci` — backend/frontend 변경 + 게이트 전부 그린일 때:
    rsync(`.env*` 제외) → `compose build web celery-worker celery-beat frontend` → `up -d` → **터널 경유 라이브 스모크**
+   (`/health/` + `/ready/` + 프론트 200 확인 후 공개 플랜마다 진행률·월 일정·상세·오늘·
+   다음 위치 읽기 API를 읽기 전용으로 확인, 실패 시 잡 실패)
+3. 수동 배포: Actions 탭 → CI → **Run workflow** — `workflow_dispatch`도 품질 게이트와
+   `plan-flow-ci`를 먼저 통과해야 `deploy-oci`를 실행한다.
 
 OTA는 `mobile/scripts/publish-ota.mjs`의 실제 게시 경로에서 타입 검사·모바일
 전체 테스트·운영 플랜 읽기 스모크를 먼저 실행한다. 하나라도 실패하면 게시하지
 않는다. `--check-only`는 배포 마커·런타임 사전 점검이며 게시 완료 증거가 아니다.
-   (`/health/` + `/ready/` + 프론트 200 확인 후 공개 플랜마다 진행률·월 일정·상세·오늘·
-   다음 위치 읽기 API를 읽기 전용으로 확인, 실패 시 잡 실패)
-3. 수동 배포: Actions 탭 → CI → **Run workflow** (`workflow_dispatch` → 곧장 deploy-oci)
 
 리포지토리 시크릿: `OCI_HOST` / `OCI_SSH_USER` / `OCI_SSH_KEY` (배포 전용 SSH 키)
 
 ### 수동 배포 (VM 직접)
+
+정식 수동 배포는 위 Actions 경로를 사용한다. 아래 명령은 VM 장애 대응용이며
+CI 품질 게이트를 대신하지 않는다.
 
 ```bash
 ssh -i ~/.ssh/oci_a1_deploy ubuntu@168.107.46.120
@@ -62,6 +66,7 @@ cd /opt/maeil1dok
 ./scripts/oci_compose.sh up -d
 curl -fsS https://api.maeil1dok.app/health/
 curl -fsS https://api.maeil1dok.app/ready/
+python3 scripts/check_live_plans.py https://api.maeil1dok.app
 ```
 
 ### 롤백
